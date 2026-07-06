@@ -294,14 +294,14 @@ export default function AdminSettingsPage() {
                         if (!file) return;
 
                         const formData = new FormData();
-                        formData.append("photo", file);
+                        formData.append("logo", file);
 
                         try {
-                          const res = await fetch("/api/upload-direct", {
+                          const res = await fetch("/api/admin/upload-logo", {
                             method: "POST",
                             body: formData,
                           });
-                          if (!res.ok) throw new Error("Gagal mengunggah gambar");
+                          if (!res.ok) throw new Error("Gagal mengunggah logo");
                           const data = await res.json();
                           setLogoUrl(data.url);
                           toast({

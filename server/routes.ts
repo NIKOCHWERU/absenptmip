@@ -140,6 +140,14 @@ export function registerRoutes(app: Express) {
     res.json({ url, filename: req.file.filename });
   });
 
+  // Dedicated local-only upload endpoint for Company Logo (bypasses Google Drive)
+  app.post("/api/admin/upload-logo", isAuthenticated, isSuperAdmin, upload.single("logo"), (req: Request, res: Response) => {
+    if (!req.file) {
+      return res.status(400).json({ message: "Tidak ada file logo yang diunggah" });
+    }
+    res.json({ url: `/api/images/${req.file.filename}`, filename: req.file.filename });
+  });
+
   // Google Drive proxy thumbnail endpoint
   app.get("/api/gdrive-img/:id", (req: Request, res: Response) => {
     const fileId = req.params.id;
