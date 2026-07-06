@@ -141,3 +141,8 @@ export function isAdmin(req: Request, res: Response, next: NextFunction) {
   if (req.isAuthenticated() && (req.user as any).role !== "employee") return next();
   res.status(403).json({ message: "Akses ditolak: Khusus Admin" });
 }
+
+export function isSuperAdmin(req: Request, res: Response, next: NextFunction) {
+  if (req.isAuthenticated() && (req.user as any).role === "superadmin") return next();
+  res.status(403).json({ message: "Akses ditolak: Khusus Superadmin" });
+}

@@ -545,28 +545,28 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 ],
             }
         ] : []),
-        {
-            title: "Pengaturan Sistem",
-            items: [
-                {
-                    title: "Pengaturan Fitur",
-                    url: "/admin/settings",
-                    icon: Settings,
-                },
-                {
-                    title: "Backup & Restore",
-                    url: "/admin/backup",
-                    icon: Database,
-                },
-                ...(user?.role === 'superadmin' ? [
+        ...(user?.role === 'superadmin' ? [
+            {
+                title: "Pengaturan Sistem",
+                items: [
+                    {
+                        title: "Pengaturan Fitur",
+                        url: "/admin/settings",
+                        icon: Settings,
+                    },
+                    {
+                        title: "Backup & Restore",
+                        url: "/admin/backup",
+                        icon: Database,
+                    },
                     {
                         title: "Riwayat Aktivitas",
                         url: "/admin/activity-logs",
                         icon: History,
-                    }
-                ] : []),
-            ]
-        }
+                    },
+                ]
+            }
+        ] : [])
     ];
 
     return (

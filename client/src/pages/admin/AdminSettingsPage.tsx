@@ -114,6 +114,7 @@ export default function AdminSettingsPage() {
   const [namaPt, setNamaPt] = useState("");
   const [singkatanPt, setSingkatanPt] = useState("");
   const [deskripsiPwa, setDeskripsiPwa] = useState("");
+  const [logoUrl, setLogoUrl] = useState("");
   const [rekapPrefix, setRekapPrefix] = useState("");
   const [hexPrimary, setHexPrimary] = useState("#f97316");
   const [hexSecondary, setHexSecondary] = useState("#ea580c");
@@ -137,6 +138,7 @@ export default function AdminSettingsPage() {
       setNamaPt(config.namaPt || "");
       setSingkatanPt(config.singkatanPt || "");
       setDeskripsiPwa(config.deskripsiPwa || "");
+      setLogoUrl(config.logoUrl || "");
       setRekapPrefix(config.rekapPrefix || "");
       setHexPrimary(hslToHex(config.themePrimary || "24 95% 53%"));
       setHexSecondary(hslToHex(config.themeSecondary || "24 95% 43%"));
@@ -195,6 +197,7 @@ export default function AdminSettingsPage() {
       namaPt,
       singkatanPt,
       deskripsiPwa,
+      logoUrl,
       rekapPrefix,
       themePrimary: derived.themePrimary,
       themeSecondary: derived.themeSecondary,
@@ -268,6 +271,60 @@ export default function AdminSettingsPage() {
                   onChange={(e) => setDeskripsiPwa(e.target.value)}
                   placeholder="Deskripsi PWA..."
                 />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Logo Perusahaan</Label>
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-lg bg-gray-100 flex items-center justify-center text-gray-400 font-bold border border-gray-200 overflow-hidden shrink-0">
+                    {logoUrl ? (
+                      <img src={logoUrl} alt="Logo" className="w-full h-full object-contain" />
+                    ) : (
+                      "Logo"
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <Input
+                      type="file"
+                      accept="image/*"
+                      className="rounded-xl border-gray-200 text-xs hidden"
+                      id="logo-upload-input"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+
+                        const formData = new FormData();
+                        formData.append("photo", file);
+
+                        try {
+                          const res = await fetch("/api/upload-direct", {
+                            method: "POST",
+                            body: formData,
+                          });
+                          if (!res.ok) throw new Error("Gagal mengunggah gambar");
+                          const data = await res.json();
+                          setLogoUrl(data.url);
+                          toast({
+                            title: "Logo Diunggah",
+                            description: "Logo berhasil diunggah secara sementara. Klik Simpan untuk menerapkannya secara permanen.",
+                          });
+                        } catch (err: any) {
+                          toast({
+                            title: "Gagal Mengunggah",
+                            description: err.message,
+                            variant: "destructive",
+                          });
+                        }
+                      }}
+                    />
+                    <Label
+                      htmlFor="logo-upload-input"
+                      className="inline-flex items-center justify-center px-4 py-2 border border-gray-200 hover:border-primary/50 text-xs font-semibold rounded-xl cursor-pointer hover:bg-gray-50 transition-colors"
+                    >
+                      Pilih Logo
+                    </Label>
+                  </div>
+                </div>
               </div>
 
               <div className="space-y-1.5">

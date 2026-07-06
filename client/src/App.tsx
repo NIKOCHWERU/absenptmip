@@ -226,10 +226,10 @@ export default function App() {
               {() => <AdminLayout><ProtectedRoute component={AdminProfilePage} roles={["admin", "superadmin"]} /></AdminLayout>}
             </Route>
             <Route path="/admin/settings">
-              {() => <AdminLayout><ProtectedRoute component={AdminSettingsPage} roles={["admin", "superadmin"]} /></AdminLayout>}
+              {() => <AdminLayout><ProtectedRoute component={AdminSettingsPage} roles={["superadmin"]} /></AdminLayout>}
             </Route>
             <Route path="/admin/backup">
-              {() => <AdminLayout><ProtectedRoute component={BackupPage} roles={["admin", "superadmin"]} /></AdminLayout>}
+              {() => <AdminLayout><ProtectedRoute component={BackupPage} roles={["superadmin"]} /></AdminLayout>}
             </Route>
             <Route path="/admin/info-board">
               {() => <AdminLayout><ProtectedRoute component={InfoBoardPage} roles={["admin", "superadmin"]} /></AdminLayout>}

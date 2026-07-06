@@ -6,7 +6,7 @@ import { exec } from "child_process";
 import { db, pool } from "./db.js";
 import { users, shifts, attendance, leaveRequests, complaints, complaintPhotos, resignations, mutations, warningLetters, systemConfigs, activityLogs, announcements } from "../shared/schema.js";
 import { eq, and, gte, lte, desc } from "drizzle-orm";
-import { isAuthenticated, isAdmin, hashPassword } from "./auth.js";
+import { isAuthenticated, isAdmin, isSuperAdmin, hashPassword } from "./auth.js";
 
 // Setup storage folder
 const uploadDir = path.resolve(process.cwd(), "uploads");
@@ -241,7 +241,7 @@ export function registerRoutes(app: Express) {
   });
 
   // Admin endpoint to save configuration
-  app.post("/api/admin/config", isAuthenticated, isAdmin, async (req: Request, res: Response) => {
+  app.post("/api/admin/config", isAuthenticated, isSuperAdmin, async (req: Request, res: Response) => {
     try {
       const {
         namaPt, singkatanPt, deskripsiPwa, logoUrl, logoInisial, rekapPrefix,
@@ -1447,7 +1447,7 @@ export function registerRoutes(app: Express) {
   });
 
   // Database Backup Listing
-  app.get("/api/admin/backups", isAuthenticated, isAdmin, (req: Request, res: Response) => {
+  app.get("/api/admin/backups", isAuthenticated, isSuperAdmin, (req: Request, res: Response) => {
     const backupDir = path.resolve(process.cwd(), "backups");
     if (!fs.existsSync(backupDir)) {
       fs.mkdirSync(backupDir, { recursive: true });
@@ -1474,7 +1474,7 @@ export function registerRoutes(app: Express) {
   });
 
   // Database Manual Backup Creation
-  app.post("/api/admin/backup", isAuthenticated, isAdmin, async (req: Request, res: Response) => {
+  app.post("/api/admin/backup", isAuthenticated, isSuperAdmin, async (req: Request, res: Response) => {
     const dbUrl = process.env.DATABASE_URL;
     if (!dbUrl) {
       return res.status(500).json({ success: false, message: "DATABASE_URL tidak dikonfigurasi" });
@@ -1515,7 +1515,7 @@ export function registerRoutes(app: Express) {
   });
 
   // Download SQL Backup File
-  app.get("/api/admin/backups/download/:fileName", isAuthenticated, isAdmin, (req: Request, res: Response) => {
+  app.get("/api/admin/backups/download/:fileName", isAuthenticated, isSuperAdmin, (req: Request, res: Response) => {
     const backupDir = path.resolve(process.cwd(), "backups");
     const filePath = path.join(backupDir, req.params.fileName);
 
@@ -1531,7 +1531,7 @@ export function registerRoutes(app: Express) {
   });
 
   // Import SQL Database file
-  app.post("/api/admin/backups/import", isAuthenticated, isAdmin, sqlUpload.single("file"), async (req: Request, res: Response) => {
+  app.post("/api/admin/backups/import", isAuthenticated, isSuperAdmin, sqlUpload.single("file"), async (req: Request, res: Response) => {
     if (!req.file) {
       return res.status(400).json({ message: "File SQL wajib diunggah" });
     }
