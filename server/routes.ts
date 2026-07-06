@@ -18,35 +18,49 @@ if (!fs.existsSync(cacheDir)) {
   fs.mkdirSync(cacheDir, { recursive: true });
 }
 
-import { uploadFile, isDriveConfigured } from "./services/googleDrive.js";
+import { uploadFile, isDriveConfigured, buildDriveFilename, DriveFolder } from "./services/googleDrive.js";
 
 async function processSingleUpload(
   file: Express.Multer.File | undefined,
   actionType: 'clockIn' | 'breakStart' | 'breakEnd' | 'clockOut' | 'lateReason' | 'complaint' | 'document' | 'profile',
-  username: string
-) {
+  fullName: string,
+  docLabel?: string // e.g. 'KTP', 'NPWP', 'BPJS', 'Profil'
+): Promise<string | null> {
   if (!file) return null;
+
+  // Determine target subfolder
+  const folderMap: Record<string, DriveFolder> = {
+    clockIn: 'Absensi',
+    breakStart: 'Absensi',
+    breakEnd: 'Absensi',
+    clockOut: 'Absensi',
+    lateReason: 'Absensi',
+    complaint: 'Pengaduan',
+    document: 'Dokumen',
+    profile: 'Dokumen',
+  };
+  const driveFolder: DriveFolder = folderMap[actionType] || 'Dokumen';
+
+  // Local fallback path always saved
+  const localPath = `/api/images/${file.filename}`;
+
   if (isDriveConfigured) {
     try {
       const fileBuffer = fs.readFileSync(file.path);
-      const cleanName = username.replace(/[^a-zA-Z0-9]/g, "");
-      const ext = path.extname(file.originalname) || ".jpg";
-      const gdriveFilename = `${actionType.toUpperCase()}_${cleanName}_${Date.now()}${ext}`;
-      
-      const result = await uploadFile(fileBuffer, gdriveFilename, file.mimetype);
-      try {
-        fs.unlinkSync(file.path);
-      } catch (err) {
-        // ignore
-      }
-      return `/api/gdrive-img/${result.fileId}`;
+      const filename = buildDriveFilename(fullName, actionType, docLabel);
+      const result = await uploadFile(fileBuffer, filename, file.mimetype, driveFolder);
+      // Clean up local temp file after successful Drive upload
+      try { fs.unlinkSync(file.path); } catch (_) { /* ignore */ }
+      // Return only the Drive file ID (raw) — client will resolve it
+      return result.fileId;
     } catch (err: any) {
       console.error("GDrive upload failed, using local storage:", err.message);
-      return `/api/images/${file.filename}`;
+      return localPath;
     }
   }
-  return `/api/images/${file.filename}`;
+  return localPath;
 }
+
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -396,10 +410,10 @@ export function registerRoutes(app: Express) {
           registrationStatus: "pending", // Directly to pending because they complete it upfront
         };
 
-        insertData.ktpPhotoUrl = files?.ktpPhoto?.[0] ? await processSingleUpload(files.ktpPhoto[0], "document", username) : null;
-        insertData.bpjsPhotoUrl = files?.bpjsPhoto?.[0] ? await processSingleUpload(files.bpjsPhoto[0], "document", username) : null;
-        insertData.npwpPhotoUrl = files?.npwpPhoto?.[0] ? await processSingleUpload(files.npwpPhoto[0], "document", username) : null;
-        insertData.photoUrl = files?.photo?.[0] ? await processSingleUpload(files.photo[0], "profile", username) : null;
+        insertData.ktpPhotoUrl = files?.ktpPhoto?.[0] ? await processSingleUpload(files.ktpPhoto[0], "document", fullName, "KTP") : null;
+        insertData.bpjsPhotoUrl = files?.bpjsPhoto?.[0] ? await processSingleUpload(files.bpjsPhoto[0], "document", fullName, "BPJS") : null;
+        insertData.npwpPhotoUrl = files?.npwpPhoto?.[0] ? await processSingleUpload(files.npwpPhoto[0], "document", fullName, "NPWP") : null;
+        insertData.photoUrl = files?.photo?.[0] ? await processSingleUpload(files.photo[0], "profile", fullName, "Profil") : null;
 
         await (db.insert(users) as any).values(insertData);
 
@@ -475,18 +489,20 @@ export function registerRoutes(app: Express) {
         if (employmentStatus) updates.employmentStatus = employmentStatus;
         if (joinDate) updates.joinDate = joinDate;
 
+        const uploadName = fullName || (req.user as any).fullName || (req.user as any).username;
+
         // Upload documents
         if (files?.ktpPhoto?.[0]) {
-          updates.ktpPhotoUrl = await processSingleUpload(files.ktpPhoto[0], "document", username);
+          updates.ktpPhotoUrl = await processSingleUpload(files.ktpPhoto[0], "document", uploadName, "KTP");
         }
         if (files?.profilePhoto?.[0]) {
-          updates.photoUrl = await processSingleUpload(files.profilePhoto[0], "profile", username);
+          updates.photoUrl = await processSingleUpload(files.profilePhoto[0], "profile", uploadName, "Profil");
         }
         if (files?.bpjsPhoto?.[0]) {
-          updates.bpjsPhotoUrl = await processSingleUpload(files.bpjsPhoto[0], "document", username);
+          updates.bpjsPhotoUrl = await processSingleUpload(files.bpjsPhoto[0], "document", uploadName, "BPJS");
         }
         if (files?.npwpPhoto?.[0]) {
-          updates.npwpPhotoUrl = await processSingleUpload(files.npwpPhoto[0], "document", username);
+          updates.npwpPhotoUrl = await processSingleUpload(files.npwpPhoto[0], "document", uploadName, "NPWP");
         }
 
         await db.update(users).set(updates).where(eq(users.id, userId));
@@ -697,9 +713,9 @@ export function registerRoutes(app: Express) {
           }
         }
 
-        const username = (req.user as any).username;
-        const checkInPhoto = files?.photo?.[0] ? await processSingleUpload(files.photo[0], "clockIn", username) : null;
-        const lateReasonPhoto = files?.lateReasonPhoto?.[0] ? await processSingleUpload(files.lateReasonPhoto[0], "lateReason", username) : null;
+        const fullName = (req.user as any).fullName || (req.user as any).username;
+        const checkInPhoto = files?.photo?.[0] ? await processSingleUpload(files.photo[0], "clockIn", fullName) : null;
+        const lateReasonPhoto = files?.lateReasonPhoto?.[0] ? await processSingleUpload(files.lateReasonPhoto[0], "lateReason", fullName) : null;
 
         const newAttendance = {
           userId,
@@ -748,8 +764,8 @@ export function registerRoutes(app: Express) {
         return res.status(400).json({ message: "Istirahat sudah dimulai pada sesi ini" });
       }
 
-      const username = (req.user as any).username;
-      const breakStartPhoto = req.file ? await processSingleUpload(req.file, "breakStart", username) : null;
+      const fullName = (req.user as any).fullName || (req.user as any).username;
+      const breakStartPhoto = req.file ? await processSingleUpload(req.file, "breakStart", fullName) : null;
       await db
         .update(attendance)
         .set({
@@ -791,8 +807,8 @@ export function registerRoutes(app: Express) {
         return res.status(400).json({ message: "Istirahat sudah diakhiri pada sesi ini" });
       }
 
-      const username = (req.user as any).username;
-      const breakEndPhoto = req.file ? await processSingleUpload(req.file, "breakEnd", username) : null;
+      const fullName = (req.user as any).fullName || (req.user as any).username;
+      const breakEndPhoto = req.file ? await processSingleUpload(req.file, "breakEnd", fullName) : null;
       await db
         .update(attendance)
         .set({
@@ -831,8 +847,8 @@ export function registerRoutes(app: Express) {
         return res.status(400).json({ message: "Sesi absensi aktif sudah melakukan checkout" });
       }
 
-      const username = (req.user as any).username;
-      const checkOutPhoto = req.file ? await processSingleUpload(req.file, "clockOut", username) : null;
+      const fullName = (req.user as any).fullName || (req.user as any).username;
+      const checkOutPhoto = req.file ? await processSingleUpload(req.file, "clockOut", fullName) : null;
       await db
         .update(attendance)
         .set({
@@ -1017,9 +1033,9 @@ export function registerRoutes(app: Express) {
 
       // Insert photos
       if (files && files.length > 0) {
-        const username = (req.user as any).username;
+        const fullName = (req.user as any).fullName || (req.user as any).username;
         for (const file of files) {
-          const photoUrl = await processSingleUpload(file, "complaint", username);
+          const photoUrl = await processSingleUpload(file, "complaint", fullName);
           await db.insert(complaintPhotos).values({
             complaintId,
             photoUrl: photoUrl || `/api/images/${file.filename}`,

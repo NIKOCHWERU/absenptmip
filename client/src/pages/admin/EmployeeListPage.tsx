@@ -20,7 +20,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { AttendanceCalendar } from "@/components/AttendanceCalendar";
-import { toTitleCase, formatAddress } from "@/lib/utils";
+import { toTitleCase, formatAddress, resolveFileUrl, resolveViewUrl } from "@/lib/utils";
 import { addMonths, subMonths, format, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, addDays, getWeek, getYear, addWeeks, subWeeks } from "date-fns";
 import { id } from "date-fns/locale";
 import {
@@ -43,13 +43,7 @@ import {
     AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
-const resolveViewLink = (photo: string | null | undefined) => {
-    if (!photo) return "#";
-    if (photo.startsWith("/api/") || photo.startsWith("/uploads/") || photo.startsWith("http")) {
-        return photo;
-    }
-    return `https://drive.google.com/file/d/${photo}/view`;
-};
+const resolveViewLink = (photo: string | null | undefined) => resolveViewUrl(photo);
 
 // Helper for CSV export
 const handleExportCSV = (employees: User[]) => {
@@ -1339,24 +1333,8 @@ function DataRow({ label, value }: { label: string; value?: string | null }) {
 }
 
 function DocumentBox({ label, url, isDrive }: { label: string; url?: string | null; isDrive?: boolean }) {
-    // Extract ID if it's a Drive URL or use proxy
-    const getImageUrl = (url: string) => {
-        if (!url) return "";
-        if (url.startsWith("/uploads") || url.startsWith("/api/")) return url;
-        if (url.startsWith("http")) {
-            const id = url.includes('/d/') ? url.split('/d/')[1].split('/')[0] : url;
-            return `/api/images/${id}`;
-        }
-        return `/api/images/${url}`; 
-    };
-
-    const displayUrl = url ? getImageUrl(url) : null;
-    const isLocal = url?.startsWith('/uploads') || url?.startsWith('/api/');
-    const openUrl = url && (url.startsWith('http') || isLocal) 
-        ? url 
-        : (url && !url.includes('/') && url.length > 15
-            ? `https://drive.google.com/file/d/${url}/view` 
-            : url || undefined);
+    const displayUrl = url ? resolveFileUrl(url) : null;
+    const openUrl = url ? resolveViewUrl(url) : null;
 
     return (
         <div className="space-y-2 group">

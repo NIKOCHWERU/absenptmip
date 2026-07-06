@@ -176,3 +176,34 @@ export const formatLongDate = (date: Date | string | number | null | undefined) 
     return "-";
   }
 };
+
+/**
+ * Resolves a stored photo/document value to a URL suitable for rendering in an <img> src attribute.
+ */
+export const resolveFileUrl = (value: string | null | undefined): string => {
+  if (!value) return "";
+  if (value.startsWith("data:") || value.startsWith("http") || value.startsWith("/") || value.startsWith("/api/") || value.startsWith("/uploads/")) {
+    return value;
+  }
+  // If it's a raw Google Drive File ID (a clean string, usually >15 chars, without slashes)
+  if (!value.includes("/") && value.length > 15) {
+    return `/api/images/${value}`; // Proxied through Google Drive proxy or local storage endpoint
+  }
+  return `/uploads/${value}`;
+};
+
+/**
+ * Resolves a stored photo/document value to a URL suitable for opening in a new tab.
+ */
+export const resolveViewUrl = (value: string | null | undefined): string => {
+  if (!value) return "#";
+  if (value.startsWith("http")) return value;
+  if (value.startsWith("/api/") || value.startsWith("/uploads/") || value.startsWith("/")) return value;
+  
+  // If it's a raw Google Drive File ID
+  if (!value.includes("/") && value.length > 15) {
+    return `https://drive.google.com/file/d/${value}/view`;
+  }
+  return `/uploads/${value}`;
+};
+

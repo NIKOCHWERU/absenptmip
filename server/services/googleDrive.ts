@@ -4,24 +4,21 @@ import { Stream } from 'stream';
 const CLIENT_ID = process.env.GOOGLE_DRIVE_CLIENT_ID;
 const CLIENT_SECRET = process.env.GOOGLE_DRIVE_CLIENT_SECRET;
 const REFRESH_TOKEN = process.env.GOOGLE_DRIVE_REFRESH_TOKEN;
-const FOLDER_ID = process.env.GOOGLE_DRIVE_FOLDER_ID;
+const ROOT_FOLDER_ID = process.env.GOOGLE_DRIVE_FOLDER_ID;
 
-const IS_PRODUCTION = process.env.NODE_ENV === "production" || process.env.APP_ENV === "production";
-export const isDriveConfigured = IS_PRODUCTION && !!(CLIENT_ID && CLIENT_SECRET && REFRESH_TOKEN && FOLDER_ID);
+export const isDriveConfigured = !!(CLIENT_ID && CLIENT_SECRET && REFRESH_TOKEN && ROOT_FOLDER_ID);
 
 if (!isDriveConfigured) {
-    if (!IS_PRODUCTION) {
-        console.log("ℹ️  Environment is development. Using local file storage fallback.");
-    } else {
-        console.warn("⚠️  Google Drive credentials not fully configured. Using local file storage fallback.");
-    }
+    console.warn("⚠️  Google Drive credentials not fully configured. Using local file storage fallback.");
+} else {
+    console.log("✅ Google Drive credentials detected. Drive upload enabled.");
 }
 
-const oauth2Client = isDriveConfigured 
+const oauth2Client = isDriveConfigured
     ? new google.auth.OAuth2(
         CLIENT_ID,
         CLIENT_SECRET,
-        process.env.GOOGLE_REDIRECT_URL || (process.env.APP_DOMAIN ? `${process.env.APP_DOMAIN.replace(/\/$/, "")}/auth/google/callback` : "http://localhost:5000/auth/google/callback")
+        process.env.GOOGLE_REDIRECT_URL || "http://localhost:5000/auth/google/callback"
       )
     : null;
 
@@ -37,7 +34,44 @@ if (oauth2Client && REFRESH_TOKEN) {
 
 const drive = oauth2Client ? google.drive({ version: 'v3', auth: oauth2Client }) : null;
 
-// Proactively ensure we have a valid access token before uploading
+// Cache subfolder IDs to avoid repeated lookups
+const subfolderCache: Record<string, string> = {};
+
+// Get or create a subfolder inside ROOT_FOLDER_ID
+async function getOrCreateSubfolder(folderName: 'Absensi' | 'Dokumen' | 'Pengaduan'): Promise<string> {
+    if (subfolderCache[folderName]) return subfolderCache[folderName];
+    if (!drive || !ROOT_FOLDER_ID) throw new Error("Drive not configured");
+
+    // Search for existing subfolder
+    const res = await drive.files.list({
+        q: `'${ROOT_FOLDER_ID}' in parents and name = '${folderName}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false`,
+        fields: 'files(id, name)',
+        pageSize: 1,
+    });
+
+    if (res.data.files && res.data.files.length > 0) {
+        const folderId = res.data.files[0].id!;
+        subfolderCache[folderName] = folderId;
+        return folderId;
+    }
+
+    // Create the subfolder
+    const created = await drive.files.create({
+        requestBody: {
+            name: folderName,
+            mimeType: 'application/vnd.google-apps.folder',
+            parents: [ROOT_FOLDER_ID],
+        },
+        fields: 'id',
+    });
+
+    const folderId = created.data.id!;
+    console.log(`📁 Google Drive: Created subfolder "${folderName}" (${folderId})`);
+    subfolderCache[folderName] = folderId;
+    return folderId;
+}
+
+// Ensure access token is valid before uploading
 async function ensureValidToken(): Promise<void> {
     if (!oauth2Client) return;
     try {
@@ -47,47 +81,53 @@ async function ensureValidToken(): Promise<void> {
         }
     } catch (error: any) {
         console.error("❌ Google OAuth2 token error:", error.message);
-        throw new Error(
-            "Google Drive authentication failed. The refresh token may be expired."
-        );
+        throw new Error("Google Drive authentication failed. The refresh token may be expired.");
     }
 }
+
+// Build readable filename based on action type
+export function buildDriveFilename(
+    fullName: string,
+    actionType: 'clockIn' | 'breakStart' | 'breakEnd' | 'clockOut' | 'lateReason' | 'complaint' | 'document' | 'profile',
+    docLabel?: string // e.g. "KTP", "NPWP", "BPJS", "Profil"
+): string {
+    const cleanName = fullName.replace(/\s+/g, '').replace(/[^a-zA-Z0-9]/g, '');
+    const now = new Date();
+    // Jakarta time (UTC+7)
+    const wib = new Date(now.getTime() + 7 * 60 * 60 * 1000);
+    const date = wib.toISOString().split('T')[0]; // YYYY-MM-DD
+    const timeStr = wib.toISOString().split('T')[1].substring(0, 8).replace(/:/g, '-'); // HH-MM-SS
+
+    const actionMap: Record<string, string> = {
+        clockIn: 'AbsenMasuk',
+        breakStart: 'MulaiIstirahat',
+        breakEnd: 'SelesaiIstirahat',
+        clockOut: 'AbsenPulang',
+        lateReason: 'AlasanTerlambat',
+        complaint: 'Pengaduan',
+        document: docLabel ? `Dokumen_${docLabel}` : 'Dokumen',
+        profile: 'FotoProfil',
+    };
+
+    const action = actionMap[actionType] || actionType;
+    return `${cleanName}_${date}_${action}_${timeStr}.jpg`;
+}
+
+export type DriveFolder = 'Absensi' | 'Dokumen' | 'Pengaduan';
 
 export async function uploadFile(
     fileBuffer: Buffer,
     fileName: string,
     mimeType: string,
-    metadata?: {
-        employeeName?: string;
-        actionType?: 'clockIn' | 'breakStart' | 'breakEnd' | 'clockOut' | 'lateReason';
-        timestamp?: Date;
-    }
+    folder: DriveFolder = 'Dokumen'
 ): Promise<{ fileId: string; viewUrl: string }> {
     if (!isDriveConfigured || !drive) {
         throw new Error("Google Drive is not configured");
     }
 
-    // Validate token first — gives a clearer error if it's expired
     await ensureValidToken();
 
-    // Generate custom filename if metadata provided
-    let finalFileName = fileName;
-    if (metadata?.employeeName && metadata?.actionType && metadata?.timestamp) {
-        const date = metadata.timestamp.toISOString().split('T')[0]; // YYYY-MM-DD
-        const time = metadata.timestamp.toTimeString().split(' ')[0].replace(/:/g, '-'); // HH-MM-SS
-
-        const actionMap = {
-            'clockIn': 'AbsenMasuk',
-            'breakStart': 'MulaiIstirahat',
-            'breakEnd': 'SelesaiIstirahat',
-            'clockOut': 'AbsenPulang',
-            'lateReason': 'AlasanTelat'
-        };
-
-        const action = actionMap[metadata.actionType];
-        const cleanName = metadata.employeeName.replace(/\s+/g, '');
-        finalFileName = `${cleanName}_${date}_${action}_${time}.jpg`;
-    }
+    const folderId = await getOrCreateSubfolder(folder);
 
     const bufferStream = new Stream.PassThrough();
     bufferStream.end(fileBuffer);
@@ -95,18 +135,18 @@ export async function uploadFile(
     try {
         const response = await drive.files.create({
             requestBody: {
-                name: finalFileName,
-                parents: [FOLDER_ID!],
+                name: fileName,
+                parents: [folderId],
                 mimeType: mimeType,
             },
             media: {
                 mimeType: mimeType,
                 body: bufferStream,
             },
-            fields: 'id, webViewLink, webContentLink',
+            fields: 'id, webViewLink',
         });
 
-        // Make the file readable by anyone with the link
+        // Make file public
         await drive.permissions.create({
             fileId: response.data.id!,
             requestBody: {
@@ -115,7 +155,7 @@ export async function uploadFile(
             },
         });
 
-        console.log(`✅ Google Drive: File uploaded successfully — ${finalFileName}`);
+        console.log(`✅ Google Drive [${folder}]: ${fileName}`);
 
         return {
             fileId: response.data.id!,
@@ -142,7 +182,7 @@ export async function listFiles(): Promise<{ id: string; name: string; webViewLi
     await ensureValidToken();
     try {
         const response = await drive.files.list({
-            q: `'${FOLDER_ID}' in parents and trashed = false`,
+            q: `'${ROOT_FOLDER_ID}' in parents and trashed = false`,
             fields: 'files(id, name, webViewLink)',
             pageSize: 1000
         });

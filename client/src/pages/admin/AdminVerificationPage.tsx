@@ -10,7 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { toTitleCase, formatAddress } from "@/lib/utils";
+import { toTitleCase, formatAddress, resolveFileUrl, resolveViewUrl } from "@/lib/utils";
 
 export default function AdminVerificationPage() {
   const { toast } = useToast();
@@ -136,7 +136,7 @@ export default function AdminVerificationPage() {
                 <div className="flex gap-4 items-center">
                   <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center overflow-hidden">
                     {emp.photoUrl ? (
-                      <img src={emp.photoUrl} className="w-full h-full object-cover" />
+                      <img src={resolveFileUrl(emp.photoUrl)} className="w-full h-full object-cover" />
                     ) : (
                       <UserIcon className="w-6 h-6 text-primary" />
                     )}
@@ -292,25 +292,8 @@ function DataRow({ label, value }: { label: string; value?: string | null }) {
 }
 
 function DocumentBox({ label, url, isDrive }: { label: string; url?: string | null; isDrive?: boolean }) {
-  // Extract ID if it's a Drive URL
-  const getImageUrl = (url: string) => {
-    if (!url) return "";
-    if (url.startsWith("/uploads") || url.startsWith("/api/")) return url;
-    if (url.startsWith("http")) {
-       // If it's a drive URL, extract ID or use proxy
-       const id = url.includes('/d/') ? url.split('/d/')[1].split('/')[0] : url;
-       return `/api/images/${id}`;
-    }
-    return `/api/images/${url}`; // Assume it's an ID
-  };
-
-  const isLocal = url?.startsWith('/uploads') || url?.startsWith('/api/');
-  const displayUrl = url ? getImageUrl(url) : null;
-  const openUrl = url && (url.startsWith('http') || isLocal) 
-    ? url 
-    : (url && !url.includes('/') && url.length > 15
-        ? `https://drive.google.com/file/d/${url}/view` 
-        : url || undefined);
+  const displayUrl = url ? resolveFileUrl(url) : null;
+  const openUrl = url ? resolveViewUrl(url) : null;
 
   return (
     <div className="space-y-2">
@@ -324,7 +307,9 @@ function DocumentBox({ label, url, isDrive }: { label: string; url?: string | nu
               onError={(e) => {
                 // If image fails to load (e.g. proxy error), show an icon
                 (e.target as any).style.display = 'none';
-                (e.target as any).nextSibling.style.display = 'flex';
+                if ((e.target as any).nextSibling) {
+                  (e.target as any).nextSibling.style.display = 'flex';
+                }
               }}
             />
             <div className={`hidden absolute inset-0 items-center justify-center bg-slate-50 ${isDrive ? 'flex' : ''}`}>

@@ -10,7 +10,7 @@ import { id as idLocale } from "date-fns/locale";
 import { motion } from "framer-motion";
 import { useState } from "react";
 import { Link } from "wouter";
-import { toTitleCase } from "@/lib/utils";
+import { toTitleCase, resolveFileUrl } from "@/lib/utils";
 
 interface Complaint {
     id: number;
@@ -248,7 +248,7 @@ export default function AdminComplaintsPage() {
                                 {complaintPhotos.map((photo) => (
                                     <div key={photo.id} className="space-y-1">
                                         <img
-                                            src={photo.photoUrl}
+                                            src={resolveFileUrl(photo.photoUrl)}
                                             alt={photo.caption || ""}
                                             className="w-full rounded-xl border border-gray-100"
                                         />
