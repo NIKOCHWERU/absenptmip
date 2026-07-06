@@ -2,6 +2,7 @@ import { format } from "date-fns";
 import { id } from "date-fns/locale";
 import { User, Attendance } from "@shared/schema";
 import { toTitleCase } from "@/lib/utils";
+import { useQuery } from "@tanstack/react-query";
 
 interface AttendanceReportProps {
     date: string;
@@ -10,6 +11,12 @@ interface AttendanceReportProps {
 }
 
 export function AttendanceReport({ date, records, users }: AttendanceReportProps) {
+    const { data: config } = useQuery<any>({ queryKey: ["/api/config"] });
+    const namaPt = config?.namaPt || import.meta.env.VITE_NAMA_PT || "PT ABC";
+    const rawLogo = config?.logoUrl || import.meta.env.VITE_LOGO_FILE || "";
+    const logoUrl = (rawLogo && rawLogo !== "/logo_elok_buah.jpg") ? rawLogo : null;
+    const logoInisial = config?.logoInisial || import.meta.env.VITE_LOGO_INISIAL || namaPt.charAt(0);
+
     const getEmployee = (userId: number) => {
         return users.find(user => user.id === userId);
     };
@@ -41,9 +48,15 @@ export function AttendanceReport({ date, records, users }: AttendanceReportProps
             {/* Report Header */}
             <div className="flex justify-between items-start border-b border-gray-300 pb-4 mb-6">
                 <div className="flex items-center gap-4">
-                    <img src="/logo_elok_buah.jpg" alt="Logo" className="w-14 h-14 object-contain" />
+                    <div className="w-14 h-14 bg-gray-100 rounded-lg border flex items-center justify-center text-xl font-bold text-primary overflow-hidden">
+                        {logoUrl ? (
+                            <img src={logoUrl} alt="Logo" className="w-full h-full object-contain" />
+                        ) : (
+                            logoInisial
+                        )}
+                    </div>
                     <div>
-                        <h1 className="text-xl font-black text-gray-900 tracking-tight">PT ELOK JAYA ABADHI</h1>
+                        <h1 className="text-xl font-black text-gray-900 tracking-tight">{namaPt}</h1>
                         <p className="text-[11px] text-gray-500 font-medium">Sistem Manajemen Kehadiran Digital</p>
                     </div>
                 </div>

@@ -90,7 +90,7 @@ function AdminSidebarHeader() {
     });
 
     const singkatanPt = config?.singkatanPt || config?.namaPt || import.meta.env.VITE_SINGKATAN_PT || import.meta.env.VITE_NAMA_PT || "PT ABC";
-    const logoUrl = config?.logoUrl || config?.logoUrl !== "/logo_elok_buah.jpg" ? config?.logoUrl : null;
+    const logoUrl = (config?.logoUrl && config.logoUrl !== "/logo_elok_buah.jpg" && config.logoUrl !== "") ? config.logoUrl : null;
     const logoInisial = config?.logoInisial || import.meta.env.VITE_LOGO_INISIAL || singkatanPt.charAt(0);
 
     return (

@@ -13,7 +13,8 @@ export function CompanyHeader({ name: propName, logoUrl: propLogo, title }: Comp
   });
 
   const name = propName || config?.singkatanPt || config?.namaPt || import.meta.env.VITE_SINGKATAN_PT || import.meta.env.VITE_NAMA_PT || "PT ABC";
-  const logoUrl = propLogo || config?.logoUrl || import.meta.env.VITE_LOGO_FILE || "/logo_elok_buah.jpg";
+  const rawLogoUrl = propLogo || config?.logoUrl || import.meta.env.VITE_LOGO_FILE || "";
+  const logoUrl = (rawLogoUrl && rawLogoUrl !== "/logo_elok_buah.jpg") ? rawLogoUrl : null;
   const logoInisial = config?.logoInisial || import.meta.env.VITE_LOGO_INISIAL || name.charAt(0);
 
   const formattedName = name.toUpperCase();
