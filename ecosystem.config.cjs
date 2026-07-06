@@ -2,7 +2,8 @@ module.exports = {
   apps: [
     {
       name: "absen-ptmip",
-      script: "dist/index.js",
+      script: "node_modules/.bin/tsx",
+      args: "server/index.ts",
       cwd: "/var/www/absensi-pt-mip",
       env: {
         NODE_ENV: "production",
