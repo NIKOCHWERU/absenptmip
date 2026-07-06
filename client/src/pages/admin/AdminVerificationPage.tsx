@@ -304,11 +304,13 @@ function DocumentBox({ label, url, isDrive }: { label: string; url?: string | nu
     return `/api/images/${url}`; // Assume it's an ID
   };
 
-  const isLocal = url?.startsWith('/uploads');
+  const isLocal = url?.startsWith('/uploads') || url?.startsWith('/api/');
   const displayUrl = url ? getImageUrl(url) : null;
   const openUrl = url && (url.startsWith('http') || isLocal) 
     ? url 
-    : (url ? `https://drive.google.com/file/d/${url}/view` : undefined);
+    : (url && !url.includes('/') && url.length > 15
+        ? `https://drive.google.com/file/d/${url}/view` 
+        : url || undefined);
 
   return (
     <div className="space-y-2">

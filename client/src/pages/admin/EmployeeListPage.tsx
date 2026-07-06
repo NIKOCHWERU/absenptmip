@@ -43,6 +43,14 @@ import {
     AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
+const resolveViewLink = (photo: string | null | undefined) => {
+    if (!photo) return "#";
+    if (photo.startsWith("/api/") || photo.startsWith("/uploads/") || photo.startsWith("http")) {
+        return photo;
+    }
+    return `https://drive.google.com/file/d/${photo}/view`;
+};
+
 // Helper for CSV export
 const handleExportCSV = (employees: User[]) => {
     const headers = ["NIK", "Nama Lengkap", "Nomor HP", "Email", "Cabang", "Jabatan", "Agama", "NPWP", "BPJS"];
@@ -626,7 +634,7 @@ export default function AdminEmployeeList() {
                                                                                 <div className="aspect-square bg-gray-100 rounded-lg overflow-hidden border flex items-center justify-center">
                                                                                     {att.checkInPhoto ? (
                                                                                         <a
-                                                                                            href={`https://drive.google.com/file/d/${att.checkInPhoto}/view`}
+                                                                                            href={resolveViewLink(att.checkInPhoto)}
                                                                                             target="_blank"
                                                                                             rel="noopener noreferrer"
                                                                                             className="w-full h-full flex items-center justify-center hover:bg-blue-50 transition-colors group"
@@ -650,7 +658,7 @@ export default function AdminEmployeeList() {
                                                                                 <div className="aspect-square bg-gray-100 rounded-lg overflow-hidden border flex items-center justify-center">
                                                                                     {att.breakStartPhoto ? (
                                                                                         <a
-                                                                                            href={`https://drive.google.com/file/d/${att.breakStartPhoto}/view`}
+                                                                                            href={resolveViewLink(att.breakStartPhoto)}
                                                                                             target="_blank"
                                                                                             rel="noopener noreferrer"
                                                                                             className="w-full h-full flex items-center justify-center hover:bg-primary/5 transition-colors group"
@@ -674,7 +682,7 @@ export default function AdminEmployeeList() {
                                                                                 <div className="aspect-square bg-gray-100 rounded-lg overflow-hidden border flex items-center justify-center">
                                                                                     {att.breakEndPhoto ? (
                                                                                         <a
-                                                                                            href={`https://drive.google.com/file/d/${att.breakEndPhoto}/view`}
+                                                                                            href={resolveViewLink(att.breakEndPhoto)}
                                                                                             target="_blank"
                                                                                             rel="noopener noreferrer"
                                                                                             className="w-full h-full flex items-center justify-center hover:bg-primary/5 transition-colors group"
@@ -698,7 +706,7 @@ export default function AdminEmployeeList() {
                                                                                 <div className="aspect-square bg-gray-100 rounded-lg overflow-hidden border flex items-center justify-center">
                                                                                     {att.checkOutPhoto ? (
                                                                                         <a
-                                                                                            href={`https://drive.google.com/file/d/${att.checkOutPhoto}/view`}
+                                                                                            href={resolveViewLink(att.checkOutPhoto)}
                                                                                             target="_blank"
                                                                                             rel="noopener noreferrer"
                                                                                             className="w-full h-full flex items-center justify-center hover:bg-red-50 transition-colors group"
@@ -1343,10 +1351,12 @@ function DocumentBox({ label, url, isDrive }: { label: string; url?: string | nu
     };
 
     const displayUrl = url ? getImageUrl(url) : null;
-    const isLocal = url?.startsWith('/uploads');
+    const isLocal = url?.startsWith('/uploads') || url?.startsWith('/api/');
     const openUrl = url && (url.startsWith('http') || isLocal) 
         ? url 
-        : (url ? `https://drive.google.com/file/d/${url}/view` : undefined);
+        : (url && !url.includes('/') && url.length > 15
+            ? `https://drive.google.com/file/d/${url}/view` 
+            : url || undefined);
 
     return (
         <div className="space-y-2 group">
