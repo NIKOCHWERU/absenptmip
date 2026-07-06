@@ -476,6 +476,55 @@ export function registerRoutes(app: Express) {
     }
   });
 
+  // Update Admin Profile (Full Name, Username, Email, Phone Number, and optional Password)
+  app.patch("/api/admin/profile", isAuthenticated, isAdmin, async (req: Request, res: Response) => {
+    try {
+      const userId = (req.user as any).id;
+      const { fullName, username, email, phoneNumber, password } = req.body;
+
+      if (!fullName || !username) {
+        return res.status(400).json({ message: "Nama Lengkap dan Username wajib diisi" });
+      }
+
+      // Check if username is already taken by another user
+      const existingUser = await db.select().from(users).where(eq(users.username, username)).limit(1);
+      if (existingUser.length > 0 && existingUser[0].id !== userId) {
+        return res.status(400).json({ message: "Username sudah digunakan oleh akun lain" });
+      }
+
+      const updates: any = {
+        fullName,
+        username,
+        email: email || null,
+        phoneNumber: phoneNumber || null,
+      };
+
+      if (password) {
+        updates.password = await hashPassword(password);
+      }
+
+      await db.update(users).set(updates).where(eq(users.id, userId));
+
+      // Log activity
+      await db.insert(activityLogs).values({
+        userId,
+        action: "MENGUBAH_PROFIL_ADMIN",
+        details: `Mengubah profil admin: Nama=${fullName}, Username=${username}`,
+      });
+
+      const [updatedUser] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+      
+      // Update session user object if possible (passport.js login)
+      req.login(updatedUser, (err) => {
+        if (err) console.error("Session update error:", err);
+      });
+
+      res.json(updatedUser);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
   // 3. Attendance Clock-in (Absen Masuk)
   app.post(
     "/api/attendance/clock-in",

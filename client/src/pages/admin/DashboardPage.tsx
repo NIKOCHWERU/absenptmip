@@ -377,7 +377,7 @@ export default function AdminDashboard() {
 
                     <Card
                         className="border-none shadow-sm hover:shadow-md transition-all bg-white rounded-xl overflow-hidden group cursor-pointer hover:translate-y-[-2px]"
-                        onClick={() => setLocation("/admin/attendance-summary")}
+                        onClick={() => setLocation("/admin/summary")}
                     >
                         <CardContent className="p-6">
                             <div className="flex justify-between items-start mb-4">
@@ -403,7 +403,7 @@ export default function AdminDashboard() {
 
                     <Card
                         className="border-none shadow-sm hover:shadow-md transition-all bg-white rounded-xl overflow-hidden group cursor-pointer hover:translate-y-[-2px]"
-                        onClick={() => setLocation("/admin/leave")}
+                        onClick={() => setLocation("/admin/leaves")}
                     >
                         <CardContent className="p-6">
                             <div className="flex justify-between items-start mb-4">
