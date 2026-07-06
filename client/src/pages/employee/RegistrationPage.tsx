@@ -30,12 +30,18 @@ export default function RegistrationPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
 
+  const normDate = (v: any) => {
+    if (!v) return "";
+    const s = String(v);
+    return s.includes("T") ? s.split("T")[0] : s;
+  };
+
   const form = useForm({
     defaultValues: {
       fullName: user?.fullName || "",
       nik: user?.nik || "",
       birthPlace: user?.birthPlace || "",
-      birthDate: user?.birthDate || "",
+      birthDate: normDate(user?.birthDate),
       gender: user?.gender || "Laki-laki",
       religion: user?.religion || "",
       address: user?.address || "",
@@ -43,7 +49,7 @@ export default function RegistrationPage() {
       email: user?.email || "",
       position: user?.position || "",
       branch: user?.branch || "",
-      joinDate: user?.joinDate || "",
+      joinDate: normDate(user?.joinDate),
       employmentStatus: user?.employmentStatus || "Kontrak",
       npwp: user?.npwp || "",
       bpjs: user?.bpjs || "",

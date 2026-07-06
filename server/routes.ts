@@ -410,7 +410,95 @@ export function registerRoutes(app: Express) {
     }
   );
 
-  // Update Profile & Log Activity
+  // 2. Submit Registration Data for already-logged-in employees (incomplete status)
+  app.post(
+    "/api/register-data",
+    isAuthenticated,
+    upload.fields([
+      { name: "ktpPhoto", maxCount: 1 },
+      { name: "profilePhoto", maxCount: 1 },
+      { name: "bpjsPhoto", maxCount: 1 },
+      { name: "npwpPhoto", maxCount: 1 },
+    ]),
+    async (req: Request, res: Response) => {
+      try {
+        const userId = (req.user as any).id;
+        const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+        const username = (req.user as any).username || String(userId);
+
+        const {
+          fullName,
+          nik,
+          email,
+          phoneNumber,
+          birthPlace,
+          birthDate,
+          gender,
+          religion,
+          address,
+          npwp,
+          bpjs,
+          branch,
+          position,
+          employmentStatus,
+          joinDate,
+        } = req.body;
+
+        // Normalise birthDate to yyyy-MM-dd (strip ISO timestamp if present)
+        let normBirthDate: string | null = null;
+        if (birthDate) {
+          const raw = String(birthDate);
+          if (raw.includes("T")) {
+            normBirthDate = raw.split("T")[0];
+          } else {
+            normBirthDate = raw;
+          }
+        }
+
+        const updates: any = {
+          registrationStatus: "pending",
+        };
+
+        if (fullName) updates.fullName = fullName;
+        if (nik) updates.nik = nik;
+        if (email) updates.email = email;
+        if (phoneNumber) updates.phoneNumber = phoneNumber;
+        if (birthPlace) updates.birthPlace = birthPlace;
+        if (normBirthDate) updates.birthDate = normBirthDate;
+        if (gender) updates.gender = gender;
+        if (religion) updates.religion = religion;
+        if (address) updates.address = address;
+        if (npwp) updates.npwp = npwp;
+        if (bpjs) updates.bpjs = bpjs;
+        if (branch) updates.branch = branch;
+        if (position) updates.position = position;
+        if (employmentStatus) updates.employmentStatus = employmentStatus;
+        if (joinDate) updates.joinDate = joinDate;
+
+        // Upload documents
+        if (files?.ktpPhoto?.[0]) {
+          updates.ktpPhotoUrl = await processSingleUpload(files.ktpPhoto[0], "document", username);
+        }
+        if (files?.profilePhoto?.[0]) {
+          updates.photoUrl = await processSingleUpload(files.profilePhoto[0], "profile", username);
+        }
+        if (files?.bpjsPhoto?.[0]) {
+          updates.bpjsPhotoUrl = await processSingleUpload(files.bpjsPhoto[0], "document", username);
+        }
+        if (files?.npwpPhoto?.[0]) {
+          updates.npwpPhotoUrl = await processSingleUpload(files.npwpPhoto[0], "document", username);
+        }
+
+        await db.update(users).set(updates).where(eq(users.id, userId));
+
+        res.json({ message: "Data pendaftaran berhasil dikirim, menunggu verifikasi admin." });
+      } catch (err: any) {
+        console.error("register-data error:", err);
+        res.status(500).json({ message: err.message || "Terjadi kesalahan saat menyimpan data." });
+      }
+    }
+  );
+
   app.patch("/api/profile", isAuthenticated, upload.none(), async (req: Request, res: Response) => {
     try {
       const userId = (req.user as any).id;
