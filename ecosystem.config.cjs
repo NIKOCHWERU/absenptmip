@@ -7,7 +7,7 @@ module.exports = {
       cwd: "/var/www/absensi-pt-mip",
       env: {
         NODE_ENV: "production",
-        PORT: 3010,
+        PORT: 3008,
       },
       instances: 1,
       autorestart: true,
