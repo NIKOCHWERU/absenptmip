@@ -131,6 +131,32 @@ export function registerRoutes(app: Express) {
     return res.status(404).json({ message: "Gambar tidak ditemukan" });
   });
 
+  // Serves images without extension suffix in the URL (Bypasses Nginx static caching/hijacking rules)
+  app.get("/api/images-static/:id", (req: Request, res: Response) => {
+    const safeId = path.basename(req.params.id);
+    try {
+      const files = fs.readdirSync(uploadDir);
+      const matchingFile = files.find(f => f.startsWith(safeId));
+
+      if (matchingFile) {
+        const filePath = path.join(uploadDir, matchingFile);
+        res.setHeader("Access-Control-Allow-Origin", "*");
+        res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
+        
+        const ext = path.extname(matchingFile).toLowerCase();
+        if (ext === ".png") res.setHeader("Content-Type", "image/png");
+        else if (ext === ".gif") res.setHeader("Content-Type", "image/gif");
+        else if (ext === ".webp") res.setHeader("Content-Type", "image/webp");
+        else res.setHeader("Content-Type", "image/jpeg");
+
+        return res.sendFile(filePath);
+      }
+    } catch (err) {
+      // ignore
+    }
+    return res.status(404).json({ message: "Gambar tidak ditemukan" });
+  });
+
   // Client Upload endpoint for direct AJAX/fetch
   app.post("/api/upload-direct", upload.single("photo"), async (req: Request, res: Response) => {
     if (!req.file) {
@@ -145,7 +171,9 @@ export function registerRoutes(app: Express) {
     if (!req.file) {
       return res.status(400).json({ message: "Tidak ada file logo yang diunggah" });
     }
-    res.json({ url: `/api/images/${req.file.filename}`, filename: req.file.filename });
+    const ext = path.extname(req.file.filename);
+    const idWithoutExt = path.basename(req.file.filename, ext);
+    res.json({ url: `/api/images-static/${idWithoutExt}`, filename: req.file.filename });
   });
 
   // Google Drive proxy thumbnail endpoint
