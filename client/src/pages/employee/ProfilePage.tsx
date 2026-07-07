@@ -372,7 +372,7 @@ export default function ProfilePage() {
                   onClick={() => setLocation("/complaint")}
                 >
                   <MessageSquare className="w-3.5 h-3.5 mr-1.5" />
-                  Laporkan Kesalahan Data ke Pengaduan
+                  Laporkan Kesalahan Data
                 </Button>
               </div>
             </CardContent>

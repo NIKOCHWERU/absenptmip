@@ -3,10 +3,25 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 import { exec } from "child_process";
+import webpush from "web-push";
 import { db, pool } from "./db.js";
-import { users, shifts, attendance, leaveRequests, complaints, complaintPhotos, resignations, mutations, warningLetters, systemConfigs, activityLogs, announcements } from "../shared/schema.js";
-import { eq, and, gte, lte, desc } from "drizzle-orm";
+import { users, shifts, attendance, leaveRequests, complaints, complaintPhotos, resignations, mutations, warningLetters, systemConfigs, activityLogs, announcements, pushSubscriptions } from "../shared/schema.js";
+import { eq, and, gte, lte, desc, sql } from "drizzle-orm";
 import { isAuthenticated, isAdmin, isSuperAdmin, hashPassword } from "./auth.js";
+
+// Configure web-push
+const vapidPublicKey = process.env.VAPID_PUBLIC_KEY || "";
+const vapidPrivateKey = process.env.VAPID_PRIVATE_KEY || "";
+
+if (vapidPublicKey && vapidPrivateKey) {
+  webpush.setVapidDetails(
+    'mailto:admin@absensikaryawan.com',
+    vapidPublicKey,
+    vapidPrivateKey
+  );
+} else {
+  console.warn("VAPID keys are missing. Web Push will not work.");
+}
 
 // Setup storage folder
 const uploadDir = path.resolve(process.cwd(), "uploads");
