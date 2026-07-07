@@ -24,9 +24,38 @@ async function processSingleUpload(
   file: Express.Multer.File | undefined,
   actionType: 'clockIn' | 'breakStart' | 'breakEnd' | 'clockOut' | 'lateReason' | 'complaint' | 'document' | 'profile',
   fullName: string,
-  docLabel?: string // e.g. 'KTP', 'NPWP', 'BPJS', 'Profil'
+  docLabel?: string, // e.g. 'KTP', 'NPWP', 'BPJS', 'Profil'
+  base64Data?: string | null
 ): Promise<string | null> {
-  if (!file) return null;
+  let fileBuffer: Buffer;
+  let mimeType: string;
+  let filename: string;
+  let localPath: string;
+  let tempFilePath: string | null = null;
+
+  if (file) {
+    fileBuffer = fs.readFileSync(file.path);
+    mimeType = file.mimetype;
+    filename = file.filename;
+    localPath = `/api/images/${filename}`;
+    tempFilePath = file.path;
+  } else if (base64Data && base64Data.startsWith('data:image')) {
+    const matches = base64Data.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+    if (matches && matches.length === 3) {
+      mimeType = matches[1];
+      fileBuffer = Buffer.from(matches[2], 'base64');
+      const ext = mimeType.split('/')[1] || 'jpg';
+      filename = `attendance-${Date.now()}-${Math.round(Math.random() * 1e9)}.${ext}`;
+      localPath = `/api/images/${filename}`;
+      // Save locally first
+      const fullLocalPath = path.join(uploadDir, filename);
+      fs.writeFileSync(fullLocalPath, fileBuffer);
+    } else {
+      return null;
+    }
+  } else {
+    return null;
+  }
 
   // Determine target subfolder
   const folderMap: Record<string, DriveFolder> = {
@@ -41,16 +70,16 @@ async function processSingleUpload(
   };
   const driveFolder: DriveFolder = folderMap[actionType] || 'Dokumen';
 
-  // Local fallback path always saved
-  const localPath = `/api/images/${file.filename}`;
-
   if (isDriveConfigured) {
     try {
-      const fileBuffer = fs.readFileSync(file.path);
-      const filename = buildDriveFilename(fullName, actionType, docLabel);
-      const result = await uploadFile(fileBuffer, filename, file.mimetype, driveFolder);
+      const driveFilename = buildDriveFilename(fullName, actionType, docLabel);
+      const result = await uploadFile(fileBuffer, driveFilename, mimeType, driveFolder);
       // Clean up local temp file after successful Drive upload
-      try { fs.unlinkSync(file.path); } catch (_) { /* ignore */ }
+      if (tempFilePath) {
+        try { fs.unlinkSync(tempFilePath); } catch (_) { /* ignore */ }
+      } else {
+        try { fs.unlinkSync(path.join(uploadDir, filename)); } catch (_) { /* ignore */ }
+      }
       // Return only the Drive file ID (raw) — client will resolve it
       return result.fileId;
     } catch (err: any) {
@@ -714,8 +743,8 @@ export function registerRoutes(app: Express) {
         }
 
         const fullName = (req.user as any).fullName || (req.user as any).username;
-        const checkInPhoto = files?.photo?.[0] ? await processSingleUpload(files.photo[0], "clockIn", fullName) : null;
-        const lateReasonPhoto = files?.lateReasonPhoto?.[0] ? await processSingleUpload(files.lateReasonPhoto[0], "lateReason", fullName) : null;
+        const checkInPhoto = await processSingleUpload(files?.photo?.[0], "clockIn", fullName, undefined, req.body.checkInPhoto);
+        const lateReasonPhoto = await processSingleUpload(files?.lateReasonPhoto?.[0], "lateReason", fullName, undefined, req.body.lateReasonPhoto);
 
         const newAttendance = {
           userId,
@@ -744,7 +773,7 @@ export function registerRoutes(app: Express) {
   app.post("/api/attendance/break-start", isAuthenticated, upload.single("photo"), async (req: Request, res: Response) => {
     const userId = (req.user as any).id;
     const adminDate = getAdminDate();
-    const { address, location } = req.body;
+    const { address, location, checkInPhoto } = req.body;
     const activeAddress = location || address;
 
     try {
@@ -765,7 +794,7 @@ export function registerRoutes(app: Express) {
       }
 
       const fullName = (req.user as any).fullName || (req.user as any).username;
-      const breakStartPhoto = req.file ? await processSingleUpload(req.file, "breakStart", fullName) : null;
+      const breakStartPhoto = await processSingleUpload(req.file, "breakStart", fullName, undefined, checkInPhoto);
       await db
         .update(attendance)
         .set({
@@ -785,7 +814,7 @@ export function registerRoutes(app: Express) {
   app.post("/api/attendance/break-end", isAuthenticated, upload.single("photo"), async (req: Request, res: Response) => {
     const userId = (req.user as any).id;
     const adminDate = getAdminDate();
-    const { address, location } = req.body;
+    const { address, location, checkInPhoto } = req.body;
     const activeAddress = location || address;
 
     try {
@@ -808,7 +837,7 @@ export function registerRoutes(app: Express) {
       }
 
       const fullName = (req.user as any).fullName || (req.user as any).username;
-      const breakEndPhoto = req.file ? await processSingleUpload(req.file, "breakEnd", fullName) : null;
+      const breakEndPhoto = await processSingleUpload(req.file, "breakEnd", fullName, undefined, checkInPhoto);
       await db
         .update(attendance)
         .set({
@@ -828,7 +857,7 @@ export function registerRoutes(app: Express) {
   app.post("/api/attendance/clock-out", isAuthenticated, upload.single("photo"), async (req: Request, res: Response) => {
     const userId = (req.user as any).id;
     const adminDate = getAdminDate();
-    const { address, location } = req.body;
+    const { address, location, checkInPhoto } = req.body;
     const activeAddress = location || address;
 
     try {
@@ -848,7 +877,7 @@ export function registerRoutes(app: Express) {
       }
 
       const fullName = (req.user as any).fullName || (req.user as any).username;
-      const checkOutPhoto = req.file ? await processSingleUpload(req.file, "clockOut", fullName) : null;
+      const checkOutPhoto = await processSingleUpload(req.file, "clockOut", fullName, undefined, checkInPhoto);
       await db
         .update(attendance)
         .set({
@@ -859,6 +888,126 @@ export function registerRoutes(app: Express) {
         .where(eq(attendance.id, activeSession.id));
 
       res.json({ message: "Absen pulang berhasil" });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  // 7. Permit (Pengajuan Izin)
+  app.post("/api/attendance/permit", isAuthenticated, upload.single("photo"), async (req: Request, res: Response) => {
+    const userId = (req.user as any).id;
+    const { notes, type, checkInPhoto, location } = req.body;
+    const adminDate = getAdminDate();
+    const labelType = type === 'sick' ? 'Sakit' : type === 'off' ? 'Libur' : 'Izin';
+
+    try {
+      // Get all sessions today to find the active one
+      const todaySessions = await db
+        .select()
+        .from(attendance)
+        .where(and(eq(attendance.userId, userId), eq(attendance.date, adminDate)))
+        .orderBy(attendance.sessionNumber);
+
+      const activeSession = todaySessions.find(s => !s.checkOut);
+
+      const fullName = (req.user as any).fullName || (req.user as any).username;
+      const photoFileId = await processSingleUpload(req.file, "clockIn", fullName, undefined, checkInPhoto);
+      const now = new Date();
+
+      if (activeSession) {
+        const wasOnBreak = !!(activeSession.breakStart && !activeSession.breakEnd);
+        const wasWorking = !!activeSession.checkIn;
+        const stateLabel = wasOnBreak ? '(saat istirahat)' : wasWorking ? '(saat bekerja)' : '';
+        const contextNote = notes
+          ? `[${labelType} ${stateLabel}] ${notes}`
+          : `${labelType} ${stateLabel} - sesi dihentikan, dapat dilanjutkan kembali`;
+
+        const updatePayload: any = {
+          status: type,
+          notes: contextNote,
+          checkOut: now,
+          checkOutPhoto: photoFileId || activeSession.checkOutPhoto,
+          permitExitAt: now,
+        };
+
+        if (wasOnBreak) {
+          updatePayload.breakEnd = now;
+        }
+
+        await db.update(attendance).set(updatePayload).where(eq(attendance.id, activeSession.id));
+        
+        const [updated] = await db.select().from(attendance).where(eq(attendance.id, activeSession.id)).limit(1);
+        return res.json(updated);
+      }
+
+      // No active session — permit submitted before starting work
+      const contextNote = notes
+        ? `[${labelType} sebelum kerja] ${notes}`
+        : `${labelType} - tidak masuk kerja`;
+
+      const newAttendance = {
+        userId,
+        date: adminDate,
+        status: type,
+        notes: contextNote,
+        checkInPhoto: photoFileId,
+        checkInLocation: location || null,
+        checkIn: now,
+        checkOut: now,
+        sessionNumber: todaySessions.length + 1,
+      };
+
+      await db.insert(attendance).values(newAttendance);
+      res.json(newAttendance);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  // 8. Resume (Lanjut Kerja)
+  app.post("/api/attendance/resume", isAuthenticated, async (req: Request, res: Response) => {
+    const userId = (req.user as any).id;
+    const adminDate = getAdminDate();
+
+    try {
+      const todaySessions = await db
+        .select()
+        .from(attendance)
+        .where(and(eq(attendance.userId, userId), eq(attendance.date, adminDate)))
+        .orderBy(attendance.sessionNumber);
+
+      if (todaySessions.length === 0) {
+        return res.status(400).json({ message: "Tidak ada riwayat kehadiran hari ini" });
+      }
+
+      const activeSession = todaySessions.find(s => !s.checkOut);
+      if (activeSession) {
+        return res.status(400).json({ message: "Masih ada sesi aktif. Silakan pulang dulu sebelum lanjut kerja." });
+      }
+
+      const nextSessionNumber = todaySessions.length + 1;
+      if (nextSessionNumber > 5) {
+        return res.status(400).json({ message: "Batas harian 5 sesi tercapai." });
+      }
+
+      const now = new Date();
+      const lastSession = todaySessions[todaySessions.length - 1];
+      const shiftId = lastSession.shiftId;
+      const shiftName = lastSession.shift || 'Karyawan';
+
+      const newAttendance = {
+        userId,
+        date: adminDate,
+        checkIn: now,
+        status: "present" as any,
+        shiftId: shiftId ? Number(shiftId) : null,
+        shift: shiftName,
+        sessionNumber: nextSessionNumber,
+        notes: `Sesi ke-${nextSessionNumber}`
+      };
+
+      await db.insert(attendance).values(newAttendance);
+      res.json(newAttendance);
     } catch (err: any) {
       res.status(500).json({ message: err.message });
     }
