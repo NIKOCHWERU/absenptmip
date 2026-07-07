@@ -182,7 +182,14 @@ export const formatLongDate = (date: Date | string | number | null | undefined) 
  */
 export const resolveFileUrl = (value: string | null | undefined): string => {
   if (!value) return "";
-  if (value.startsWith("data:") || value.startsWith("http") || value.startsWith("/") || value.startsWith("/api/") || value.startsWith("/uploads/")) {
+  if (value.startsWith("http")) {
+    if (value.includes("drive.google.com/file/d/")) {
+      const id = value.split("/d/")[1].split("/")[0];
+      return `/api/gdrive-img/${id}`;
+    }
+    return value;
+  }
+  if (value.startsWith("data:") || value.startsWith("/") || value.startsWith("/api/") || value.startsWith("/uploads/")) {
     return value;
   }
   // If it's a raw Google Drive File ID (a clean string, usually >15 chars, without slashes)

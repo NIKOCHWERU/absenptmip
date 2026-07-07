@@ -280,24 +280,47 @@ export function registerRoutes(app: Express) {
 
     // 2. Fetch from Google Drive thumbnail public API
     const driveUrl = `https://drive.google.com/thumbnail?id=${safeFileId}&sz=w800`;
+
     import("https").then((https) => {
-      https.get(driveUrl, (driveRes) => {
-        if (driveRes.statusCode === 200) {
-          const fileStream = fs.createWriteStream(cachePath);
-          driveRes.pipe(fileStream);
-          fileStream.on("finish", () => {
-            res.setHeader("Access-Control-Allow-Origin", "*");
-            res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
-            res.setHeader("Content-Type", "image/jpeg");
-            return res.sendFile(cachePath);
-          });
-        } else {
-          return res.status(404).json({ message: "Gambar tidak ditemukan di Drive" });
+      const handleRequest = (url: string, redirectCount = 0) => {
+        if (redirectCount > 5) {
+          return res.status(500).json({ message: "Terlalu banyak redirect" });
         }
-      }).on("error", (err) => {
-        console.error("GDrive proxy error:", err);
-        return res.status(500).json({ message: "Gagal memproses gambar Drive" });
-      });
+
+        const mod = https;
+        mod.get(url, (proxyRes) => {
+          // Follow redirects
+          if ((proxyRes.statusCode === 301 || proxyRes.statusCode === 302) && proxyRes.headers.location) {
+            return handleRequest(proxyRes.headers.location, redirectCount + 1);
+          }
+
+          if (proxyRes.statusCode !== 200) {
+             return res.status(proxyRes.statusCode || 404).json({ message: "Gambar tidak ditemukan di Drive" });
+          }
+
+          res.setHeader("Access-Control-Allow-Origin", "*");
+          res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
+          res.setHeader("Content-Type", proxyRes.headers["content-type"] || "image/jpeg");
+
+          const chunks: any[] = [];
+          proxyRes.on("data", (chunk) => {
+            chunks.push(chunk);
+          });
+
+          proxyRes.on("end", () => {
+            const buffer = Buffer.concat(chunks);
+            fs.writeFile(cachePath, buffer, (err) => {
+              if (err) console.error("Cache write error:", err);
+            });
+            res.send(buffer);
+          });
+        }).on("error", (err) => {
+          console.error("GDrive proxy error:", err);
+          return res.status(500).json({ message: "Gagal memproses gambar Drive" });
+        });
+      };
+
+      handleRequest(driveUrl);
     });
   });
 

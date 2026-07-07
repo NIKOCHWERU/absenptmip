@@ -84,12 +84,12 @@
     box-shadow: 0 8px 32px 0 rgba(24, 10, 10, 0.04);
   }
 
-  .glass-panel-orange {
-    background: rgba(249, 115, 22, 0.04);
+  .glass-panel-primary {
+    background: hsl(var(--primary) / 0.04);
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
-    border: 1px solid rgba(249, 115, 22, 0.08);
-    box-shadow: 0 8px 32px 0 rgba(249, 115, 22, 0.03);
+    border: 1px solid hsl(var(--primary) / 0.08);
+    box-shadow: 0 8px 32px 0 hsl(var(--primary) / 0.03);
   }
 
   .card-hover {
@@ -98,7 +98,7 @@
 
   .card-hover:hover {
     transform: translateY(-4px);
-    box-shadow: 0 12px 40px 0 rgba(249, 115, 22, 0.08);
+    box-shadow: 0 12px 40px 0 hsl(var(--primary) / 0.08);
   }
 }
 

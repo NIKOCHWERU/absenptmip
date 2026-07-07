@@ -23,7 +23,13 @@ function getPhotoUrl(value: string | null | undefined): string {
     if (!value) return '';
     // Base64 data URI or full path
     if (value.startsWith('data:')) return value;
-    if (value.startsWith('http')) return value;
+    if (value.startsWith('http')) {
+        if (value.includes('drive.google.com/file/d/')) {
+            const id = value.split('/d/')[1].split('/')[0];
+            return `/api/gdrive-img/${id}`;
+        }
+        return value;
+    }
     if (value.startsWith('/api/')) return value;
     if (value.startsWith('/uploads/')) return value;
     // Google Drive File ID: no dots, no slashes, length > 20 — use server proxy to avoid CORS/auth issues
