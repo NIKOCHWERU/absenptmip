@@ -28,7 +28,7 @@ export function AttendanceReport({ date, records, users }: AttendanceReportProps
         if (value.startsWith('/api/')) return value;
         if (value.startsWith('/uploads/')) return value;
         if (!value.includes('/') && !value.includes('.') && value.length > 20) {
-            return `/api/images/${value}`;
+            return `/api/gdrive-img/${value}`;
         }
         return `/uploads/${value}`;
     };

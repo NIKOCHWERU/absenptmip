@@ -1037,7 +1037,7 @@ export default function RecapPage() {
                                     <div key={photo} className="space-y-2">
                                         <p className="text-[10px] font-black uppercase text-gray-400">{label}</p>
                                         <div className="aspect-[4/5] bg-gray-100 rounded-xl overflow-hidden border">
-                                            <img src={(url.startsWith('data:') || url.startsWith('http') || url.startsWith('/api/') || url.startsWith('/uploads/')) ? url : (url.length > 20 && !url.includes('/') ? `/api/images/${url}` : `/uploads/${url}`)} className="w-full h-full object-cover" />
+                                            <img src={(url.startsWith('data:') || url.startsWith('http') || url.startsWith('/api/') || url.startsWith('/uploads/')) ? url : (url.length > 20 && !url.includes('/') ? `/api/gdrive-img/${url}` : `/uploads/${url}`)} className="w-full h-full object-cover" />
                                         </div>
                                     </div>
                                 );

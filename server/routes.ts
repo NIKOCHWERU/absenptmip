@@ -1159,6 +1159,44 @@ export function registerRoutes(app: Express) {
 
   // ================= ADMIN & SUPERADMIN =================
 
+  // Dashboard Stats: total employees + present today
+  app.get("/api/admin/stats", isAdmin, async (req: Request, res: Response) => {
+    try {
+      const adminDate = getAdminDate();
+      // Count all approved employees
+      const allEmployees = await db
+        .select()
+        .from(users)
+        .where(and(eq(users.role, "employee"), eq(users.registrationStatus, "approved")));
+      const totalEmployees = allEmployees.length;
+
+      // Count unique employees who clocked in today
+      const todayAttendance = await db
+        .select()
+        .from(attendance)
+        .where(eq(attendance.date, adminDate));
+      const presentUserIds = new Set(todayAttendance.map(a => a.userId));
+      const presentToday = presentUserIds.size;
+
+      res.json({ totalEmployees, presentToday });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  // Dashboard Stats: pending complaints count
+  app.get("/api/admin/complaints/stats", isAdmin, async (req: Request, res: Response) => {
+    try {
+      const list = await db
+        .select()
+        .from(complaints)
+        .where(eq(complaints.status, "pending"));
+      res.json({ pendingCount: list.length });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
   // 1. Unverified employees list
   app.get("/api/admin/unverified-employees", isAdmin, async (req: Request, res: Response) => {
     try {
