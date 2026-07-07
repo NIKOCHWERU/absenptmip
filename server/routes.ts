@@ -1760,6 +1760,147 @@ export function registerRoutes(app: Express) {
     }
   });
 
+  // General Attendance listing endpoint (used widely in frontend)
+  app.get("/api/attendance", isAuthenticated, async (req: Request, res: Response) => {
+    const { userId: qUserId, month: monthStr, startDate, endDate } = req.query;
+    
+    // Check role
+    const isUserAdmin = (req.user as any).role === "admin" || (req.user as any).role === "superadmin" || (req.user as any).isAdmin === true;
+    
+    const parsedUserId = qUserId ? Number(Array.isArray(qUserId) ? qUserId[0] : qUserId) : undefined;
+    const targetUserId = isUserAdmin ? parsedUserId : (req.user as any).id;
+
+    try {
+      let query = db.select().from(attendance);
+      const filters = [];
+
+      if (targetUserId) {
+        filters.push(eq(attendance.userId, targetUserId));
+      }
+
+      if (startDate) {
+        filters.push(sql`DATE(${attendance.date}) >= ${startDate}`);
+      }
+      if (endDate) {
+        filters.push(sql`DATE(${attendance.date}) <= ${endDate}`);
+      } else if (monthStr) {
+        const prefix = String(monthStr);
+        filters.push(sql`DATE_FORMAT(${attendance.date}, '%Y-%m') = ${prefix}`);
+      }
+
+      if (filters.length > 0) {
+        query = query.where(and(...filters)) as any;
+      }
+
+      const list = await query.orderBy(desc(attendance.date), desc(attendance.sessionNumber));
+      res.json(list);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  // POST: Add manual attendance record (admin override)
+  app.post("/api/admin/attendance/manual", isAdmin, async (req: Request, res: Response) => {
+    try {
+      const { userId, date, status, notes, shift, checkIn, checkOut, breakStart, breakEnd } = req.body;
+      if (!userId || !date || !status) {
+        return res.status(400).json({ message: "Data tidak lengkap" });
+      }
+
+      const parsedUserId = Number(userId);
+
+      // Check if record exists for this user and date
+      const [existing] = await db
+        .select()
+        .from(attendance)
+        .where(and(eq(attendance.userId, parsedUserId), sql`DATE(${attendance.date}) = ${date}`))
+        .limit(1);
+
+      const toDate = (dateStr: string, timeStr: string | undefined): Date | null => {
+        if (!timeStr || timeStr.trim() === '') return null;
+        return new Date(`${dateStr}T${timeStr}:00+07:00`);
+      };
+
+      let record;
+      if (existing) {
+        const updatePayload: any = {
+          status,
+          notes: notes || null,
+          shift: shift || existing.shift,
+        };
+        if (checkIn) updatePayload.checkIn = new Date(`${date}T${checkIn}:00+07:00`);
+        if (checkOut) updatePayload.checkOut = toDate(date, checkOut);
+        if (breakStart) updatePayload.breakStart = toDate(date, breakStart);
+        if (breakEnd) updatePayload.breakEnd = toDate(date, breakEnd);
+
+        await db.update(attendance).set(updatePayload).where(eq(attendance.id, existing.id));
+        [record] = await db.select().from(attendance).where(eq(attendance.id, existing.id)).limit(1);
+      } else {
+        const [user] = await db.select().from(users).where(eq(users.id, parsedUserId)).limit(1);
+        const insertPayload: any = {
+          userId: parsedUserId,
+          date: date,
+          status,
+          notes: notes || "",
+          shift: shift || user?.shift || '-',
+          sessionNumber: 1,
+        };
+        if (checkIn) insertPayload.checkIn = new Date(`${date}T${checkIn}:00+07:00`);
+        if (checkOut) insertPayload.checkOut = toDate(date, checkOut);
+        if (breakStart) insertPayload.breakStart = toDate(date, breakStart);
+        if (breakEnd) insertPayload.breakEnd = toDate(date, breakEnd);
+
+        const [result] = await db.insert(attendance).values(insertPayload);
+        const insertId = result.insertId;
+        [record] = await db.select().from(attendance).where(eq(attendance.id, insertId)).limit(1);
+      }
+
+      res.json(record);
+    } catch (err: any) {
+      console.error("Manual Attendance Error:", err);
+      res.status(500).json({ message: "Gagal memproses data absensi" });
+    }
+  });
+
+  // PUT: Edit existing attendance record (admin override)
+  app.put('/api/admin/attendance/:id', isAdmin, async (req: Request, res: Response) => {
+    const id = parseInt(req.params.id);
+    const { status, notes, checkIn, checkOut, breakStart, breakEnd, date } = req.body;
+
+    const toDate = (dateStr: string | undefined, timeStr: string | undefined): Date | null => {
+      if (!timeStr || timeStr.trim() === '') return null;
+      return new Date(`${dateStr}T${timeStr}:00+07:00`);
+    };
+
+    try {
+      const updatePayload: any = {};
+      if (status) updatePayload.status = status;
+      updatePayload.notes = notes || null;
+      if (checkIn) updatePayload.checkIn = new Date(`${date}T${checkIn}:00+07:00`);
+      if (checkOut !== undefined) updatePayload.checkOut = toDate(date, checkOut);
+      if (breakStart !== undefined) updatePayload.breakStart = toDate(date, breakStart);
+      if (breakEnd !== undefined) updatePayload.breakEnd = toDate(date, breakEnd);
+
+      await db.update(attendance).set(updatePayload).where(eq(attendance.id, id));
+      
+      const [updated] = await db.select().from(attendance).where(eq(attendance.id, id)).limit(1);
+      res.json(updated);
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
+  // DELETE: Remove an attendance record
+  app.delete('/api/admin/attendance/:id', isAdmin, async (req: Request, res: Response) => {
+    const id = parseInt(req.params.id);
+    try {
+      await db.delete(attendance).where(eq(attendance.id, id));
+      res.sendStatus(204);
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
   // 11. Complaints listing for admin
   app.get("/api/admin/complaints", isAdmin, async (req: Request, res: Response) => {
     try {
