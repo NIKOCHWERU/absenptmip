@@ -27,7 +27,6 @@ export default function ActivityLogsPage() {
 
     const { data: logs = [], isLoading } = useQuery<ActivityLogItem[]>({
         queryKey: ["/api/admin/activity-logs"],
-        refetchInterval: 10000,
     });
 
     if (user?.role !== "superadmin") {

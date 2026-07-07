@@ -61,7 +61,6 @@ export default function AdminManageAdminsPage() {
 
   const { data: allUsers = [], isLoading } = useQuery<User[]>({
     queryKey: ["/api/admin/users"],
-    refetchInterval: 10000,
   });
 
   const admins = allUsers

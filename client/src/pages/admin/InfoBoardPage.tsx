@@ -42,12 +42,10 @@ export default function InfoBoardPage() {
 
     const { data: announcements, isLoading } = useQuery<Announcement[]>({
         queryKey: ["/api/announcements"],
-        refetchInterval: 5000,
     });
 
     const { data: complaintsStats } = useQuery<{ pendingCount: number }>({
         queryKey: ["/api/admin/complaints/stats"],
-        refetchInterval: 5000,
     });
 
     const form = useForm<z.infer<typeof formSchema>>({

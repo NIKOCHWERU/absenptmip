@@ -110,21 +110,18 @@ export default function AdminDashboard() {
 
     const { data: stats } = useQuery<{ totalEmployees: number; presentToday: number }>({
         queryKey: ["/api/admin/stats"],
-        refetchInterval: 5000, // Poll every 5 seconds
     });
 
     const [prevPendingCount, setPrevPendingCount] = useState<number>(0);
 
     const { data: complaintsStats } = useQuery<{ pendingCount: number }>({
         queryKey: ["/api/admin/complaints/stats"],
-        refetchInterval: 5000, // Poll every 5 seconds
     });
 
     const [prevLeavePendingCount, setPrevLeavePendingCount] = useState<number>(0);
 
     const { data: leaveRequests } = useQuery<LeaveRequest[]>({
         queryKey: [api.admin.attendance.leave.list.path],
-        refetchInterval: 5000,
     });
 
     // Browser Notification Logic
@@ -174,12 +171,10 @@ export default function AdminDashboard() {
 
     const { data: attendanceHistory } = useQuery<Attendance[]>({
         queryKey: ["/api/admin/attendance"], // Fetches all history
-        refetchInterval: 5000, // Poll every 5 seconds
     });
 
     const { data: users } = useQuery<User[]>({
         queryKey: ["/api/admin/users"],
-        refetchInterval: 5000,
     });
 
     // Recent activities (Live Feed) - Filter today's records and sort by latest action

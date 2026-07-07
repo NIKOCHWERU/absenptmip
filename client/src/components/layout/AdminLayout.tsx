@@ -344,17 +344,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     // Polling counts for notifications in sidebar
     const { data: complaintsStats } = useQuery<{ pendingCount: number }>({
         queryKey: ["/api/admin/complaints/stats"],
-        refetchInterval: 5000,
     });
 
     const { data: leaveRequests } = useQuery<{ status: string }[]>({
         queryKey: ["/api/admin/leave-requests"],
-        refetchInterval: 5000,
     });
 
     const { data: unverifiedEmployees } = useQuery<any[]>({
         queryKey: ["/api/admin/unverified-employees"],
-        refetchInterval: 10000,
     });
 
     const pendingLeaveCount = leaveRequests?.filter((r) => r.status === 'pending').length || 0;

@@ -299,12 +299,10 @@ export default function AdminLeaveHistoryPage() {
 
     const { data: users } = useQuery<User[]>({
         queryKey: ["/api/admin/users"],
-        refetchInterval: 5000,
     });
 
     const { data: requests, isLoading } = useQuery<LeaveRequest[]>({
         queryKey: [api.admin.attendance.leave.list.path],
-        refetchInterval: 5000,
     });
 
     const getUserName = (userId: number) => {

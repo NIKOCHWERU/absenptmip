@@ -92,7 +92,6 @@ export default function AttendanceHistoryPage() {
 
     const { data: attendanceHistory, isLoading: isLoadingAttendance } = useQuery<Attendance[]>({
         queryKey: [`/api/admin/attendance?startDate=${format(startDate, 'yyyy-MM-dd')}&endDate=${format(endDate, 'yyyy-MM-dd')}`],
-        refetchInterval: 10000,
     });
 
     const { data: users } = useQuery<User[]>({

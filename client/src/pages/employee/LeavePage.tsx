@@ -150,7 +150,6 @@ export default function LeavePage() {
             if (!res.ok) throw new Error("Gagal memuat saldo cuti");
             return res.json();
         },
-        refetchInterval: 3000,
     });
 
     const { data: requests, isLoading: isLoadingRequests } = useQuery<LeaveRequest[]>({
@@ -160,7 +159,6 @@ export default function LeavePage() {
             if (!res.ok) throw new Error("Gagal memuat riwayat cuti");
             return res.json();
         },
-        refetchInterval: 3000,
     });
 
     const mutation = useMutation({

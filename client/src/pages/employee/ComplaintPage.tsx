@@ -13,7 +13,7 @@ import { format } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
 import { motion } from "framer-motion";
 import { useState, useRef } from "react";
-import { safeCompressImage, uploadFileWithProgress } from "@/lib/utils";
+import { safeCompressImage, uploadFileWithProgress, resolveFileUrl } from "@/lib/utils";
 import { Progress } from "@/components/ui/progress";
 
 interface Complaint {
@@ -46,7 +46,6 @@ export default function ComplaintPage() {
 
     const { data: complaints = [], isLoading } = useQuery<Complaint[]>({
         queryKey: ["/api/employee/complaints"],
-        refetchInterval: 5000,
     });
 
     const complaintPhotos = selectedComplaint?.photos || [];
@@ -333,7 +332,7 @@ export default function ComplaintPage() {
                                 {complaintPhotos.map((photo) => (
                                     <div key={photo.id} className="space-y-1">
                                         <img
-                                            src={photo.photoUrl}
+                                            src={resolveFileUrl(photo.photoUrl)}
                                             alt={photo.caption || ""}
                                             className="w-full rounded-xl border border-gray-100"
                                         />

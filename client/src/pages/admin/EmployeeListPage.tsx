@@ -89,12 +89,10 @@ export default function AdminEmployeeList() {
 
     const { data: complaintsStats } = useQuery<{ pendingCount: number }>({
         queryKey: ["/api/admin/complaints/stats"],
-        refetchInterval: 5000,
     });
 
     const { data: users = [], isLoading } = useQuery<User[]>({
         queryKey: ["/api/admin/users"],
-        refetchInterval: 5000,
     });
 
     const { data: resignations = [] } = useQuery<any[]>({
@@ -104,7 +102,6 @@ export default function AdminEmployeeList() {
     // Fetch attendance for selected employee if needed
     const { data: employeeAttendance } = useQuery<Attendance[]>({
         queryKey: ["/api/attendance", selectedEmployee?.id, attendanceViewDate.toISOString()],
-        refetchInterval: 5000,
         queryFn: async () => {
             if (!selectedEmployee) return [];
             const res = await fetch(`/api/attendance?userId=${selectedEmployee.id}`);

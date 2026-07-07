@@ -187,7 +187,7 @@ export const resolveFileUrl = (value: string | null | undefined): string => {
   }
   // If it's a raw Google Drive File ID (a clean string, usually >15 chars, without slashes)
   if (!value.includes("/") && value.length > 15) {
-    return `/api/images/${value}`; // Proxied through Google Drive proxy or local storage endpoint
+    return `/api/gdrive-img/${value}`; // Proxied through Google Drive proxy or local storage endpoint
   }
   return `/uploads/${value}`;
 };

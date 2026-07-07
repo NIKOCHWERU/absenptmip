@@ -55,12 +55,10 @@ export default function AdminComplaintsPage() {
 
     const { data: complaints = [], isLoading } = useQuery<Complaint[]>({
         queryKey: ["/api/admin/complaints"],
-        refetchInterval: 5000,
     });
 
     const { data: allUsers = [] } = useQuery<UserInfo[]>({
         queryKey: ["/api/admin/users"],
-        refetchInterval: 5000,
     });
 
     const complaintPhotos = selectedComplaint?.photos || [];

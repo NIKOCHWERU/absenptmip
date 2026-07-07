@@ -12,14 +12,12 @@ export function BottomNav() {
   // Fetch announcements for Info badge
   const { data: announcements } = useQuery<any[]>({
     queryKey: ["/api/announcements"],
-    refetchInterval: 5000, // Auto refresh every 5 seconds for real-time badge updates
   });
 
   // Fetch complaints for Pengaduan badge
   const { data: complaints } = useQuery<any[]>({
     queryKey: ["/api/complaints"],
     enabled: !!user,
-    refetchInterval: 5000, // Auto refresh every 5 seconds
   });
 
   // Force re-render when localStorage changes if on the same page

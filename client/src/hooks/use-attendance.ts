@@ -5,7 +5,6 @@ import { Attendance } from "@shared/schema";
 export function useAttendance() {
   const { data, isLoading: isLoadingToday } = useQuery<Attendance[]>({
     queryKey: ["/api/attendance/today"],
-    refetchInterval: 5000,
   });
   const todaySessions = Array.isArray(data) ? data : (data ? [data] : []);
 
