@@ -103,21 +103,16 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage });
 
-// Helper to get Indonesian Current Date under Day Boundary (04:00 WIB)
 export function getAdminDate(): string {
-  const utc = new Date();
-  // UTC+7 for WIB
-  const wib = new Date(utc.getTime() + 7 * 60 * 60 * 1000);
-  const hour = wib.getUTCHours();
-  
-  if (hour < 4) {
-    wib.setUTCDate(wib.getUTCDate() - 1);
+  const now = new Date();
+  const jakartaTime = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Jakarta" }));
+  if (jakartaTime.getHours() < 4) {
+    jakartaTime.setDate(jakartaTime.getDate() - 1);
   }
-  
-  const yyyy = wib.getUTCFullYear();
-  const mm = String(wib.getUTCMonth() + 1).padStart(2, "0");
-  const dd = String(wib.getUTCDate()).padStart(2, "0");
-  return `${yyyy}-${mm}-${dd}`;
+  const y = jakartaTime.getFullYear();
+  const m = String(jakartaTime.getMonth() + 1).padStart(2, '0');
+  const d = String(jakartaTime.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
 }
 
 export function registerRoutes(app: Express) {
@@ -717,7 +712,7 @@ export function registerRoutes(app: Express) {
         const existingSessions = await db
           .select()
           .from(attendance)
-          .where(and(eq(attendance.userId, userId), eq(attendance.date, adminDate)));
+          .where(and(eq(attendance.userId, userId), sql`DATE(${attendance.date}) = ${adminDate}`));
 
         const nextSessionNum = existingSessions.length + 1;
         if (nextSessionNum > 5) {
@@ -781,7 +776,7 @@ export function registerRoutes(app: Express) {
       const todaySessions = await db
         .select()
         .from(attendance)
-        .where(and(eq(attendance.userId, userId), eq(attendance.date, adminDate)))
+        .where(and(eq(attendance.userId, userId), sql`DATE(${attendance.date}) = ${adminDate}`))
         .orderBy(desc(attendance.sessionNumber));
 
       if (todaySessions.length === 0) {
@@ -821,7 +816,7 @@ export function registerRoutes(app: Express) {
       const todaySessions = await db
         .select()
         .from(attendance)
-        .where(and(eq(attendance.userId, userId), eq(attendance.date, adminDate)))
+        .where(and(eq(attendance.userId, userId), sql`DATE(${attendance.date}) = ${adminDate}`))
         .orderBy(desc(attendance.sessionNumber));
 
       if (todaySessions.length === 0) {
@@ -864,7 +859,7 @@ export function registerRoutes(app: Express) {
       const todaySessions = await db
         .select()
         .from(attendance)
-        .where(and(eq(attendance.userId, userId), eq(attendance.date, adminDate)))
+        .where(and(eq(attendance.userId, userId), sql`DATE(${attendance.date}) = ${adminDate}`))
         .orderBy(desc(attendance.sessionNumber));
 
       if (todaySessions.length === 0) {
@@ -905,7 +900,7 @@ export function registerRoutes(app: Express) {
       const todaySessions = await db
         .select()
         .from(attendance)
-        .where(and(eq(attendance.userId, userId), eq(attendance.date, adminDate)))
+        .where(and(eq(attendance.userId, userId), sql`DATE(${attendance.date}) = ${adminDate}`))
         .orderBy(attendance.sessionNumber);
 
       const activeSession = todaySessions.find(s => !s.checkOut);
@@ -973,7 +968,7 @@ export function registerRoutes(app: Express) {
       const todaySessions = await db
         .select()
         .from(attendance)
-        .where(and(eq(attendance.userId, userId), eq(attendance.date, adminDate)))
+        .where(and(eq(attendance.userId, userId), sql`DATE(${attendance.date}) = ${adminDate}`))
         .orderBy(attendance.sessionNumber);
 
       if (todaySessions.length === 0) {
@@ -1022,7 +1017,7 @@ export function registerRoutes(app: Express) {
       const todaySessions = await db
         .select()
         .from(attendance)
-        .where(and(eq(attendance.userId, userId), eq(attendance.date, adminDate)))
+        .where(and(eq(attendance.userId, userId), sql`DATE(${attendance.date}) = ${adminDate}`))
         .orderBy(attendance.sessionNumber);
 
       res.json(todaySessions);
@@ -1323,7 +1318,7 @@ export function registerRoutes(app: Express) {
       const todayAttendance = await db
         .select()
         .from(attendance)
-        .where(eq(attendance.date, adminDate));
+        .where(sql`DATE(${attendance.date}) = ${adminDate}`);
       const presentUserIds = new Set(todayAttendance.map(a => a.userId));
       const presentToday = presentUserIds.size;
 
@@ -1697,11 +1692,10 @@ export function registerRoutes(app: Express) {
         }
 
         for (const dateStr of datesToMark) {
-          // Check if attendance log already exists for user and date
           const [exists] = await db
             .select()
             .from(attendance)
-            .where(and(eq(attendance.userId, leaveReq.userId), eq(attendance.date, dateStr)))
+            .where(and(eq(attendance.userId, leaveReq.userId), sql`DATE(${attendance.date}) = ${dateStr}`))
             .limit(1);
 
           if (!exists) {
@@ -1716,7 +1710,7 @@ export function registerRoutes(app: Express) {
             await db
               .update(attendance)
               .set({ status: "cuti", notes: `Cuti Disetujui: ${leaveReq.reason}` })
-              .where(and(eq(attendance.userId, leaveReq.userId), eq(attendance.date, dateStr)));
+              .where(and(eq(attendance.userId, leaveReq.userId), sql`DATE(${attendance.date}) = ${dateStr}`));
           }
         }
       }
@@ -1749,10 +1743,10 @@ export function registerRoutes(app: Express) {
       
       const filters = [];
       if (startDate) {
-        filters.push(gte(attendance.date, String(startDate)));
+        filters.push(sql`DATE(${attendance.date}) >= ${startDate}`);
       }
       if (endDate) {
-        filters.push(lte(attendance.date, String(endDate)));
+        filters.push(sql`DATE(${attendance.date}) <= ${endDate}`);
       }
 
       if (filters.length > 0) {
