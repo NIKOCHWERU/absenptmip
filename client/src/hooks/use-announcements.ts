@@ -10,8 +10,8 @@ export function useAnnouncements() {
   const createMutation = useMutation({
     mutationFn: async (data: { title: string; content: string }) => {
       await apiRequest("POST", "/api/announcements", data);
-    },
-    onSuccess: async () => {
+    
+
       await queryClient.invalidateQueries({ queryKey: ["/api/announcements"] });
     },
   });

@@ -79,8 +79,8 @@ export default function InfoBoardPage() {
                 throw new Error(error.message || "Gagal membuat pengumuman");
             }
             return res.json();
-        },
-        onSuccess: async () => {
+        
+
             await queryClient.invalidateQueries({ queryKey: ["/api/announcements"] });
             toast({ title: "Berhasil", description: "Pengumuman berhasil dibuat" });
             setOpen(false);
@@ -116,8 +116,8 @@ export default function InfoBoardPage() {
                 throw new Error(error.message || "Gagal memperbarui pengumuman");
             }
             return res.json();
-        },
-        onSuccess: async () => {
+        
+
             await queryClient.invalidateQueries({ queryKey: ["/api/announcements"] });
             toast({ title: "Berhasil", description: "Pengumuman berhasil diperbarui" });
             setOpen(false);
@@ -133,8 +133,8 @@ export default function InfoBoardPage() {
     const deleteMutation = useMutation({
         mutationFn: async (id: number) => {
             await apiRequest("DELETE", `/api/announcements/${id}`);
-        },
-        onSuccess: async () => {
+        
+
             await queryClient.invalidateQueries({ queryKey: ["/api/announcements"] });
             toast({ title: "Berhasil", description: "Pengumuman berhasil dihapus" });
         },

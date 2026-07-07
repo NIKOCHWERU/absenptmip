@@ -107,6 +107,7 @@ export default function WarningLetterManagementPage() {
                 const errData = await res.json();
                 throw new Error(errData.message || "Gagal menyimpan data.");
             }
+            await queryClient.invalidateQueries({ queryKey: ["/api/admin/warning-letters"] });
             return res.json();
         },
         onSuccess: async (data) => {
@@ -115,7 +116,6 @@ export default function WarningLetterManagementPage() {
                 description: data.message || "Surat peringatan berhasil disimpan.",
                 variant: "default",
             });
-            await queryClient.invalidateQueries({ queryKey: ["/api/admin/warning-letters"] });
             resetForm();
             setOpenAddModal(false);
         },
@@ -138,6 +138,7 @@ export default function WarningLetterManagementPage() {
                 const errData = await res.json();
                 throw new Error(errData.message || "Gagal memperbarui data.");
             }
+            await queryClient.invalidateQueries({ queryKey: ["/api/admin/warning-letters"] });
             return res.json();
         },
         onSuccess: async (data) => {
@@ -146,7 +147,6 @@ export default function WarningLetterManagementPage() {
                 description: data.message || "Data SP berhasil diperbarui.",
                 variant: "default",
             });
-            await queryClient.invalidateQueries({ queryKey: ["/api/admin/warning-letters"] });
             resetForm();
             setOpenEditModal(false);
         },
@@ -168,6 +168,7 @@ export default function WarningLetterManagementPage() {
                 const errData = await res.json();
                 throw new Error(errData.message || "Gagal menghapus data.");
             }
+            await queryClient.invalidateQueries({ queryKey: ["/api/admin/warning-letters"] });
             return res.json();
         },
         onSuccess: async (data) => {
@@ -176,7 +177,6 @@ export default function WarningLetterManagementPage() {
                 description: data.message || "Data SP berhasil dihapus.",
                 variant: "default",
             });
-            await queryClient.invalidateQueries({ queryKey: ["/api/admin/warning-letters"] });
         },
         onError: (err: any) => {
             toast({

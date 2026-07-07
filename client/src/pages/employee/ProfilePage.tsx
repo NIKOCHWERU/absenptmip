@@ -116,8 +116,8 @@ export default function ProfilePage() {
         throw new Error(err.message || "Gagal memperbarui profil");
       }
       return res.json();
-    },
-    onSuccess: async () => {
+    
+
       await queryClient.invalidateQueries({ queryKey: ["/api/user"] });
       toast({ title: "Profil Diperbarui", description: "Data berhasil disimpan." });
       setIsEditing(false);

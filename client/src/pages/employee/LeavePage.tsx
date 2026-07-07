@@ -174,8 +174,8 @@ export default function LeavePage() {
                 throw new Error(err.message || "Gagal mengajukan cuti");
             }
             return res.json();
-        },
-        onSuccess: async () => {
+        
+
             await queryClient.invalidateQueries({ queryKey: [api.leave.list.path], exact: true });
             await queryClient.invalidateQueries({ queryKey: [api.leave.balance.path], exact: true });
             setSelectedDates([]);
@@ -205,8 +205,8 @@ export default function LeavePage() {
                 throw new Error(err.message || "Gagal membatalkan cuti");
             }
             return res.json();
-        },
-        onSuccess: async () => {
+        
+
             await queryClient.invalidateQueries({ queryKey: [api.leave.list.path], exact: true });
             await queryClient.invalidateQueries({ queryKey: [api.leave.balance.path], exact: true });
             toast({

@@ -66,8 +66,8 @@ export default function AdminLeavePage() {
             });
             if (!res.ok) throw new Error("Gagal memperbarui status");
             return res.json();
-        },
-        onSuccess: async () => {
+        
+
             await queryClient.invalidateQueries({ queryKey: [api.admin.attendance.leave.list.path] });
             await queryClient.invalidateQueries({ queryKey: ["/api/attendance"] });
             toast({
@@ -91,8 +91,8 @@ export default function AdminLeavePage() {
             });
             if (!res.ok) throw new Error("Gagal menghapus permohonan cuti");
             return res.json();
-        },
-        onSuccess: async () => {
+        
+
             await queryClient.invalidateQueries({ queryKey: [api.admin.attendance.leave.list.path] });
             await queryClient.invalidateQueries({ queryKey: ["/api/attendance"] });
             toast({

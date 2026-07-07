@@ -73,8 +73,8 @@ export default function AdminComplaintsPage() {
             });
             if (!res.ok) throw new Error("Gagal update status");
             return res.json();
-        },
-        onSuccess: async () => {
+        
+
             await queryClient.invalidateQueries({ queryKey: ["/api/admin/complaints"] });
             toast({ title: "Status diperbarui", className: "bg-primary text-white" });
             setSelectedComplaint(null);

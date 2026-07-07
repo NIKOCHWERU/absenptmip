@@ -271,8 +271,8 @@ export default function AdminEmployeeList() {
                 throw new Error(error.message || "Failed to save");
             }
             return res.json();
-        },
-        onSuccess: async () => {
+        
+
             await queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
             toast({ title: "Berhasil", description: selectedEmployee ? "Tenaga Kerja diperbarui" : "Tenaga Kerja ditambahkan" });
             setOpen(false);
@@ -291,8 +291,8 @@ export default function AdminEmployeeList() {
     const deleteMutation = useMutation({
         mutationFn: async (id: number) => {
             await apiRequest("DELETE", `/api/admin/users/${id}`);
-        },
-        onSuccess: async () => {
+        
+
             await queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
             toast({ title: "Berhasil", description: "Tenaga Kerja berhasil dihapus" });
         },
@@ -305,8 +305,8 @@ export default function AdminEmployeeList() {
         mutationFn: async (userIds: number[]) => {
             const res = await apiRequest("POST", "/api/admin/users/bulk-delete", { userIds });
             return await res.json();
-        },
-        onSuccess: async () => {
+        
+
             await queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
             toast({ title: "Berhasil", description: "Tenaga Kerja terpilih telah dihapus." });
             setSelectedEmployeeIds([]);

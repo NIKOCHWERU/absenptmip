@@ -50,8 +50,8 @@ export default function ResignHistoryPage() {
             });
             if (!res.ok) throw new Error("Gagal menghapus riwayat resign");
             return res.json();
-        },
-        onSuccess: async () => {
+        
+
             await queryClient.invalidateQueries({ queryKey: ["/api/admin/resignations"] });
             toast({
                 title: "Berhasil",

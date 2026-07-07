@@ -120,8 +120,8 @@ export default function AdminManageAdminsPage() {
         throw new Error(err.message || "Gagal menyimpan");
       }
       return res.json();
-    },
-    onSuccess: async () => {
+    
+
       await queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
       toast({
         title: "Berhasil",
@@ -137,8 +137,8 @@ export default function AdminManageAdminsPage() {
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => {
       await apiRequest("DELETE", `/api/admin/users/${id}`);
-    },
-    onSuccess: async () => {
+    
+
       await queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
       toast({ title: "Berhasil", description: "Admin dihapus." });
     },
