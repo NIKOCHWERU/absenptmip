@@ -261,7 +261,7 @@ export function registerRoutes(app: Express) {
   });
 
   // Google Drive proxy thumbnail endpoint
-  app.get("/api/gdrive-img/:id", (req: Request, res: Response) => {
+  app.get("/api/gdrive-img/:id", async (req: Request, res: Response) => {
     const fileId = req.params.id;
     if (!fileId || fileId.includes("/") || fileId.includes("\\")) {
       return res.status(400).json({ message: "ID File tidak valid" });
