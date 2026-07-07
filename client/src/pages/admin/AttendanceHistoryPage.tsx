@@ -104,6 +104,13 @@ export default function AttendanceHistoryPage() {
         queryKey: ["/api/admin/users"],
     });
 
+    const { data: config } = useQuery<any>({
+        queryKey: ["/api/config"],
+    });
+
+    const namaPt = config?.namaPt || import.meta.env.VITE_NAMA_PT || "PT MEKANO INDUSTRIAL PRESISI";
+    const singkatanPt = config?.singkatanPt || import.meta.env.VITE_SINGKATAN_PT || "PT MIP";
+
     const getEmployee = (userId: number) => {
         return users?.find(user => user.id === userId);
     };
@@ -221,7 +228,7 @@ export default function AttendanceHistoryPage() {
             periodStr = format(targetDate, "MMMM yyyy", { locale: id }).toUpperCase();
         }
 
-        const fileName = `LAPORAN RIWAYAT ABSENSI FOTO TENAGA KERJA PT EJA - ${periodStr}.html`;
+        const fileName = `LAPORAN RIWAYAT ABSENSI FOTO TENAGA KERJA ${singkatanPt} - ${periodStr}.html`;
         const imageCache: Record<string, string> = {};
         const fetchImageBase64 = async (url: string, retries = 2) => {
             if (!url) return '';
@@ -347,7 +354,7 @@ export default function AttendanceHistoryPage() {
   <div class="letterhead">
     <img src="${logoDataUrl}" class="logo-img" alt="Logo" />
     <div class="company-block">
-      <h1>PT Elok Jaya Abadhi</h1>
+      <h1>${namaPt}</h1>
       <p class="tagline">Sistem Manajemen Kehadiran Digital</p>
     </div>
   </div>
@@ -616,7 +623,7 @@ export default function AttendanceHistoryPage() {
                 const monthStr2 = format(d2, "MMMM", { locale: id }).toUpperCase();
                 const yearStr = format(d1, "yyyy");
                 
-                const docTitle = `REKAP ABSENSI FOTO NON MANAJEMEN ${dayStr1} ${monthStr1} - ${dayStr2} ${monthStr2} ${yearStr} PT EJA`;
+                const docTitle = `REKAP ABSENSI FOTO NON MANAJEMEN ${dayStr1} ${monthStr1} - ${dayStr2} ${monthStr2} ${yearStr} ${singkatanPt}`;
 
                 const dayRecords = attendanceHistory?.filter(att => {
                     const emp = getEmployee(att.userId);
@@ -706,7 +713,7 @@ export default function AttendanceHistoryPage() {
   <div class="letterhead">
     <img src="${logoDataUrl}" class="logo-img" alt="Logo" />
     <div class="company-block">
-      <h1>PT Elok Jaya Abadhi</h1>
+      <h1>${namaPt}</h1>
       <p class="tagline">Sistem Manajemen Kehadiran Digital</p>
     </div>
   </div>

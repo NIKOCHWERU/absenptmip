@@ -25,7 +25,8 @@ export default function AttendanceSummaryPage() {
     const { data: config } = useQuery<any>({
         queryKey: ["/api/config"],
     });
-    const namaPt = config?.namaPt || import.meta.env.VITE_NAMA_PT || "PT ABC";
+    const namaPt = config?.namaPt || import.meta.env.VITE_NAMA_PT || "PT MEKANO INDUSTRIAL PRESISI";
+    const singkatanPt = config?.singkatanPt || import.meta.env.VITE_SINGKATAN_PT || "PT MIP";
     // State for selected period (e.g., Feb 2026 means Jan 26 - Feb 25)
     const [targetDate, setTargetDate] = useState(new Date());
     const [customStartDate, setCustomStartDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
@@ -34,7 +35,7 @@ export default function AttendanceSummaryPage() {
 
     useEffect(() => {
         // Pre-fetch logo to avoid async delays during export that trigger popup blockers
-        fetch('/logo_elok_buah.jpg')
+        fetch('/logo.png')
             .then(res => res.blob())
             .then(blob => {
                 const reader = new FileReader();
@@ -207,7 +208,7 @@ export default function AttendanceSummaryPage() {
             periodStr = format(targetDate, "MMMM yyyy", { locale: id }).toUpperCase();
         }
 
-        const fileName = `LAPORAN ABSENSI SUMMARY ${config?.singkatanPt || "PT ABC"} - ${periodStr}.html`;
+        const fileName = `LAPORAN ABSENSI SUMMARY ${singkatanPt} - ${periodStr}.html`;
 
         let tableHeader: string = "";
         let tableRows: string = "";
@@ -410,7 +411,7 @@ export default function AttendanceSummaryPage() {
   <hr class="hr-thin" />
 
   <div class="report-meta">
-    <h2>Laporan Ringkasan Absensi ${config?.singkatanPt || "PT ABC"}</h2>
+    <h2>Laporan Ringkasan Absensi ${singkatanPt}</h2>
     <p class="sub">Tipe: ${reportType === 'daily' ? 'Harian' : reportType === 'weekly' ? 'Mingguan' : reportType === 'custom' ? 'Kustom' : 'Bulanan'}</p>
     <p class="sub">Rentang Waktu: ${format(startDate, "EEEE, d MMMM yyyy", { locale: id })} - ${format(endDate, "EEEE, d MMMM yyyy", { locale: id })}</p>
   </div>
