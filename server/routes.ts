@@ -33,7 +33,7 @@ if (!fs.existsSync(cacheDir)) {
   fs.mkdirSync(cacheDir, { recursive: true });
 }
 
-import { uploadFile, isDriveConfigured, buildDriveFilename, DriveFolder } from "./services/googleDrive.js";
+import { uploadFile, isDriveConfigured, buildDriveFilename, DriveFolder, downloadFileStream } from "./services/googleDrive.js";
 
 async function processSingleUpload(
   file: Express.Multer.File | undefined,
@@ -278,7 +278,35 @@ export function registerRoutes(app: Express) {
       return res.sendFile(cachePath);
     }
 
-    // 2. Fetch from Google Drive thumbnail public API
+    // 2. Fetch from Google Drive API using authenticated client if configured
+    if (isDriveConfigured) {
+      try {
+        const stream = await downloadFileStream(safeFileId);
+        res.setHeader("Access-Control-Allow-Origin", "*");
+        res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
+        res.setHeader("Content-Type", "image/jpeg"); // Assume jpeg for simplicity
+        
+        const chunks: Buffer[] = [];
+        stream.on('data', (chunk: Buffer) => chunks.push(chunk));
+        stream.on('end', () => {
+          const buffer = Buffer.concat(chunks);
+          fs.writeFile(cachePath, buffer, (err) => {
+            if (err) console.error("Cache write error:", err);
+          });
+          res.send(buffer);
+        });
+        stream.on('error', (err: any) => {
+          console.error("GDrive stream error:", err);
+          res.status(500).json({ message: "Gagal memproses gambar Drive" });
+        });
+      } catch (err: any) {
+        console.error("GDrive download error:", err.message);
+        res.status(404).json({ message: "Gambar tidak ditemukan di Drive" });
+      }
+      return;
+    }
+
+    // 3. Fallback to public thumbnail API if not configured
     const driveUrl = `https://drive.google.com/thumbnail?id=${safeFileId}&sz=w800`;
 
     import("https").then((https) => {

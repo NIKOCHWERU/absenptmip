@@ -74,8 +74,8 @@ export default function AdminProfilePage() {
       }
       return res.json();
     },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/user"] });
+    onSuccess: async (data) => {
+      await queryClient.invalidateQueries({ queryKey: ["/api/user"] });
       // update internal context cache
       queryClient.setQueryData(["/api/user"], data);
       

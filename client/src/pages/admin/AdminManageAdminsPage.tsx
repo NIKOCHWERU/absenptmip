@@ -121,8 +121,8 @@ export default function AdminManageAdminsPage() {
       }
       return res.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
       toast({
         title: "Berhasil",
         description: selectedAdmin ? "Data admin diperbarui." : "Admin baru ditambahkan.",
@@ -138,8 +138,8 @@ export default function AdminManageAdminsPage() {
     mutationFn: async (id: number) => {
       await apiRequest("DELETE", `/api/admin/users/${id}`);
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
       toast({ title: "Berhasil", description: "Admin dihapus." });
     },
     onError: (err: any) => {

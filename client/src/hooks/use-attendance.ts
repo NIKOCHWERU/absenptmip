@@ -17,9 +17,9 @@ export function useAttendance() {
     mutationFn: async (data: { location: string; checkInPhoto: string; shift?: string; lateReason?: string; lateReasonPhoto?: string }) => {
       await apiRequest("POST", "/api/attendance/clock-in", data);
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/attendance/today"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/attendance"] });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["/api/attendance/today"] });
+      await queryClient.invalidateQueries({ queryKey: ["/api/attendance"] });
     },
   });
 
@@ -27,9 +27,9 @@ export function useAttendance() {
     mutationFn: async (data: { location: string; checkInPhoto: string }) => {
       await apiRequest("POST", "/api/attendance/clock-out", data);
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/attendance/today"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/attendance"] });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["/api/attendance/today"] });
+      await queryClient.invalidateQueries({ queryKey: ["/api/attendance"] });
     },
   });
 
@@ -37,8 +37,8 @@ export function useAttendance() {
     mutationFn: async (data: { location: string; checkInPhoto: string }) => {
       await apiRequest("POST", "/api/attendance/break-start", data);
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/attendance/today"] });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["/api/attendance/today"] });
     },
   });
 
@@ -46,8 +46,8 @@ export function useAttendance() {
     mutationFn: async (data: { location: string; checkInPhoto: string }) => {
       await apiRequest("POST", "/api/attendance/break-end", data);
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/attendance/today"] });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["/api/attendance/today"] });
     },
   });
 
@@ -55,9 +55,9 @@ export function useAttendance() {
     mutationFn: async (data: { type: "sick" | "permission" | "off"; notes: string; checkInPhoto?: string | null; location?: string }) => {
       await apiRequest("POST", "/api/attendance/permit", data);
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/attendance/today"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/attendance"] });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["/api/attendance/today"] });
+      await queryClient.invalidateQueries({ queryKey: ["/api/attendance"] });
     },
   });
 
@@ -65,9 +65,9 @@ export function useAttendance() {
     mutationFn: async () => {
       await apiRequest("POST", "/api/attendance/resume", {});
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/attendance/today"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/attendance"] });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["/api/attendance/today"] });
+      await queryClient.invalidateQueries({ queryKey: ["/api/attendance"] });
     },
   });
 

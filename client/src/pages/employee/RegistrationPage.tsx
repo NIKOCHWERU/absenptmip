@@ -162,7 +162,7 @@ export default function RegistrationPage() {
         description: "Data Anda telah dikirim dan sedang menunggu verifikasi admin.",
       });
 
-      queryClient.invalidateQueries({ queryKey: ["/api/user"] });
+      await queryClient.invalidateQueries({ queryKey: ["/api/user"] });
       setLocation("/employee/pending");
     } catch (err: any) {
       toast({

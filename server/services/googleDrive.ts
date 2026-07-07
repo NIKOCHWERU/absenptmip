@@ -192,3 +192,20 @@ export async function listFiles(): Promise<{ id: string; name: string; webViewLi
         throw new Error("Failed to list files from Google Drive");
     }
 }
+
+export async function downloadFileStream(fileId: string): Promise<Stream> {
+    if (!isDriveConfigured || !drive) {
+        throw new Error("Google Drive is not configured");
+    }
+    await ensureValidToken();
+    try {
+        const response = await drive.files.get(
+            { fileId, alt: 'media' },
+            { responseType: 'stream' }
+        );
+        return response.data;
+    } catch (error: any) {
+        console.error("❌ Google Drive Download Error:", error.message);
+        throw error;
+    }
+}

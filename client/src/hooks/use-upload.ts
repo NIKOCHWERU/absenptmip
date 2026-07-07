@@ -29,7 +29,7 @@ interface UseUploadOptions {
  * ```tsx
  * function FileUploader() {
  *   const { uploadFile, isUploading, error } = useUpload({
- *     onSuccess: (response) => {
+ *     onSuccess: async (response) => {
  *       console.log("Uploaded to:", response.objectPath);
  *     },
  *   });

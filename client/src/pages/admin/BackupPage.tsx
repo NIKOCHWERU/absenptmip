@@ -31,7 +31,7 @@ export default function BackupPage() {
       if (!res.ok) throw new Error("Gagal membuat backup");
       return res.json();
     },
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
       if (data.success) {
         toast({ title: "Backup Berhasil", description: data.message });
         refetch();
@@ -61,7 +61,7 @@ export default function BackupPage() {
       }
       return res.json();
     },
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
       toast({ title: "Import Berhasil", description: data.message });
       setTimeout(() => window.location.reload(), 1500);
     },

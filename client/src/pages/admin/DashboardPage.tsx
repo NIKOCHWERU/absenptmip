@@ -52,7 +52,7 @@ export default function AdminDashboard() {
             const res = await apiRequest("POST", "/api/admin/backup");
             return await res.json();
         },
-        onSuccess: (data: any) => {
+        onSuccess: async (data: any) => {
             if (data.success) {
                 toast({ title: "Backup Selesai", description: data.message });
                 window.location.href = `/api/admin/backups/download/${data.fileName}`;
@@ -81,7 +81,7 @@ export default function AdminDashboard() {
             }
             return await res.json();
         },
-        onSuccess: (data: any) => {
+        onSuccess: async (data: any) => {
             toast({ title: "Import Berhasil", description: data.message });
             setTimeout(() => window.location.reload(), 1500);
         },

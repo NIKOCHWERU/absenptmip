@@ -110,14 +110,14 @@ export default function ResignManagementPage() {
             }
             return res.json();
         },
-        onSuccess: (data) => {
+        onSuccess: async (data) => {
             toast({
                 title: "Berhasil",
                 description: data.message || "Pencatatan resign berhasil disimpan.",
                 variant: "default",
             });
-            queryClient.invalidateQueries({ queryKey: ["/api/admin/resignations"] });
-            queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
+            await queryClient.invalidateQueries({ queryKey: ["/api/admin/resignations"] });
+            await queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
             resetForm();
             setOpenAddModal(false);
         },
@@ -142,14 +142,14 @@ export default function ResignManagementPage() {
             }
             return res.json();
         },
-        onSuccess: (data) => {
+        onSuccess: async (data) => {
             toast({
                 title: "Berhasil",
                 description: data.message || "Data resign berhasil diperbarui.",
                 variant: "default",
             });
-            queryClient.invalidateQueries({ queryKey: ["/api/admin/resignations"] });
-            queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
+            await queryClient.invalidateQueries({ queryKey: ["/api/admin/resignations"] });
+            await queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
             resetForm();
             setOpenEditModal(false);
         },
@@ -173,14 +173,14 @@ export default function ResignManagementPage() {
             }
             return res.json();
         },
-        onSuccess: (data) => {
+        onSuccess: async (data) => {
             toast({
                 title: "Berhasil",
                 description: data.message || "Data resign berhasil dihapus.",
                 variant: "default",
             });
-            queryClient.invalidateQueries({ queryKey: ["/api/admin/resignations"] });
-            queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
+            await queryClient.invalidateQueries({ queryKey: ["/api/admin/resignations"] });
+            await queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
         },
         onError: (err: any) => {
             toast({

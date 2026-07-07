@@ -173,8 +173,8 @@ export default function AdminSettingsPage() {
       }
       return res.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/config"] });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["/api/config"] });
       toast({
         title: "Pengaturan Diperbarui",
         description: "Fitur aplikasi dan konfigurasi berhasil diselaraskan secara langsung.",

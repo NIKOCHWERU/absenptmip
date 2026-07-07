@@ -109,13 +109,13 @@ export default function WarningLetterManagementPage() {
             }
             return res.json();
         },
-        onSuccess: (data) => {
+        onSuccess: async (data) => {
             toast({
                 title: "Berhasil",
                 description: data.message || "Surat peringatan berhasil disimpan.",
                 variant: "default",
             });
-            queryClient.invalidateQueries({ queryKey: ["/api/admin/warning-letters"] });
+            await queryClient.invalidateQueries({ queryKey: ["/api/admin/warning-letters"] });
             resetForm();
             setOpenAddModal(false);
         },
@@ -140,13 +140,13 @@ export default function WarningLetterManagementPage() {
             }
             return res.json();
         },
-        onSuccess: (data) => {
+        onSuccess: async (data) => {
             toast({
                 title: "Berhasil",
                 description: data.message || "Data SP berhasil diperbarui.",
                 variant: "default",
             });
-            queryClient.invalidateQueries({ queryKey: ["/api/admin/warning-letters"] });
+            await queryClient.invalidateQueries({ queryKey: ["/api/admin/warning-letters"] });
             resetForm();
             setOpenEditModal(false);
         },
@@ -170,13 +170,13 @@ export default function WarningLetterManagementPage() {
             }
             return res.json();
         },
-        onSuccess: (data) => {
+        onSuccess: async (data) => {
             toast({
                 title: "Berhasil",
                 description: data.message || "Data SP berhasil dihapus.",
                 variant: "default",
             });
-            queryClient.invalidateQueries({ queryKey: ["/api/admin/warning-letters"] });
+            await queryClient.invalidateQueries({ queryKey: ["/api/admin/warning-letters"] });
         },
         onError: (err: any) => {
             toast({

@@ -11,8 +11,8 @@ export function useAnnouncements() {
     mutationFn: async (data: { title: string; content: string }) => {
       await apiRequest("POST", "/api/announcements", data);
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/announcements"] });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["/api/announcements"] });
     },
   });
 

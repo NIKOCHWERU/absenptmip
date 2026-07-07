@@ -67,8 +67,8 @@ export default function ComplaintPage() {
             if (!res.ok) throw new Error("Gagal mengirim pengaduan");
             return res.json();
         },
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ["/api/employee/complaints"] });
+        onSuccess: async () => {
+            await queryClient.invalidateQueries({ queryKey: ["/api/employee/complaints"] });
             setIsFormOpen(false);
             setTitle("");
             setDescription("");

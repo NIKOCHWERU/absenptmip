@@ -53,8 +53,8 @@ export default function AdminShiftPage() {
       const res = await apiRequest("POST", "/api/admin/shifts", newShift);
       return res.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/shifts"] });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["/api/shifts"] });
       toast({ title: "Berhasil", description: "Shift baru telah dibuat." });
       setIsDialogOpen(false);
     },
@@ -65,8 +65,8 @@ export default function AdminShiftPage() {
       const res = await apiRequest("PATCH", `/api/admin/shifts/${id}`, data);
       return res.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/shifts"] });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["/api/shifts"] });
       toast({ title: "Berhasil", description: "Shift telah diperbarui." });
       setIsDialogOpen(false);
       setEditingShift(null);
@@ -77,8 +77,8 @@ export default function AdminShiftPage() {
     mutationFn: async (id: number) => {
       await apiRequest("DELETE", `/api/admin/shifts/${id}`);
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/shifts"] });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["/api/shifts"] });
       toast({ title: "Berhasil", description: "Shift telah dihapus." });
     },
   });

@@ -57,8 +57,8 @@ export default function MutationHistoryPage() {
             if (!res.ok) throw new Error("Gagal menghapus riwayat mutasi");
             return res.json();
         },
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ["/api/admin/mutations"] });
+        onSuccess: async () => {
+            await queryClient.invalidateQueries({ queryKey: ["/api/admin/mutations"] });
             toast({
                 title: "Berhasil",
                 description: "Riwayat mutasi telah dihapus.",

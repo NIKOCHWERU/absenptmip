@@ -51,9 +51,9 @@ export default function AdminVerificationPage() {
       const res = await apiRequest("POST", `/api/admin/verify-employee/${userId}`, { action });
       return res.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/unverified-employees"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["/api/admin/unverified-employees"] });
+      await queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
       toast({ title: "Berhasil", description: "Status verifikasi tenaga kerja telah diperbarui." });
       setSelectedUser(null);
     },
@@ -70,8 +70,8 @@ export default function AdminVerificationPage() {
       if (!res.ok) throw new Error("Gagal menghapus pendaftaran tenaga kerja");
       return res.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/unverified-employees"] });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["/api/admin/unverified-employees"] });
       toast({ title: "Berhasil", description: "Pendaftaran tenaga kerja telah dihapus secara permanen." });
     },
     onError: (err: any) => {

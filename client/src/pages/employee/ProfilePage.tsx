@@ -117,8 +117,8 @@ export default function ProfilePage() {
       }
       return res.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/user"] });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["/api/user"] });
       toast({ title: "Profil Diperbarui", description: "Data berhasil disimpan." });
       setIsEditing(false);
     },

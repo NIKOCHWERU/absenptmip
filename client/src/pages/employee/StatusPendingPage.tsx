@@ -7,8 +7,8 @@ import { queryClient } from "@/lib/queryClient";
 export default function StatusPendingPage() {
   const { user, logout } = useAuth();
 
-  const handleRefresh = () => {
-    queryClient.invalidateQueries({ queryKey: ["/api/user"] });
+  const handleRefresh = async () => {
+    await queryClient.invalidateQueries({ queryKey: ["/api/user"] });
   };
 
   const isRejected = user?.registrationStatus === 'rejected';

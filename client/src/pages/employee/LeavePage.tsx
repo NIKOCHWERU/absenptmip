@@ -175,9 +175,9 @@ export default function LeavePage() {
             }
             return res.json();
         },
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: [api.leave.list.path], exact: true });
-            queryClient.invalidateQueries({ queryKey: [api.leave.balance.path], exact: true });
+        onSuccess: async () => {
+            await queryClient.invalidateQueries({ queryKey: [api.leave.list.path], exact: true });
+            await queryClient.invalidateQueries({ queryKey: [api.leave.balance.path], exact: true });
             setSelectedDates([]);
             setReason("");
             toast({
@@ -206,9 +206,9 @@ export default function LeavePage() {
             }
             return res.json();
         },
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: [api.leave.list.path], exact: true });
-            queryClient.invalidateQueries({ queryKey: [api.leave.balance.path], exact: true });
+        onSuccess: async () => {
+            await queryClient.invalidateQueries({ queryKey: [api.leave.list.path], exact: true });
+            await queryClient.invalidateQueries({ queryKey: [api.leave.balance.path], exact: true });
             toast({
                 title: "Dibatalkan",
                 description: "Permohonan cuti telah dibatalkan.",

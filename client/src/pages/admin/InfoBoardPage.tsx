@@ -80,8 +80,8 @@ export default function InfoBoardPage() {
             }
             return res.json();
         },
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ["/api/announcements"] });
+        onSuccess: async () => {
+            await queryClient.invalidateQueries({ queryKey: ["/api/announcements"] });
             toast({ title: "Berhasil", description: "Pengumuman berhasil dibuat" });
             setOpen(false);
             form.reset();
@@ -117,8 +117,8 @@ export default function InfoBoardPage() {
             }
             return res.json();
         },
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ["/api/announcements"] });
+        onSuccess: async () => {
+            await queryClient.invalidateQueries({ queryKey: ["/api/announcements"] });
             toast({ title: "Berhasil", description: "Pengumuman berhasil diperbarui" });
             setOpen(false);
             setEditingAnnouncement(null);
@@ -134,8 +134,8 @@ export default function InfoBoardPage() {
         mutationFn: async (id: number) => {
             await apiRequest("DELETE", `/api/announcements/${id}`);
         },
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ["/api/announcements"] });
+        onSuccess: async () => {
+            await queryClient.invalidateQueries({ queryKey: ["/api/announcements"] });
             toast({ title: "Berhasil", description: "Pengumuman berhasil dihapus" });
         },
         onError: (err: any) => {

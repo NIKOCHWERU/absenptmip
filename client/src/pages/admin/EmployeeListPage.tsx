@@ -224,8 +224,8 @@ export default function AdminEmployeeList() {
             }
             return res.json();
         },
-        onSuccess: (data) => {
-            queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
+        onSuccess: async (data) => {
+            await queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
             toast({ title: "Berhasil", description: data.message });
             setCsvOpen(false);
             setCsvFile(null);
@@ -272,8 +272,8 @@ export default function AdminEmployeeList() {
             }
             return res.json();
         },
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
+        onSuccess: async () => {
+            await queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
             toast({ title: "Berhasil", description: selectedEmployee ? "Tenaga Kerja diperbarui" : "Tenaga Kerja ditambahkan" });
             setOpen(false);
             form.reset();
@@ -292,8 +292,8 @@ export default function AdminEmployeeList() {
         mutationFn: async (id: number) => {
             await apiRequest("DELETE", `/api/admin/users/${id}`);
         },
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
+        onSuccess: async () => {
+            await queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
             toast({ title: "Berhasil", description: "Tenaga Kerja berhasil dihapus" });
         },
         onError: (err: any) => {
@@ -306,8 +306,8 @@ export default function AdminEmployeeList() {
             const res = await apiRequest("POST", "/api/admin/users/bulk-delete", { userIds });
             return await res.json();
         },
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
+        onSuccess: async () => {
+            await queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
             toast({ title: "Berhasil", description: "Tenaga Kerja terpilih telah dihapus." });
             setSelectedEmployeeIds([]);
         },

@@ -41,7 +41,7 @@ export default function AdminLoginPage() {
             variant: "destructive",
           });
         },
-        onSuccess: (data) => {
+        onSuccess: async (data) => {
           if (data.role === "employee") {
             toast({
               title: "Akses Ditolak",

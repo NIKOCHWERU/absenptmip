@@ -76,7 +76,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       return await res.json();
     },
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
       queryClient.setQueryData(["/api/user"], data);
       if (data.role === "employee") {
         if (data.registrationStatus === "pending") {
@@ -101,7 +101,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!res.ok) throw new Error("Logout gagal");
       return await res.json();
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       queryClient.setQueryData(["/api/user"], null);
       if (window.location.pathname.startsWith("/admin")) {
         setLocation("/admin/login");

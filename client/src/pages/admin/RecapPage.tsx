@@ -208,8 +208,8 @@ export default function RecapPage() {
             if (!res.ok) throw new Error(await res.text() || "Gagal menyimpan data");
             return res.json();
         },
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ["/api/attendance"] });
+        onSuccess: async () => {
+            await queryClient.invalidateQueries({ queryKey: ["/api/attendance"] });
             setIsManualModalOpen(false);
             setEditingAttendance(null);
             toast({ title: "Berhasil", description: "Data absensi telah diperbarui." });
@@ -224,8 +224,8 @@ export default function RecapPage() {
             const res = await fetch(`/api/admin/attendance/${id}`, { method: 'DELETE' });
             if (!res.ok) throw new Error("Gagal menghapus data");
         },
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ["/api/attendance"] });
+        onSuccess: async () => {
+            await queryClient.invalidateQueries({ queryKey: ["/api/attendance"] });
             setDeleteConfirmId(null);
             toast({ title: "Dihapus", description: "Data absensi berhasil dihapus." });
         },

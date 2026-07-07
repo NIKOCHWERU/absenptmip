@@ -32,7 +32,7 @@ export default function LoginPage() {
             variant: "destructive",
           });
         },
-        onSuccess: (data) => {
+        onSuccess: async (data) => {
           if (data.role !== "employee") {
             // Admin logs in through the employee portal accidentally
             toast({

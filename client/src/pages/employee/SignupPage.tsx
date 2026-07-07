@@ -134,7 +134,7 @@ export default function SignupPage() {
         setLoading(false);
         toast({ title: "Pendaftaran Gagal", description: err.message || "Periksa kembali data Anda.", variant: "destructive" });
       },
-      onSuccess: () => {
+      onSuccess: async () => {
         toast({ title: "Pendaftaran Berhasil!", description: "Data sedang diverifikasi oleh HRD.", variant: "success" });
         loginMutation.mutate({ username: nik, password: nik }, { onSettled: () => setLoading(false) });
       },

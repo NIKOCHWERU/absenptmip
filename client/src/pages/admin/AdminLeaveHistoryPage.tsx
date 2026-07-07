@@ -27,9 +27,9 @@ export default function AdminLeaveHistoryPage() {
             if (!res.ok) throw new Error("Gagal menghapus permohonan cuti");
             return res.json();
         },
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: [api.admin.attendance.leave.list.path] });
-            queryClient.invalidateQueries({ queryKey: ["/api/attendance"] });
+        onSuccess: async () => {
+            await queryClient.invalidateQueries({ queryKey: [api.admin.attendance.leave.list.path] });
+            await queryClient.invalidateQueries({ queryKey: ["/api/attendance"] });
             toast({
                 title: "Berhasil",
                 description: "Permohonan cuti telah dihapus.",
