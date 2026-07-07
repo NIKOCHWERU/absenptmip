@@ -454,7 +454,7 @@ export default function AdminEmployeeList() {
                                         <div className="flex items-center gap-3">
                                             <div className="w-10 aspect-[2/3] bg-gray-100 rounded flex items-center justify-center overflow-hidden shrink-0 border border-gray-200">
                                                 {emp.photoUrl ? (
-                                                    <img src={emp.photoUrl} className="w-full h-full object-cover" alt={emp.fullName} />
+                                                    <img src={resolveFileUrl(emp.photoUrl)} className="w-full h-full object-cover" alt={emp.fullName} />
                                                 ) : (
                                                     <div className="text-xs font-bold text-gray-400">{emp.fullName.charAt(0)}</div>
                                                 )}
@@ -992,7 +992,7 @@ export default function AdminEmployeeList() {
                                 {selectedPhoto ? (
                                     <img src={URL.createObjectURL(selectedPhoto)} className="w-full h-full object-cover" />
                                 ) : selectedEmployee?.photoUrl ? (
-                                    <img src={selectedEmployee.photoUrl} className="w-full h-full object-cover" />
+                                    <img src={resolveFileUrl(selectedEmployee.photoUrl)} className="w-full h-full object-cover" />
                                 ) : (
                                     <ImageIcon className="w-8 h-8 text-gray-400" />
                                 )}

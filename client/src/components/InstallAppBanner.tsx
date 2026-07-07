@@ -49,9 +49,9 @@ export default function InstallAppBanner() {
   if (!visible) return null;
 
   return (
-    <div className="fixed bottom-20 left-4 right-4 z-50 md:bottom-6 md:right-6 md:left-auto md:w-96 bg-white border border-orange-100 rounded-3xl p-4 shadow-2xl flex items-center justify-between gap-3 animate-in slide-in-from-bottom duration-300">
+    <div className="fixed bottom-20 left-4 right-4 z-50 md:bottom-6 md:right-6 md:left-auto md:w-96 bg-white border border-slate-100 rounded-3xl p-4 shadow-2xl flex items-center justify-between gap-3 animate-in slide-in-from-bottom duration-300">
       <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-2xl bg-orange-50 border border-orange-100 flex items-center justify-center text-primary shrink-0">
+        <div className="w-10 h-10 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shrink-0">
           <Download className="w-5 h-5" />
         </div>
         <div>
@@ -65,7 +65,7 @@ export default function InstallAppBanner() {
       <div className="flex items-center gap-2 shrink-0">
         <button
           onClick={handleInstall}
-          className="py-2 px-4 rounded-xl bg-primary text-white text-xs font-semibold hover:bg-primary/95 transition-colors shadow-sm shadow-orange-500/10"
+          className="py-2 px-4 rounded-xl bg-primary text-white text-xs font-semibold hover:bg-primary/95 transition-colors shadow-sm shadow-primary/10"
         >
           Instal
         </button>

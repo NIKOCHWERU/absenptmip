@@ -123,16 +123,16 @@ export function AttendanceCalendar({
       </div>
 
       {/* Grid */}
-      <div className={`grid grid-cols-7 gap-px bg-border ${viewMode === 'week' ? 'bg-white gap-0 divide-x divide-gray-100' : ''}`}>
+      <div className={`grid grid-cols-7 gap-px bg-slate-100`}>
         {['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'].map(d => (
-          <div key={d} className="bg-gray-50 p-3 text-center text-xs font-bold text-gray-400 uppercase tracking-wider">
+          <div key={d} className="bg-gray-50 py-2 text-center text-[10px] font-bold text-gray-400 uppercase tracking-wider">
             {d}
           </div>
         ))}
 
         {/* Padding for start of month - only in Month view */}
         {viewMode === 'month' && Array.from({ length: (currentPeriodStart.getDay() + 6) % 7 }).map((_, i) => (
-          <div key={`pad-${i}`} className="bg-gray-50/30" />
+          <div key={`pad-${i}`} className="bg-white min-h-[56px]" />
         ))}
 
         {days.map((day) => {
@@ -141,34 +141,43 @@ export function AttendanceCalendar({
           const isToday = isSameDay(day, new Date());
           const isSelected = selectedDate && isSameDay(day, selectedDate);
 
+          const getDotColor = (status?: string) => {
+            switch (status) {
+              case 'present': return 'bg-emerald-500';
+              case 'late': return 'bg-amber-500';
+              case 'sick': return 'bg-blue-500';
+              case 'permission': return 'bg-purple-500';
+              case 'cuti': return 'bg-teal-500';
+              case 'absent': return 'bg-red-500';
+              default: return 'bg-gray-400';
+            }
+          };
+
           return (
             <div
               key={day.toISOString()}
               onClick={() => handleDateClick(day, record)}
               className={`
-                  relative min-h-[80px] p-2 flex flex-col cursor-pointer transition-all group
-                  ${viewMode === 'week' ? 'bg-white hover:bg-primary/5' : 'bg-white hover:bg-gray-50'}
+                  relative min-h-[56px] py-1.5 flex flex-col items-center justify-center cursor-pointer transition-all group bg-white
                   ${isToday && viewMode === 'month' ? 'ring-1 ring-inset ring-primary bg-primary/5' : ''}
                   ${isSelected ? 'bg-primary/5 ring-2 ring-inset ring-primary z-10' : ''}
+                  hover:bg-slate-50
                 `}
             >
-              <div className="flex justify-between items-start">
-                <span className={`text-xs font-semibold w-6 h-6 flex items-center justify-center rounded-full ${isToday ? 'bg-primary text-primary-foreground shadow-md' : 'text-gray-500 group-hover:bg-gray-200'}`}>
-                  {format(day, 'd')}
-                </span>
-              </div>
+              <span className={`
+                text-xs font-bold w-7 h-7 flex items-center justify-center rounded-full transition-all
+                ${isToday ? 'bg-primary text-white shadow-md' : 'text-gray-700 group-hover:bg-gray-100'}
+                ${isSelected && !isToday ? 'bg-primary/10 text-primary' : ''}
+              `}>
+                {format(day, 'd')}
+              </span>
 
               {hasRecord ? (
-                <div className={`mt-2 p-1.5 rounded-md border text-[10px] font-bold truncate flex flex-col items-center gap-1 ${getStatusColor(record.status ?? undefined)}`}>
-                  <span className="uppercase">{getStatusLabel(record.status ?? undefined)}</span>
-                  <span className="font-mono text-[9px] opacity-80">
-                    {record.checkIn ? format(new Date(record.checkIn), 'HH:mm') : '--:--'}
-                  </span>
+                <div className="flex gap-1 mt-1 justify-center">
+                  <span className={`w-1.5 h-1.5 rounded-full ${getDotColor(record.status ?? undefined)}`} />
                 </div>
               ) : (
-                <div className="mt-2 h-full flex items-center justify-center">
-                  <span className="text-[10px] text-gray-300">-</span>
-                </div>
+                <div className="h-1.5 mt-1" />
               )}
             </div>
           );

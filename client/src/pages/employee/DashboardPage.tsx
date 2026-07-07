@@ -108,7 +108,7 @@ function ShiftModal({
                                         <span className="font-bold text-slate-900">{s.name}</span>
                                         <span className="text-[10px] text-slate-500 font-mono leading-none mb-1">{s.checkInTime} - {s.checkOutTime}</span>
                                         {s.description && (
-                                            <span className="text-[9px] text-orange-600 font-medium leading-tight">{s.description}</span>
+                                            <span className="text-[9px] text-primary font-medium leading-tight">{s.description}</span>
                                         )}
                                     </div>
                                     <div className="w-8 h-8 rounded-full bg-slate-100 group-hover:bg-primary/10 flex items-center justify-center">
@@ -642,7 +642,7 @@ export default function EmployeeDashboard() {
                 title: "Belum Waktunya Pulang",
                 description: "Anda mau pulang lebih awal dari jadwal shift. Apakah Anda ingin mengajukan Izin Pulang Cepat?",
                 confirmLabel: "Ajukan Izin",
-                confirmClass: "bg-orange-600 hover:bg-orange-700 text-white",
+                confirmClass: "bg-primary hover:bg-primary/90 text-white",
                 onConfirm: () => {
                     setPermitType('permission');
                     setPermitNote("Pulang Cepat (Early Leave)");
@@ -776,7 +776,7 @@ export default function EmployeeDashboard() {
                 <Button
                     onClick={() => startAttendanceFlow(clockIn, "Berhasil Absen Masuk", true)}
                     disabled={isLoading}
-                    className="w-full h-14 rounded-xl bg-gradient-to-r from-primary to-orange-600 hover:from-primary/90 hover:to-orange-700 text-white font-bold shadow-primary/20 shadow-lg text-lg"
+                    className="w-full h-14 rounded-xl bg-gradient-to-r from-primary to-primary/90 hover:from-primary hover:to-primary/80 text-white font-bold shadow-primary/20 shadow-lg text-lg"
                 >
                     {isLoading ? <Loader2 className="animate-spin mr-2" /> : (
                         <>
@@ -794,7 +794,7 @@ export default function EmployeeDashboard() {
                 <Button
                     onClick={() => startAttendanceFlow(breakStart, "Selamat Istirahat")}
                     disabled={isLoading}
-                    className="w-full h-14 rounded-xl bg-gradient-to-r from-orange-400 to-amber-500 hover:from-orange-500 hover:to-amber-600 text-white font-semibold shadow-orange-200 shadow-lg text-lg"
+                    className="w-full h-14 rounded-xl bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white font-semibold shadow-blue-200 shadow-lg text-lg"
                 >
                     {isLoading ? <Loader2 className="animate-spin mr-2" /> : (
                         <>
@@ -812,7 +812,7 @@ export default function EmployeeDashboard() {
                 <Button
                     onClick={() => startAttendanceFlow(breakEnd, "Selamat Bekerja Kembali")}
                     disabled={isLoading}
-                    className="w-full h-14 rounded-xl bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white font-semibold shadow-orange-200 shadow-lg text-lg"
+                    className="w-full h-14 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-semibold shadow-emerald-200 shadow-lg text-lg"
                 >
                     {isLoading ? <Loader2 className="animate-spin mr-2" /> : (
                         <>
@@ -932,7 +932,7 @@ export default function EmployeeDashboard() {
                     <div className="z-10">
                         <div className="w-20 h-20 rounded-xl bg-gray-100 border-2 border-white shadow-md overflow-hidden">
                             {user?.photoUrl ? (
-                                <img src={user.photoUrl} alt="User" className="w-full h-full object-cover" />
+                                <img src={getPhotoUrl(user.photoUrl)} alt="User" className="w-full h-full object-cover" />
                             ) : (
                                 <div className="w-full h-full flex items-center justify-center bg-primary/10 text-primary font-bold text-2xl">
                                     {user?.fullName?.charAt(0)}
@@ -1045,11 +1045,11 @@ export default function EmployeeDashboard() {
 
                     {/* ⚠️ Warning: Sedang istirahat belum selesai */}
                     {isBreakFeatureActive && isBreak && !hasBreakEnded && (
-                        <div className="flex items-start gap-3 bg-orange-50 border border-orange-200 rounded-xl p-3">
-                            <Timer className="text-orange-500 w-5 h-5 mt-0.5" />
+                        <div className="flex items-start gap-3 bg-blue-50 border border-blue-200 rounded-xl p-3">
+                            <Timer className="text-blue-500 w-5 h-5 mt-0.5" />
                             <div>
-                                <p className="text-xs font-bold text-orange-700 uppercase tracking-wide">Sedang Istirahat</p>
-                                <p className="text-sm text-orange-600 font-medium mt-0.5">Jangan lupa tekan <strong>Selesai Istirahat</strong> saat kembali bekerja!</p>
+                                <p className="text-xs font-bold text-blue-700 uppercase tracking-wide">Sedang Istirahat</p>
+                                <p className="text-sm text-blue-600 font-medium mt-0.5">Jangan lupa tekan <strong>Selesai Istirahat</strong> saat kembali bekerja!</p>
                             </div>
                         </div>
                     )}
@@ -1189,8 +1189,8 @@ export default function EmployeeDashboard() {
             >
                 <DialogContent className="rounded-3xl max-w-xs md:max-w-sm p-6">
                     <DialogHeader>
-                        <div className="mx-auto w-14 h-14 bg-orange-100 rounded-full flex items-center justify-center mb-3">
-                            <X className="w-7 h-7 text-orange-600" />
+                        <div className="mx-auto w-14 h-14 bg-red-100 rounded-full flex items-center justify-center mb-3">
+                            <X className="w-7 h-7 text-red-600" />
                         </div>
                         <DialogTitle className="text-center text-lg font-bold">
                             {confirmDialog?.title}
@@ -1245,9 +1245,9 @@ export default function EmployeeDashboard() {
 
                         {/* Contextual state warning */}
                         {isBreak && !hasBreakEnded ? (
-                            <div className="bg-orange-50 p-4 rounded-2xl border border-orange-200">
-                                <p className="text-[10px] font-bold text-orange-700 uppercase mb-2 flex items-center gap-1.5"><AlertTriangle className="w-3.5 h-3.5" /> Anda Sedang Istirahat</p>
-                                <ul className="text-[11px] text-orange-700 space-y-1">
+                            <div className="bg-blue-50 p-4 rounded-2xl border border-blue-200">
+                                <p className="text-[10px] font-bold text-blue-700 uppercase mb-2 flex items-center gap-1.5"><AlertTriangle className="w-3.5 h-3.5" /> Anda Sedang Istirahat</p>
+                                <ul className="text-[11px] text-blue-700 space-y-1">
                                     <li className="flex gap-2"><span>•</span><span>Jam istirahat akan <strong>ditutup otomatis</strong>.</span></li>
                                     <li className="flex gap-2"><span>•</span><span>Jam kerja yang sudah berlangsung <strong>tetap dihitung</strong>.</span></li>
                                     <li className="flex gap-2"><span>•</span><span>Anda dapat <strong>Lanjut Bekerja</strong> kapan saja setelah ini.</span></li>
@@ -1363,16 +1363,16 @@ export default function EmployeeDashboard() {
             <Dialog open={isOffDayOpen} onOpenChange={setIsOffDayOpen}>
                 <DialogContent className="rounded-3xl max-w-xs md:max-w-md p-6">
                     <DialogHeader>
-                        <div className="mx-auto w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mb-4">
-                            <Umbrella className="w-8 h-8 text-orange-600" />
+                        <div className="mx-auto w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-4">
+                                <Umbrella className="w-8 h-8 text-blue-600" />
                         </div>
                         <DialogTitle className="text-center text-xl font-bold">Libur Bekerja</DialogTitle>
                         <DialogDescription className="text-center text-sm pt-2">
                             Apakah Anda yakin ingin menyatakan <strong>Off Day / Libur</strong> hari ini?
                         </DialogDescription>
                     </DialogHeader>
-                    <div className="bg-orange-50 p-4 rounded-2xl border border-orange-100 mt-4">
-                        <ul className="text-[11px] text-orange-700 space-y-2">
+                    <div className="bg-blue-50 p-4 rounded-2xl border border-blue-100 mt-4">
+                        <ul className="text-[11px] text-blue-700 space-y-2">
                             <li className="flex gap-2"><span>•</span><span>Anda tidak perlu melakukan absen kamera.</span></li>
                             <li className="flex gap-2"><span>•</span><span>Status absen hari ini akan dicatat sebagai <strong>Libur</strong>.</span></li>
                             <li className="flex gap-2"><span>•</span><span>Tindakan ini tidak dapat dibatalkan untuk hari ini.</span></li>
@@ -1396,7 +1396,7 @@ export default function EmployeeDashboard() {
                                     handleError(err);
                                 }
                             }}
-                            className="w-full h-12 rounded-2xl bg-orange-600 hover:bg-orange-700 text-white font-bold"
+                            className="w-full h-12 rounded-2xl bg-primary hover:bg-primary/90 text-white font-bold"
                         >
                             Ya, Saya Libur
                         </Button>

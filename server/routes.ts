@@ -133,29 +133,60 @@ export function getAdminDate(): string {
 export function registerRoutes(app: Express) {
   
   // Dynamic Manifest serving for PWA
-  app.get("/manifest.json", (req: Request, res: Response) => {
+  app.get("/manifest.json", async (req: Request, res: Response) => {
     res.setHeader("Content-Type", "application/json");
-    res.json({
-      name: process.env.VITE_NAMA_PT || "PT ABC",
-      short_name: process.env.VITE_SINGKATAN_PT || "PT ABC",
-      description: process.env.VITE_DESKRIPSI_PWA || "Sistem Absensi Tenaga Kerja PT ABC",
-      start_url: "/",
-      display: "standalone",
-      background_color: "#ffffff",
-      theme_color: "#f97316",
-      icons: [
-        {
-          src: "/icon-192.png",
-          sizes: "192x192",
-          type: "image/png"
-        },
-        {
-          src: "/icon-512.png",
-          sizes: "512x512",
-          type: "image/png"
-        }
-      ]
-    });
+    try {
+      const dbConfigs = await db.select().from(systemConfigs);
+      const configMap = new Map(dbConfigs.map(c => [c.key, c.value]));
+      
+      const name = configMap.get("namaPt") || process.env.VITE_NAMA_PT || "PT MEKANO INDUSTRIAL PRESISI";
+      const shortName = configMap.get("singkatanPt") || process.env.VITE_SINGKATAN_PT || "PT MIP";
+      const description = configMap.get("deskripsiPwa") || "Sistem Absensi Karyawan Digital";
+      const logo = configMap.get("logoUrl") || "/icon-192.png";
+
+      res.json({
+        name,
+        short_name: shortName,
+        description,
+        start_url: "/",
+        display: "standalone",
+        background_color: "#ffffff",
+        theme_color: "#ffffff",
+        icons: [
+          {
+            src: logo,
+            sizes: "192x192",
+            type: "image/png"
+          },
+          {
+            src: logo,
+            sizes: "512x512",
+            type: "image/png"
+          }
+        ]
+      });
+    } catch (e) {
+      res.json({
+        name: process.env.VITE_NAMA_PT || "PT MEKANO INDUSTRIAL PRESISI",
+        short_name: process.env.VITE_SINGKATAN_PT || "PT MIP",
+        start_url: "/",
+        display: "standalone",
+        background_color: "#ffffff",
+        theme_color: "#ffffff",
+        icons: [
+          {
+            src: "/icon-192.png",
+            sizes: "192x192",
+            type: "image/png"
+          },
+          {
+            src: "/icon-512.png",
+            sizes: "512x512",
+            type: "image/png"
+          }
+        ]
+      });
+    }
   });
   
   // Image retrieval and proxy (with CORS headers)
@@ -1913,6 +1944,46 @@ export function registerRoutes(app: Express) {
       res.sendStatus(204);
     } catch (e: any) {
       res.status(500).json({ message: e.message });
+    }
+  });
+
+  // --- Push Notifications ---
+  app.get("/api/push/public-key", (req: Request, res: Response) => {
+    if (!vapidPublicKey) {
+      return res.status(500).json({ message: "VAPID key is not configured" });
+    }
+    res.json({ publicKey: vapidPublicKey });
+  });
+
+  app.post("/api/push/subscribe", async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+
+    try {
+      const subscription = req.body;
+      if (!subscription || !subscription.endpoint || !subscription.keys) {
+        return res.status(400).json({ message: "Invalid subscription data" });
+      }
+
+      // Check if subscription already exists for this user and endpoint
+      const [existing] = await db
+        .select()
+        .from(pushSubscriptions)
+        .where(and(eq(pushSubscriptions.userId, req.user!.id), eq(pushSubscriptions.endpoint, subscription.endpoint)))
+        .limit(1);
+
+      if (!existing) {
+        await db.insert(pushSubscriptions).values({
+          userId: req.user!.id,
+          endpoint: subscription.endpoint,
+          p256dh: subscription.keys.p256dh,
+          auth: subscription.keys.auth,
+        });
+      }
+
+      res.status(201).json({ message: "Subscription saved." });
+    } catch (e) {
+      console.error("Push Subscribe Error:", e);
+      res.status(500).json({ message: "Server error" });
     }
   });
 

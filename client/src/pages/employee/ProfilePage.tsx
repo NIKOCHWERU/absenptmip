@@ -9,7 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 import { BottomNav } from "@/components/BottomNav";
 import { CompanyHeader } from "@/components/CompanyHeader";
-import { safeCompressImage, uploadFileWithProgress, toTitleCase, formatAddress } from "@/lib/utils";
+import { safeCompressImage, uploadFileWithProgress, toTitleCase, formatAddress, resolveFileUrl } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -142,7 +142,7 @@ export default function ProfilePage() {
     setIsEditing(false);
   };
 
-  const currentPhoto = previews.profile || user?.photoUrl;
+  const currentPhoto = previews.profile || (user?.photoUrl ? resolveFileUrl(user.photoUrl) : undefined);
 
   return (
     <div className="min-h-screen bg-slate-50 pb-64">
@@ -260,7 +260,7 @@ export default function ProfilePage() {
                                   <span className="text-[10px] font-bold text-primary">{uploadProgress.npwp}%</span>
                                </div>
                             ) : (previews.npwp || user?.npwpPhotoUrl) ? (
-                              <img src={previews.npwp || user?.npwpPhotoUrl || ""} className="w-full h-full object-cover" />
+                              <img src={previews.npwp || (user?.npwpPhotoUrl ? resolveFileUrl(user.npwpPhotoUrl) : "")} className="w-full h-full object-cover" />
                             ) : <Camera className="w-5 h-5 text-slate-300" />}
                             <label className="absolute inset-0 cursor-pointer flex items-center justify-center bg-black/0 group-hover:bg-black/10 transition-colors">
                               <input type="file" accept="image/*" className="hidden" onChange={(e) => handleFileChange(e, 'npwp')} />
@@ -279,7 +279,7 @@ export default function ProfilePage() {
                                   <span className="text-[10px] font-bold text-primary">{uploadProgress.bpjs}%</span>
                                </div>
                             ) : (previews.bpjs || user?.bpjsPhotoUrl) ? (
-                              <img src={previews.bpjs || user?.bpjsPhotoUrl || ""} className="w-full h-full object-cover" />
+                              <img src={previews.bpjs || (user?.bpjsPhotoUrl ? resolveFileUrl(user.bpjsPhotoUrl) : "")} className="w-full h-full object-cover" />
                             ) : <Camera className="w-5 h-5 text-slate-300" />}
                             <label className="absolute inset-0 cursor-pointer flex items-center justify-center bg-black/0 group-hover:bg-black/10 transition-colors">
                               <input type="file" accept="image/*" className="hidden" onChange={(e) => handleFileChange(e, 'bpjs')} />
