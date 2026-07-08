@@ -121,7 +121,7 @@ const upload = multer({ storage });
 export function getAdminDate(): string {
   const now = new Date();
   const jakartaTime = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Jakarta" }));
-  if (jakartaTime.getHours() < 4) {
+  if (jakartaTime.getHours() < 1) {
     jakartaTime.setDate(jakartaTime.getDate() - 1);
   }
   const y = jakartaTime.getFullYear();
