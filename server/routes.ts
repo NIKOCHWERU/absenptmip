@@ -2070,12 +2070,20 @@ export function registerRoutes(app: Express) {
   // PATCH alias for client compatibility
   app.patch("/api/admin/complaints/:id/status", isAdmin, async (req: Request, res: Response) => {
     const targetId = Number(req.params.id);
-    const { status } = req.body; // "pending", "reviewed", "resolved"
+    const { status, adminFeedback, feedbackDocumentUrl } = req.body; 
     try {
       if (!["pending", "reviewed", "resolved"].includes(status)) {
         return res.status(400).json({ message: "Status tidak valid" });
       }
-      await db.update(complaints).set({ status }).where(eq(complaints.id, targetId));
+      
+      const updateData: any = { status };
+      if (status === "resolved") {
+        updateData.resolvedAt = new Date();
+        if (adminFeedback !== undefined) updateData.adminFeedback = adminFeedback;
+        if (feedbackDocumentUrl !== undefined) updateData.feedbackDocumentUrl = feedbackDocumentUrl;
+      }
+
+      await db.update(complaints).set(updateData).where(eq(complaints.id, targetId));
       res.json({ message: "Status komplain diperbarui" });
     } catch (err: any) {
       res.status(500).json({ message: err.message });

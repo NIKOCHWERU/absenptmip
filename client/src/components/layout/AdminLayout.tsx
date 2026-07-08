@@ -360,6 +360,20 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
     const totalNotifications = pendingLeaveCount + pendingComplaintsCount + pendingVerificationCount;
 
+    const [viewedCount, setViewedCount] = useState(() => {
+        const stored = localStorage.getItem("admin_notif_count");
+        return stored ? parseInt(stored, 10) : 0;
+    });
+
+    useEffect(() => {
+        if (totalNotifications < viewedCount) {
+            setViewedCount(totalNotifications);
+            localStorage.setItem("admin_notif_count", totalNotifications.toString());
+        }
+    }, [totalNotifications, viewedCount]);
+
+    const hasUnread = totalNotifications > viewedCount;
+
     // Close header dropdown on click outside
     useEffect(() => {
         function handleClickOutside(event: MouseEvent) {
@@ -624,13 +638,20 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                              {/* Notifications Bell */}
                              <div className="relative" ref={notifRef}>
                                  <button
-                                     onClick={() => setNotifOpen(!notifOpen)}
+                                     onClick={() => {
+                                         const nextState = !notifOpen;
+                                         setNotifOpen(nextState);
+                                         if (nextState) {
+                                             setViewedCount(totalNotifications);
+                                             localStorage.setItem("admin_notif_count", totalNotifications.toString());
+                                         }
+                                     }}
                                      className="relative flex items-center justify-center w-10 h-10 rounded-full border border-gray-100 bg-gray-50 hover:bg-gray-100 text-gray-600 transition-all hover:scale-105 active:scale-95 focus:outline-none cursor-pointer"
                                  >
                                      <Bell className="w-5 h-5" />
-                                     {totalNotifications > 0 && (
+                                     {hasUnread && (
                                          <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white shadow-sm animate-pulse">
-                                             {totalNotifications}
+                                             {totalNotifications - viewedCount}
                                          </span>
                                      )}
                                  </button>

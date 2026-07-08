@@ -97,6 +97,9 @@ export const complaints = mysqlTable("complaints", {
   title: varchar("title", { length: 255 }).notNull(),
   description: text("description").notNull(),
   status: mysqlEnum("status", ["pending", "reviewed", "resolved"]).default("pending"),
+  adminFeedback: text("admin_feedback"),
+  feedbackDocumentUrl: varchar("feedback_document_url", { length: 255 }),
+  resolvedAt: timestamp("resolved_at"),
   createdAt: timestamp("created_at").defaultNow(),
 }, (table) => ({
   userIdIdx: index("idx_complaints_user_id").on(table.userId),

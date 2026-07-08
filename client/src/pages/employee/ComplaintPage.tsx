@@ -22,6 +22,9 @@ interface Complaint {
     title: string;
     description: string;
     status: "pending" | "reviewed" | "resolved";
+    adminFeedback?: string | null;
+    feedbackDocumentUrl?: string | null;
+    resolvedAt?: string | null;
     createdAt: string;
     photos?: ComplaintPhoto[];
 }
@@ -317,14 +320,28 @@ export default function ComplaintPage() {
                         </DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                             {selectedComplaint && getStatusBadge(selectedComplaint.status)}
                             <span className="text-[10px] text-gray-400">
                                 {selectedComplaint?.createdAt &&
                                     format(new Date(selectedComplaint.createdAt), "dd MMM yyyy, HH:mm", { locale: idLocale })}
                             </span>
                         </div>
-                        <p className="text-sm text-gray-600 whitespace-pre-wrap">{selectedComplaint?.description}</p>
+                        
+                        {selectedComplaint?.status === "resolved" && (
+                            <div className="bg-primary/5 p-3 rounded-xl border border-primary/10 space-y-2 mt-2">
+                                <p className="text-xs font-bold text-primary">Tanggapan Admin:</p>
+                                <p className="text-sm text-gray-700 whitespace-pre-wrap">{selectedComplaint.adminFeedback || "-"}</p>
+                                {selectedComplaint.feedbackDocumentUrl && (
+                                    <a href={resolveFileUrl(selectedComplaint.feedbackDocumentUrl)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs text-primary font-medium mt-2 hover:underline">
+                                        <CheckCircle className="w-3 h-3" /> Lihat Lampiran Dokumen
+                                    </a>
+                                )}
+                                <p className="text-[10px] text-gray-500 mt-2">Diselesaikan pada {selectedComplaint.resolvedAt ? format(new Date(selectedComplaint.resolvedAt), "dd MMM yyyy, HH:mm") : "-"}</p>
+                            </div>
+                        )}
+
+                        <p className="text-sm text-gray-600 whitespace-pre-wrap pt-2">{selectedComplaint?.description}</p>
 
                         {complaintPhotos.length > 0 && (
                             <div className="space-y-3">

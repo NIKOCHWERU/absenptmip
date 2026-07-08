@@ -10,7 +10,7 @@ import { id as idLocale } from "date-fns/locale";
 import { motion } from "framer-motion";
 import { useState } from "react";
 import { Link } from "wouter";
-import { toTitleCase, resolveFileUrl } from "@/lib/utils";
+import { toTitleCase, resolveFileUrl, uploadFileWithProgress } from "@/lib/utils";
 
 interface Complaint {
     id: number;
@@ -18,6 +18,9 @@ interface Complaint {
     title: string;
     description: string;
     status: "pending" | "reviewed" | "resolved";
+    adminFeedback?: string | null;
+    feedbackDocumentUrl?: string | null;
+    resolvedAt?: string | null;
     createdAt: string;
     photos?: ComplaintPhoto[];
 }
@@ -43,6 +46,12 @@ export default function AdminComplaintsPage() {
     const [selectedComplaint, setSelectedComplaint] = useState<Complaint | null>(null);
     const [sortField, setSortField] = useState<string>('createdAt');
     const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+    
+    const [isResolving, setIsResolving] = useState(false);
+    const [adminFeedback, setAdminFeedback] = useState("");
+    const [uploadingDoc, setUploadingDoc] = useState(false);
+    const [docUrl, setDocUrl] = useState("");
+    const [uploadProgress, setUploadProgress] = useState(0);
 
     const toggleSort = (field: string) => {
         if (sortField === field) {
@@ -64,20 +73,22 @@ export default function AdminComplaintsPage() {
     const complaintPhotos = selectedComplaint?.photos || [];
 
     const statusMutation = useMutation({
-        mutationFn: async ({ id, status }: { id: number; status: string }) => {
-            const res = await fetch(`/api/admin/complaints/${id}/status`, {
+        mutationFn: async (data: { id: number; status: string; adminFeedback?: string; feedbackDocumentUrl?: string }) => {
+            const res = await fetch(`/api/admin/complaints/${data.id}/status`, {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ status }),
+                body: JSON.stringify(data),
                 credentials: "include",
             });
             if (!res.ok) throw new Error("Gagal update status");
             return res.json();
-        
-
-            await queryClient.invalidateQueries({ queryKey: ["/api/admin/complaints"] });
+        },
+        onSuccess: async () => {await queryClient.invalidateQueries({ queryKey: ["/api/admin/complaints"] });
             toast({ title: "Status diperbarui", className: "bg-primary text-white" });
             setSelectedComplaint(null);
+            setIsResolving(false);
+            setAdminFeedback("");
+            setDocUrl("");
         },
         onError: (e: any) => {
             toast({ title: "Gagal", description: e.message, variant: "destructive" });
@@ -219,7 +230,12 @@ export default function AdminComplaintsPage() {
             </div>
 
             {/* Detail Dialog */}
-            <Dialog open={!!selectedComplaint} onOpenChange={() => setSelectedComplaint(null)}>
+            <Dialog open={!!selectedComplaint} onOpenChange={(open) => {
+                if (!open) {
+                    setSelectedComplaint(null);
+                    setIsResolving(false);
+                }
+            }}>
                 <DialogContent className="rounded-xl max-w-md p-5 max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
                         <DialogTitle className="text-lg font-bold">{selectedComplaint?.title}</DialogTitle>
@@ -259,9 +275,78 @@ export default function AdminComplaintsPage() {
                         )}
 
                         {/* Status Update Buttons */}
-                        <div className="border-t pt-4 space-y-2">
-                            <p className="text-xs font-semibold text-gray-500 mb-2">Ubah Status:</p>
-                            <div className="flex gap-2 flex-wrap">
+                        {isResolving ? (
+                            <div className="border-t pt-4 space-y-4">
+                                <p className="text-sm font-bold text-gray-800">Tandai Selesai</p>
+                                <div className="space-y-2">
+                                    <label className="text-xs font-semibold text-gray-600">Catatan/Tanggapan Admin (Opsional)</label>
+                                    <textarea
+                                        value={adminFeedback}
+                                        onChange={(e) => setAdminFeedback(e.target.value)}
+                                        className="w-full text-sm border-gray-200 rounded-lg shadow-sm"
+                                        rows={3}
+                                        placeholder="Masukkan tanggapan untuk pengaduan ini..."
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-xs font-semibold text-gray-600">Lampiran Dokumen (Opsional)</label>
+                                    <input 
+                                        type="file"
+                                        className="block w-full text-xs text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
+                                        onChange={async (e) => {
+                                            const file = e.target.files?.[0];
+                                            if (!file) return;
+                                            setUploadingDoc(true);
+                                            try {
+                                                const url = await uploadFileWithProgress(file, setUploadProgress);
+                                                setDocUrl(url);
+                                            } catch (err) {
+                                                toast({ title: "Gagal upload", variant: "destructive" });
+                                            } finally {
+                                                setUploadingDoc(false);
+                                            }
+                                        }}
+                                    />
+                                    {uploadingDoc && <p className="text-xs text-primary">Mengunggah... {uploadProgress}%</p>}
+                                    {docUrl && <p className="text-xs text-green-600 flex items-center gap-1"><CheckCircle className="w-3 h-3"/> Dokumen terlampir</p>}
+                                </div>
+                                <div className="flex gap-2 justify-end">
+                                    <Button variant="ghost" size="sm" onClick={() => setIsResolving(false)}>Batal</Button>
+                                    <Button 
+                                        size="sm"
+                                        disabled={statusMutation.isPending || uploadingDoc}
+                                        onClick={() => {
+                                            if (selectedComplaint) {
+                                                statusMutation.mutate({ 
+                                                    id: selectedComplaint.id, 
+                                                    status: "resolved",
+                                                    adminFeedback,
+                                                    feedbackDocumentUrl: docUrl
+                                                });
+                                            }
+                                        }}
+                                    >
+                                        {statusMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-1"/> : <CheckCircle className="w-4 h-4 mr-1"/>}
+                                        Simpan & Selesai
+                                    </Button>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="border-t pt-4 space-y-2">
+                                {selectedComplaint?.status === "resolved" && (
+                                    <div className="bg-gray-50 p-3 rounded-lg mb-4 space-y-2 border border-gray-100">
+                                        <p className="text-xs font-bold text-gray-700">Tanggapan Admin</p>
+                                        <p className="text-sm text-gray-600 whitespace-pre-wrap">{selectedComplaint.adminFeedback || "-"}</p>
+                                        {selectedComplaint.feedbackDocumentUrl && (
+                                            <a href={resolveFileUrl(selectedComplaint.feedbackDocumentUrl)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs text-primary font-medium mt-2 hover:underline">
+                                                <ImageIcon className="w-3 h-3" /> Lihat Lampiran
+                                            </a>
+                                        )}
+                                        <p className="text-[10px] text-gray-400 mt-2">Diselesaikan pada {selectedComplaint.resolvedAt ? format(new Date(selectedComplaint.resolvedAt), "dd MMM yyyy, HH:mm") : "-"}</p>
+                                    </div>
+                                )}
+                                <p className="text-xs font-semibold text-gray-500 mb-2">Ubah Status:</p>
+                                <div className="flex gap-2 flex-wrap">
                                 <Button
                                     disabled={selectedComplaint?.status === "pending" || statusMutation.isPending}
                                     onClick={() => selectedComplaint && statusMutation.mutate({ id: selectedComplaint.id, status: "pending" })}
@@ -282,7 +367,7 @@ export default function AdminComplaintsPage() {
                                 </Button>
                                 <Button
                                     disabled={selectedComplaint?.status === "resolved" || statusMutation.isPending}
-                                    onClick={() => selectedComplaint && statusMutation.mutate({ id: selectedComplaint.id, status: "resolved" })}
+                                    onClick={() => setIsResolving(true)}
                                     variant="outline"
                                     size="sm"
                                     className="rounded-full text-primary-foreground border-primary/20 hover:bg-primary/5"
@@ -291,6 +376,7 @@ export default function AdminComplaintsPage() {
                                 </Button>
                             </div>
                         </div>
+                        )}
                     </div>
                 </DialogContent>
             </Dialog>
