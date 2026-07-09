@@ -1252,10 +1252,9 @@ export function registerRoutes(app: Express) {
     }
   });
 
-  app.post("/api/employee/complaints", isAuthenticated, upload.array("photos"), async (req: Request, res: Response) => {
+  app.post("/api/employee/complaints", isAuthenticated, async (req: Request, res: Response) => {
     const userId = (req.user as any).id;
-    const { title, description } = req.body;
-    const files = req.files as Express.Multer.File[];
+    const { title, description, photos } = req.body;
 
     if (!title || !description) {
       return res.status(400).json({ message: "Data tidak lengkap" });
@@ -1273,14 +1272,12 @@ export function registerRoutes(app: Express) {
       const complaintId = insertResult.insertId;
 
       // Insert photos
-      if (files && files.length > 0) {
-        const fullName = (req.user as any).fullName || (req.user as any).username;
-        for (const file of files) {
-          const photoUrl = await processSingleUpload(file, "complaint", fullName);
+      if (photos && Array.isArray(photos) && photos.length > 0) {
+        for (const photo of photos) {
           await db.insert(complaintPhotos).values({
             complaintId,
-            photoUrl: photoUrl || `/api/images/${file.filename}`,
-            caption: file.originalname,
+            photoUrl: photo.url,
+            caption: photo.caption || null,
           });
         }
       }

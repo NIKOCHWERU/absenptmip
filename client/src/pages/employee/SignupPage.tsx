@@ -40,7 +40,6 @@ export default function SignupPage() {
   // ── ADMINISTRASI ──
   const [npwp,        setNpwp]        = useState("");
   const [bpjs,        setBpjs]        = useState("");
-  const [bankAccount, setBankAccount] = useState("");
 
   // ── FILE & PREVIEW ──
   const [ktpFile,   setKtpFile]   = useState<File | null>(null);
@@ -83,10 +82,7 @@ export default function SignupPage() {
       }
     }
     if (step === 3) {
-      if (!bankAccount) {
-        toast({ title: "Peringatan", description: "Nomor rekening bank wajib diisi.", variant: "destructive" });
-        return false;
-      }
+      // no mandatory fields left in step 3
     }
     if (step === 4) {
       if (!ktpFile || !photoFile) {
@@ -122,7 +118,6 @@ export default function SignupPage() {
     fd.append("employmentStatus", employmentStatus);
     fd.append("npwp",             npwp);
     fd.append("bpjs",             bpjs);
-    fd.append("bankAccount",      bankAccount);
 
     if (ktpFile)   fd.append("ktpPhoto",  ktpFile);
     if (photoFile) fd.append("photo",     photoFile);
@@ -318,10 +313,6 @@ export default function SignupPage() {
                   <div>
                     <label className={labelCls}>Nomor BPJS Kesehatan</label>
                     <input className={inputCls} value={bpjs} onChange={e => setBpjs(e.target.value)} placeholder="Nomor BPJS Anda" />
-                  </div>
-                  <div className="sm:col-span-2">
-                    <label className={labelCls}>Nomor Rekening Bank <span className="text-red-500">*</span></label>
-                    <input className={inputCls} value={bankAccount} onChange={e => setBankAccount(e.target.value)} placeholder="Nomor rekening untuk pembayaran gaji" />
                   </div>
                 </div>
               </div>
