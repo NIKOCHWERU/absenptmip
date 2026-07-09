@@ -116,6 +116,11 @@ export default function AdminEmployeeList() {
         queryKey: ["/api/shifts"],
     });
 
+    const { data: config } = useQuery<any>({
+        queryKey: ["/api/config"],
+    });
+    const shiftEnabled = config?.features?.shift !== false;
+
     const employees = users?.filter(u => u.role === 'employee') || [];
     const existingBranches = Array.from(new Set(employees.map(u => u.branch).filter(Boolean))) as string[];
     const existingPositions = Array.from(new Set(employees.map(u => u.position).filter(Boolean))) as string[];
@@ -425,7 +430,9 @@ export default function AdminEmployeeList() {
                                     <div className="flex items-center gap-1">Nama <ArrowLeft className={`h-3 w-3 rotate-90 ${sortField === 'fullName' ? 'text-primary' : 'text-gray-300'}`} /></div>
                                 </TableHead>
                                 <TableHead className="cursor-pointer hover:text-primary" onClick={() => toggleSort('nik')}>NIK</TableHead>
-                                <TableHead className="cursor-pointer hover:text-primary" onClick={() => toggleSort('shift')}>Shift</TableHead>
+                                {shiftEnabled && (
+                                    <TableHead className="cursor-pointer hover:text-primary" onClick={() => toggleSort('shift')}>Shift</TableHead>
+                                )}
                                 <TableHead className="cursor-pointer hover:text-primary" onClick={() => toggleSort('position')}>Jabatan</TableHead>
                                 <TableHead className="cursor-pointer hover:text-primary" onClick={() => toggleSort('branch')}>Cabang</TableHead>
                                 <TableHead className="cursor-pointer hover:text-primary" onClick={() => toggleSort('registrationStatus')}>Status Data</TableHead>
@@ -470,15 +477,17 @@ export default function AdminEmployeeList() {
                                         </div>
                                     </TableCell>
                                     <TableCell className="font-mono text-gray-600">{emp.nik}</TableCell>
-                                    <TableCell>
-                                        {emp.shift && emp.shift !== '-' && emp.shift.toLowerCase() !== 'management' ? (
-                                            <Badge variant="outline" className="bg-primary/5 text-primary-foreground border-primary/20 text-[10px] font-bold">
-                                                {emp.shift}
-                                            </Badge>
-                                        ) : (
-                                            <span className="text-gray-400 text-[10px] italic">Belum Tercatat</span>
-                                        )}
-                                    </TableCell>
+                                    {shiftEnabled && (
+                                        <TableCell>
+                                            {emp.shift && emp.shift !== '-' && emp.shift.toLowerCase() !== 'management' ? (
+                                                <Badge variant="outline" className="bg-primary/5 text-primary-foreground border-primary/20 text-[10px] font-bold">
+                                                    {emp.shift}
+                                                </Badge>
+                                            ) : (
+                                                <span className="text-gray-400 text-[10px] italic">Belum Tercatat</span>
+                                            )}
+                                        </TableCell>
+                                    )}
                                     <TableCell>{toTitleCase(emp.position)}</TableCell>
                                     <TableCell>{toTitleCase(emp.branch)}</TableCell>
                                     <TableCell>
@@ -1184,27 +1193,27 @@ export default function AdminEmployeeList() {
                                     )} />
                                 </div>
                                 <div className="grid grid-cols-2 gap-4">
-                                    <FormField
-                                        control={form.control}
-                                        name="shift"
-                                        render={({ field }) => (
-                                            <FormItem>
-                                                <FormLabel>Shift Kerja</FormLabel>
-                                                <Select onValueChange={field.onChange} value={field.value || "-"}>
-                                                    <FormControl><SelectTrigger><SelectValue placeholder="Pilih Shift" /></SelectTrigger></FormControl>
-                                                    <SelectContent>
-                                                        <SelectItem value="-">-</SelectItem>
-                                                        {shifts.map((s) => (
-                                                            <SelectItem key={s.id} value={s.name}>
-                                                                {s.name} ({s.checkInTime} - {s.checkOutTime})
-                                                            </SelectItem>
-                                                        ))}
-                                                    </SelectContent>
-                                                </Select>
-                                                <FormMessage />
-                                            </FormItem>
-                                        )}
-                                    />
+                                    {shiftEnabled && (
+                                        <FormField
+                                            control={form.control}
+                                            name="shift"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>Shift Kerja</FormLabel>
+                                                    <Select onValueChange={field.onChange} value={field.value || "-"}>
+                                                        <FormControl><SelectTrigger><SelectValue placeholder="Pilih Shift" /></SelectTrigger></FormControl>
+                                                        <SelectContent>
+                                                            <SelectItem value="-">Tanpa Shift (Default)</SelectItem>
+                                                            {shifts.map((s) => (
+                                                                <SelectItem key={s.id} value={s.name}>{s.name} ({s.checkInTime} - {s.checkOutTime})</SelectItem>
+                                                            ))}
+                                                        </SelectContent>
+                                                    </Select>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+                                    )}
                                     <FormField
                                         control={form.control}
                                         name="registrationStatus"

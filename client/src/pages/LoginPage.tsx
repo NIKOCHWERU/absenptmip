@@ -1,15 +1,57 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "../hooks/use-auth.js";
 import { useToast } from "../hooks/use-toast.js";
 import { User, ShieldAlert, ArrowRight, ClipboardCheck } from "lucide-react";
 import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 
 export default function LoginPage() {
   const { loginMutation } = useAuth();
   const { toast } = useToast();
   const [, setLocation] = useLocation();
   const [username, setUsername] = useState("");
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [showInstallPopup, setShowInstallPopup] = useState(false);
+
+  useEffect(() => {
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone;
+    const hasDismissed = localStorage.getItem("installPromptDismissed");
+    
+    if (!isStandalone && !hasDismissed) {
+      setShowInstallPopup(true);
+    }
+
+    const handler = (e: any) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+    window.addEventListener("beforeinstallprompt", handler);
+    return () => window.removeEventListener("beforeinstallprompt", handler);
+  }, []);
+
+  const handleInstall = async () => {
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      if (outcome === 'accepted') {
+        setShowInstallPopup(false);
+      }
+      setDeferredPrompt(null);
+    } else {
+      toast({
+        title: "Install Aplikasi",
+        description: "Gunakan menu browser 'Add to Home Screen' (Tambahkan ke Layar Utama) untuk menginstal aplikasi.",
+      });
+      setShowInstallPopup(false);
+    }
+  };
+
+  const handleDismissInstall = () => {
+    localStorage.setItem("installPromptDismissed", "true");
+    setShowInstallPopup(false);
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -118,10 +160,25 @@ export default function LoginPage() {
         </div>
       </div>
       
-      {/* Hidden admin trigger for HRD */}
-      <a href="/admin/login" className="absolute bottom-6 right-6 text-[10px] text-slate-300 hover:text-slate-500 z-20">
-        Portal Admin
-      </a>
+      {/* Install App Dialog */}
+      <Dialog open={showInstallPopup} onOpenChange={handleDismissInstall}>
+        <DialogContent className="rounded-3xl max-w-sm p-6 text-center">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-black text-slate-800 text-center">Install Aplikasi</DialogTitle>
+            <DialogDescription className="text-center mt-2">
+              Install aplikasi absensi ini ke layar utama HP Anda agar lebih mudah diakses kapan saja.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-3 mt-4">
+            <Button onClick={handleInstall} className="w-full rounded-2xl bg-primary hover:bg-primary/90 text-white font-bold h-12 shadow-lg shadow-orange-500/25">
+              Install Sekarang
+            </Button>
+            <Button variant="ghost" onClick={handleDismissInstall} className="w-full rounded-2xl text-slate-500 font-medium">
+              Nanti Saja
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

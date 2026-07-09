@@ -439,8 +439,9 @@ export default function EmployeeDashboard() {
     const startAttendanceFlow = async (actionFn: (data: any) => Promise<any>, successTitle: string, isClockIn = false) => {
         if (isClockIn && sessionCount === 0) {
             setActiveAction({ fn: actionFn, successTitle, type: 'attendance' });
-            // Jika tidak ada shift di DB, langsung gunakan default 08:00-17:00 tanpa modal
-            if (!hasDBShifts) {
+            // Jika tidak ada shift di DB atau fitur shift dinonaktifkan, langsung gunakan default 08:00-17:00 tanpa modal
+            const shiftEnabled = config?.features?.shift !== false;
+            if (!hasDBShifts || !shiftEnabled) {
                 setSelectedShiftId(DEFAULT_SHIFT.id);
                 const now = new Date();
                 const [sHour, sMinute] = DEFAULT_SHIFT.checkInTime.split(':').map(Number);
