@@ -437,35 +437,39 @@ export default function EmployeeDashboard() {
     };
 
     const startAttendanceFlow = async (actionFn: (data: any) => Promise<any>, successTitle: string, isClockIn = false) => {
-        if (isClockIn && sessionCount === 0) {
+        const shiftEnabled = config?.features?.shift !== false;
+        const useDefaultShift = !hasDBShifts || !shiftEnabled;
+
+        if (isClockIn && sessionCount === 0 && !useDefaultShift) {
             setActiveAction({ fn: actionFn, successTitle, type: 'attendance' });
-            // Jika tidak ada shift di DB atau fitur shift dinonaktifkan, langsung gunakan default 08:00-17:00 tanpa modal
-            const shiftEnabled = config?.features?.shift !== false;
-            if (!hasDBShifts || !shiftEnabled) {
-                setSelectedShiftId(DEFAULT_SHIFT.id);
-                const now = new Date();
-                const [sHour, sMinute] = DEFAULT_SHIFT.checkInTime.split(':').map(Number);
-                const isLate = (now.getHours() * 60 + now.getMinutes()) > (sHour * 60 + sMinute);
-                const wrappedFn = async (data: any) => actionFn({ ...data, shiftId: DEFAULT_SHIFT.id, shift: DEFAULT_SHIFT.name });
-                setActiveAction({ fn: wrappedFn, successTitle, type: 'attendance' });
-                if (isLate) {
-                    setIsLateReasonModalOpen(true);
-                } else {
-                    setIsCameraOpen(true);
-                }
-                return;
-            }
             setIsShiftModalOpen(true);
             return;
         }
 
         let finalActionFn = actionFn;
-        if (isClockIn && sessionCount > 0) {
-            const initialShift = todaySessions && todaySessions.length > 0 ? (todaySessions[0] as any).shift : '-';
-            finalActionFn = async (data: any) => actionFn({ ...data, shift: initialShift });
+        if (isClockIn) {
+            if (useDefaultShift) {
+                finalActionFn = async (data: any) => actionFn({ ...data, shiftId: DEFAULT_SHIFT.id, shift: DEFAULT_SHIFT.name });
+            } else if (sessionCount > 0) {
+                const initialShiftId = todaySessions && todaySessions.length > 0 ? (todaySessions[0] as any).shiftId : null;
+                const initialShift = todaySessions && todaySessions.length > 0 ? (todaySessions[0] as any).shift : '-';
+                finalActionFn = async (data: any) => actionFn({ ...data, shiftId: initialShiftId, shift: initialShift });
+            }
         }
 
         setActiveAction({ fn: finalActionFn, successTitle, type: 'attendance' });
+
+        if (isClockIn && useDefaultShift && sessionCount === 0) {
+            setSelectedShiftId(DEFAULT_SHIFT.id);
+            const now = new Date();
+            const [sHour, sMinute] = DEFAULT_SHIFT.checkInTime.split(':').map(Number);
+            const isLate = (now.getHours() * 60 + now.getMinutes()) > (sHour * 60 + sMinute);
+            if (isLate) {
+                setIsLateReasonModalOpen(true);
+                return;
+            }
+        }
+
         setIsCameraOpen(true);
     };
 
@@ -672,6 +676,7 @@ export default function EmployeeDashboard() {
 
     const getStatusText = () => {
         if (!today) return "Belum Absen";
+        if (today.status === 'absent') return "Belum Absen";
         if (today.status === 'sick') return "Sakit";
         if (today.status === 'permission') return "Izin";
         if (today.status === 'off') return "Libur";
