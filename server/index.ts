@@ -336,6 +336,9 @@ async function startServer() {
     const distPath = path.resolve(process.cwd(), "dist/public");
     app.use(express.static(distPath));
     app.get("*", (req: Request, res: Response) => {
+      if (req.path.startsWith('/assets/')) {
+        return res.status(404).send("Not found");
+      }
       res.sendFile(path.resolve(distPath, "index.html"));
     });
   }
