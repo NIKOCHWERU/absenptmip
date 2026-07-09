@@ -58,7 +58,7 @@ export default function ComplaintPage() {
             const body = {
                 title,
                 description,
-                photos: photos.map(p => ({ url: p.url, caption: p.caption }))
+                photos: photos.filter(p => p.url).map(p => ({ url: p.url, caption: p.caption }))
             };
 
             const res = await fetch("/api/employee/complaints", {
@@ -295,7 +295,7 @@ export default function ComplaintPage() {
 
                         <Button
                             onClick={() => submitMutation.mutate()}
-                            disabled={!title || !description || submitMutation.isPending}
+                            disabled={!title || !description || submitMutation.isPending || Object.keys(uploadingState).length > 0}
                             className="w-full h-12 rounded-xl bg-primary hover:bg-primary/90 text-white font-bold"
                         >
                             {submitMutation.isPending ? (

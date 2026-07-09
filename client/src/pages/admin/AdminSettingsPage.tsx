@@ -171,14 +171,15 @@ export default function AdminSettingsPage() {
       if (!res.ok) {
         throw new Error("Gagal memperbarui pengaturan");
       }
-      return res.json();
+      const data = await res.json();
     
-
       await queryClient.invalidateQueries({ queryKey: ["/api/config"] });
       toast({
         title: "Pengaturan Diperbarui",
         description: "Fitur aplikasi dan konfigurasi berhasil diselaraskan secara langsung.",
       });
+
+      return data;
     },
     onError: (err: any) => {
       toast({
