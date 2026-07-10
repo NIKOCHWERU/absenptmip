@@ -83,14 +83,35 @@ export default function AdminComplaintsPage() {
             if (!res.ok) throw new Error("Gagal update status");
             return res.json();
         },
-        onSuccess: async () => {await queryClient.invalidateQueries({ queryKey: ["/api/admin/complaints"] });
-            toast({ title: "Status diperbarui", className: "bg-primary text-white" });
+        onMutate: async (variables) => {
+            await queryClient.cancelQueries({ queryKey: ["/api/admin/complaints"] });
+            const previousComplaints = queryClient.getQueryData<Complaint[]>(["/api/admin/complaints"]);
+            if (previousComplaints) {
+                queryClient.setQueryData<Complaint[]>(["/api/admin/complaints"], old => {
+                    if (!old) return old;
+                    return old.map(c => c.id === variables.id ? { 
+                        ...c, 
+                        status: variables.status as any,
+                        adminFeedback: variables.adminFeedback || c.adminFeedback,
+                        feedbackDocumentUrl: variables.feedbackDocumentUrl || c.feedbackDocumentUrl,
+                        resolvedAt: variables.status === 'resolved' ? new Date().toISOString() : c.resolvedAt
+                    } : c);
+                });
+            }
             setSelectedComplaint(null);
             setIsResolving(false);
             setAdminFeedback("");
             setDocUrl("");
+            return { previousComplaints };
         },
-        onError: (e: any) => {
+        onSuccess: () => {
+            toast({ title: "Status diperbarui", className: "bg-primary text-white" });
+            queryClient.invalidateQueries({ queryKey: ["/api/admin/complaints"] });
+        },
+        onError: (e: any, variables, context: any) => {
+            if (context?.previousComplaints) {
+                queryClient.setQueryData(["/api/admin/complaints"], context.previousComplaints);
+            }
             toast({ title: "Gagal", description: e.message, variant: "destructive" });
         },
     });
