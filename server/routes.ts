@@ -1689,6 +1689,8 @@ export function registerRoutes(app: Express) {
       console.error("Error deleting user:", err);
       res.status(500).json({ message: err.message });
     }
+  });
+
   // 4.1 Get user documents
   app.get("/api/admin/users/:id/documents", isAdmin, async (req: Request, res: Response) => {
     const targetId = Number(req.params.id);
