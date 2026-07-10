@@ -284,7 +284,8 @@ export default function RecapPage() {
         try {
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 5000);
-            const logoRes = await fetch('/logo.png', { signal: controller.signal });
+            const logoToUse = config?.logoUrl || '/logo_elok_buah.jpg';
+            const logoRes = await fetch(logoToUse, { signal: controller.signal });
             clearTimeout(timeoutId);
             
             const logoBlob = await logoRes.blob();
@@ -565,7 +566,8 @@ export default function RecapPage() {
 
         let logoDataUrl = '';
         try {
-            const logoRes = await fetch('/logo.png');
+            const logoToUse = config?.logoUrl || '/logo_elok_buah.jpg';
+            const logoRes = await fetch(logoToUse);
             const logoBlob = await logoRes.blob();
             logoDataUrl = await new Promise<string>((resolve) => {
                 const reader = new FileReader();

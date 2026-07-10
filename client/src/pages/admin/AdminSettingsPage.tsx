@@ -192,6 +192,7 @@ export default function AdminSettingsPage() {
 
   const handleSave = () => {
     const primaryHsl = hexToHsl(hexPrimary);
+    const secondaryHsl = hexToHsl(hexSecondary);
     const derived = getDerivedColors(primaryHsl);
 
     mutation.mutate({
@@ -200,8 +201,8 @@ export default function AdminSettingsPage() {
       deskripsiPwa,
       logoUrl,
       rekapPrefix,
-      themePrimary: derived.themePrimary,
-      themeSecondary: derived.themeSecondary,
+      themePrimary: primaryHsl,
+      themeSecondary: secondaryHsl,
       themeAccent: derived.themeAccent,
       themeBackground: derived.themeBackground,
       themeSidebarAccent: derived.themeSidebarAccent,
@@ -345,7 +346,7 @@ export default function AdminSettingsPage() {
               <CardTitle className="text-xs font-bold text-gray-700 uppercase tracking-wider">Tema Warna Utama (Visual)</CardTitle>
             </CardHeader>
             <CardContent className="py-5 px-6 space-y-4">
-              <div className="flex items-center gap-3 p-2.5 border border-slate-100 rounded-xl hover:bg-gray-50/50 transition-all">
+              <div className="flex items-center gap-3 bg-gray-50/50 p-2 rounded-xl border border-gray-100">
                 <input
                   type="color"
                   className="w-10 h-10 rounded-lg cursor-pointer border-none bg-transparent"
@@ -355,6 +356,19 @@ export default function AdminSettingsPage() {
                 <div className="flex-1 min-w-0">
                   <Label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-0.5">Warna Utama (Primary)</Label>
                   <span className="text-xs font-mono font-bold text-gray-600">{hexPrimary.toUpperCase()}</span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3 bg-gray-50/50 p-2 rounded-xl border border-gray-100 mt-2">
+                <input
+                  type="color"
+                  className="w-10 h-10 rounded-lg cursor-pointer border-none bg-transparent"
+                  value={hexSecondary}
+                  onChange={(e) => setHexSecondary(e.target.value)}
+                />
+                <div className="flex-1 min-w-0">
+                  <Label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-0.5">Warna Sekunder (Secondary)</Label>
+                  <span className="text-xs font-mono font-bold text-gray-600">{hexSecondary.toUpperCase()}</span>
                 </div>
               </div>
             </CardContent>
