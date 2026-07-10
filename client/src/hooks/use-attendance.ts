@@ -6,7 +6,9 @@ export function useAttendance() {
   const { data, isLoading: isLoadingToday } = useQuery<Attendance[]>({
     queryKey: ["/api/attendance/today"],
   });
-  const todaySessions = Array.isArray(data) ? data : (data ? [data] : []);
+  const rawSessions = Array.isArray(data) ? data : (data ? [data] : []);
+  // Filter out "phantom" records: auto-created absent records with no checkIn
+  const todaySessions = rawSessions.filter(s => s.checkIn || (s.status && s.status !== 'absent'));
 
   // Derive active and completed sessions from array
   const activeSession = todaySessions.find(s => !s.checkOut) || null;

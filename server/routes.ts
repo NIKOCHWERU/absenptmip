@@ -6,7 +6,8 @@ import { exec } from "child_process";
 import webpush from "web-push";
 import { db, pool } from "./db.js";
 import { users, shifts, attendance, leaveRequests, complaints, complaintPhotos, resignations, mutations, warningLetters, systemConfigs, activityLogs, announcements, pushSubscriptions } from "../shared/schema.js";
-import { eq, and, gte, lte, desc, sql } from "drizzle-orm";
+import { eq, and, gte, lte, desc, sql, isNotNull } from "drizzle-orm";
+
 import { isAuthenticated, isAdmin, isSuperAdmin, hashPassword } from "./auth.js";
 
 // Configure web-push
@@ -805,11 +806,15 @@ export function registerRoutes(app: Express) {
         const acc = Number(accuracy);
         const isFake = (acc === 0 || acc === 1 || mocked === "true" || mocked === true);
 
-        // 2. Session calculation
+        // 2. Session calculation — exclude phantom absent records that have no checkIn
         const existingSessions = await db
           .select()
           .from(attendance)
-          .where(and(eq(attendance.userId, userId), sql`DATE(${attendance.date}) = ${adminDate}`));
+          .where(and(
+            eq(attendance.userId, userId),
+            sql`DATE(${attendance.date}) = ${adminDate}`,
+            isNotNull(attendance.checkIn)
+          ));
 
         const nextSessionNum = existingSessions.length + 1;
         if (nextSessionNum > 5) {

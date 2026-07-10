@@ -1,11 +1,19 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "../hooks/use-auth.js";
 import { useToast } from "../hooks/use-toast.js";
-import { User, ShieldAlert, ArrowRight, ClipboardCheck } from "lucide-react";
+import { User, ArrowRight, Download, Share, X, Check, ChevronRight, Smartphone, Plus } from "lucide-react";
 import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
+
+// Detect iOS
+function isIos(): boolean {
+  return /iphone|ipad|ipod/.test(window.navigator.userAgent.toLowerCase());
+}
+
+// Detect Android
+function isAndroid(): boolean {
+  return /android/.test(window.navigator.userAgent.toLowerCase());
+}
 
 export default function LoginPage() {
   const { loginMutation } = useAuth();
@@ -14,13 +22,15 @@ export default function LoginPage() {
   const [username, setUsername] = useState("");
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [showInstallPopup, setShowInstallPopup] = useState(false);
+  const [installed, setInstalled] = useState(false);
 
   useEffect(() => {
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone;
-    const hasDismissed = localStorage.getItem("installPromptDismissed");
-    
+    const hasDismissed = localStorage.getItem("installPromptDismissed2");
+
     if (!isStandalone && !hasDismissed) {
-      setShowInstallPopup(true);
+      // Small delay so page loads first
+      setTimeout(() => setShowInstallPopup(true), 800);
     }
 
     const handler = (e: any) => {
@@ -28,6 +38,12 @@ export default function LoginPage() {
       setDeferredPrompt(e);
     };
     window.addEventListener("beforeinstallprompt", handler);
+
+    window.addEventListener("appinstalled", () => {
+      setInstalled(true);
+      setShowInstallPopup(false);
+    });
+
     return () => window.removeEventListener("beforeinstallprompt", handler);
   }, []);
 
@@ -36,20 +52,15 @@ export default function LoginPage() {
       deferredPrompt.prompt();
       const { outcome } = await deferredPrompt.userChoice;
       if (outcome === 'accepted') {
+        setInstalled(true);
         setShowInstallPopup(false);
       }
       setDeferredPrompt(null);
-    } else {
-      toast({
-        title: "Install Aplikasi",
-        description: "Gunakan menu browser 'Add to Home Screen' (Tambahkan ke Layar Utama) untuk menginstal aplikasi.",
-      });
-      setShowInstallPopup(false);
     }
   };
 
   const handleDismissInstall = () => {
-    localStorage.setItem("installPromptDismissed", "true");
+    localStorage.setItem("installPromptDismissed2", "true");
     setShowInstallPopup(false);
   };
 
@@ -76,7 +87,6 @@ export default function LoginPage() {
         },
         onSuccess: async (data) => {
           if (data.role !== "employee") {
-            // Admin logs in through the employee portal accidentally
             toast({
               title: "Akses Dialihkan",
               description: "Admin mendeteksi login. Silakan masuk melalui Portal Admin.",
@@ -101,9 +111,12 @@ export default function LoginPage() {
     queryKey: ["/api/config"],
   });
 
-  const singkatanPt = config?.singkatanPt || config?.namaPt || import.meta.env.VITE_SINGKATAN_PT || import.meta.env.VITE_NAMA_PT || "PT ABC";
+  const singkatanPt = config?.singkatanPt || config?.namaPt || import.meta.env.VITE_SINGKATAN_PT || import.meta.env.VITE_NAMA_PT || "PT MIP";
   const logoUrl = config?.logoUrl || import.meta.env.VITE_LOGO_FILE || "/logo_elok_buah.jpg";
   const logoInisial = config?.logoInisial || import.meta.env.VITE_LOGO_INISIAL || singkatanPt.charAt(0);
+
+  const isIosDevice = isIos();
+  const isAndroidDevice = isAndroid();
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-slate-50 relative overflow-hidden">
@@ -159,26 +172,163 @@ export default function LoginPage() {
           </a>
         </div>
       </div>
-      
-      {/* Install App Dialog */}
-      <Dialog open={showInstallPopup} onOpenChange={handleDismissInstall}>
-        <DialogContent className="rounded-3xl max-w-sm p-6 text-center">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-black text-slate-800 text-center">Install Aplikasi</DialogTitle>
-            <DialogDescription className="text-center mt-2">
-              Install aplikasi absensi ini ke layar utama HP Anda agar lebih mudah diakses kapan saja.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex flex-col gap-3 mt-4">
-            <Button onClick={handleInstall} className="w-full rounded-2xl bg-primary hover:bg-primary/90 text-white font-bold h-12 shadow-lg shadow-orange-500/25">
-              Install Sekarang
-            </Button>
-            <Button variant="ghost" onClick={handleDismissInstall} className="w-full rounded-2xl text-slate-500 font-medium">
-              Nanti Saja
-            </Button>
+
+      {/* ===================== INSTALL POPUP ===================== */}
+      {showInstallPopup && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center sm:items-center"
+          style={{ backgroundColor: "rgba(0,0,0,0.55)", backdropFilter: "blur(4px)" }}
+        >
+          <div
+            className="bg-white w-full max-w-sm rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden"
+            style={{ animation: "slideUp 0.35s cubic-bezier(0.34,1.56,0.64,1)" }}
+          >
+            {/* Header bar */}
+            <div className="bg-gradient-to-r from-violet-600 to-purple-700 pt-6 pb-8 px-6 relative">
+              <button
+                onClick={handleDismissInstall}
+                className="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-white hover:bg-white/30 transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+              <div className="flex items-center gap-4">
+                {/* App icon */}
+                <div className="w-16 h-16 rounded-2xl bg-white flex items-center justify-center shadow-xl shadow-black/20 flex-shrink-0">
+                  {logoUrl && logoUrl !== "/logo_elok_buah.jpg" ? (
+                    <img src={logoUrl} alt="App Icon" className="w-12 h-12 object-contain" />
+                  ) : (
+                    <span className="text-2xl font-black text-violet-700 uppercase">{logoInisial}</span>
+                  )}
+                </div>
+                <div className="text-white">
+                  <p className="font-black text-lg leading-tight">Absensi {singkatanPt}</p>
+                  <p className="text-violet-200 text-xs mt-0.5">absenptmip.narasumberhukum.online</p>
+                  <div className="flex items-center gap-1 mt-1.5">
+                    {[1,2,3,4,5].map(i => (
+                      <svg key={i} className="w-3 h-3 fill-yellow-400" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                    ))}
+                    <span className="text-yellow-300 text-[10px] ml-1 font-semibold">Gratis</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Stats row */}
+              <div className="flex gap-4 mt-4 text-white">
+                <div className="flex flex-col items-center flex-1">
+                  <span className="font-black text-sm">4.9★</span>
+                  <span className="text-violet-200 text-[9px] uppercase tracking-wide">Rating</span>
+                </div>
+                <div className="w-px bg-white/20" />
+                <div className="flex flex-col items-center flex-1">
+                  <span className="font-black text-sm">1K+</span>
+                  <span className="text-violet-200 text-[9px] uppercase tracking-wide">Pengguna</span>
+                </div>
+                <div className="w-px bg-white/20" />
+                <div className="flex flex-col items-center flex-1">
+                  <span className="font-black text-sm">2 MB</span>
+                  <span className="text-violet-200 text-[9px] uppercase tracking-wide">Ukuran</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Body */}
+            <div className="px-6 py-5">
+              {/* Feature list */}
+              <div className="space-y-2.5 mb-5">
+                {[
+                  "Absen masuk & pulang dengan foto",
+                  "Notifikasi pengumuman dari Admin",
+                  "Akses cepat tanpa buka browser",
+                ].map((f) => (
+                  <div key={f} className="flex items-center gap-3">
+                    <div className="w-5 h-5 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
+                      <Check className="w-3 h-3 text-green-600" />
+                    </div>
+                    <span className="text-sm text-slate-700">{f}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Android: show Install button */}
+              {(isAndroidDevice || deferredPrompt) && (
+                <>
+                  <button
+                    onClick={handleInstall}
+                    disabled={!deferredPrompt}
+                    className="w-full flex items-center justify-center gap-2 py-4 rounded-2xl font-black text-white text-base shadow-lg shadow-violet-300 transition-all"
+                    style={{ background: "linear-gradient(135deg, #7c3aed, #6d28d9)" }}
+                  >
+                    <Download className="w-5 h-5" />
+                    Pasang Aplikasi
+                  </button>
+                  {!deferredPrompt && (
+                    <p className="text-center text-xs text-slate-400 mt-2">Ketuk ⋮ → "Tambahkan ke Layar Utama"</p>
+                  )}
+                </>
+              )}
+
+              {/* iOS: Show Share instructions */}
+              {isIosDevice && !isAndroidDevice && (
+                <div className="space-y-3">
+                  <p className="text-sm font-bold text-slate-700 text-center">Cara Install di iPhone / iPad</p>
+                  <div className="bg-slate-50 rounded-2xl p-4 space-y-3">
+                    {[
+                      {
+                        icon: <Share className="w-4 h-4 text-blue-500" />,
+                        step: "1",
+                        text: "Ketuk ikon Share (kotak panah atas) di Safari"
+                      },
+                      {
+                        icon: <Plus className="w-4 h-4 text-blue-500" />,
+                        step: "2",
+                        text: "Pilih \"Add to Home Screen\" (Tambahkan ke Layar Utama)"
+                      },
+                      {
+                        icon: <Smartphone className="w-4 h-4 text-blue-500" />,
+                        step: "3",
+                        text: "Ketuk \"Add\" — aplikasi langsung terpasang!"
+                      },
+                    ].map((item) => (
+                      <div key={item.step} className="flex items-start gap-3">
+                        <div className="w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+                          {item.icon}
+                        </div>
+                        <p className="text-xs text-slate-600 leading-relaxed flex-1 pt-1">{item.text}</p>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="text-center text-xs text-slate-400 flex items-center justify-center gap-1">
+                    <span>⚠️ Harus menggunakan Safari (bukan Chrome/Firefox)</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Non-mobile fallback */}
+              {!isIosDevice && !isAndroidDevice && !deferredPrompt && (
+                <div className="bg-slate-50 rounded-2xl p-4 text-center">
+                  <Smartphone className="w-8 h-8 text-slate-400 mx-auto mb-2" />
+                  <p className="text-sm text-slate-600">Buka di <strong>Chrome Android</strong> atau <strong>Safari iOS</strong> untuk install sebagai aplikasi.</p>
+                </div>
+              )}
+
+              <button
+                onClick={handleDismissInstall}
+                className="w-full mt-3 py-3 rounded-2xl text-slate-500 font-semibold text-sm hover:bg-slate-100 transition-colors"
+              >
+                Nanti Saja
+              </button>
+            </div>
           </div>
-        </DialogContent>
-      </Dialog>
+        </div>
+      )}
+
+      <style>{`
+        @keyframes slideUp {
+          from { opacity: 0; transform: translateY(60px) scale(0.97); }
+          to   { opacity: 1; transform: translateY(0)     scale(1);    }
+        }
+      `}</style>
     </div>
   );
 }
+

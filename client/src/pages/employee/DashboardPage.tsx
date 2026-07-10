@@ -676,6 +676,7 @@ export default function EmployeeDashboard() {
 
     const getStatusText = () => {
         if (!today) return "Belum Absen";
+        if (!today.checkIn) return "Belum Absen";   // record ada tapi belum check-in
         if (today.status === 'absent') return "Belum Absen";
         if (today.status === 'sick') return "Sakit";
         if (today.status === 'permission') return "Izin";
@@ -931,14 +932,19 @@ export default function EmployeeDashboard() {
                             <p>NIK: <span className="font-semibold text-gray-700">{user?.username}</span></p>
                             <p>Cabang: <span className="font-semibold text-gray-700">{toTitleCase(user?.branch) || '-'}</span></p>
                             <p>Jabatan: <span className="font-semibold text-gray-700">{toTitleCase(user?.position) || '-'}</span></p>
-                            <p>Shift: <span className="font-bold text-primary">
-                                {(() => {
-                                    const baseShift = (todaySessions && todaySessions.length > 0) ? (todaySessions[0] as any).shift : (shiftList?.find(s => s.id === selectedShiftId)?.name);
-                                    if (!baseShift) return 'Belum Absen Masuk';
-                                    const formattedShift = toTitleCase(baseShift);
-                                    return sessionCount > 1 ? `${formattedShift} ( Sesi ${sessionCount} )` : formattedShift;
-                                })()}
-                            </span></p>
+                            {config?.features?.shift !== false && (
+                                <p>Shift: <span className="font-bold text-primary">
+                                    {(() => {
+                                        const baseShift = (todaySessions && todaySessions.length > 0) ? (todaySessions[0] as any).shift : (shiftList?.find(s => s.id === selectedShiftId)?.name);
+                                        if (!baseShift) return 'Belum Absen Masuk';
+                                        const formattedShift = toTitleCase(baseShift);
+                                        return sessionCount > 1 ? `${formattedShift} ( Sesi ${sessionCount} )` : formattedShift;
+                                    })()}
+                                </span></p>
+                            )}
+                            {config?.features?.shift === false && (
+                                <p>Jam Kerja: <span className="font-semibold text-gray-700">08:00 – 17:00</span></p>
+                            )}
                         </div>
                     </div>
                     <div className="z-10">
