@@ -563,17 +563,17 @@ export default function AdminEmployeeList() {
                                                 <Eye className="w-4 h-4 mr-1" />
                                                 View
                                             </Button>
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                className="text-emerald-600 border-emerald-200 hover:bg-emerald-50"
+                                                onClick={() => setDocumentViewEmployee(emp)}
+                                            >
+                                                <FileText className="w-4 h-4 mr-1" />
+                                                Dokumen
+                                            </Button>
                                             <Dialog>
                                                 <DialogTrigger asChild>
-                                                    <Button
-                                                        variant="outline"
-                                                        size="sm"
-                                                        className="text-emerald-600 border-emerald-200 hover:bg-emerald-50"
-                                                        onClick={() => setDocumentViewEmployee(emp)}
-                                                    >
-                                                        <FileText className="w-4 h-4 mr-1" />
-                                                        Dokumen
-                                                    </Button>
                                                     <Button
                                                         variant="outline"
                                                         size="sm"
