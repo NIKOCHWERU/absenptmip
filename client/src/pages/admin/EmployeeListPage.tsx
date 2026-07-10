@@ -3,6 +3,7 @@ import { User, Attendance, Shift } from "@shared/schema";
 import { z } from "zod";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useLocation } from "wouter";
 import { ArrowLeft, UserPlus, UserMinus, Search, Calendar, Phone, Image as ImageIcon, ImageOff, MapPin, Trash2, MessageSquare, Upload, Eye, Briefcase, CreditCard, User as UserIcon, FileText } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -82,6 +83,7 @@ export default function AdminEmployeeList() {
     const [selectedEmployee, setSelectedEmployee] = useState<User | null>(null);
     const [viewEmployee, setViewEmployee] = useState<User | null>(null);
     const [viewResignEmployee, setViewResignEmployee] = useState<User | null>(null);
+    const [documentViewEmployee, setDocumentViewEmployee] = useState<User | null>(null);
     const [selectedDate, setSelectedDate] = useState<Date | null>(null);
     const [attendanceViewDate, setAttendanceViewDate] = useState(new Date());
     const [viewMode, setViewMode] = useState<'month' | 'week'>('month');
@@ -177,6 +179,7 @@ export default function AdminEmployeeList() {
     });
 
     const [searchTerm, setSearchTerm] = useState("");
+    const [activeTab, setActiveTab] = useState("aktif");
     const [sortField, setSortField] = useState<string>('fullName');
     const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
@@ -190,6 +193,10 @@ export default function AdminEmployeeList() {
     };
 
     const filteredEmployees = employees.filter(emp => {
+        const isResign = emp.employmentStatus === 'Resign';
+        if (activeTab === 'aktif' && isResign) return false;
+        if (activeTab === 'resign' && !isResign) return false;
+
         if (!searchTerm) return true;
         const lowerTerm = searchTerm.toLowerCase();
         return emp.fullName.toLowerCase().includes(lowerTerm) || 
@@ -395,6 +402,13 @@ export default function AdminEmployeeList() {
             </div>
 
             <div className="space-y-6">
+                <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+                    <TabsList className="grid w-full grid-cols-2 max-w-sm mb-4">
+                        <TabsTrigger value="aktif">Karyawan Aktif</TabsTrigger>
+                        <TabsTrigger value="resign">Karyawan Resign</TabsTrigger>
+                    </TabsList>
+                </Tabs>
+
                 <div className="flex items-center gap-4 mb-6">
                     <div className="relative flex-1 max-w-sm">
                         <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
@@ -551,6 +565,15 @@ export default function AdminEmployeeList() {
                                             </Button>
                                             <Dialog>
                                                 <DialogTrigger asChild>
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        className="text-emerald-600 border-emerald-200 hover:bg-emerald-50"
+                                                        onClick={() => setDocumentViewEmployee(emp)}
+                                                    >
+                                                        <FileText className="w-4 h-4 mr-1" />
+                                                        Dokumen
+                                                    </Button>
                                                     <Button
                                                         variant="outline"
                                                         size="sm"
@@ -1310,7 +1333,63 @@ export default function AdminEmployeeList() {
                     </Form>
                 </DialogContent>
             </Dialog>
+            <DocumentViewerModal 
+                employee={documentViewEmployee} 
+                onClose={() => setDocumentViewEmployee(null)} 
+            />
         </div>
+    );
+}
+
+function DocumentViewerModal({ employee, onClose }: { employee: User | null; onClose: () => void }) {
+    const { data: documents, isLoading } = useQuery<{ name: string; url: string; type: string }[]>({
+        queryKey: [`/api/admin/users/${employee?.id}/documents`],
+        enabled: !!employee?.id,
+    });
+
+    return (
+        <Dialog open={!!employee} onOpenChange={(open) => !open && onClose()}>
+            <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+                <DialogHeader>
+                    <DialogTitle>Dokumen {employee?.fullName}</DialogTitle>
+                    <DialogDescription>
+                        Daftar dokumen yang terkait dengan tenaga kerja ini.
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 mt-2">
+                    {isLoading ? (
+                        <p className="text-sm text-gray-500 text-center py-4">Memuat dokumen...</p>
+                    ) : documents && documents.length > 0 ? (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {documents.map((doc, i) => (
+                                <Card key={i} className="shadow-sm border-gray-100 overflow-hidden">
+                                    <div className="bg-gray-50 px-3 py-2 border-b text-xs font-bold text-gray-500 flex justify-between items-center">
+                                        {doc.type}
+                                    </div>
+                                    <CardContent className="p-4 space-y-3">
+                                        <p className="text-sm font-semibold line-clamp-2" title={doc.name}>{doc.name}</p>
+                                        <Button 
+                                            variant="outline" 
+                                            size="sm" 
+                                            className="w-full text-blue-600 border-blue-200 hover:bg-blue-50 h-8"
+                                            onClick={() => window.open(resolveFileUrl(doc.url), '_blank')}
+                                        >
+                                            <Eye className="w-4 h-4 mr-2" />
+                                            Lihat File
+                                        </Button>
+                                    </CardContent>
+                                </Card>
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="text-center py-10 border border-dashed border-gray-200 rounded-xl">
+                            <FileText className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                            <p className="text-sm font-medium text-gray-500">Belum ada dokumen untuk tenaga kerja ini.</p>
+                        </div>
+                    )}
+                </div>
+            </DialogContent>
+        </Dialog>
     );
 }
 

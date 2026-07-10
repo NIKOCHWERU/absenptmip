@@ -6,7 +6,7 @@ import { exec } from "child_process";
 import webpush from "web-push";
 import { db, pool } from "./db.js";
 import { users, shifts, attendance, leaveRequests, complaints, complaintPhotos, resignations, mutations, warningLetters, systemConfigs, activityLogs, announcements, pushSubscriptions } from "../shared/schema.js";
-import { eq, and, gte, lte, desc, sql, isNotNull } from "drizzle-orm";
+import { eq, and, gte, lte, desc, sql, isNotNull, isNull, inArray } from "drizzle-orm";
 
 import { isAuthenticated, isAdmin, isSuperAdmin, hashPassword } from "./auth.js";
 
@@ -118,6 +118,71 @@ const storage = multer.diskStorage({
 });
 
 const upload = multer({ storage });
+
+async function autoCloseExpiredSessions(userId: number) {
+  try {
+    const activeSessions = await db
+      .select({
+         attendance: attendance,
+         shift: shifts
+      })
+      .from(attendance)
+      .leftJoin(shifts, eq(attendance.shiftId, shifts.id))
+      .where(and(
+        eq(attendance.userId, userId),
+        isNotNull(attendance.checkIn),
+        isNull(attendance.checkOut)
+      ));
+
+    if (activeSessions.length === 0) return;
+
+    const now = new Date();
+
+    for (const row of activeSessions) {
+      const session = row.attendance;
+      const shift = row.shift;
+      
+      const checkOutTimeStr = shift?.checkOutTime || "17:00";
+      const [hh, mm] = checkOutTimeStr.split(":").map(Number);
+      
+      let year, month, dateNum;
+      if (typeof session.date === 'string') {
+        const parts = (session.date as string).split("-");
+        year = Number(parts[0]);
+        month = Number(parts[1]) - 1;
+        dateNum = Number(parts[2]);
+      } else {
+        const d = session.date as Date;
+        year = d.getFullYear();
+        month = d.getMonth();
+        dateNum = d.getDate();
+      }
+
+      const checkOutDate = new Date(year, month, dateNum, hh, mm, 0, 0);
+
+      const checkInTimeStr = shift?.checkInTime || "08:00";
+      const [inHh] = checkInTimeStr.split(":").map(Number);
+      if (hh < inHh) {
+         checkOutDate.setDate(checkOutDate.getDate() + 1);
+      }
+
+      // Deadline is + 1 hr
+      const deadlineDate = new Date(checkOutDate.getTime() + 60 * 60 * 1000);
+
+      if (now > deadlineDate) {
+        const newNotes = session.notes ? `${session.notes} (Otomatis absen pulang oleh sistem)` : "(Otomatis absen pulang oleh sistem)";
+        await db.update(attendance)
+          .set({
+            checkOut: checkOutDate, 
+            notes: newNotes,
+          })
+          .where(eq(attendance.id, session.id));
+      }
+    }
+  } catch (e) {
+    console.error("Auto close expired sessions error:", e);
+  }
+}
 
 export function getAdminDate(): string {
   const now = new Date();
@@ -760,6 +825,7 @@ export function registerRoutes(app: Express) {
       { name: "lateReasonPhoto", maxCount: 1 },
     ]),
     async (req: Request, res: Response) => {
+      await autoCloseExpiredSessions((req.user as any).id);
       const files = req.files as { [fieldname: string]: Express.Multer.File[] };
       const userId = (req.user as any).id;
       
@@ -868,6 +934,7 @@ export function registerRoutes(app: Express) {
 
   // 4. Start Break (Mulai Istirahat)
   app.post("/api/attendance/break-start", isAuthenticated, upload.single("photo"), async (req: Request, res: Response) => {
+    await autoCloseExpiredSessions((req.user as any).id);
     const userId = (req.user as any).id;
     const adminDate = getAdminDate();
     const { address, location, checkInPhoto } = req.body;
@@ -909,6 +976,7 @@ export function registerRoutes(app: Express) {
 
   // 5. End Break (Selesai Istirahat)
   app.post("/api/attendance/break-end", isAuthenticated, upload.single("photo"), async (req: Request, res: Response) => {
+    await autoCloseExpiredSessions((req.user as any).id);
     const userId = (req.user as any).id;
     const adminDate = getAdminDate();
     const { address, location, checkInPhoto } = req.body;
@@ -952,6 +1020,7 @@ export function registerRoutes(app: Express) {
 
   // 6. Clock-out (Absen Pulang)
   app.post("/api/attendance/clock-out", isAuthenticated, upload.single("photo"), async (req: Request, res: Response) => {
+    await autoCloseExpiredSessions((req.user as any).id);
     const userId = (req.user as any).id;
     const adminDate = getAdminDate();
     const { address, location, checkInPhoto } = req.body;
@@ -1112,6 +1181,7 @@ export function registerRoutes(app: Express) {
 
   // 7. Get Today's Active Attendance Log for Employee
   app.get("/api/attendance/today", isAuthenticated, async (req: Request, res: Response) => {
+    await autoCloseExpiredSessions((req.user as any).id);
     const userId = (req.user as any).id;
     const adminDate = getAdminDate();
 
@@ -1130,6 +1200,7 @@ export function registerRoutes(app: Express) {
 
   // 8. Get Personal Attendance History
   app.get("/api/attendance/history", isAuthenticated, async (req: Request, res: Response) => {
+    await autoCloseExpiredSessions((req.user as any).id);
     const userId = (req.user as any).id;
     try {
       const list = await db
@@ -1592,8 +1663,76 @@ export function registerRoutes(app: Express) {
   app.delete("/api/admin/users/:id", isAdmin, async (req: Request, res: Response) => {
     const targetId = Number(req.params.id);
     try {
+      // 1. Delete complaint photos
+      const userComplaints = await db.select({ id: complaints.id }).from(complaints).where(eq(complaints.userId, targetId));
+      if (userComplaints.length > 0) {
+        const complaintIds = userComplaints.map(c => c.id);
+        await db.delete(complaintPhotos).where(inArray(complaintPhotos.complaintId, complaintIds));
+      }
+
+      // 2. Delete all other related records
+      await Promise.all([
+        db.delete(complaints).where(eq(complaints.userId, targetId)),
+        db.delete(attendance).where(eq(attendance.userId, targetId)),
+        db.delete(leaveRequests).where(eq(leaveRequests.userId, targetId)),
+        db.delete(pushSubscriptions).where(eq(pushSubscriptions.userId, targetId)),
+        db.delete(resignations).where(eq(resignations.userId, targetId)),
+        db.delete(mutations).where(eq(mutations.userId, targetId)),
+        db.delete(warningLetters).where(eq(warningLetters.userId, targetId)),
+        db.delete(activityLogs).where(eq(activityLogs.userId, targetId)),
+      ]);
+
+      // 3. Delete user
       await db.delete(users).where(eq(users.id, targetId));
-      res.json({ message: "User berhasil dihapus secara permanen" });
+      res.json({ message: "User berhasil dihapus secara permanen beserta seluruh datanya" });
+    } catch (err: any) {
+      console.error("Error deleting user:", err);
+      res.status(500).json({ message: err.message });
+    }
+  // 4.1 Get user documents
+  app.get("/api/admin/users/:id/documents", isAdmin, async (req: Request, res: Response) => {
+    const targetId = Number(req.params.id);
+    try {
+      const [user] = await db.select().from(users).where(eq(users.id, targetId)).limit(1);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const documents = [];
+
+      if (user.ktpPhotoUrl) documents.push({ name: "KTP", url: user.ktpPhotoUrl, type: "Profil" });
+      if (user.npwpPhotoUrl) documents.push({ name: "NPWP", url: user.npwpPhotoUrl, type: "Profil" });
+      if (user.bpjsPhotoUrl) documents.push({ name: "BPJS", url: user.bpjsPhotoUrl, type: "Profil" });
+
+      const userMutations = await db.select().from(mutations).where(eq(mutations.userId, targetId));
+      for (const m of userMutations) {
+        if (m.documentUrl) {
+          documents.push({ name: `Surat ${m.type} (${m.createdAt?.toLocaleDateString()})`, url: m.documentUrl, type: "Mutasi" });
+        }
+      }
+
+      const userWarningLetters = await db.select().from(warningLetters).where(eq(warningLetters.userId, targetId));
+      for (const w of userWarningLetters) {
+        if (w.documentUrl) {
+          documents.push({ name: `Surat Peringatan ${w.type} (${w.startDate})`, url: w.documentUrl, type: "Peringatan" });
+        }
+      }
+
+      const userResignations = await db.select().from(resignations).where(eq(resignations.userId, targetId));
+      for (const r of userResignations) {
+        if (r.documentUrl) {
+          documents.push({ name: `Surat Resign (${r.resignDate})`, url: r.documentUrl, type: "Resign" });
+        }
+      }
+      
+      const userComplaints = await db.select().from(complaints).where(eq(complaints.userId, targetId));
+      for (const c of userComplaints) {
+        if (c.feedbackDocumentUrl) {
+          documents.push({ name: `Dokumen Pengaduan: ${c.title}`, url: c.feedbackDocumentUrl, type: "Pengaduan" });
+        }
+      }
+
+      res.json(documents);
     } catch (err: any) {
       res.status(500).json({ message: err.message });
     }
