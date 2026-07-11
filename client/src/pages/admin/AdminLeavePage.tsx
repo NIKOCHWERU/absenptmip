@@ -202,10 +202,11 @@ export default function AdminLeavePage() {
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: 'Times New Roman', Times, serif; font-size: 13px; color: #000; background: white; padding: 25px 45px; line-height: 1.4; }
     
-    .letterhead { display: flex; flex-direction: column; align-items: center; text-align: center; margin-bottom: 10px; }
-    .logo-img { width: 60px; height: 60px; object-fit: contain; margin-bottom: 6px; }
-    .company-name { font-family: Arial, Helvetica, sans-serif; font-size: 16px; font-weight: bold; text-transform: uppercase; margin-bottom: 2px; }
-    .company-tagline { font-family: Arial, Helvetica, sans-serif; font-size: 10px; color: #475569; font-weight: bold; }
+    .letterhead { display: flex; flex-direction: row; align-items: center; text-align: left; margin-bottom: 10px; gap: 20px; }
+    .logo-img { width: 90px; height: 90px; object-fit: contain; }
+    .company-info { display: flex; flex-direction: column; justify-content: center; }
+    .company-name { font-family: Arial, Helvetica, sans-serif; font-size: 24px; font-weight: bold; text-transform: uppercase; margin-bottom: 4px; }
+    .company-tagline { font-family: Arial, Helvetica, sans-serif; font-size: 12px; color: #475569; font-weight: bold; }
     
     .divider { border-top: 2px solid #000; margin: 10px 0 15px 0; width: 100%; }
     
@@ -249,8 +250,10 @@ export default function AdminLeavePage() {
 <body>
   <div class="letterhead">
     ${logoDataUrl ? `<img src="${logoDataUrl}" class="logo-img" alt="Logo" />` : ''}
-    <div class="company-name">${namaPt}</div>
-    <div class="company-tagline">Sistem Manajemen Kehadiran & Tenaga Kerja Digital</div>
+    <div class="company-info">
+      <div class="company-name">${namaPt}</div>
+      <div class="company-tagline">Sistem Manajemen Kehadiran & Tenaga Kerja Digital</div>
+    </div>
   </div>
 
   <div class="divider"></div>
