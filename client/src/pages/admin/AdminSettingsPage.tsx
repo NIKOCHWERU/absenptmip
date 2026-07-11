@@ -111,8 +111,7 @@ export default function AdminSettingsPage() {
     queryKey: ["/api/config"],
   });
 
-  const [namaPt,
-      alamatPt, setNamaPt] = useState("");
+  const [namaPt, setNamaPt] = useState("");
   const [alamatPt, setAlamatPt] = useState("");
   const [singkatanPt, setSingkatanPt] = useState("");
   const [deskripsiPwa, setDeskripsiPwa] = useState("");
