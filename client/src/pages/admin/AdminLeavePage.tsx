@@ -8,6 +8,7 @@ import { format } from "date-fns";
 import { id } from "date-fns/locale";
 import { Loader2, Check, X, ArrowLeft, Calendar, User as UserIcon, MessageSquare, Info, Image as ImageIcon, Printer, Trash2 } from "lucide-react";
 import { api } from "@shared/routes";
+import { apiRequest } from "@/lib/queryClient";
 import { useLocation } from "wouter";
 import { toTitleCase } from "@/lib/utils";
 
