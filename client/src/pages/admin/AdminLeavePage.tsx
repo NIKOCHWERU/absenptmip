@@ -128,6 +128,7 @@ export default function AdminLeavePage() {
         
         const namaPt = config?.namaPt || import.meta.env.VITE_NAMA_PT || "PT ABCD";
         const singkatanPt = config?.singkatanPt || import.meta.env.VITE_SINGKATAN_PT || "PTABC";
+        const alamatPt = config?.alamatPt || "";
         const logoUrl = config?.logoUrl || "/logo_elok_buah.jpg";
 
         let periodStr = '';
@@ -202,11 +203,13 @@ export default function AdminLeavePage() {
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: 'Times New Roman', Times, serif; font-size: 13px; color: #000; background: white; padding: 25px 45px; line-height: 1.4; }
     
-    .letterhead { display: flex; flex-direction: row; align-items: center; text-align: left; margin-bottom: 10px; gap: 20px; }
+    .letterhead { display: flex; flex-direction: row; align-items: center; text-align: center; margin-bottom: 10px; }
+    .logo-container { width: 90px; flex-shrink: 0; }
     .logo-img { width: 90px; height: 90px; object-fit: contain; }
-    .company-info { display: flex; flex-direction: column; justify-content: center; }
+    .company-info { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding-right: 90px; }
     .company-name { font-family: Arial, Helvetica, sans-serif; font-size: 24px; font-weight: bold; text-transform: uppercase; margin-bottom: 4px; }
-    .company-tagline { font-family: Arial, Helvetica, sans-serif; font-size: 12px; color: #475569; font-weight: bold; }
+    .company-tagline { font-family: Arial, Helvetica, sans-serif; font-size: 13px; font-weight: normal; margin-bottom: 2px; }
+    .company-address { font-family: Arial, Helvetica, sans-serif; font-size: 11px; font-weight: normal; font-style: italic; color: #334155; }
     
     .divider { border-top: 2px solid #000; margin: 10px 0 15px 0; width: 100%; }
     
@@ -249,10 +252,12 @@ export default function AdminLeavePage() {
 </head>
 <body>
   <div class="letterhead">
-    ${logoDataUrl ? `<img src="${logoDataUrl}" class="logo-img" alt="Logo" />` : ''}
+    <div class="logo-container">
+      ${logoDataUrl ? `<img src="${logoDataUrl}" class="logo-img" alt="Logo" />` : ''}
+    </div>
     <div class="company-info">
       <div class="company-name">${namaPt}</div>
-      <div class="company-tagline">Sistem Manajemen Kehadiran & Tenaga Kerja Digital</div>
+      ${alamatPt ? `<div class="company-address">${alamatPt}</div>` : `<div class="company-tagline">Sistem Manajemen Kehadiran & Tenaga Kerja Digital</div>`}
     </div>
   </div>
 

@@ -111,7 +111,9 @@ export default function AdminSettingsPage() {
     queryKey: ["/api/config"],
   });
 
-  const [namaPt, setNamaPt] = useState("");
+  const [namaPt,
+      alamatPt, setNamaPt] = useState("");
+  const [alamatPt, setAlamatPt] = useState("");
   const [singkatanPt, setSingkatanPt] = useState("");
   const [deskripsiPwa, setDeskripsiPwa] = useState("");
   const [logoUrl, setLogoUrl] = useState("");
@@ -136,6 +138,7 @@ export default function AdminSettingsPage() {
   useEffect(() => {
     if (config) {
       setNamaPt(config.namaPt || "");
+      setAlamatPt(config.alamatPt || "");
       setSingkatanPt(config.singkatanPt || "");
       setDeskripsiPwa(config.deskripsiPwa || "");
       setLogoUrl(config.logoUrl || "");

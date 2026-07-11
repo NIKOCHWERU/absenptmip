@@ -431,6 +431,7 @@ export function registerRoutes(app: Express) {
         namaPt: configMap["namaPt"] ?? process.env.VITE_NAMA_PT ?? "PT ABCD",
         singkatanPt: configMap["singkatanPt"] ?? process.env.VITE_SINGKATAN_PT ?? "PT ABC",
         deskripsiPwa: configMap["deskripsiPwa"] ?? process.env.VITE_DESKRIPSI_PWA ?? "Aplikasi Absensi Tenaga Kerja",
+        alamatPt: configMap["alamatPt"] ?? "",
         logoUrl: configMap["logoUrl"] ?? process.env.VITE_LOGO_FILE ?? "/logo_elok_buah.jpg",
         logoInisial: configMap["logoInisial"] ?? process.env.VITE_LOGO_INISIAL ?? "",
         rekapPrefix: configMap["rekapPrefix"] ?? process.env.VITE_REKAP_FILE_PREFIX ?? "REKAP_ABSENSI",
@@ -481,7 +482,7 @@ export function registerRoutes(app: Express) {
   app.post("/api/admin/config", isAuthenticated, isSuperAdmin, async (req: Request, res: Response) => {
     try {
       const {
-        namaPt, singkatanPt, deskripsiPwa, logoUrl, logoInisial, rekapPrefix,
+        namaPt, singkatanPt, deskripsiPwa, alamatPt, logoUrl, logoInisial, rekapPrefix,
         themePrimary, themeSecondary, themeAccent, themeBackground, themeSidebarAccent,
         features
       } = req.body;
@@ -490,6 +491,7 @@ export function registerRoutes(app: Express) {
       if (namaPt !== undefined) configsToSave.push({ key: "namaPt", value: String(namaPt) });
       if (singkatanPt !== undefined) configsToSave.push({ key: "singkatanPt", value: String(singkatanPt) });
       if (deskripsiPwa !== undefined) configsToSave.push({ key: "deskripsiPwa", value: String(deskripsiPwa) });
+      if (alamatPt !== undefined) configsToSave.push({ key: "alamatPt", value: String(alamatPt) });
       if (logoUrl !== undefined) configsToSave.push({ key: "logoUrl", value: String(logoUrl) });
       if (logoInisial !== undefined) configsToSave.push({ key: "logoInisial", value: String(logoInisial) });
       if (rekapPrefix !== undefined) configsToSave.push({ key: "rekapPrefix", value: String(rekapPrefix) });
