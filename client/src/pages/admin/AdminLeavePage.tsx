@@ -59,12 +59,7 @@ export default function AdminLeavePage() {
 
     const mutation = useMutation({
         mutationFn: async ({ id, status }: { id: number, status: string }) => {
-            const res = await fetch(api.admin.attendance.leave.update.path.replace(':id', id.toString()), {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ status }),
-            });
-            if (!res.ok) throw new Error("Gagal memperbarui status");
+            const res = await apiRequest("PATCH", api.admin.attendance.leave.update.path.replace(':id', id.toString()), { status });
             return res.json();
         },
         onSuccess: async () => {
@@ -86,10 +81,7 @@ export default function AdminLeavePage() {
  
     const deleteMutation = useMutation({
         mutationFn: async (id: number) => {
-            const res = await fetch(`/api/admin/leave-requests/${id}`, {
-                method: 'DELETE',
-            });
-            if (!res.ok) throw new Error("Gagal menghapus permohonan cuti");
+            const res = await apiRequest("DELETE", `/api/admin/leave-requests/${id}`);
             return res.json();
         },
         onSuccess: async () => {
