@@ -207,9 +207,9 @@ export default function AdminLeavePage() {
     .logo-container { width: 90px; flex-shrink: 0; }
     .logo-img { width: 90px; height: 90px; object-fit: contain; }
     .company-info { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding-right: 90px; }
-    .company-name { font-family: Arial, Helvetica, sans-serif; font-size: 24px; font-weight: bold; text-transform: uppercase; margin-bottom: 4px; }
-    .company-tagline { font-family: Arial, Helvetica, sans-serif; font-size: 13px; font-weight: normal; margin-bottom: 2px; }
-    .company-address { font-family: Arial, Helvetica, sans-serif; font-size: 11px; font-weight: normal; font-style: italic; color: #334155; }
+    .company-name { font-size: 24px; font-weight: bold; text-transform: uppercase; margin-bottom: 4px; }
+    .company-tagline { font-size: 13px; font-weight: normal; margin-bottom: 2px; }
+    .company-address { font-size: 11px; font-weight: normal; font-style: italic; color: #334155; }
     
     .divider { border-top: 2px solid #000; margin: 10px 0 15px 0; width: 100%; }
     
