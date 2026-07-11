@@ -203,10 +203,10 @@ export default function AdminLeavePage() {
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: 'Times New Roman', Times, serif; font-size: 13px; color: #000; background: white; padding: 25px 45px; line-height: 1.4; }
     
-    .letterhead { display: flex; flex-direction: row; align-items: center; text-align: center; margin-bottom: 10px; }
+    .letterhead { display: flex; flex-direction: row; align-items: center; text-align: left; margin-bottom: 10px; gap: 20px; }
     .logo-container { width: 90px; flex-shrink: 0; }
     .logo-img { width: 90px; height: 90px; object-fit: contain; }
-    .company-info { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding-right: 90px; }
+    .company-info { flex: 1; display: flex; flex-direction: column; justify-content: center; }
     .company-name { font-size: 24px; font-weight: bold; text-transform: uppercase; margin-bottom: 4px; }
     .company-tagline { font-size: 13px; font-weight: normal; margin-bottom: 2px; }
     .company-address { font-size: 11px; font-weight: normal; font-style: italic; color: #334155; }

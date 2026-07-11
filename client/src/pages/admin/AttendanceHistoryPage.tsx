@@ -308,10 +308,13 @@ export default function AttendanceHistoryPage() {
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: Arial, Helvetica, sans-serif; font-size: 11px; color: #1e293b; background: white; padding: 28px 36px; }
     
-    .letterhead { display: flex; align-items: center; gap: 16px; padding-bottom: 10px; }
-    .logo-img { width: 60px; height: 60px; object-fit: contain; }
-    .company-block h1 { font-size: 16px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.5px; color: #1e293b; }
-    .company-block .tagline { font-size: 10px; color: #64748b; margin-top: 2px; }
+    .letterhead { display: flex; flex-direction: row; align-items: center; text-align: left; margin-bottom: 10px; gap: 20px; }
+    .logo-container { width: 90px; flex-shrink: 0; }
+    .logo-img { width: 90px; height: 90px; object-fit: contain; }
+    .company-info { flex: 1; display: flex; flex-direction: column; justify-content: center; }
+    .company-name { font-size: 24px; font-weight: bold; text-transform: uppercase; margin-bottom: 4px; }
+    .company-tagline { font-size: 13px; font-weight: normal; margin-bottom: 2px; }
+    .company-address { font-size: 11px; font-weight: normal; font-style: italic; color: #334155; }
     .hr-thick { border: none; border-top: 2px solid #cbd5e1; margin: 6px 0 2px; }
     .hr-thin  { border: none; border-top: 1px solid #e2e8f0; margin-bottom: 18px; }
 
@@ -352,10 +355,12 @@ export default function AttendanceHistoryPage() {
 </head>
 <body>
   <div class="letterhead">
-    <img src="${logoDataUrl}" class="logo-img" alt="Logo" />
-    <div class="company-block">
-      <h1>${namaPt}</h1>
-      <p class="tagline">Sistem Manajemen Kehadiran Digital</p>
+    <div class="logo-container">
+      ${logoDataUrl ? `<img src="${logoDataUrl}" class="logo-img" alt="Logo" />` : ''}
+    </div>
+    <div class="company-info">
+      <div class="company-name">${namaPt}</div>
+      ${alamatPt ? `<div class="company-address">${alamatPt}</div>` : `<div class="company-tagline">Sistem Manajemen Kehadiran & Tenaga Kerja Digital</div>`}
     </div>
   </div>
   <hr class="hr-thick" />
@@ -668,10 +673,13 @@ export default function AttendanceHistoryPage() {
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: Arial, Helvetica, sans-serif; font-size: 11px; color: #1e293b; background: white; padding: 28px 36px; }
-    .letterhead { display: flex; align-items: center; gap: 16px; padding-bottom: 10px; }
-    .logo-img { width: 60px; height: 60px; object-fit: contain; }
-    .company-block h1 { font-size: 16px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.5px; color: #1e293b; }
-    .company-block .tagline { font-size: 10px; color: #64748b; margin-top: 2px; }
+    .letterhead { display: flex; flex-direction: row; align-items: center; text-align: left; margin-bottom: 10px; gap: 20px; }
+    .logo-container { width: 90px; flex-shrink: 0; }
+    .logo-img { width: 90px; height: 90px; object-fit: contain; }
+    .company-info { flex: 1; display: flex; flex-direction: column; justify-content: center; }
+    .company-name { font-size: 24px; font-weight: bold; text-transform: uppercase; margin-bottom: 4px; }
+    .company-tagline { font-size: 13px; font-weight: normal; margin-bottom: 2px; }
+    .company-address { font-size: 11px; font-weight: normal; font-style: italic; color: #334155; }
     .hr-thick { border: none; border-top: 2px solid #cbd5e1; margin: 6px 0 2px; }
     .hr-thin  { border: none; border-top: 1px solid #e2e8f0; margin-bottom: 18px; }
     .report-meta { text-align: center; margin-bottom: 20px; }
@@ -711,10 +719,12 @@ export default function AttendanceHistoryPage() {
 </head>
 <body>
   <div class="letterhead">
-    <img src="${logoDataUrl}" class="logo-img" alt="Logo" />
-    <div class="company-block">
-      <h1>${namaPt}</h1>
-      <p class="tagline">Sistem Manajemen Kehadiran Digital</p>
+    <div class="logo-container">
+      ${logoDataUrl ? `<img src="${logoDataUrl}" class="logo-img" alt="Logo" />` : ''}
+    </div>
+    <div class="company-info">
+      <div class="company-name">${namaPt}</div>
+      ${alamatPt ? `<div class="company-address">${alamatPt}</div>` : `<div class="company-tagline">Sistem Manajemen Kehadiran & Tenaga Kerja Digital</div>`}
     </div>
   </div>
   <hr class="hr-thick" />

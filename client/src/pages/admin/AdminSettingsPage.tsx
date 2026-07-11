@@ -268,6 +268,16 @@ export default function AdminSettingsPage() {
               </div>
 
               <div className="space-y-1.5">
+                <Label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Alamat Perusahaan</Label>
+                <Input
+                  className="rounded-xl border-gray-200 text-xs"
+                  value={alamatPt}
+                  onChange={(e) => setAlamatPt(e.target.value)}
+                  placeholder="Contoh: Jl. Sudirman No. 123, Jakarta"
+                />
+              </div>
+
+              <div className="space-y-1.5">
                 <Label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Deskripsi Aplikasi</Label>
                 <Input
                   className="rounded-xl border-gray-200 text-xs"
