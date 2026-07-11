@@ -2,11 +2,12 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { LeaveRequest, User } from "@shared/schema";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
-import { Loader2, Check, X, ArrowLeft, Calendar, User as UserIcon, MessageSquare, Info, Image as ImageIcon, Printer, Trash2 } from "lucide-react";
+import { Loader2, Check, X, ArrowLeft, Calendar, User as UserIcon, MessageSquare, Info, Image as ImageIcon, Printer, Trash2, Eye } from "lucide-react";
 import { api } from "@shared/routes";
 import { apiRequest } from "@/lib/queryClient";
 import { useLocation } from "wouter";
@@ -117,7 +118,7 @@ export default function AdminLeavePage() {
         queryKey: ["/api/config"],
     });
 
-    const handlePrintLeave = async (req: LeaveRequest) => {
+    const generateLeaveHtml = async (req: LeaveRequest, autoPrint: boolean = false) => {
         const userObj = users?.find(u => u.id === req.userId);
         const name = userObj?.fullName || `User #${req.userId}`;
         const nameTitle = toTitleCase(name);
@@ -349,15 +350,27 @@ export default function AdminLeavePage() {
           window.print();
         };
       }
-      setTimeout(function() { window.print(); }, 500);
+      ${autoPrint ? 'setTimeout(function() { window.print(); }, 500);' : ''}
     };
   </script>
 </body>
 </html>`;
 
+        return html;
+    };
+
+    const handlePrintLeave = async (req: LeaveRequest) => {
+        const html = await generateLeaveHtml(req, true);
         const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
         const blobUrl = URL.createObjectURL(blob);
         window.open(blobUrl, '_blank');
+    };
+
+    const [viewHtml, setViewHtml] = useState<{ req: LeaveRequest, html: string } | null>(null);
+
+    const handleViewDetail = async (req: LeaveRequest) => {
+        const html = await generateLeaveHtml(req, false);
+        setViewHtml({ req, html });
     };
 
 
@@ -499,6 +512,15 @@ export default function AdminLeavePage() {
                                                         <Button
                                                             variant="outline"
                                                             size="sm"
+                                                            className="rounded-lg text-emerald-600 border-emerald-100 hover:bg-emerald-50 h-8 w-8 p-0"
+                                                            onClick={() => handleViewDetail(req)}
+                                                            title="Lihat Detail Cuti"
+                                                        >
+                                                            <Eye className="w-3.5 h-3.5" />
+                                                        </Button>
+                                                        <Button
+                                                            variant="outline"
+                                                            size="sm"
                                                             className="rounded-lg text-blue-600 border-blue-100 hover:bg-blue-50 h-8 w-8 p-0"
                                                             onClick={() => handlePrintLeave(req)}
                                                             title="Cetak Formulir Cuti"
@@ -550,6 +572,26 @@ export default function AdminLeavePage() {
                 </Card>
             </div>
         </div>
+            <Dialog open={!!viewHtml} onOpenChange={(open) => !open && setViewHtml(null)}>
+                <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col p-0">
+                    <DialogHeader className="p-4 border-b bg-gray-50 flex-none">
+                        <DialogTitle>Detail Surat Izin Cuti</DialogTitle>
+                        <DialogDescription>Menampilkan format dokumen cetak cuti.</DialogDescription>
+                    </DialogHeader>
+                    <div className="flex-1 w-full relative bg-gray-50/50 p-4 overflow-y-auto">
+                        <div className="bg-white mx-auto shadow-sm border border-gray-200" style={{ maxWidth: '800px', minHeight: '100%' }}>
+                            {viewHtml && (
+                                <iframe 
+                                    srcDoc={viewHtml.html} 
+                                    className="w-full" 
+                                    style={{ height: '800px', border: 'none' }} 
+                                    title="View Detail"
+                                />
+                            )}
+                        </div>
+                    </div>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }
