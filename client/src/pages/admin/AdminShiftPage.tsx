@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, Plus, Trash2, Edit2, Clock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
@@ -227,68 +228,72 @@ function ShiftForm({ initialData, onSubmit, isLoading }: any) {
           <FormField
             control={form.control}
             name="checkInTime"
-            render={({ field }) => (
+            render={({ field }) => {
+              const [h, m] = (field.value || "00:00").split(":");
+              return (
               <FormItem>
                 <FormLabel>Jam Masuk (Start)</FormLabel>
                 <FormControl>
-                  <Input 
-                    type="text" 
-                    placeholder="07:00" 
-                    maxLength={5}
-                    {...field}
-                    onChange={(e) => {
-                      let val = e.target.value.replace(/\D/g, '');
-                      if (val.length > 4) val = val.substring(0, 4);
-                      
-                      let h = val.substring(0, 2);
-                      let m = val.substring(2, 4);
-                      
-                      if (h.length === 2 && parseInt(h) > 23) h = '23';
-                      if (m.length === 2 && parseInt(m) > 59) m = '59';
-                      
-                      let formatted = h;
-                      if (val.length >= 2) formatted += (val.length > 2 || e.target.value.includes(':')) ? ':' + m : '';
-                      
-                      field.onChange(formatted);
-                    }}
-                  />
+                  <div className="flex items-center gap-2">
+                    <Select value={h || "07"} onValueChange={(v) => field.onChange(`${v}:${m || "00"}`)}>
+                      <SelectTrigger className="w-[80px]"><SelectValue /></SelectTrigger>
+                      <SelectContent className="h-48">
+                        {Array.from({length: 24}).map((_, i) => {
+                          const val = i.toString().padStart(2, '0');
+                          return <SelectItem key={val} value={val}>{val}</SelectItem>;
+                        })}
+                      </SelectContent>
+                    </Select>
+                    <span className="font-bold">:</span>
+                    <Select value={m || "00"} onValueChange={(v) => field.onChange(`${h || "07"}:${v}`)}>
+                      <SelectTrigger className="w-[80px]"><SelectValue /></SelectTrigger>
+                      <SelectContent className="h-48">
+                        {Array.from({length: 60}).map((_, i) => {
+                          const val = i.toString().padStart(2, '0');
+                          return <SelectItem key={val} value={val}>{val}</SelectItem>;
+                        })}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </FormControl>
                 <FormMessage />
               </FormItem>
-            )}
+            )}}
           />
           <FormField
             control={form.control}
             name="checkOutTime"
-            render={({ field }) => (
+            render={({ field }) => {
+              const [h, m] = (field.value || "00:00").split(":");
+              return (
               <FormItem>
                 <FormLabel>Jam Pulang (Target)</FormLabel>
                 <FormControl>
-                  <Input 
-                    type="text" 
-                    placeholder="15:00" 
-                    maxLength={5}
-                    {...field}
-                    onChange={(e) => {
-                      let val = e.target.value.replace(/\D/g, '');
-                      if (val.length > 4) val = val.substring(0, 4);
-                      
-                      let h = val.substring(0, 2);
-                      let m = val.substring(2, 4);
-                      
-                      if (h.length === 2 && parseInt(h) > 23) h = '23';
-                      if (m.length === 2 && parseInt(m) > 59) m = '59';
-                      
-                      let formatted = h;
-                      if (val.length >= 2) formatted += (val.length > 2 || e.target.value.includes(':')) ? ':' + m : '';
-                      
-                      field.onChange(formatted);
-                    }}
-                  />
+                  <div className="flex items-center gap-2">
+                    <Select value={h || "15"} onValueChange={(v) => field.onChange(`${v}:${m || "00"}`)}>
+                      <SelectTrigger className="w-[80px]"><SelectValue /></SelectTrigger>
+                      <SelectContent className="h-48">
+                        {Array.from({length: 24}).map((_, i) => {
+                          const val = i.toString().padStart(2, '0');
+                          return <SelectItem key={val} value={val}>{val}</SelectItem>;
+                        })}
+                      </SelectContent>
+                    </Select>
+                    <span className="font-bold">:</span>
+                    <Select value={m || "00"} onValueChange={(v) => field.onChange(`${h || "15"}:${v}`)}>
+                      <SelectTrigger className="w-[80px]"><SelectValue /></SelectTrigger>
+                      <SelectContent className="h-48">
+                        {Array.from({length: 60}).map((_, i) => {
+                          const val = i.toString().padStart(2, '0');
+                          return <SelectItem key={val} value={val}>{val}</SelectItem>;
+                        })}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </FormControl>
                 <FormMessage />
               </FormItem>
-            )}
+            )}}
           />
         </div>
         <FormField
@@ -303,11 +308,17 @@ function ShiftForm({ initialData, onSubmit, isLoading }: any) {
           )}
         />
         <DialogFooter className="pt-4">
-          <Button type="submit" disabled={isLoading} className="w-full">
-            {isLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-            Simpan Shift
-          </Button>
-        </DialogFooter>
+          <Button type="submit" className="w-full font-bold" disabled={isLoading}>
+          {isLoading ? (
+            <>
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              Menyimpan...
+            </>
+          ) : (
+            "Tambah Shift"
+          )}
+        </Button>
+      </DialogFooter>
       </form>
     </Form>
   );

@@ -1770,6 +1770,32 @@ export function registerRoutes(app: Express) {
     }
   });
 
+  app.patch("/api/admin/shifts/:id", isAdmin, async (req: Request, res: Response) => {
+    const { name, checkInTime, checkOutTime, description } = req.body;
+    try {
+      await db.update(shifts)
+        .set({
+          ...(name && { name }),
+          ...(checkInTime && { checkInTime }),
+          ...(checkOutTime && { checkOutTime }),
+          ...(description !== undefined && { description: description || null }),
+        })
+        .where(eq(shifts.id, Number(req.params.id)));
+      res.json({ message: "Shift berhasil diperbarui" });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.delete("/api/admin/shifts/:id", isAdmin, async (req: Request, res: Response) => {
+    try {
+      await db.delete(shifts).where(eq(shifts.id, Number(req.params.id)));
+      res.json({ message: "Shift berhasil dihapus" });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
   // 6. Mutasi, Promosi, Demosi
   app.get("/api/admin/mutations", isAdmin, async (req: Request, res: Response) => {
     try {
