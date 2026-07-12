@@ -230,7 +230,29 @@ function ShiftForm({ initialData, onSubmit, isLoading }: any) {
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Jam Masuk (Start)</FormLabel>
-                <FormControl><Input type="time" {...field} /></FormControl>
+                <FormControl>
+                  <Input 
+                    type="text" 
+                    placeholder="07:00" 
+                    maxLength={5}
+                    {...field}
+                    onChange={(e) => {
+                      let val = e.target.value.replace(/\D/g, '');
+                      if (val.length > 4) val = val.substring(0, 4);
+                      
+                      let h = val.substring(0, 2);
+                      let m = val.substring(2, 4);
+                      
+                      if (h.length === 2 && parseInt(h) > 23) h = '23';
+                      if (m.length === 2 && parseInt(m) > 59) m = '59';
+                      
+                      let formatted = h;
+                      if (val.length >= 2) formatted += (val.length > 2 || e.target.value.includes(':')) ? ':' + m : '';
+                      
+                      field.onChange(formatted);
+                    }}
+                  />
+                </FormControl>
                 <FormMessage />
               </FormItem>
             )}
@@ -241,7 +263,29 @@ function ShiftForm({ initialData, onSubmit, isLoading }: any) {
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Jam Pulang (Target)</FormLabel>
-                <FormControl><Input type="time" {...field} /></FormControl>
+                <FormControl>
+                  <Input 
+                    type="text" 
+                    placeholder="15:00" 
+                    maxLength={5}
+                    {...field}
+                    onChange={(e) => {
+                      let val = e.target.value.replace(/\D/g, '');
+                      if (val.length > 4) val = val.substring(0, 4);
+                      
+                      let h = val.substring(0, 2);
+                      let m = val.substring(2, 4);
+                      
+                      if (h.length === 2 && parseInt(h) > 23) h = '23';
+                      if (m.length === 2 && parseInt(m) > 59) m = '59';
+                      
+                      let formatted = h;
+                      if (val.length >= 2) formatted += (val.length > 2 || e.target.value.includes(':')) ? ':' + m : '';
+                      
+                      field.onChange(formatted);
+                    }}
+                  />
+                </FormControl>
                 <FormMessage />
               </FormItem>
             )}

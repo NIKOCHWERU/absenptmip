@@ -1079,12 +1079,44 @@ export default function RecapPage() {
                             </div>
                         </div>
                         <div className="grid grid-cols-2 gap-4">
-                            <Input type="time" value={manualEntry.checkIn} onChange={(e) => setManualEntry(prev => ({ ...prev, checkIn: e.target.value }))} placeholder="Masuk" />
-                            <Input type="time" value={manualEntry.checkOut} onChange={(e) => setManualEntry(prev => ({ ...prev, checkOut: e.target.value }))} placeholder="Pulang" />
+                            <Input type="text" maxLength={5} value={manualEntry.checkIn} onChange={(e) => {
+                                let val = e.target.value.replace(/\D/g, '');
+                                if (val.length > 4) val = val.substring(0, 4);
+                                let h = val.substring(0, 2); let m = val.substring(2, 4);
+                                if (h.length === 2 && parseInt(h) > 23) h = '23';
+                                if (m.length === 2 && parseInt(m) > 59) m = '59';
+                                let formatted = h; if (val.length >= 2) formatted += (val.length > 2 || e.target.value.includes(':')) ? ':' + m : '';
+                                setManualEntry(prev => ({ ...prev, checkIn: formatted }));
+                            }} placeholder="Masuk (HH:MM)" />
+                            <Input type="text" maxLength={5} value={manualEntry.checkOut} onChange={(e) => {
+                                let val = e.target.value.replace(/\D/g, '');
+                                if (val.length > 4) val = val.substring(0, 4);
+                                let h = val.substring(0, 2); let m = val.substring(2, 4);
+                                if (h.length === 2 && parseInt(h) > 23) h = '23';
+                                if (m.length === 2 && parseInt(m) > 59) m = '59';
+                                let formatted = h; if (val.length >= 2) formatted += (val.length > 2 || e.target.value.includes(':')) ? ':' + m : '';
+                                setManualEntry(prev => ({ ...prev, checkOut: formatted }));
+                            }} placeholder="Pulang (HH:MM)" />
                         </div>
                         <div className="grid grid-cols-2 gap-4">
-                            <Input type="time" value={manualEntry.breakStart} onChange={(e) => setManualEntry(prev => ({ ...prev, breakStart: e.target.value }))} placeholder="Istirahat" />
-                            <Input type="time" value={manualEntry.breakEnd} onChange={(e) => setManualEntry(prev => ({ ...prev, breakEnd: e.target.value }))} placeholder="Selesai" />
+                            <Input type="text" maxLength={5} value={manualEntry.breakStart} onChange={(e) => {
+                                let val = e.target.value.replace(/\D/g, '');
+                                if (val.length > 4) val = val.substring(0, 4);
+                                let h = val.substring(0, 2); let m = val.substring(2, 4);
+                                if (h.length === 2 && parseInt(h) > 23) h = '23';
+                                if (m.length === 2 && parseInt(m) > 59) m = '59';
+                                let formatted = h; if (val.length >= 2) formatted += (val.length > 2 || e.target.value.includes(':')) ? ':' + m : '';
+                                setManualEntry(prev => ({ ...prev, breakStart: formatted }));
+                            }} placeholder="Mulai Istirahat (HH:MM)" />
+                            <Input type="text" maxLength={5} value={manualEntry.breakEnd} onChange={(e) => {
+                                let val = e.target.value.replace(/\D/g, '');
+                                if (val.length > 4) val = val.substring(0, 4);
+                                let h = val.substring(0, 2); let m = val.substring(2, 4);
+                                if (h.length === 2 && parseInt(h) > 23) h = '23';
+                                if (m.length === 2 && parseInt(m) > 59) m = '59';
+                                let formatted = h; if (val.length >= 2) formatted += (val.length > 2 || e.target.value.includes(':')) ? ':' + m : '';
+                                setManualEntry(prev => ({ ...prev, breakEnd: formatted }));
+                            }} placeholder="Selesai Istirahat (HH:MM)" />
                         </div>
                         <Select value={manualEntry.status} onValueChange={(v) => setManualEntry(prev => ({ ...prev, status: v }))}>
                             <SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger>
