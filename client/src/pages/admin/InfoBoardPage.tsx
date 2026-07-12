@@ -78,14 +78,15 @@ export default function InfoBoardPage() {
                 const error = await res.json();
                 throw new Error(error.message || "Gagal membuat pengumuman");
             }
-            return res.json();
+            const data = await res.json();
         
-
             await queryClient.invalidateQueries({ queryKey: ["/api/announcements"] });
             toast({ title: "Berhasil", description: "Pengumuman berhasil dibuat" });
             setOpen(false);
             form.reset();
             setSelectedImage(null);
+            
+            return data;
         },
         onError: (err: any) => {
             toast({ title: "Gagal", description: err.message, variant: "destructive" });
@@ -115,15 +116,16 @@ export default function InfoBoardPage() {
                 const error = await res.json();
                 throw new Error(error.message || "Gagal memperbarui pengumuman");
             }
-            return res.json();
+            const data = await res.json();
         
-
             await queryClient.invalidateQueries({ queryKey: ["/api/announcements"] });
             toast({ title: "Berhasil", description: "Pengumuman berhasil diperbarui" });
             setOpen(false);
             setEditingAnnouncement(null);
             form.reset();
             setSelectedImage(null);
+            
+            return data;
         },
         onError: (err: any) => {
             toast({ title: "Gagal", description: err.message, variant: "destructive" });
