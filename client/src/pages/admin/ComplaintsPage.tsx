@@ -391,7 +391,7 @@ export default function AdminComplaintsPage() {
                                     onClick={() => setIsResolving(true)}
                                     variant="outline"
                                     size="sm"
-                                    className="rounded-full text-primary-foreground border-primary/20 hover:bg-primary/5"
+                                    className="rounded-full text-green-700 border-green-200 hover:bg-green-50"
                                 >
                                     <CheckCircle className="w-3 h-3 mr-1" /> Selesai
                                 </Button>
