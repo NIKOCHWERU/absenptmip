@@ -137,7 +137,7 @@ function AdminSidebarFooter() {
                             size="lg"
                             className="w-full data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground text-left flex items-center gap-3 cursor-pointer py-1.5"
                         >
-                            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-orange-600 text-white flex items-center justify-center font-bold text-sm shadow-xs shrink-0 select-none">
+                            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-secondary text-white flex items-center justify-center font-bold text-sm shadow-xs shrink-0 select-none">
                                 {userInitial}
                             </div>
                             {state === "expanded" && (
@@ -163,7 +163,7 @@ function AdminSidebarFooter() {
                     >
                         <DropdownMenuLabel className="p-0 font-normal">
                             <div className="flex items-center gap-2 px-4 py-2 text-start text-sm border-b border-gray-50">
-                                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-orange-600 text-white flex items-center justify-center font-bold text-sm shrink-0">
+                                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-secondary text-white flex items-center justify-center font-bold text-sm shrink-0">
                                     {userInitial}
                                 </div>
                                 <div className="grid flex-1 text-start text-sm leading-tight min-w-0">
@@ -311,7 +311,7 @@ function SidebarMenuCollapsedDropdown({ item, location }: { item: NavCollapsible
                             <DropdownMenuItem
                                 key={subItem.title}
                                 onClick={() => setLocation(subItem.url)}
-                                className={`flex items-center gap-2 cursor-pointer ${isSubActive ? "bg-orange-50 text-primary font-semibold" : "text-gray-700 hover:bg-gray-50"}`}
+                                className={`flex items-center gap-2 cursor-pointer ${isSubActive ? "bg-secondary/20 text-primary font-semibold" : "text-gray-700 hover:bg-gray-50"}`}
                             >
                                 {subItem.icon && <subItem.icon className="h-4 w-4 shrink-0" />}
                                 <span>{subItem.title}</span>
@@ -621,7 +621,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                             <SidebarTrigger className="h-9 w-9 text-gray-600 hover:bg-gray-100 rounded-lg cursor-pointer" />
                             <div className="h-6 w-px bg-gray-200 mx-1 hidden sm:block" />
                             <div className="hidden lg:flex items-center">
-                                <span className="text-xs font-black text-primary bg-orange-50/80 border border-orange-100 px-3 py-1 rounded-full uppercase tracking-wider">
+                                <span className="text-xs font-black text-primary bg-secondary/20 border border-secondary/20 px-3 py-1 rounded-full uppercase tracking-wider">
                                     {config?.singkatanPt || config?.namaPt || import.meta.env.VITE_SINGKATAN_PT || import.meta.env.VITE_NAMA_PT || "PT ABC"}
                                 </span>
                             </div>
@@ -738,7 +738,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                                             {user?.role === "superadmin" ? "Super Admin" : "Admin"}
                                         </p>
                                     </div>
-                                    <div className="w-8.5 h-8.5 rounded-full bg-gradient-to-br from-primary to-orange-600 text-white flex items-center justify-center font-bold text-sm shadow-xs hover:scale-105 transition-all">
+                                    <div className="w-8.5 h-8.5 rounded-full bg-gradient-to-br from-primary to-secondary text-white flex items-center justify-center font-bold text-sm shadow-xs hover:scale-105 transition-all">
                                         {user?.fullName ? user.fullName.charAt(0).toUpperCase() : (user?.username ? user.username.charAt(0).toUpperCase() : "A")}
                                     </div>
                                     <ChevronDown className="w-4 h-4 text-gray-400 transition-transform duration-200" style={{ transform: dropdownOpen ? "rotate(180deg)" : "none" }} />
