@@ -1744,7 +1744,7 @@ export function registerRoutes(app: Express) {
   });
 
   // 5. Shift management
-  app.get("/api/admin/shifts", isAuthenticated, async (req: Request, res: Response) => {
+  app.get("/api/shifts", isAuthenticated, async (req: Request, res: Response) => {
     try {
       const list = await db.select().from(shifts);
       res.json(list);
