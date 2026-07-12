@@ -52,25 +52,27 @@ export default function AdminShiftPage() {
   const createMutation = useMutation({
     mutationFn: async (newShift: InsertShift) => {
       const res = await apiRequest("POST", "/api/admin/shifts", newShift);
-      return res.json();
+      const data = await res.json();
     
-
       await queryClient.invalidateQueries({ queryKey: ["/api/shifts"] });
       toast({ title: "Berhasil", description: "Shift baru telah dibuat." });
       setIsDialogOpen(false);
+      
+      return data;
     },
   });
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: number; data: Partial<InsertShift> }) => {
       const res = await apiRequest("PATCH", `/api/admin/shifts/${id}`, data);
-      return res.json();
+      const resData = await res.json();
     
-
       await queryClient.invalidateQueries({ queryKey: ["/api/shifts"] });
       toast({ title: "Berhasil", description: "Shift telah diperbarui." });
       setIsDialogOpen(false);
       setEditingShift(null);
+      
+      return resData;
     },
   });
 
