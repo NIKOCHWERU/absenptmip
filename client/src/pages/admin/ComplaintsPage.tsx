@@ -1,10 +1,11 @@
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
-import { Loader2, ArrowLeft, Clock, CheckCircle, AlertCircle, Eye, User, Image as ImageIcon } from "lucide-react";
+import { Loader2, ArrowLeft, Clock, CheckCircle, AlertCircle, Eye, User, Image as ImageIcon, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
 import { motion } from "framer-motion";
@@ -116,6 +117,23 @@ export default function AdminComplaintsPage() {
         },
     });
 
+    const deleteMutation = useMutation({
+        mutationFn: async (id: number) => {
+            const res = await fetch(`/api/admin/complaints/${id}`, {
+                method: "DELETE",
+            });
+            if (!res.ok) throw new Error("Gagal menghapus pengaduan");
+            return res.json();
+        },
+        onSuccess: () => {
+            toast({ title: "Pengaduan berhasil dihapus", className: "bg-primary text-white" });
+            queryClient.invalidateQueries({ queryKey: ["/api/admin/complaints"] });
+        },
+        onError: (e: any) => {
+            toast({ title: "Gagal", description: e.message, variant: "destructive" });
+        },
+    });
+
     const getUserName = (userId: number) => {
         const u = allUsers.find((u) => u.id === userId);
         const name = u ? u.fullName : `User #${userId}`;
@@ -216,36 +234,66 @@ export default function AdminComplaintsPage() {
                         <p className="text-gray-400 text-sm">Belum ada pengaduan</p>
                     </div>
                 ) : (
-                    <div className="grid gap-4 md:grid-cols-2">
-                        {sortedComplaints.map((c, i) => (
-                            <motion.div
-                                key={c.id}
-                                initial={{ y: 20, opacity: 0 }}
-                                animate={{ y: 0, opacity: 1 }}
-                                transition={{ delay: i * 0.05 }}
-                                onClick={() => setSelectedComplaint(c)}
-                                className="bg-white rounded-xl p-5 shadow-sm border border-gray-100 cursor-pointer hover:shadow-md transition-all"
-                            >
-                                <div className="flex justify-between items-start mb-3">
-                                    <div>
-                                        <h3 className="font-bold text-gray-800">{c.title}</h3>
-                                        <p className="text-xs text-gray-400 flex items-center gap-1 mt-1">
-                                            <User className="w-3 h-3" /> {getUserName(c.userId)}
-                                        </p>
-                                    </div>
-                                    {getStatusBadge(c.status)}
-                                </div>
-                                <p className="text-sm text-gray-500 line-clamp-2 mb-3">{c.description}</p>
-                                <div className="flex justify-between items-center">
-                                    <p className="text-[10px] text-gray-400">
-                                        {c.createdAt && format(new Date(c.createdAt), "dd MMM yyyy, HH:mm", { locale: idLocale })}
-                                    </p>
-                                    <Button variant="ghost" size="sm" className="text-xs text-primary">
-                                        <Eye className="w-3 h-3 mr-1" /> Lihat Detail
-                                    </Button>
-                                </div>
-                            </motion.div>
-                        ))}
+                    <div className="bg-white border border-gray-100 rounded-xl shadow-sm overflow-hidden">
+                        <div className="overflow-x-auto">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow className="bg-gray-50/50 hover:bg-gray-50/50">
+                                        <TableHead className="font-semibold text-gray-700 whitespace-nowrap">Tanggal</TableHead>
+                                        <TableHead className="font-semibold text-gray-700 whitespace-nowrap">Karyawan</TableHead>
+                                        <TableHead className="font-semibold text-gray-700 whitespace-nowrap">Judul Pengaduan</TableHead>
+                                        <TableHead className="font-semibold text-gray-700 whitespace-nowrap">Status</TableHead>
+                                        <TableHead className="font-semibold text-gray-700 whitespace-nowrap text-right">Aksi</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {sortedComplaints.map((c) => (
+                                        <TableRow key={c.id} className="hover:bg-gray-50/50 transition-colors">
+                                            <TableCell className="whitespace-nowrap text-xs text-gray-500">
+                                                {c.createdAt && format(new Date(c.createdAt), "dd MMM yyyy, HH:mm", { locale: idLocale })}
+                                            </TableCell>
+                                            <TableCell className="whitespace-nowrap font-medium text-gray-800 text-xs">
+                                                <div className="flex items-center gap-1.5">
+                                                    <User className="w-3 h-3 text-gray-400" />
+                                                    {getUserName(c.userId)}
+                                                </div>
+                                            </TableCell>
+                                            <TableCell className="max-w-[250px] truncate text-gray-600 text-xs font-semibold">
+                                                {c.title}
+                                            </TableCell>
+                                            <TableCell className="whitespace-nowrap">
+                                                {getStatusBadge(c.status)}
+                                            </TableCell>
+                                            <TableCell className="whitespace-nowrap text-right">
+                                                <div className="flex items-center justify-end gap-1">
+                                                    <Button 
+                                                        variant="ghost" 
+                                                        size="icon"
+                                                        className="h-7 w-7 text-primary hover:bg-primary/10"
+                                                        onClick={() => setSelectedComplaint(c)}
+                                                    >
+                                                        <Eye className="w-3.5 h-3.5" />
+                                                    </Button>
+                                                    <Button 
+                                                        variant="ghost" 
+                                                        size="icon"
+                                                        className="h-7 w-7 text-red-600 hover:bg-red-50 hover:text-red-700"
+                                                        disabled={deleteMutation.isPending}
+                                                        onClick={() => {
+                                                            if (confirm("Yakin ingin menghapus pengaduan ini beserta dokumennya?")) {
+                                                                deleteMutation.mutate(c.id);
+                                                            }
+                                                        }}
+                                                    >
+                                                        <Trash2 className="w-3.5 h-3.5" />
+                                                    </Button>
+                                                </div>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </div>
                     </div>
                 )}
             </div>

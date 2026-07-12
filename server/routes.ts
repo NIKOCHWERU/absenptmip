@@ -2235,6 +2235,19 @@ export function registerRoutes(app: Express) {
     }
   });
 
+  app.delete("/api/admin/complaints/:id", isAdmin, async (req: Request, res: Response) => {
+    const targetId = Number(req.params.id);
+    try {
+      // Delete associated photos first
+      await db.delete(complaintPhotos).where(eq(complaintPhotos.complaintId, targetId));
+      // Delete the complaint
+      await db.delete(complaints).where(eq(complaints.id, targetId));
+      res.json({ message: "Pengaduan berhasil dihapus" });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
   // Multer configuration for SQL files
   const sqlUpload = multer({
     dest: "uploads/",
