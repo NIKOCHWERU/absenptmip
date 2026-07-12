@@ -248,7 +248,11 @@ export default function AdminComplaintsPage() {
                                 </TableHeader>
                                 <TableBody>
                                     {sortedComplaints.map((c) => (
-                                        <TableRow key={c.id} className="hover:bg-gray-50/50 transition-colors">
+                                        <TableRow 
+                                            key={c.id} 
+                                            className="hover:bg-gray-50/50 transition-colors cursor-pointer"
+                                            onClick={() => setSelectedComplaint(c)}
+                                        >
                                             <TableCell className="whitespace-nowrap text-xs text-gray-500">
                                                 {c.createdAt && format(new Date(c.createdAt), "dd MMM yyyy, HH:mm", { locale: idLocale })}
                                             </TableCell>

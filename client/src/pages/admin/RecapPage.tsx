@@ -304,10 +304,11 @@ export default function RecapPage() {
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: Arial, Helvetica, sans-serif; font-size: 11px; color: #1e293b; background: white; padding: 28px 36px; }
-    .letterhead { display: flex; align-items: center; gap: 16px; padding-bottom: 10px; }
-    .logo-img { width: 60px; height: 60px; object-fit: contain; }
-    .company-block h1 { font-size: 16px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.5px; color: #1e293b; }
-    .company-block .tagline { font-size: 10px; color: #64748b; margin-top: 2px; }
+    .letterhead { position: relative; text-align: center; margin-bottom: 15px; min-height: 80px; display: flex; align-items: center; justify-content: center; }
+    .logo-img { position: absolute; left: 0; top: 50%; transform: translateY(-50%); width: 70px; height: 70px; object-fit: contain; }
+    .company-block { text-align: center; width: 100%; padding: 0 80px; }
+    .company-block h1 { font-size: 18px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.5px; color: #1e293b; }
+    .company-block .tagline { font-size: 11px; color: #64748b; margin-top: 2px; }
     .hr-thick { border: none; border-top: 2px solid #cbd5e1; margin: 6px 0 2px; }
     .hr-thin  { border: none; border-top: 1px solid #e2e8f0; margin-bottom: 18px; }
     .report-meta { text-align: center; margin-bottom: 20px; }
@@ -625,10 +626,11 @@ export default function RecapPage() {
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: Arial, Helvetica, sans-serif; font-size: 11px; color: #1e293b; background: white; padding: 28px 36px; }
-    .letterhead { display: flex; align-items: center; gap: 16px; padding-bottom: 10px; }
-    .logo-img { width: 60px; height: 60px; object-fit: contain; }
-    .company-block h1 { font-size: 16px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.5px; color: #1e293b; }
-    .company-block .tagline { font-size: 10px; color: #64748b; margin-top: 2px; }
+    .letterhead { position: relative; text-align: center; margin-bottom: 15px; min-height: 80px; display: flex; align-items: center; justify-content: center; }
+    .logo-img { position: absolute; left: 0; top: 50%; transform: translateY(-50%); width: 70px; height: 70px; object-fit: contain; }
+    .company-block { text-align: center; width: 100%; padding: 0 80px; }
+    .company-block h1 { font-size: 18px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.5px; color: #1e293b; }
+    .company-block .tagline { font-size: 11px; color: #64748b; margin-top: 2px; }
     .hr-thick { border: none; border-top: 2px solid #cbd5e1; margin: 6px 0 2px; }
     .hr-thin  { border: none; border-top: 1px solid #e2e8f0; margin-bottom: 18px; }
     .report-meta { text-align: center; margin-bottom: 20px; }

@@ -139,13 +139,13 @@ export default function AdminLeaveHistoryPage() {
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: 'Times New Roman', Times, serif; font-size: 13px; color: #000; background: white; padding: 25px 45px; line-height: 1.4; }
     
-    .letterhead { display: flex; flex-direction: row; align-items: center; text-align: left; margin-bottom: 10px; gap: 20px; }
-    .logo-container { width: 90px; flex-shrink: 0; }
-    .logo-img { width: 90px; height: 90px; object-fit: contain; }
-    .company-info { flex: 1; display: flex; flex-direction: column; justify-content: center; }
-    .company-name { font-size: 24px; font-weight: bold; text-transform: uppercase; margin-bottom: 4px; }
+    .letterhead { position: relative; text-align: center; margin-bottom: 15px; min-height: 100px; display: flex; align-items: center; justify-content: center; }
+    .logo-container { position: absolute; left: 0; top: 50%; transform: translateY(-50%); }
+    .logo-img { width: 100px; height: 100px; object-fit: contain; }
+    .company-info { text-align: center; width: 100%; padding: 0 110px; }
+    .company-name { font-size: 26px; font-weight: bold; text-transform: uppercase; margin-bottom: 4px; letter-spacing: 0.5px; }
     .company-tagline { font-size: 13px; font-weight: normal; margin-bottom: 2px; }
-    .company-address { font-size: 11px; font-weight: normal; font-style: italic; color: #334155; }
+    .company-address { font-size: 12px; font-weight: normal; font-style: italic; color: #334155; }
     
     .divider { border-top: 2px solid #000; margin: 10px 0 15px 0; width: 100%; }
     
