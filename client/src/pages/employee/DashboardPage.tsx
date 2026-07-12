@@ -903,7 +903,7 @@ export default function EmployeeDashboard() {
                     <motion.div
                         initial={{ y: 20, opacity: 0 }}
                         animate={{ y: 0, opacity: 1 }}
-                        className="bg-blue-50 border border-blue-200 rounded-2xl p-4 flex flex-col gap-3 shadow-md z-20 relative"
+                        className="bg-white border border-blue-200 rounded-2xl p-4 flex flex-col gap-3 shadow-xl z-20 relative"
                     >
                         <div>
                             <h3 className="text-blue-800 font-bold text-sm">Aktifkan Notifikasi Pengumuman</h3>
