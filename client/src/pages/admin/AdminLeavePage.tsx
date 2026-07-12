@@ -205,7 +205,7 @@ export default function AdminLeavePage() {
     
     .letterhead { display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px; min-height: 90px; }
     .logo-container { flex-shrink: 0; }
-    .logo-img { width: 90px; height: 90px; object-fit: contain; }
+    .logo-img { height: 100px; max-width: 280px; object-fit: contain; }
     .company-info { text-align: right; flex-grow: 1; margin-left: 20px; }
     .company-name { font-size: 22px; font-weight: bold; text-transform: uppercase; margin-bottom: 4px; letter-spacing: 0.5px; }
     .company-tagline { font-size: 12px; font-weight: normal; margin-bottom: 2px; }

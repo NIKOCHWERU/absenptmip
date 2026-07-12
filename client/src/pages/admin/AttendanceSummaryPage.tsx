@@ -341,7 +341,7 @@ export default function AttendanceSummaryPage() {
 
     /* LETTERHEAD */
     .letterhead { display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px; min-height: 90px; }
-    .logo-img { width: 90px; height: 90px; object-fit: contain; flex-shrink: 0; }
+    .logo-img { height: 100px; max-width: 280px; object-fit: contain; flex-shrink: 0; }
     .company-block { text-align: right; flex-grow: 1; margin-left: 20px; }
     .company-block h1 { font-size: 22px; font-weight: bold; text-transform: uppercase; margin-bottom: 4px; letter-spacing: 0.5px; }
     .company-block .alamat { font-size: 12px; font-weight: normal; color: #334155; line-height: 1.4; margin-top: 4px; }
