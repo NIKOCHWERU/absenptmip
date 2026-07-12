@@ -201,6 +201,7 @@ export default function AdminSettingsPage() {
       namaPt,
       singkatanPt,
       deskripsiPwa,
+      alamatPt,
       logoUrl,
       rekapPrefix,
       themePrimary: primaryHsl,

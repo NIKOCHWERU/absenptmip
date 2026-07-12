@@ -459,6 +459,7 @@ export function registerRoutes(app: Express) {
         namaPt: process.env.VITE_NAMA_PT || "PT ABCD",
         singkatanPt: process.env.VITE_SINGKATAN_PT || "PT ABC",
         deskripsiPwa: process.env.VITE_DESKRIPSI_PWA || "Aplikasi Absensi Tenaga Kerja",
+        alamatPt: process.env.VITE_ALAMAT_PT || "",
         logoUrl: process.env.VITE_LOGO_FILE || "/logo_elok_buah.jpg",
         logoInisial: process.env.VITE_LOGO_INISIAL || "",
         rekapPrefix: process.env.VITE_REKAP_FILE_PREFIX || "REKAP_ABSENSI",
