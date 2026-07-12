@@ -312,7 +312,9 @@ export function registerRoutes(app: Express) {
     if (!req.file) {
       return res.status(400).json({ message: "Tidak ada file yang diunggah" });
     }
-    const url = await processSingleUpload(req.file, "document", "guest");
+    const type = (req.query.type as any) || "document";
+    const user = req.user ? ((req.user as any).fullName || (req.user as any).username) : "guest";
+    const url = await processSingleUpload(req.file, type, user);
     res.json({ url, filename: req.file.filename });
   });
 
@@ -900,7 +902,16 @@ export function registerRoutes(app: Express) {
           const [shiftHour, shiftMin] = shiftRecord.checkInTime.split(":").map(Number);
           const shiftMinutes = shiftHour * 60 + shiftMin;
 
-          if (currentMinutes > shiftMinutes) {
+          // Circular time difference to handle overnight shifts (e.g., 00:00)
+          let diff = currentMinutes - shiftMinutes;
+          
+          if (diff > 12 * 60) {
+            diff -= 24 * 60; // Clocked in early for next day's shift
+          } else if (diff < -12 * 60) {
+            diff += 24 * 60; // Clocked in late for previous day's shift
+          }
+
+          if (diff > 0) {
             statusValue = "late";
             if (!lateReason) {
               return res.status(400).json({ message: "Anda terlambat! Harap masukkan alasan keterlambatan." });

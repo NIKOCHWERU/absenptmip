@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
 import { Loader2, Newspaper, Calendar, Download, Share2, ExternalLink } from "lucide-react";
+import { safeCompressImage, uploadFileWithProgress, resolveFileUrl } from "@/lib/utils";
 import { format } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
 import { motion } from "framer-motion";
@@ -30,7 +31,7 @@ export default function InfoPage() {
   const handleDownload = async (announcement: Announcement) => {
     if (!announcement.imageUrl) return;
     try {
-      const response = await fetch(announcement.imageUrl);
+      const response = await fetch(resolveFileUrl(announcement.imageUrl));
       const blob = await response.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -80,7 +81,7 @@ export default function InfoPage() {
           <DialogDescription className="sr-only">Tampilan penuh gambar pengumuman</DialogDescription>
           {fullscreenImage && (
             <img
-              src={fullscreenImage}
+              src={resolveFileUrl(fullscreenImage)}
               alt="Full Size"
               className="w-auto h-auto max-w-full max-h-[85vh] object-contain rounded-lg shadow-2xl"
             />
@@ -119,7 +120,7 @@ export default function InfoPage() {
                 {ann.imageUrl ? (
                   <div className="relative overflow-hidden">
                     <img
-                      src={ann.imageUrl}
+                      src={resolveFileUrl(ann.imageUrl)}
                       alt={ann.title}
                       className="w-full h-32 object-cover group-hover:scale-105 transition-transform duration-300"
                     />
@@ -172,7 +173,7 @@ export default function InfoPage() {
               }}
             >
               <img
-                src={selectedAnnouncement.imageUrl}
+                src={resolveFileUrl(selectedAnnouncement.imageUrl)}
                 alt={selectedAnnouncement.title}
                 className="w-full h-56 object-cover"
               />

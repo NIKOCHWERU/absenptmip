@@ -124,11 +124,13 @@ export async function safeCompressImage(
  */
 export function uploadFileWithProgress(
   file: Blob | File,
-  onProgress: (percent: number) => void
+  onProgress: (percent: number) => void,
+  type?: string
 ): Promise<string> {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
-    xhr.open("POST", "/api/upload-direct");
+    const uploadUrl = type ? `/api/upload-direct?type=${type}` : "/api/upload-direct";
+    xhr.open("POST", uploadUrl);
 
     xhr.upload.onprogress = (event) => {
       if (event.lengthComputable) {

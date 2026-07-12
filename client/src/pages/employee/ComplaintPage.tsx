@@ -12,9 +12,10 @@ import { Loader2, Plus, Send, Image, Clock, CheckCircle, AlertCircle, X } from "
 import { format } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
 import { motion } from "framer-motion";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { safeCompressImage, uploadFileWithProgress, resolveFileUrl } from "@/lib/utils";
 import { Progress } from "@/components/ui/progress";
+import { CameraModal } from "@/components/CameraModal";
 
 interface Complaint {
     id: number;
@@ -45,7 +46,31 @@ export default function ComplaintPage() {
     const [photos, setPhotos] = useState<{ url: string; caption: string; preview: string; id: string }[]>([]);
     const [uploadingState, setUploadingState] = useState<{ [key: string]: number }>({});
     const [selectedComplaint, setSelectedComplaint] = useState<Complaint | null>(null);
-    const fileInputRef = useRef<HTMLInputElement>(null);
+    
+    // Camera & Location State
+    const [isCameraOpen, setIsCameraOpen] = useState(false);
+    const [locationAddress, setLocationAddress] = useState<string>("");
+
+    // Fetch location when camera opens
+    useEffect(() => {
+        if (isCameraOpen && "geolocation" in navigator) {
+            navigator.geolocation.getCurrentPosition(
+                async (position) => {
+                    const { latitude, longitude } = position.coords;
+                    try {
+                        const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`);
+                        const data = await res.json();
+                        setLocationAddress(data.display_name);
+                    } catch (error) {
+                        console.error("Gagal mendapatkan alamat:", error);
+                    }
+                },
+                (error) => {
+                    console.error("Gagal mengambil lokasi:", error.message);
+                }
+            );
+        }
+    }, [isCameraOpen]);
 
     const { data: complaints = [], isLoading } = useQuery<Complaint[]>({
         queryKey: ["/api/employee/complaints"],
@@ -84,39 +109,36 @@ export default function ComplaintPage() {
     });
 
     const handleAddPhoto = () => {
-        fileInputRef.current?.click();
+        setIsCameraOpen(true);
     };
 
-    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const files = e.target.files;
-        if (!files) return;
+    const handleCameraCapture = async (photoData: string) => {
+        const id = Math.random().toString(36).substring(7);
+        const preview = photoData;
+        
+        setPhotos(prev => [...prev, { url: "", caption: "", preview, id }]);
+        setUploadingState(prev => ({ ...prev, [id]: 0 }));
 
-        for (const file of Array.from(files)) {
-            const id = Math.random().toString(36).substring(7);
-            const preview = URL.createObjectURL(file);
+        try {
+            const response = await fetch(photoData);
+            const blob = await response.blob();
             
-            setPhotos(prev => [...prev, { url: "", caption: "", preview, id }]);
-            setUploadingState(prev => ({ ...prev, [id]: 0 }));
-
-            try {
-                const compressed = await safeCompressImage(file, { maxWidth: 1280, quality: 0.8 });
-                const url = await uploadFileWithProgress(
-                    compressed,
-                    (p) => setUploadingState(prev => ({ ...prev, [id]: p }))
-                );
-                
-                setPhotos(prev => prev.map(p => p.id === id ? { ...p, url } : p));
-                setUploadingState(prev => {
-                    const next = { ...prev };
-                    delete next[id];
-                    return next;
-                });
-            } catch (error: any) {
-                toast({ title: "Gagal Upload", description: error.message, variant: "destructive" });
-                setPhotos(prev => prev.filter(p => p.id !== id));
-            }
+            const url = await uploadFileWithProgress(
+                blob,
+                (p) => setUploadingState(prev => ({ ...prev, [id]: p })),
+                "complaint" // Upload to Pengaduan folder
+            );
+            
+            setPhotos(prev => prev.map(p => p.id === id ? { ...p, url } : p));
+            setUploadingState(prev => {
+                const next = { ...prev };
+                delete next[id];
+                return next;
+            });
+        } catch (error: any) {
+            toast({ title: "Gagal Upload", description: error.message, variant: "destructive" });
+            setPhotos(prev => prev.filter(p => p.id !== id));
         }
-        if (fileInputRef.current) fileInputRef.current.value = "";
     };
 
     const removePhoto = (id: string) => {
@@ -238,7 +260,7 @@ export default function ComplaintPage() {
                         {/* Photos */}
                         <div className="space-y-3">
                             <div className="flex items-center justify-between">
-                                <p className="text-xs font-semibold text-gray-500">Foto Bukti</p>
+                                <p className="text-xs font-semibold text-gray-500">Foto Bukti (Live Camera)</p>
                                 <Button
                                     type="button"
                                     variant="outline"
@@ -246,7 +268,7 @@ export default function ComplaintPage() {
                                     onClick={handleAddPhoto}
                                     className="rounded-full text-xs"
                                 >
-                                    <Image className="w-3 h-3 mr-1" /> Tambah Foto
+                                    <Camera className="w-3 h-3 mr-1" /> Ambil Foto
                                 </Button>
                             </div>
                             <input
@@ -363,6 +385,17 @@ export default function ComplaintPage() {
                     </div>
                 </DialogContent>
             </Dialog>
+
+            {/* Camera Modal */}
+            <CameraModal
+                open={isCameraOpen}
+                onClose={() => setIsCameraOpen(false)}
+                onCapture={async (photoData) => {
+                    setIsCameraOpen(false);
+                    await handleCameraCapture(photoData);
+                }}
+                locationAddress={locationAddress}
+            />
         </div>
     );
 }
