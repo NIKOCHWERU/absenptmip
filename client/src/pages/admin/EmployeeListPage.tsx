@@ -282,9 +282,8 @@ export default function AdminEmployeeList() {
                 const error = await res.json();
                 throw new Error(error.message || "Failed to save");
             }
-            return res.json();
+            const resData = await res.json();
         
-
             await queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
             toast({ title: "Berhasil", description: selectedEmployee ? "Tenaga Kerja diperbarui" : "Tenaga Kerja ditambahkan" });
             setOpen(false);
@@ -294,6 +293,8 @@ export default function AdminEmployeeList() {
             setSelectedBpjsPhoto(null);
             setSelectedNpwpPhoto(null);
             setSelectedKtpPhoto(null);
+            
+            return resData;
         },
         onError: (err: any) => {
             toast({ title: "Gagal", description: err.message, variant: "destructive" });

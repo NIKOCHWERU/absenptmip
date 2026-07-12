@@ -1596,10 +1596,21 @@ export function registerRoutes(app: Express) {
     }
   });
 
-  // Create admin user
-  app.post("/api/admin/users", isAdmin, upload.none(), async (req: Request, res: Response) => {
+  // Create admin/employee user
+  app.post("/api/admin/users", isAdmin, upload.fields([
+    { name: "photo", maxCount: 1 },
+    { name: "ktpPhoto", maxCount: 1 },
+    { name: "bpjsPhoto", maxCount: 1 },
+    { name: "npwpPhoto", maxCount: 1 },
+  ]), async (req: Request, res: Response) => {
     try {
-      const { fullName, username, password, role } = req.body;
+      const { 
+        fullName, username, password, role, nik, branch, position, email,
+        phoneNumber, religion, npwp, bpjs, birthPlace, birthDate, gender,
+        address, joinDate, employmentStatus, shift, registrationStatus
+      } = req.body;
+      const files = req.files as { [fieldname: string]: Express.Multer.File[] } | undefined;
+
       if (!fullName || !username || !password || !role) {
         return res.status(400).json({ message: "Semua kolom wajib diisi" });
       }
@@ -1616,13 +1627,45 @@ export function registerRoutes(app: Express) {
       }
 
       const hashedPassword = await hashPassword(password);
-      const [newUser] = await db.insert(users).values({
+      
+      const insertData: any = {
         fullName,
         username,
         password: hashedPassword,
         role,
-        registrationStatus: "approved",
-      });
+        nik: nik || null,
+        branch: branch || null,
+        position: position || null,
+        email: email || null,
+        phoneNumber: phoneNumber || null,
+        religion: religion || null,
+        npwp: npwp || null,
+        bpjs: bpjs || null,
+        birthPlace: birthPlace || null,
+        birthDate: birthDate || null,
+        gender: gender || "Laki-laki",
+        address: address || null,
+        joinDate: joinDate || null,
+        employmentStatus: employmentStatus || null,
+        shift: shift || null,
+        registrationStatus: registrationStatus || "approved",
+      };
+
+      const uploadName = nik || username;
+      if (files?.photo?.[0]) {
+        insertData.photoUrl = await processSingleUpload(files.photo[0], "profile", uploadName, "Profil");
+      }
+      if (files?.ktpPhoto?.[0]) {
+        insertData.ktpPhotoUrl = await processSingleUpload(files.ktpPhoto[0], "document", uploadName, "KTP");
+      }
+      if (files?.bpjsPhoto?.[0]) {
+        insertData.bpjsPhotoUrl = await processSingleUpload(files.bpjsPhoto[0], "document", uploadName, "BPJS");
+      }
+      if (files?.npwpPhoto?.[0]) {
+        insertData.npwpPhotoUrl = await processSingleUpload(files.npwpPhoto[0], "document", uploadName, "NPWP");
+      }
+
+      const [newUser] = await db.insert(users).values(insertData);
 
       res.status(201).json(newUser);
     } catch (err: any) {
@@ -1630,20 +1673,26 @@ export function registerRoutes(app: Express) {
     }
   });
 
-  // Update admin user
-  app.patch("/api/admin/users/:id", isAdmin, upload.none(), async (req: Request, res: Response) => {
+  // Update admin/employee user
+  app.patch("/api/admin/users/:id", isAdmin, upload.fields([
+    { name: "photo", maxCount: 1 },
+    { name: "ktpPhoto", maxCount: 1 },
+    { name: "bpjsPhoto", maxCount: 1 },
+    { name: "npwpPhoto", maxCount: 1 },
+  ]), async (req: Request, res: Response) => {
     const targetId = Number(req.params.id);
     try {
-      const { fullName, username, password, role } = req.body;
+      const { 
+        fullName, username, password, role, nik, branch, position, email,
+        phoneNumber, religion, npwp, bpjs, birthPlace, birthDate, gender,
+        address, joinDate, employmentStatus, shift, registrationStatus
+      } = req.body;
+      const files = req.files as { [fieldname: string]: Express.Multer.File[] } | undefined;
+
       const updateData: any = {};
       if (fullName) updateData.fullName = fullName;
       if (username) {
-        // Check if username is taken by another user
-        const [existingUser] = await db
-          .select()
-          .from(users)
-          .where(eq(users.username, username))
-          .limit(1);
+        const [existingUser] = await db.select().from(users).where(eq(users.username, username)).limit(1);
         if (existingUser && existingUser.id !== targetId) {
           return res.status(400).json({ message: "Username sudah digunakan oleh user lain" });
         }
@@ -1653,11 +1702,45 @@ export function registerRoutes(app: Express) {
       if (password && password.trim().length > 0) {
         updateData.password = await hashPassword(password);
       }
+      
+      // Additional employee fields
+      if (nik !== undefined) updateData.nik = nik;
+      if (branch !== undefined) updateData.branch = branch;
+      if (position !== undefined) updateData.position = position;
+      if (email !== undefined) updateData.email = email;
+      if (phoneNumber !== undefined) updateData.phoneNumber = phoneNumber;
+      if (religion !== undefined) updateData.religion = religion;
+      if (npwp !== undefined) updateData.npwp = npwp;
+      if (bpjs !== undefined) updateData.bpjs = bpjs;
+      if (birthPlace !== undefined) updateData.birthPlace = birthPlace;
+      if (birthDate !== undefined) updateData.birthDate = birthDate || null;
+      if (gender !== undefined) updateData.gender = gender;
+      if (address !== undefined) updateData.address = address;
+      if (joinDate !== undefined) updateData.joinDate = joinDate;
+      if (employmentStatus !== undefined) updateData.employmentStatus = employmentStatus;
+      if (shift !== undefined) updateData.shift = shift;
+      if (registrationStatus !== undefined) updateData.registrationStatus = registrationStatus;
+
+      // Handle photos
+      const uploadName = nik || username || `user_${targetId}`;
+      if (files?.photo?.[0]) {
+        updateData.photoUrl = await processSingleUpload(files.photo[0], "profile", uploadName, "Profil");
+      }
+      if (files?.ktpPhoto?.[0]) {
+        updateData.ktpPhotoUrl = await processSingleUpload(files.ktpPhoto[0], "document", uploadName, "KTP");
+      }
+      if (files?.bpjsPhoto?.[0]) {
+        updateData.bpjsPhotoUrl = await processSingleUpload(files.bpjsPhoto[0], "document", uploadName, "BPJS");
+      }
+      if (files?.npwpPhoto?.[0]) {
+        updateData.npwpPhotoUrl = await processSingleUpload(files.npwpPhoto[0], "document", uploadName, "NPWP");
+      }
 
       await db.update(users).set(updateData).where(eq(users.id, targetId));
       const [updatedUser] = await db.select().from(users).where(eq(users.id, targetId)).limit(1);
       res.json(updatedUser);
     } catch (err: any) {
+      console.error("Update user error:", err);
       res.status(500).json({ message: err.message });
     }
   });
