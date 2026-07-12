@@ -4,6 +4,9 @@ import { cn } from "@/lib/utils"
 
 const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
   ({ className, type, ...props }, ref) => {
+    // Inject lang="en-GB" for time inputs to force 24-hour format on supported browsers
+    const langProp = type === "time" ? { lang: "en-GB" } : {};
+    
     // h-9 to match icon buttons and default buttons.
     return (
       <input
@@ -13,6 +16,7 @@ const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
           className
         )}
         ref={ref}
+        {...langProp}
         {...props}
       />
     )
