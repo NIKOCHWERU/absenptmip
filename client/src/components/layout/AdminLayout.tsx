@@ -480,6 +480,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         {
             title: "Manajemen Absensi",
             items: [
+                ...(config?.features?.shift !== false ? [
+                    {
+                        title: "Kelola Shift",
+                        url: "/admin/shifts",
+                        icon: Calendar,
+                    }
+                ] : []),
                 ...(config?.features?.leave !== false ? [
                     {
                         title: "Kelola Cuti",
@@ -523,13 +530,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                             url: "/admin/summary",
                             icon: FileText,
                         },
-                        ...(config?.features?.shift !== false ? [
-                            {
-                                title: "Kelola Shift",
-                                url: "/admin/shifts",
-                                icon: Calendar,
-                            }
-                        ] : []),
                     ]
                 }
             ]

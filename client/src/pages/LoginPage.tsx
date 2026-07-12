@@ -184,70 +184,30 @@ export default function LoginPage() {
             style={{ animation: "slideUp 0.35s cubic-bezier(0.34,1.56,0.64,1)" }}
           >
             {/* Header bar */}
-            <div className="bg-gradient-to-r from-violet-600 to-purple-700 pt-6 pb-8 px-6 relative">
+            <div className="bg-gradient-to-r from-violet-600 to-purple-700 pt-8 pb-8 px-6 relative flex flex-col items-center justify-center">
               <button
                 onClick={handleDismissInstall}
                 className="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-white hover:bg-white/30 transition-colors"
               >
                 <X className="w-4 h-4" />
               </button>
-              <div className="flex items-center gap-4">
-                {/* App icon */}
-                <div className="w-16 h-16 rounded-2xl bg-white flex items-center justify-center shadow-xl shadow-black/20 flex-shrink-0">
-                  {logoUrl && logoUrl !== "/logo_elok_buah.jpg" ? (
-                    <img src={logoUrl} alt="App Icon" className="w-12 h-12 object-contain" />
-                  ) : (
-                    <span className="text-2xl font-black text-violet-700 uppercase">{logoInisial}</span>
-                  )}
-                </div>
-                <div className="text-white">
-                  <p className="font-black text-lg leading-tight">Absensi {singkatanPt}</p>
-                  <p className="text-violet-200 text-xs mt-0.5">absenptmip.narasumberhukum.online</p>
-                  <div className="flex items-center gap-1 mt-1.5">
-                    {[1,2,3,4,5].map(i => (
-                      <svg key={i} className="w-3 h-3 fill-yellow-400" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-                    ))}
-                    <span className="text-yellow-300 text-[10px] ml-1 font-semibold">Gratis</span>
-                  </div>
-                </div>
+              
+              {/* App icon */}
+              <div className="w-20 h-20 rounded-[1.25rem] bg-white flex items-center justify-center shadow-xl shadow-black/20 mb-4 mt-2">
+                {logoUrl && logoUrl !== "/logo_elok_buah.jpg" ? (
+                  <img src={logoUrl} alt="App Icon" className="w-14 h-14 object-contain" />
+                ) : (
+                  <span className="text-3xl font-black text-violet-700 uppercase">{logoInisial}</span>
+                )}
               </div>
-
-              {/* Stats row */}
-              <div className="flex gap-4 mt-4 text-white">
-                <div className="flex flex-col items-center flex-1">
-                  <span className="font-black text-sm">4.9★</span>
-                  <span className="text-violet-200 text-[9px] uppercase tracking-wide">Rating</span>
-                </div>
-                <div className="w-px bg-white/20" />
-                <div className="flex flex-col items-center flex-1">
-                  <span className="font-black text-sm">1K+</span>
-                  <span className="text-violet-200 text-[9px] uppercase tracking-wide">Pengguna</span>
-                </div>
-                <div className="w-px bg-white/20" />
-                <div className="flex flex-col items-center flex-1">
-                  <span className="font-black text-sm">2 MB</span>
-                  <span className="text-violet-200 text-[9px] uppercase tracking-wide">Ukuran</span>
-                </div>
+              
+              <div className="text-center text-white">
+                <p className="font-black text-2xl leading-tight">Absensi {singkatanPt}</p>
               </div>
             </div>
 
             {/* Body */}
-            <div className="px-6 py-5">
-              {/* Feature list */}
-              <div className="space-y-2.5 mb-5">
-                {[
-                  "Absen masuk & pulang dengan foto",
-                  "Notifikasi pengumuman dari Admin",
-                  "Akses cepat tanpa buka browser",
-                ].map((f) => (
-                  <div key={f} className="flex items-center gap-3">
-                    <div className="w-5 h-5 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
-                      <Check className="w-3 h-3 text-green-600" />
-                    </div>
-                    <span className="text-sm text-slate-700">{f}</span>
-                  </div>
-                ))}
-              </div>
+            <div className="px-6 py-6">
 
               {/* Android: show Install button */}
               {(isAndroidDevice || deferredPrompt) && (
