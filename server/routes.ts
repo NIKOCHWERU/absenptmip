@@ -211,8 +211,8 @@ export function registerRoutes(app: Express) {
       const logo = configMap.get("logoUrl") || "/icon-192.png";
 
       res.json({
-        name,
-        short_name: shortName,
+        name: `Absensi ${shortName}`,
+        short_name: `Absensi ${shortName}`,
         description,
         start_url: "/",
         display: "standalone",
