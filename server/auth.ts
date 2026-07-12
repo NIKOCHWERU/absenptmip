@@ -46,7 +46,7 @@ export function setupAuth(app: Express) {
       store: sessionStore,
       cookie: {
         secure: false, // Set to true if running behind HTTPS
-        maxAge: 24 * 60 * 60 * 1000, // 24 hours
+        maxAge: 30 * 24 * 60 * 60 * 1000, // 30 hari
       },
     })
   );
