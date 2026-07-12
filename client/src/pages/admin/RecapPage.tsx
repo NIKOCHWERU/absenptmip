@@ -304,11 +304,11 @@ export default function RecapPage() {
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: Arial, Helvetica, sans-serif; font-size: 11px; color: #1e293b; background: white; padding: 28px 36px; }
-    .letterhead { position: relative; text-align: center; margin-bottom: 15px; min-height: 80px; display: flex; align-items: center; justify-content: center; }
-    .logo-img { position: absolute; left: 0; top: 50%; transform: translateY(-50%); width: 70px; height: 70px; object-fit: contain; }
-    .company-block { text-align: center; width: 100%; padding: 0 80px; }
-    .company-block h1 { font-size: 18px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.5px; color: #1e293b; }
-    .company-block .tagline { font-size: 11px; color: #64748b; margin-top: 2px; }
+    .letterhead { display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px; min-height: 90px; }
+    .logo-img { width: 90px; height: 90px; object-fit: contain; flex-shrink: 0; }
+    .company-block { text-align: right; flex-grow: 1; margin-left: 20px; }
+    .company-block h1 { font-size: 22px; font-weight: bold; text-transform: uppercase; margin-bottom: 4px; letter-spacing: 0.5px; }
+    .company-block .alamat { font-size: 12px; font-weight: normal; color: #334155; line-height: 1.4; margin-top: 4px; }
     .hr-thick { border: none; border-top: 2px solid #cbd5e1; margin: 6px 0 2px; }
     .hr-thin  { border: none; border-top: 1px solid #e2e8f0; margin-bottom: 18px; }
     .report-meta { text-align: center; margin-bottom: 20px; }
@@ -356,10 +356,10 @@ export default function RecapPage() {
 </head>
 <body>
   <div class="letterhead">
-    <img src="${logoDataUrl}" class="logo-img" alt="Logo" />
+    ${logoDataUrl ? `<img src="${logoDataUrl}" class="logo-img" alt="Logo" />` : ''}
     <div class="company-block">
       <h1>${namaPt}</h1>
-      <p class="tagline">Sistem Manajemen Kehadiran Digital</p>
+      ${alamatPt ? `<p class="alamat">${alamatPt}</p>` : `<p class="alamat">Sistem Manajemen Kehadiran Digital</p>`}
     </div>
   </div>
   <hr class="hr-thick" />
@@ -626,11 +626,11 @@ export default function RecapPage() {
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: Arial, Helvetica, sans-serif; font-size: 11px; color: #1e293b; background: white; padding: 28px 36px; }
-    .letterhead { position: relative; text-align: center; margin-bottom: 15px; min-height: 80px; display: flex; align-items: center; justify-content: center; }
-    .logo-img { position: absolute; left: 0; top: 50%; transform: translateY(-50%); width: 70px; height: 70px; object-fit: contain; }
-    .company-block { text-align: center; width: 100%; padding: 0 80px; }
-    .company-block h1 { font-size: 18px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.5px; color: #1e293b; }
-    .company-block .tagline { font-size: 11px; color: #64748b; margin-top: 2px; }
+    .letterhead { display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px; min-height: 90px; }
+    .logo-img { width: 90px; height: 90px; object-fit: contain; flex-shrink: 0; }
+    .company-block { text-align: right; flex-grow: 1; margin-left: 20px; }
+    .company-block h1 { font-size: 22px; font-weight: bold; text-transform: uppercase; margin-bottom: 4px; letter-spacing: 0.5px; }
+    .company-block .alamat { font-size: 12px; font-weight: normal; color: #334155; line-height: 1.4; margin-top: 4px; }
     .hr-thick { border: none; border-top: 2px solid #cbd5e1; margin: 6px 0 2px; }
     .hr-thin  { border: none; border-top: 1px solid #e2e8f0; margin-bottom: 18px; }
     .report-meta { text-align: center; margin-bottom: 20px; }
@@ -678,10 +678,10 @@ export default function RecapPage() {
 </head>
 <body>
   <div class="letterhead">
-    <img src="${logoDataUrl}" class="logo-img" alt="Logo" />
+    ${logoDataUrl ? `<img src="${logoDataUrl}" class="logo-img" alt="Logo" />` : ''}
     <div class="company-block">
       <h1>${namaPt}</h1>
-      <p class="tagline">Sistem Manajemen Kehadiran Digital</p>
+      ${alamatPt ? `<p class="alamat">${alamatPt}</p>` : `<p class="alamat">Sistem Manajemen Kehadiran Digital</p>`}
     </div>
   </div>
   <hr class="hr-thick" />
