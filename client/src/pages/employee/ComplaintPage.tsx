@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { Loader2, Plus, Send, Image, Clock, CheckCircle, AlertCircle, X } from "lucide-react";
+import { Loader2, Plus, Send, Image, Clock, CheckCircle, AlertCircle, X, Camera } from "lucide-react";
 import { format } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
 import { motion } from "framer-motion";
