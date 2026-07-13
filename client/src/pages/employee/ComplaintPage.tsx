@@ -228,7 +228,7 @@ export default function ComplaintPage() {
                 );
             case "resolved":
                 return (
-                    <span className="flex items-center gap-1 text-xs bg-primary/10 text-primary-foreground px-2 py-1 rounded-full">
+                    <span className="flex items-center gap-1 text-xs bg-primary/10 text-primary px-2 py-1 rounded-full">
                         <CheckCircle className="w-3 h-3" /> Selesai
                     </span>
                 );

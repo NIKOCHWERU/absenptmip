@@ -871,7 +871,7 @@ export default function RecapPage() {
                                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                                 <Input placeholder="Cari nama..." className="pl-9 h-10" value={searchName} onChange={(e) => setSearchName(e.target.value)} />
                             </div>
-                            <Button variant="outline" className="gap-2 bg-primary/5 text-primary-foreground border-primary/20 hover:bg-primary/10 h-10 font-bold" onClick={() => handleOpenManualModal()}>
+                            <Button variant="outline" className="gap-2 bg-primary/5 text-primary border-primary/20 hover:bg-primary/10 h-10 font-bold" onClick={() => handleOpenManualModal()}>
                                 <Plus className="h-4 w-4" /> Input Manual
                             </Button>
                             {reportType === "custom" && (

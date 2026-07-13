@@ -96,7 +96,7 @@ export default function MutationHistoryPage() {
             case "promosi":
                 return {
                     label: "PROMOSI JABATAN",
-                    colorClass: "bg-primary/5 text-primary-foreground border-primary/10",
+                    colorClass: "bg-primary/5 text-primary border-primary/10",
                     icon: <TrendingUp className="w-3.5 h-3.5" />
                 };
             case "demosi":

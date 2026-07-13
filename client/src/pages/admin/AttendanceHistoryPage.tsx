@@ -1070,7 +1070,7 @@ export default function AttendanceHistoryPage() {
                                                             </div>
                                                         ) : (
                                                             <div className="flex items-center gap-3">
-                                                                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary-foreground font-bold text-sm shrink-0">
+                                                                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm shrink-0">
                                                                     {emp?.fullName?.charAt(0) || '?'}
                                                                 </div>
                                                                 <div>
@@ -1156,7 +1156,7 @@ export default function AttendanceHistoryPage() {
                                                     <td className="px-6 py-4 align-top">
                                                         <div className="flex flex-col gap-2 items-start max-w-[200px]">
                                                             <span className={`px-2 py-1 rounded-md text-[10px] font-bold uppercase
-                                                                ${effectiveStatus === 'present' ? 'bg-primary/10 text-primary-foreground' :
+                                                                ${effectiveStatus === 'present' ? 'bg-primary/10 text-primary' :
                                                                     effectiveStatus === 'late' ? 'bg-orange-100 text-orange-700' :
                                                                         effectiveStatus === 'sick' ? 'bg-blue-100 text-blue-700' :
                                                                             effectiveStatus === 'permission' ? 'bg-purple-100 text-purple-700' :

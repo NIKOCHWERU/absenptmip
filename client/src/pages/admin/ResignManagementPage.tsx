@@ -418,7 +418,7 @@ export default function ResignManagementPage() {
                                                         href={r.documentUrl}
                                                         target="_blank"
                                                         rel="noopener noreferrer"
-                                                        className="inline-flex items-center gap-1.5 px-3 py-1 bg-primary/5 text-primary-foreground border border-primary/10 rounded-lg text-xs font-bold hover:bg-primary/10 transition-colors"
+                                                        className="inline-flex items-center gap-1.5 px-3 py-1 bg-primary/5 text-primary border border-primary/10 rounded-lg text-xs font-bold hover:bg-primary/10 transition-colors"
                                                     >
                                                         <Download className="w-3 h-3" />
                                                         Buka File
@@ -522,7 +522,7 @@ export default function ResignManagementPage() {
 
                             {/* Active Display Selected Employee */}
                             {formUserId && (
-                                <div className="mt-2 px-3 py-2 bg-primary/5 border border-primary/10 rounded-lg text-xs font-bold text-primary-foreground flex items-center justify-between">
+                                <div className="mt-2 px-3 py-2 bg-primary/5 border border-primary/10 rounded-lg text-xs font-bold text-primary flex items-center justify-between">
                                     <span>
                                         Terpilih: {activeEmployees.find(e => e.id.toString() === formUserId)?.fullName} ({activeEmployees.find(e => e.id.toString() === formUserId)?.position || "Staff"})
                                     </span>
@@ -615,7 +615,7 @@ export default function ResignManagementPage() {
                     {selectedResign && (
                         <form onSubmit={handleEditSubmit} className="space-y-4 pt-2">
                             <div className="p-3 bg-gray-50 rounded-lg flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary-foreground font-bold text-sm shrink-0">
+                                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm shrink-0">
                                     {selectedResign.user?.fullName?.charAt(0)?.toUpperCase() || "?"}
                                 </div>
                                 <div>
@@ -664,7 +664,7 @@ export default function ResignManagementPage() {
                                             <span className="text-[10px] text-gray-400 mt-1">Mengunggah file akan otomatis menyetujui pengajuan.</span>
                                         </div>
                                         {selectedResign.documentUrl && (
-                                            <p className="text-[11px] text-primary-foreground font-bold mt-1">
+                                            <p className="text-[11px] text-primary font-bold mt-1">
                                                 File saat ini: <a href={selectedResign.documentUrl} target="_blank" rel="noopener noreferrer" className="underline hover:text-green-800">Lihat dokumen aktif</a>
                                             </p>
                                         )}
@@ -751,7 +751,7 @@ export default function ResignManagementPage() {
                                                 href={selectedResign.documentUrl}
                                                 target="_blank"
                                                 rel="noopener noreferrer"
-                                                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-primary/5 text-primary-foreground border border-primary/10 rounded-lg text-xs font-bold hover:bg-primary/10 transition-colors"
+                                                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-primary/5 text-primary border border-primary/10 rounded-lg text-xs font-bold hover:bg-primary/10 transition-colors"
                                             >
                                                 <Download className="w-3.5 h-3.5" />
                                                 Buka Surat

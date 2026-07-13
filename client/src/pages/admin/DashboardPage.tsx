@@ -631,7 +631,7 @@ export default function AdminDashboard() {
                                                 </td>
                                                 <td className="px-4 py-3">
                                                     <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase
-                                                ${record.status === 'present' ? 'bg-primary/10 text-primary-foreground' :
+                                                ${record.status === 'present' ? 'bg-primary/10 text-primary' :
                                                             record.status === 'late' ? 'bg-red-100 text-red-700' :
                                                                 record.status === 'sick' ? 'bg-blue-100 text-blue-700' :
                                                                     record.status === 'permission' ? 'bg-purple-100 text-purple-700' :

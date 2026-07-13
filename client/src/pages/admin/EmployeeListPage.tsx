@@ -495,7 +495,7 @@ export default function AdminEmployeeList() {
                                     {shiftEnabled && (
                                         <TableCell>
                                             {emp.shift && emp.shift !== '-' && emp.shift.toLowerCase() !== 'management' ? (
-                                                <Badge variant="outline" className="bg-primary/5 text-primary-foreground border-primary/20 text-[10px] font-bold">
+                                                <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20 text-[10px] font-bold">
                                                     {emp.shift}
                                                 </Badge>
                                             ) : (
@@ -638,7 +638,7 @@ export default function AdminEmployeeList() {
                                                                             <span className="font-bold text-gray-800">
                                                                                 Sesi Ke-{(att as any).sessionNumber || (index + 1)}
                                                                             </span>
-                                                                            <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase ${att.status === 'present' ? 'bg-primary/10 text-primary-foreground' :
+                                                                            <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase ${att.status === 'present' ? 'bg-primary/10 text-primary' :
                                                                                 att.status === 'late' ? 'bg-red-100 text-red-700' :
                                                                                     att.status === 'sick' ? 'bg-blue-100 text-blue-700' :
                                                                                         att.status === 'permission' ? 'bg-purple-100 text-purple-700' :

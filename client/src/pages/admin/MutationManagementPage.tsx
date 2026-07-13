@@ -314,7 +314,7 @@ export default function MutationManagementPage() {
             case "mutasi":
                 return <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-blue-50 text-blue-700 border border-blue-200 rounded-full text-xs font-bold uppercase"><ArrowLeftRight className="w-3 h-3" /> Mutasi</span>;
             case "promosi":
-                return <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-primary/5 text-primary-foreground border border-primary/20 rounded-full text-xs font-bold uppercase"><TrendingUp className="w-3 h-3" /> Promosi</span>;
+                return <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-primary/5 text-primary border border-primary/20 rounded-full text-xs font-bold uppercase"><TrendingUp className="w-3 h-3" /> Promosi</span>;
             case "demosi":
                 return <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-red-50 text-red-700 border border-red-200 rounded-full text-xs font-bold uppercase"><TrendingDown className="w-3 h-3" /> Demosi</span>;
             default:
@@ -442,7 +442,7 @@ export default function MutationManagementPage() {
                                                         href={m.documentUrl}
                                                         target="_blank"
                                                         rel="noopener noreferrer"
-                                                        className="inline-flex items-center gap-1.5 px-3 py-1 bg-primary/5 text-primary-foreground border border-primary/10 rounded-lg text-xs font-bold hover:bg-primary/10 transition-colors"
+                                                        className="inline-flex items-center gap-1.5 px-3 py-1 bg-primary/5 text-primary border border-primary/10 rounded-lg text-xs font-bold hover:bg-primary/10 transition-colors"
                                                     >
                                                         <Download className="w-3 h-3" />
                                                         Lihat File
@@ -563,7 +563,7 @@ export default function MutationManagementPage() {
 
                             {/* Active Display Selected Employee */}
                             {formUserId && (
-                                <div className="mt-2 px-3 py-2 bg-primary/5 border border-primary/10 rounded-lg text-xs font-bold text-primary-foreground flex items-center justify-between">
+                                <div className="mt-2 px-3 py-2 bg-primary/5 border border-primary/10 rounded-lg text-xs font-bold text-primary flex items-center justify-between">
                                     <span>
                                         Terpilih: {activeEmployees.find(e => e.id.toString() === formUserId)?.fullName} ({activeEmployees.find(e => e.id.toString() === formUserId)?.position || "Staff"})
                                     </span>
@@ -688,7 +688,7 @@ export default function MutationManagementPage() {
                     {selectedMutation && (
                         <form onSubmit={handleEditSubmit} className="space-y-4 pt-2">
                             <div className="p-3 bg-gray-50 rounded-lg flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary-foreground font-bold text-sm shrink-0">
+                                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm shrink-0">
                                     {selectedMutation.user?.fullName?.charAt(0)?.toUpperCase() || "?"}
                                 </div>
                                 <div>
@@ -841,7 +841,7 @@ export default function MutationManagementPage() {
                                         </div>
                                         <div className="grid grid-cols-3">
                                             <span className="text-gray-400 font-medium">Jabatan Baru</span>
-                                            <span className="col-span-2 font-black text-primary-foreground flex items-center gap-1">
+                                            <span className="col-span-2 font-black text-primary flex items-center gap-1">
                                                 <Briefcase className="w-4 h-4 shrink-0" /> {selectedMutation.newPosition || "-"}
                                             </span>
                                         </div>
@@ -856,11 +856,12 @@ export default function MutationManagementPage() {
                                     </span>
                                 </div>
 
-                                <div className="space-y-1">
-                                    <span className="text-gray-400 font-medium block">Nomor SK / Catatan Pendukung</span>
-                                    <div className="p-3 bg-gray-50 border border-gray-100 rounded-lg text-gray-700 leading-relaxed max-h-40 overflow-y-auto font-medium">
-                                        {selectedMutation.notes || "Tidak ada catatan."}
-                                    </div>
+                                <div className="grid grid-cols-3 pt-3 border-t border-gray-100">
+                                    <span className="text-gray-400 font-medium">Nomor SK / Catatan Pendukung</span>
+                                    <span className="col-span-2 font-black text-primary flex items-center gap-1">
+                                        <FileText className="w-4 h-4" />
+                                        {selectedMutation.notes || "-"}
+                                    </span>
                                 </div>
 
                                 <div className="grid grid-cols-3 items-center">
@@ -871,9 +872,9 @@ export default function MutationManagementPage() {
                                                 href={selectedMutation.documentUrl}
                                                 target="_blank"
                                                 rel="noopener noreferrer"
-                                                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-primary/5 text-primary-foreground border border-primary/10 rounded-lg text-xs font-bold hover:bg-primary/10 transition-colors"
+                                                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-primary/5 text-primary border border-primary/10 rounded-lg text-xs font-bold hover:bg-primary/10 transition-colors"
                                             >
-                                                <Download className="w-3.5 h-3.5" />
+                                                <Download className="w-4 h-4" />
                                                 Unduh Surat Keputusan (SK)
                                             </a>
                                         ) : (

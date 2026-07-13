@@ -519,7 +519,7 @@ export default function AttendanceSummaryPage() {
                                     <TableHead className="min-w-[200px] cursor-pointer hover:bg-gray-100" onClick={() => toggleSort('fullName')}>
                                         <div className="flex items-center gap-1">Tenaga Kerja <ArrowUpDown className="h-3 w-3" /></div>
                                     </TableHead>
-                                    <TableHead className="text-center bg-primary/5 text-primary-foreground w-[100px] cursor-pointer hover:bg-primary/10" onClick={() => toggleSort('present')}>
+                                    <TableHead className="text-center bg-primary/5 text-primary w-[100px] cursor-pointer hover:bg-primary/10" onClick={() => toggleSort('present')}>
                                         <div className="flex items-center justify-center gap-1">Hadir <ArrowUpDown className="h-3 w-3" /></div>
                                     </TableHead>
                                     <TableHead className="text-center bg-yellow-50 text-yellow-700 w-[100px] cursor-pointer hover:bg-yellow-100" onClick={() => toggleSort('late')}>
