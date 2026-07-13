@@ -405,7 +405,7 @@ export default function AdminLeavePage() {
                                         <Button
                         variant="outline"
                         className="rounded-lg gap-2 cursor-pointer bg-white"
-                        onClick={() => setLocation("/admin/leave-history")}
+                        onClick={() => setLocation("/admin/leaves-history")}
                     >
                         <Calendar className="w-4 h-4" />
                         Lihat Riwayat Cuti
