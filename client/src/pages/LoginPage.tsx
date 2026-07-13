@@ -171,6 +171,17 @@ export default function LoginPage() {
             Daftar Sekarang
           </a>
         </div>
+
+        <div className="mt-5 pt-5 border-t border-slate-100/80 text-center">
+          <button 
+            type="button"
+            onClick={() => setShowInstallPopup(true)}
+            className="inline-flex items-center gap-2 text-xs font-bold text-purple-600 hover:text-purple-700 bg-purple-50 hover:bg-purple-100 px-4 py-2 rounded-xl transition-all"
+          >
+            <Download className="w-3.5 h-3.5" />
+            Install Aplikasi ke HP
+          </button>
+        </div>
       </div>
 
       {/* ===================== INSTALL POPUP ===================== */}
@@ -184,7 +195,7 @@ export default function LoginPage() {
             style={{ animation: "slideUp 0.35s cubic-bezier(0.34,1.56,0.64,1)" }}
           >
             {/* Header bar */}
-            <div className="bg-gradient-to-r from-violet-600 to-purple-700 pt-8 pb-8 px-6 relative flex flex-col items-center justify-center">
+            <div className="bg-gradient-to-r from-purple-600 to-purple-800 pt-8 pb-8 px-6 relative flex flex-col items-center justify-center">
               <button
                 onClick={handleDismissInstall}
                 className="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-white hover:bg-white/30 transition-colors"
@@ -197,7 +208,7 @@ export default function LoginPage() {
                 {logoUrl && logoUrl !== "/logo_elok_buah.jpg" ? (
                   <img src={logoUrl} alt="App Icon" className="w-14 h-14 object-contain" />
                 ) : (
-                  <span className="text-3xl font-black text-violet-700 uppercase">{logoInisial}</span>
+                  <span className="text-3xl font-black text-purple-700 uppercase">{logoInisial}</span>
                 )}
               </div>
               
@@ -215,8 +226,8 @@ export default function LoginPage() {
                   <button
                     onClick={handleInstall}
                     disabled={!deferredPrompt}
-                    className="w-full flex items-center justify-center gap-2 py-4 rounded-2xl font-black text-white text-base shadow-lg shadow-violet-300 transition-all"
-                    style={{ background: "linear-gradient(135deg, #7c3aed, #6d28d9)" }}
+                    className="w-full flex items-center justify-center gap-2 py-4 rounded-2xl font-black text-white text-base shadow-lg shadow-purple-300 transition-all"
+                    style={{ background: "linear-gradient(135deg, #9333ea, #7e22ce)" }}
                   >
                     <Download className="w-5 h-5" />
                     Pasang Aplikasi
