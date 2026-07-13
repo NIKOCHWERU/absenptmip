@@ -905,10 +905,8 @@ export function registerRoutes(app: Express) {
           // Circular time difference to handle overnight shifts (e.g., 00:00)
           let diff = currentMinutes - shiftMinutes;
           
-          if (diff > 12 * 60) {
-            diff -= 24 * 60; // Clocked in early for next day's shift
-          } else if (diff < -12 * 60) {
-            diff += 24 * 60; // Clocked in late for previous day's shift
+          if (diff < -12 * 60) {
+            diff += 24 * 60; // Clocked in late after midnight for previous day's shift
           }
 
           if (diff > 0) {

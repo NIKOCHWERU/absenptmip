@@ -462,12 +462,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                             icon: UserCog,
                             items: [
                                 {
-                                    title: "Manajemen Karir",
+                                    title: "Manajemen Mutasi, Promosi & Demosi",
                                     url: "/admin/mutations",
                                     icon: UserCog,
                                 },
                                 {
-                                    title: "Riwayat Karir",
+                                    title: "Riwayat Mutasi, Promosi & Demosi",
                                     url: "/admin/mutations-history",
                                     icon: History,
                                 },
