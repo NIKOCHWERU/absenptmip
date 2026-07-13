@@ -18,47 +18,59 @@ export function useAttendance() {
   const clockInMutation = useMutation({
     mutationFn: async (data: { location: string; checkInPhoto: string; shift?: string; lateReason?: string; lateReasonPhoto?: string }) => {
       await apiRequest("POST", "/api/attendance/clock-in", data);
-      await queryClient.invalidateQueries({ queryKey: ["/api/attendance/today"] });
-      await queryClient.invalidateQueries({ queryKey: ["/api/attendance"] });
     },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/attendance/today"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/attendance"] });
+    }
   });
 
   const clockOutMutation = useMutation({
     mutationFn: async (data: { location: string; checkInPhoto: string }) => {
       await apiRequest("POST", "/api/attendance/clock-out", data);
-      await queryClient.invalidateQueries({ queryKey: ["/api/attendance/today"] });
-      await queryClient.invalidateQueries({ queryKey: ["/api/attendance"] });
     },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/attendance/today"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/attendance"] });
+    }
   });
 
   const breakStartMutation = useMutation({
     mutationFn: async (data: { location: string; checkInPhoto: string }) => {
       await apiRequest("POST", "/api/attendance/break-start", data);
-      await queryClient.invalidateQueries({ queryKey: ["/api/attendance/today"] });
     },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/attendance/today"] });
+    }
   });
 
   const breakEndMutation = useMutation({
     mutationFn: async (data: { location: string; checkInPhoto: string }) => {
       await apiRequest("POST", "/api/attendance/break-end", data);
-      await queryClient.invalidateQueries({ queryKey: ["/api/attendance/today"] });
     },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/attendance/today"] });
+    }
   });
 
   const permitMutation = useMutation({
     mutationFn: async (data: { type: "sick" | "permission" | "off"; notes: string; checkInPhoto?: string | null; location?: string }) => {
       await apiRequest("POST", "/api/attendance/permit", data);
-      await queryClient.invalidateQueries({ queryKey: ["/api/attendance/today"] });
-      await queryClient.invalidateQueries({ queryKey: ["/api/attendance"] });
     },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/attendance/today"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/attendance"] });
+    }
   });
 
   const resumeMutation = useMutation({
     mutationFn: async () => {
       await apiRequest("POST", "/api/attendance/resume", {});
-      await queryClient.invalidateQueries({ queryKey: ["/api/attendance/today"] });
-      await queryClient.invalidateQueries({ queryKey: ["/api/attendance"] });
     },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/attendance/today"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/attendance"] });
+    }
   });
 
 
