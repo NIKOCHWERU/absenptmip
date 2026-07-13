@@ -93,7 +93,7 @@ export function LateReasonModal({ isOpen, onClose, onSubmit, expectedTime = "07:
 
     return (
         <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-            <DialogContent className="max-w-full w-full h-[100dvh] sm:max-w-md sm:h-auto bg-white border-none sm:border-zinc-200 text-zinc-900 sm:rounded-3xl p-0 overflow-hidden flex flex-col">
+            <DialogContent className="max-w-full w-full h-[100dvh] sm:max-w-2xl sm:h-auto bg-white border-none sm:border-zinc-200 text-zinc-900 sm:rounded-3xl p-0 overflow-hidden flex flex-col">
                 <DialogHeader className="space-y-3 p-6 pb-0">
                     <DialogTitle className="text-2xl font-black text-center text-red-600 tracking-tight uppercase">
                         Anda Terlambat
@@ -104,18 +104,8 @@ export function LateReasonModal({ isOpen, onClose, onSubmit, expectedTime = "07:
                     </DialogDescription>
                 </DialogHeader>
 
-                <div className="flex-1 overflow-y-auto px-6 py-4 space-y-5">
-                    <div className="space-y-2">
-                        <label className="text-xs font-bold uppercase tracking-wider text-zinc-400 ml-1">Keterangan Alasan</label>
-                        <Textarea
-                            placeholder="Contoh: Terjebak macet parah, ada kendala pada kendaraan, kepentingan mendesak, dll."
-                            className="bg-zinc-50 border-zinc-100 text-zinc-900 min-h-[120px] rounded-2xl focus:ring-red-500 focus:border-red-500 transition-all placeholder:text-zinc-300"
-                            value={reason}
-                            onChange={(e) => setReason(e.target.value)}
-                        />
-                    </div>
-
-                    <div className="space-y-2">
+                <div className="flex-1 overflow-y-auto px-6 py-4 flex flex-row gap-4">
+                    <div className="flex-1 space-y-2">
                         <label className="text-xs font-bold uppercase tracking-wider text-zinc-400 ml-1">Bukti Foto (Opsional)</label>
                         <div className="relative aspect-video bg-zinc-50 rounded-2xl border-2 border-dashed border-zinc-200 flex flex-col items-center justify-center overflow-hidden transition-all hover:border-red-200 group">
                             {capturedPhoto ? (
@@ -204,6 +194,16 @@ export function LateReasonModal({ isOpen, onClose, onSubmit, expectedTime = "07:
                                 </div>
                             )}
                         </div>
+                    </div>
+
+                    <div className="flex-1 space-y-2 h-full flex flex-col">
+                        <label className="text-xs font-bold uppercase tracking-wider text-zinc-400 ml-1">Keterangan Alasan</label>
+                        <Textarea
+                            placeholder="Contoh: Terjebak macet parah, ada kendala pada kendaraan, kepentingan mendesak, dll."
+                            className="bg-zinc-50 border-zinc-100 text-zinc-900 flex-1 min-h-[150px] sm:min-h-full rounded-2xl focus:ring-red-500 focus:border-red-500 transition-all placeholder:text-zinc-300 resize-none"
+                            value={reason}
+                            onChange={(e) => setReason(e.target.value)}
+                        />
                     </div>
                 </div>
 
