@@ -10,14 +10,15 @@ import { drawWatermark } from '@/lib/watermark';
 interface CameraModalProps {
   open: boolean;
   onClose: () => void;
-  onCapture: (photoData: string) => Promise<void>;
+  onCapture: (photoData: string, caption?: string) => Promise<void>;
   locationAddress?: string;
+  allowCaption?: boolean;
 }
 
 // State machine: idle → active → captured
 type CameraState = "idle" | "active" | "captured";
 
-export function CameraModal({ open, onClose, onCapture, locationAddress }: CameraModalProps) {
+export function CameraModal({ open, onClose, onCapture, locationAddress, allowCaption = false }: CameraModalProps) {
   const { user } = useAuth();
   const { data: appConfig } = useQuery<any>({ queryKey: ["/api/config"] });
   const namaPt: string  = appConfig?.namaPt  || appConfig?.singkatanPt || "Perusahaan";
@@ -25,6 +26,7 @@ export function CameraModal({ open, onClose, onCapture, locationAddress }: Camer
 
   const [cameraState, setCameraState] = useState<CameraState>("idle");
   const [capturedPhoto, setCapturedPhoto] = useState<string | null>(null);
+  const [photoCaption, setPhotoCaption]   = useState<string>("");
   const [facingMode, setFacingMode]   = useState<"user" | "environment">("user");
   const [isInitializing, setIsInitializing] = useState(false);
   const [isSubmitting, setIsSubmitting]     = useState(false);
@@ -73,6 +75,7 @@ export function CameraModal({ open, onClose, onCapture, locationAddress }: Camer
       stopCamera();
       setCameraState("idle");
       setCapturedPhoto(null);
+      setPhotoCaption("");
       setIsSubmitting(false);
     }
   }, [open]);
@@ -126,6 +129,7 @@ export function CameraModal({ open, onClose, onCapture, locationAddress }: Camer
   // ── Retake ────────────────────────────────────────────────────────────────
   const handleRetake = () => {
     setCapturedPhoto(null);
+    setPhotoCaption("");
     startCamera();
   };
 
@@ -134,8 +138,9 @@ export function CameraModal({ open, onClose, onCapture, locationAddress }: Camer
     if (!capturedPhoto || isSubmitting) return;
     setIsSubmitting(true);
     try {
-      await onCapture(capturedPhoto);
+      await onCapture(capturedPhoto, photoCaption);
       setCapturedPhoto(null);
+      setPhotoCaption("");
     } catch (err) {
       console.error("Capture confirm failed:", err);
     } finally {
@@ -236,13 +241,23 @@ export function CameraModal({ open, onClose, onCapture, locationAddress }: Camer
         </div>
 
         {/* ── Bottom Controls ── */}
-        <div className="bg-black/85 backdrop-blur-xl p-8 flex justify-center items-center gap-8 z-10">
+        <div className="bg-black/85 backdrop-blur-xl p-6 flex flex-col justify-center items-center gap-4 z-10">
+          {cameraState === "captured" && allowCaption && (
+            <input
+              type="text"
+              placeholder="Masukkan keterangan foto..."
+              value={photoCaption}
+              onChange={(e) => setPhotoCaption(e.target.value)}
+              className="w-full max-w-sm bg-white/10 text-white placeholder-white/50 border border-white/20 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary mb-2"
+            />
+          )}
+
           {cameraState === "active" ? (
             /* Shutter button */
             <button
               onClick={capturePhoto}
               disabled={isInitializing}
-              className="w-20 h-20 rounded-full border-4 border-white flex items-center justify-center active:scale-90 transition-transform disabled:opacity-40"
+              className="w-20 h-20 rounded-full border-4 border-white flex items-center justify-center active:scale-90 transition-transform disabled:opacity-40 shrink-0 mt-2"
             >
               <div className="w-16 h-16 rounded-full bg-white shadow-lg" />
             </button>

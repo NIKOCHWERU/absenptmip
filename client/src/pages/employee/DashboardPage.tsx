@@ -58,7 +58,7 @@ function ShiftModal({
 }) {
     return (
         <Dialog open={open} onOpenChange={(val) => !val && onClose()}>
-            <DialogContent className="rounded-2xl max-w-xs md:max-w-md">
+            <DialogContent className="rounded-2xl max-w-xs md:max-w-md bg-white shadow-xl">
                 <DialogHeader>
                     <DialogTitle className="text-center text-xl">Pilih Shift Kerja</DialogTitle>
                     <DialogDescription className="text-center">
@@ -1389,7 +1389,7 @@ export default function EmployeeDashboard() {
             </Dialog>
 
             <Dialog open={isOffDayOpen} onOpenChange={setIsOffDayOpen}>
-                <DialogContent className="rounded-3xl max-w-xs md:max-w-md p-6">
+                <DialogContent className="rounded-3xl max-w-xs md:max-w-md p-6 bg-white shadow-xl">
                     <DialogHeader>
                         <div className="mx-auto w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-4">
                                 <Umbrella className="w-8 h-8 text-blue-600" />

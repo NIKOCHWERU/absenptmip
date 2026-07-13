@@ -75,8 +75,23 @@ export async function drawWatermark(
         }
         ctx.clip();
         
-        // Draw image stretching to fill the box (like an app icon)
-        ctx.drawImage(logoImg, logoX, logoY, logoBoxSize, logoBoxSize);
+        // Solid white background
+        ctx.fillStyle = "#FFFFFF";
+        ctx.fill();
+
+        // Object-fit: contain logic to prevent stretching
+        const imgAspect = logoImg.width / logoImg.height;
+        let drawW = logoBoxSize;
+        let drawH = logoBoxSize;
+        if (imgAspect > 1) { // wide image
+            drawH = logoBoxSize / imgAspect;
+        } else { // tall image
+            drawW = logoBoxSize * imgAspect;
+        }
+        const drawX = logoX + (logoBoxSize - drawW) / 2;
+        const drawY = logoY + (logoBoxSize - drawH) / 2;
+
+        ctx.drawImage(logoImg, drawX, drawY, drawW, drawH);
         ctx.restore();
 
         textX = logoX + logoBoxSize + padding * 1.5;

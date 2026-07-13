@@ -50,6 +50,7 @@ export default function ComplaintPage() {
     // Camera & Location State
     const [isCameraOpen, setIsCameraOpen] = useState(false);
     const [locationAddress, setLocationAddress] = useState<string>("");
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     // Fetch location when camera opens
     useEffect(() => {
@@ -108,15 +109,50 @@ export default function ComplaintPage() {
         },
     });
 
+    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const files = Array.from(e.target.files || []);
+        if (files.length === 0) return;
+
+        for (const file of files) {
+            const id = Math.random().toString(36).substring(7);
+            const preview = URL.createObjectURL(file);
+            setPhotos(prev => [...prev, { url: "", caption: "", preview, id }]);
+            setUploadingState(prev => ({ ...prev, [id]: 0 }));
+
+            try {
+                const compressedFile = await safeCompressImage(file);
+                const url = await uploadFileWithProgress(
+                    compressedFile, 
+                    (p) => setUploadingState(prev => ({ ...prev, [id]: p })),
+                    "complaint" // Upload to Pengaduan folder
+                );
+                setPhotos(prev => prev.map(p => p.id === id ? { ...p, url } : p));
+                setUploadingState(prev => {
+                    const next = { ...prev };
+                    delete next[id];
+                    return next;
+                });
+            } catch (error: any) {
+                toast({ title: "Gagal Upload", description: error.message, variant: "destructive" });
+                setPhotos(prev => prev.filter(p => p.id !== id));
+            }
+        }
+        
+        if (fileInputRef.current) {
+            fileInputRef.current.value = '';
+        }
+    };
+
     const handleAddPhoto = () => {
         setIsCameraOpen(true);
     };
 
-    const handleCameraCapture = async (photoData: string) => {
+    const handleCameraCapture = async (photoData: string, caption: string = "") => {
+        setIsCameraOpen(false); // Close camera modal
         const id = Math.random().toString(36).substring(7);
         const preview = photoData;
         
-        setPhotos(prev => [...prev, { url: "", caption: "", preview, id }]);
+        setPhotos(prev => [...prev, { url: "", caption, preview, id }]);
         setUploadingState(prev => ({ ...prev, [id]: 0 }));
 
         try {
@@ -260,18 +296,36 @@ export default function ComplaintPage() {
                         {/* Photos */}
                         <div className="space-y-3">
                             <div className="flex items-center justify-between">
-                                <p className="text-xs font-semibold text-gray-500">Foto Bukti (Live Camera)</p>
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={handleAddPhoto}
-                                    className="rounded-full text-xs"
-                                >
-                                    <Camera className="w-3 h-3 mr-1" /> Ambil Foto
-                                </Button>
+                                <p className="text-xs font-semibold text-gray-500">Foto Bukti</p>
+                                <div className="flex gap-2">
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => fileInputRef.current?.click()}
+                                        className="rounded-full text-xs"
+                                    >
+                                        <Image className="w-3 h-3 mr-1" /> Upload
+                                    </Button>
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={handleAddPhoto}
+                                        className="rounded-full text-xs"
+                                    >
+                                        <Camera className="w-3 h-3 mr-1" /> Live
+                                    </Button>
+                                </div>
                             </div>
-                            {/* Input removed, using CameraModal only */}
+                            <input
+                                ref={fileInputRef}
+                                type="file"
+                                accept="image/*"
+                                multiple
+                                className="hidden"
+                                onChange={handleFileChange}
+                            />
                             {photos.map((p) => (
                                 <div key={p.id} className="bg-gray-50 rounded-xl p-3 border border-gray-100 relative overflow-hidden">
                                     <div className="flex items-start gap-3">
@@ -383,11 +437,12 @@ export default function ComplaintPage() {
             <CameraModal
                 open={isCameraOpen}
                 onClose={() => setIsCameraOpen(false)}
-                onCapture={async (photoData) => {
+                onCapture={async (photoData, caption) => {
                     setIsCameraOpen(false);
-                    await handleCameraCapture(photoData);
+                    await handleCameraCapture(photoData, caption);
                 }}
                 locationAddress={locationAddress}
+                allowCaption={true}
             />
         </div>
     );
