@@ -56,6 +56,12 @@ export default function LoginPage() {
         setShowInstallPopup(false);
       }
       setDeferredPrompt(null);
+    } else {
+      toast({
+        title: "Instalasi Manual",
+        description: "Browser Anda tidak mendukung instalasi otomatis. Silakan ketuk ikon Menu (⋮) di pojok kanan atas lalu pilih 'Tambahkan ke Layar Utama'.",
+        variant: "default",
+      });
     }
   };
 
@@ -225,7 +231,6 @@ export default function LoginPage() {
                 <>
                   <button
                     onClick={handleInstall}
-                    disabled={!deferredPrompt}
                     className="w-full flex items-center justify-center gap-2 py-4 rounded-2xl font-black text-white text-base shadow-lg shadow-blue-500/30 transition-all bg-gradient-to-r from-blue-600 to-blue-800"
                   >
                     <Download className="w-5 h-5" />
