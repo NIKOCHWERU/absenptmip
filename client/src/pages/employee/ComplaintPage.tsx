@@ -271,8 +271,19 @@ export default function ComplaintPage() {
             <BottomNav />
 
             {/* Create Complaint Dialog */}
-            <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
-                <DialogContent className="rounded-3xl max-w-sm md:max-w-md p-5 max-h-[90vh] overflow-y-auto">
+            <Dialog open={isFormOpen} onOpenChange={(open) => {
+                if (!open && isCameraOpen) return; // Mencegah form tertutup saat kamera aktif
+                setIsFormOpen(open);
+            }}>
+                <DialogContent 
+                    className="rounded-3xl max-w-sm md:max-w-md p-5 max-h-[90vh] overflow-y-auto"
+                    onInteractOutside={(e) => {
+                        if (isCameraOpen) e.preventDefault();
+                    }}
+                    onEscapeKeyDown={(e) => {
+                        if (isCameraOpen) e.preventDefault();
+                    }}
+                >
                     <DialogHeader>
                         <DialogTitle className="text-center text-lg font-bold">Buat Pengaduan</DialogTitle>
                         <DialogDescription className="text-center text-sm text-muted-foreground">
