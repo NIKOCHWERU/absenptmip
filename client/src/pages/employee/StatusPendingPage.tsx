@@ -5,7 +5,7 @@ import { Clock, CheckCircle2, ShieldAlert, LogOut, RefreshCw } from "lucide-reac
 import { queryClient } from "@/lib/queryClient";
 
 export default function StatusPendingPage() {
-  const { user, logout } = useAuth();
+  const { user, logoutMutation } = useAuth();
 
   const handleRefresh = async () => {
     await queryClient.invalidateQueries({ queryKey: ["/api/user"] });
@@ -67,7 +67,7 @@ export default function StatusPendingPage() {
             </Button>
           )}
 
-          <Button variant="ghost" onClick={() => logout()} className="w-full text-slate-500 hover:text-red-600 hover:bg-red-50">
+          <Button variant="ghost" onClick={() => logoutMutation.mutate()} className="w-full text-slate-500 hover:text-red-600 hover:bg-red-50">
             <LogOut className="w-4 h-4 mr-2" /> Keluar
           </Button>
         </CardFooter>
