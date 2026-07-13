@@ -220,9 +220,9 @@ export default function AdminLeavePage() {
     .opening-text { margin-bottom: 12px; text-align: justify; }
     
     .formal-table { width: 100%; border-collapse: collapse; margin-bottom: 12px; }
-    .formal-table th, .formal-table td { border: 1px solid #000; padding: 6px 10px; text-align: left; vertical-align: top; }
-    .formal-table th { background-color: #f2f2f2; width: 200px; font-weight: bold; }
-    .formal-table td.label-col { width: 200px; font-weight: bold; }
+    .formal-table th, .formal-table td { border: none; padding: 4px 0; text-align: left; vertical-align: top; }
+    .formal-table td.label-col { width: 180px; font-weight: bold; }
+    .formal-table td.colon-col { width: 20px; font-weight: bold; text-align: center; }
     
     .status-section { margin: 15px 0; text-align: center; page-break-inside: avoid; }
     .status-title { font-size: 13px; font-weight: bold; text-transform: uppercase; margin-bottom: 6px; }
@@ -274,18 +274,22 @@ export default function AdminLeavePage() {
   <table class="formal-table">
     <tr>
       <td class="label-col">Nama Karyawan</td>
+      <td class="colon-col">:</td>
       <td>${nameTitle}</td>
     </tr>
     <tr>
       <td class="label-col">NIK</td>
+      <td class="colon-col">:</td>
       <td>${nik}</td>
     </tr>
     <tr>
       <td class="label-col">Jabatan/Posisi</td>
+      <td class="colon-col">:</td>
       <td>${position}</td>
     </tr>
     <tr>
       <td class="label-col">Unit Kerja/Cabang</td>
+      <td class="colon-col">:</td>
       <td>${branch}</td>
     </tr>
   </table>
@@ -297,22 +301,27 @@ export default function AdminLeavePage() {
   <table class="formal-table">
     <tr>
       <td class="label-col">Tanggal Pengajuan</td>
+      <td class="colon-col">:</td>
       <td>${formattedCreatedAt}</td>
     </tr>
     <tr>
       <td class="label-col">Jumlah Hari Cuti</td>
+      <td class="colon-col">:</td>
       <td>${numberToWords(totalDays)} hari</td>
     </tr>
     <tr>
       <td class="label-col">Periode Cuti</td>
+      <td class="colon-col">:</td>
       <td>${periodStr}</td>
     </tr>
     <tr>
       <td class="label-col">Rincian Tanggal Cuti</td>
+      <td class="colon-col">:</td>
       <td>${rincianTanggalStr}</td>
     </tr>
     <tr>
       <td class="label-col">Alasan Pengajuan Cuti</td>
+      <td class="colon-col">:</td>
       <td>${req.reason}</td>
     </tr>
   </table>
