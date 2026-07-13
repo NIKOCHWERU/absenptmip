@@ -356,6 +356,7 @@ export default function EmployeeDashboard() {
     } | null>(null);
 
     const [isLateReasonModalOpen, setIsLateReasonModalOpen] = useState(false);
+    const [expectedLateTime, setExpectedLateTime] = useState<string>("07:00");
     const [lateReasonData, setLateReasonData] = useState<{ reason: string, photo?: string } | null>(null);
 
     const [locationAddress, setLocationAddress] = useState<string>("");
@@ -463,8 +464,12 @@ export default function EmployeeDashboard() {
             setSelectedShiftId(DEFAULT_SHIFT.id);
             const now = new Date();
             const [sHour, sMinute] = DEFAULT_SHIFT.checkInTime.split(':').map(Number);
-            const isLate = (now.getHours() * 60 + now.getMinutes()) > (sHour * 60 + sMinute);
+            let diff = (now.getHours() * 60 + now.getMinutes()) - (sHour * 60 + sMinute);
+            if (diff > 12 * 60) diff -= 24 * 60;
+            else if (diff < -12 * 60) diff += 24 * 60;
+            const isLate = diff > 0;
             if (isLate) {
+                setExpectedLateTime(DEFAULT_SHIFT.checkInTime);
                 setIsLateReasonModalOpen(true);
                 return;
             }
@@ -496,7 +501,10 @@ export default function EmployeeDashboard() {
             else if (sn === 'shift 1' || sn.includes('long')) thresholdMinutes = 7 * 60; // 07:00
         }
 
-        const isLate = timeInMinutes > thresholdMinutes;
+        let diff = timeInMinutes - thresholdMinutes;
+        if (diff > 12 * 60) diff -= 24 * 60;
+        else if (diff < -12 * 60) diff += 24 * 60;
+        const isLate = diff > 0;
 
         const wrappedClockIn = async (data: any) => {
             return clockIn({ ...data, shiftId, shift: shiftName });
@@ -507,6 +515,7 @@ export default function EmployeeDashboard() {
         }
 
         if (isLate) {
+            setExpectedLateTime(shiftData?.checkInTime || "07:00");
             setIsLateReasonModalOpen(true);
         } else {
             setIsCameraOpen(true);
@@ -874,6 +883,7 @@ export default function EmployeeDashboard() {
                 isOpen={isLateReasonModalOpen}
                 onClose={() => setIsLateReasonModalOpen(false)}
                 onSubmit={handleLateReasonSubmit}
+                expectedTime={expectedLateTime}
             />
 
             {/* Camera Modal */}

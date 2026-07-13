@@ -9,9 +9,10 @@ interface LateReasonModalProps {
     isOpen: boolean;
     onClose: () => void;
     onSubmit: (reason: string, photo?: string) => void;
+    expectedTime?: string;
 }
 
-export function LateReasonModal({ isOpen, onClose, onSubmit }: LateReasonModalProps) {
+export function LateReasonModal({ isOpen, onClose, onSubmit, expectedTime = "07:00" }: LateReasonModalProps) {
     const [reason, setReason] = useState("");
     const [isCameraActive, setIsCameraActive] = useState(false);
     const [capturedPhoto, setCapturedPhoto] = useState<string | null>(null);
@@ -98,7 +99,7 @@ export function LateReasonModal({ isOpen, onClose, onSubmit }: LateReasonModalPr
                         Anda Terlambat
                     </DialogTitle>
                     <DialogDescription className="text-sm text-zinc-500 text-center font-medium leading-relaxed">
-                        Batas waktu pukul 07:00 telah terlewati. <br />
+                        Batas waktu pukul {expectedTime} telah terlewati. <br />
                         Mohon sampaikan alasan keterlambatan Anda di bawah ini.
                     </DialogDescription>
                 </DialogHeader>
