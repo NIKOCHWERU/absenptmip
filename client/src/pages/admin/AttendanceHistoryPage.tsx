@@ -308,9 +308,9 @@ export default function AttendanceHistoryPage() {
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: Arial, Helvetica, sans-serif; font-size: 11px; color: #1e293b; background: white; padding: 28px 36px; }
     
-    .letterhead { display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px; min-height: 90px; }
+    .letterhead { display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px; min-height: 50px; }
     .logo-container { flex-shrink: 0; }
-    .logo-img { height: 100px; max-width: 280px; object-fit: contain; }
+    .logo-img { height: 50px; max-width: 140px; object-fit: contain; }
     .company-info { text-align: right; flex-grow: 1; margin-left: 20px; }
     .company-name { font-size: 22px; font-weight: bold; text-transform: uppercase; margin-bottom: 4px; letter-spacing: 0.5px; }
     .company-tagline { font-size: 12px; font-weight: normal; margin-bottom: 2px; }
@@ -673,9 +673,9 @@ export default function AttendanceHistoryPage() {
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: Arial, Helvetica, sans-serif; font-size: 11px; color: #1e293b; background: white; padding: 28px 36px; }
-    .letterhead { display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px; min-height: 90px; }
+    .letterhead { display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px; min-height: 50px; }
     .logo-container { flex-shrink: 0; }
-    .logo-img { height: 100px; max-width: 280px; object-fit: contain; }
+    .logo-img { height: 50px; max-width: 140px; object-fit: contain; }
     .company-info { text-align: right; flex-grow: 1; margin-left: 20px; }
     .company-name { font-size: 22px; font-weight: bold; text-transform: uppercase; margin-bottom: 4px; letter-spacing: 0.5px; }
     .company-tagline { font-size: 12px; font-weight: normal; margin-bottom: 2px; }

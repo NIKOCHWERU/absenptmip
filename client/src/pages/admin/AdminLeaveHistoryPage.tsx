@@ -139,9 +139,9 @@ export default function AdminLeaveHistoryPage() {
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: 'Times New Roman', Times, serif; font-size: 13px; color: #000; background: white; padding: 25px 45px; line-height: 1.4; }
     
-    .letterhead { display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px; min-height: 90px; }
+    .letterhead { display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px; min-height: 50px; }
     .logo-container { flex-shrink: 0; }
-    .logo-img { height: 100px; max-width: 280px; object-fit: contain; }
+    .logo-img { height: 50px; max-width: 140px; object-fit: contain; }
     .company-info { text-align: right; flex-grow: 1; margin-left: 20px; }
     .company-name { font-size: 22px; font-weight: bold; text-transform: uppercase; margin-bottom: 4px; letter-spacing: 0.5px; }
     .company-tagline { font-size: 12px; font-weight: normal; margin-bottom: 2px; }
@@ -201,7 +201,6 @@ export default function AdminLeaveHistoryPage() {
 
   <div class="title-block">
     <h1>SURAT KETERANGAN PERSETUJUAN CUTI</h1>
-    <p class="doc-no">${docNo}</p>
   </div>
 
   <p class="opening-text">
