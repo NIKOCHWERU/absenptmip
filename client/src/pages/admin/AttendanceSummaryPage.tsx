@@ -382,7 +382,7 @@ export default function AttendanceSummaryPage() {
     .col-note { font-size: 10.5px; color: #475569; white-space: normal; max-width: 200px; }
 
     /* SIGNATURE */
-    .signature-section { margin-top: 48px; display: flex; justify-content: space-between; padding: 0 24px; }
+    .signature-section { margin-top: 48px; display: flex; justify-content: center; gap: 100px; padding: 0; }
     .sig-box { text-align: center; width: 160px; }
     .sig-label { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px; color: #374151; margin-bottom: 64px; }
     .sig-name { font-size: 11px; font-weight: 800; border-top: 1.5px solid #374151; padding-top: 6px; text-transform: uppercase; letter-spacing: 0.5px; color: #1e293b; }

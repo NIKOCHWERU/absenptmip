@@ -703,7 +703,7 @@ export default function AttendanceHistoryPage() {
     .st-cuti  { background: #e0f2fe; color: #0369a1; }
     .st-alpha { background: #fee2e2; color: #dc2626; }
     .st-unknown { background: #f1f5f9; color: #64748b; }
-    .signature-section { margin-top: 48px; display: flex; justify-content: space-between; padding: 0 24px; }
+    .signature-section { margin-top: 48px; display: flex; justify-content: center; gap: 100px; padding: 0; }
     .sig-box { text-align: center; width: 160px; }
     .sig-label { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px; color: #374151; margin-bottom: 64px; }
     .sig-name { font-size: 11px; font-weight: 800; border-top: 1.5px solid #374151; padding-top: 6px; text-transform: uppercase; letter-spacing: 0.5px; color: #1e293b; }
