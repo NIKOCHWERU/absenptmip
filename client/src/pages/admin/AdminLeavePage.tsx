@@ -231,11 +231,11 @@ export default function AdminLeavePage() {
     
     .closing-text { margin-bottom: 20px; text-align: justify; }
     
-    .signature-section { display: flex; justify-content: space-between; margin-top: 25px; page-break-inside: avoid; }
-    .sig-box { text-align: left; width: 220px; }
-    .sig-label { font-size: 13px; margin-bottom: 45px; }
-    .sig-name { font-size: 13px; font-weight: bold; text-transform: uppercase; }
-    .sig-desc { font-size: 12px; margin-top: 2px; }
+    .signature-section { display: flex; justify-content: center; gap: 100px; margin-top: 35px; page-break-inside: avoid; }
+    .sig-box { text-align: center; width: 220px; }
+    .sig-label { font-size: 13px; margin-bottom: 70px; }
+    .sig-name { font-size: 13px; font-weight: bold; text-transform: uppercase; border-bottom: 1px solid #000; padding-bottom: 2px; display: inline-block; min-width: 150px; }
+    .sig-desc { font-size: 12px; margin-top: 4px; }
     
     .btn-wrap { text-align: center; margin-top: 20px; }
     .download-btn { display: inline-flex; align-items: center; gap: 8px; background: #2563eb; color: #fff; border: none; padding: 8px 20px; border-radius: 6px; font-size: 11px; font-weight: bold; cursor: pointer; text-decoration: none; }
