@@ -189,12 +189,12 @@ export default function MutationHistoryPage() {
                                         <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 border-b border-gray-50 pb-3">
                                             <div className="flex items-center gap-3">
                                                 <div className="w-11 h-11 rounded-full bg-gradient-to-br from-green-500 to-emerald-600 text-white flex items-center justify-center font-bold text-sm shrink-0">
-                                                    {item.user.fullName.charAt(0).toUpperCase()}
+                                                    {item.user?.fullName?.charAt(0)?.toUpperCase() || "?"}
                                                 </div>
                                                 <div>
-                                                    <h3 className="font-black text-gray-900 text-base">{item.user.fullName}</h3>
+                                                    <h3 className="font-black text-gray-900 text-base">{item.user?.fullName || "Pengguna Dihapus"}</h3>
                                                     <p className="text-xs font-bold text-gray-400">
-                                                        NIK: <span className="font-mono">{item.user.nik || "-"}</span>
+                                                        NIK: <span className="font-mono">{item.user?.nik || "-"}</span>
                                                     </p>
                                                 </div>
                                             </div>
