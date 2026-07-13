@@ -1423,7 +1423,11 @@ export function registerRoutes(app: Express) {
       const mut = await db
         .select()
         .from(mutations)
-        .where(and(eq(mutations.userId, userId), gte(mutations.createdAt, cutoff)));
+        .where(and(
+            eq(mutations.userId, userId), 
+            eq(mutations.status, 'approved'),
+            gte(mutations.createdAt, cutoff)
+        ));
 
       const resg = await db
         .select()
@@ -1943,8 +1947,11 @@ export function registerRoutes(app: Express) {
 
     try {
       const username = (req.user as any).username;
-      const docUrl = req.file ? await processSingleUpload(req.file, "document", username) : null;
-      await db.insert(mutations).values({
+      const userRole = (req.user as any).role;
+      // Only superadmin can upload documents
+      const docUrl = (req.file && userRole === 'superadmin') ? await processSingleUpload(req.file, "document", username) : null;
+      
+      const newMutation = {
         userId: Number(userId),
         type,
         oldBranch: oldBranch || null,
@@ -1952,18 +1959,82 @@ export function registerRoutes(app: Express) {
         oldPosition: oldPosition || null,
         newPosition: newPosition || null,
         documentUrl: docUrl,
+        status: docUrl ? "approved" : "pending",
         notes: notes || null,
-      });
+      };
 
-      // Update employee branch and position in user table
-      const updates: any = {};
-      if (newBranch) updates.branch = newBranch;
-      if (newPosition) updates.position = newPosition;
-      if (Object.keys(updates).length > 0) {
-        await db.update(users).set(updates).where(eq(users.id, Number(userId)));
+      await db.insert(mutations).values(newMutation);
+
+      // If approved, instantly update employee branch and position
+      if (newMutation.status === "approved") {
+        const updates: any = {};
+        if (newBranch) updates.branch = newBranch;
+        if (newPosition) updates.position = newPosition;
+        if (Object.keys(updates).length > 0) {
+          await db.update(users).set(updates).where(eq(users.id, Number(userId)));
+        }
       }
 
-      res.status(201).json({ message: "Mutasi berhasil diterbitkan" });
+      res.status(201).json({ message: docUrl ? "Mutasi berhasil disetujui" : "Pengajuan Mutasi berhasil dicatat (Menunggu Persetujuan)" });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.patch("/api/admin/mutations/:id", isAdmin, upload.single("document"), async (req: Request, res: Response) => {
+    const targetId = Number(req.params.id);
+    const { type, newBranch, newPosition, notes, status } = req.body;
+    
+    try {
+      const [existing] = await db.select().from(mutations).where(eq(mutations.id, targetId)).limit(1);
+      if (!existing) return res.status(404).json({ message: "Data tidak ditemukan" });
+
+      const updates: any = {};
+      if (type) updates.type = type;
+      if (newBranch) updates.newBranch = newBranch;
+      if (newPosition) updates.newPosition = newPosition;
+      if (notes) updates.notes = notes;
+
+      const userRole = (req.user as any).role;
+      
+      if (status) {
+        if (userRole !== 'superadmin' && status !== 'pending') {
+          return res.status(403).json({ message: "Hanya Super Admin yang dapat menyetujui" });
+        }
+        updates.status = status;
+      }
+
+      if (req.file) {
+        if (userRole !== 'superadmin') {
+           return res.status(403).json({ message: "Hanya Super Admin yang dapat mengunggah SK" });
+        }
+        const username = (req.user as any).username;
+        updates.documentUrl = await processSingleUpload(req.file, "document", username);
+        updates.status = "approved"; // Automatically approve if document is uploaded
+      }
+
+      await db.update(mutations).set(updates).where(eq(mutations.id, targetId));
+
+      // Apply the branch/position change if just approved
+      if (updates.status === "approved" || existing.status === "approved") {
+         const userUpdates: any = {};
+         if (updates.newBranch || existing.newBranch) userUpdates.branch = updates.newBranch || existing.newBranch;
+         if (updates.newPosition || existing.newPosition) userUpdates.position = updates.newPosition || existing.newPosition;
+         if (Object.keys(userUpdates).length > 0) {
+            await db.update(users).set(userUpdates).where(eq(users.id, existing.userId));
+         }
+      }
+
+      res.json({ message: "Data Mutasi berhasil diperbarui" });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.delete("/api/admin/mutations/:id", isAdmin, async (req: Request, res: Response) => {
+    try {
+      await db.delete(mutations).where(eq(mutations.id, Number(req.params.id)));
+      res.json({ message: "Data Mutasi berhasil dihapus" });
     } catch (err: any) {
       res.status(500).json({ message: err.message });
     }
@@ -2095,16 +2166,24 @@ export function registerRoutes(app: Express) {
 
     try {
       const username = (req.user as any).username;
-      const docUrl = req.file ? await processSingleUpload(req.file, "document", username) : null;
-      await db.insert(resignations).values({
+      const userRole = (req.user as any).role;
+      const docUrl = (req.file && userRole === 'superadmin') ? await processSingleUpload(req.file, "document", username) : null;
+      
+      const newResignation = {
         userId: Number(userId),
         resignDate,
         reason,
         documentUrl: docUrl,
-        status: "pending", // Pending approval
-      });
+        status: docUrl ? "approved" : "pending",
+      };
+      
+      await db.insert(resignations).values(newResignation);
 
-      res.status(201).json({ message: "Pengajuan Resign berhasil dicatat (Menunggu Persetujuan Super Admin)" });
+      if (newResignation.status === 'approved') {
+         await db.update(users).set({ registrationStatus: "rejected" }).where(eq(users.id, Number(userId)));
+      }
+
+      res.status(201).json({ message: docUrl ? "Data Resign disetujui" : "Pengajuan Resign berhasil dicatat (Menunggu Persetujuan Super Admin)" });
     } catch (err: any) {
       res.status(500).json({ message: err.message });
     }
@@ -2136,11 +2215,20 @@ export function registerRoutes(app: Express) {
       }
 
       if (req.file) {
+        if ((req.user as any).role !== 'superadmin') {
+           return res.status(403).json({ message: "Hanya Super Admin yang dapat mengunggah dokumen" });
+        }
         const username = (req.user as any).username;
         updates.documentUrl = await processSingleUpload(req.file, "document", username);
+        updates.status = "approved"; // Automatically approve if document is uploaded
       }
 
       await db.update(resignations).set(updates).where(eq(resignations.id, targetId));
+      
+      if (updates.status === 'approved') {
+         await db.update(users).set({ registrationStatus: "rejected" }).where(eq(users.id, existing.userId));
+      }
+
       res.json({ message: "Data Resign berhasil diperbarui" });
     } catch (err: any) {
       res.status(500).json({ message: err.message });

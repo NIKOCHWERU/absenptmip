@@ -561,19 +561,25 @@ export default function ResignManagementPage() {
 
                         <div className="space-y-1.5">
                             <label className="text-xs font-black text-gray-500 uppercase">Upload Surat/Dokumen Resign (Opsional)</label>
-                            <div className="border border-dashed border-gray-200 hover:border-green-300 rounded-lg p-4 bg-gray-50/50 flex flex-col items-center justify-center text-center cursor-pointer relative group transition-colors">
-                                <Input
-                                    type="file"
-                                    onChange={(e) => setFormFile(e.target.files?.[0] || null)}
-                                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                                    accept=".pdf,.png,.jpg,.jpeg,.doc,.docx"
-                                />
-                                <Download className="w-6 h-6 text-gray-400 group-hover:text-primary mb-2 transition-colors" />
-                                <span className="text-xs font-bold text-gray-700">
-                                    {formFile ? formFile.name : "Klik atau seret file di sini (Opsional)"}
-                                </span>
-                                <span className="text-[10px] text-gray-400 mt-1">Belum ada file. File dapat diupload saat disetujui.</span>
-                            </div>
+                            {currentUser?.role === 'superadmin' ? (
+                                <div className="border border-dashed border-gray-200 hover:border-green-300 rounded-lg p-4 bg-gray-50/50 flex flex-col items-center justify-center text-center cursor-pointer relative group transition-colors">
+                                    <Input
+                                        type="file"
+                                        onChange={(e) => setFormFile(e.target.files?.[0] || null)}
+                                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                                        accept=".pdf,.png,.jpg,.jpeg,.doc,.docx"
+                                    />
+                                    <Download className="w-6 h-6 text-gray-400 group-hover:text-primary mb-2 transition-colors" />
+                                    <span className="text-xs font-bold text-gray-700">
+                                        {formFile ? formFile.name : "Klik atau seret file di sini (Opsional)"}
+                                    </span>
+                                    <span className="text-[10px] text-gray-400 mt-1">Mengunggah file akan otomatis menyetujui pengajuan.</span>
+                                </div>
+                            ) : (
+                                <div className="p-3 bg-amber-50 text-amber-700 rounded-lg text-xs font-bold flex items-start gap-2 border border-amber-200/50">
+                                    Hanya Super Admin yang dapat mengunggah dokumen untuk menyetujui pengajuan ini.
+                                </div>
+                            )}
                         </div>
 
                         <div className="flex justify-end gap-2.5 pt-3">
@@ -590,7 +596,7 @@ export default function ResignManagementPage() {
                                 disabled={createMutation.isPending}
                                 className="bg-primary hover:bg-primary/90 text-white rounded-lg px-6 shadow-sm cursor-pointer"
                             >
-                                {createMutation.isPending ? "Menyimpan..." : "Simpan Data"}
+                                {createMutation.isPending ? "Menyimpan..." : "Simpan Perubahan"}
                             </Button>
                         </div>
                     </form>
@@ -642,23 +648,31 @@ export default function ResignManagementPage() {
 
                             <div className="space-y-1.5">
                                 <label className="text-xs font-black text-gray-500 uppercase">Upload Ulang Surat/Dokumen Resign</label>
-                                <div className="border border-dashed border-gray-200 hover:border-green-300 rounded-lg p-4 bg-gray-50/50 flex flex-col items-center justify-center text-center cursor-pointer relative group transition-colors">
-                                    <Input
-                                        type="file"
-                                        onChange={(e) => setFormFile(e.target.files?.[0] || null)}
-                                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                                        accept=".pdf,.png,.jpg,.jpeg,.doc,.docx"
-                                    />
-                                    <Download className="w-6 h-6 text-gray-400 group-hover:text-primary mb-2 transition-colors" />
-                                    <span className="text-xs font-bold text-gray-700">
-                                        {formFile ? formFile.name : "Pilih file baru untuk menggantikan file lama"}
-                                    </span>
-                                    <span className="text-[10px] text-gray-400 mt-1">Biarkan kosong jika tidak ingin mengubah dokumen</span>
-                                </div>
-                                {selectedResign.documentUrl && (
-                                    <p className="text-[11px] text-primary-foreground font-bold mt-1">
-                                        File saat ini: <a href={selectedResign.documentUrl} target="_blank" rel="noopener noreferrer" className="underline hover:text-green-800">Lihat dokumen aktif</a>
-                                    </p>
+                                {currentUser?.role === 'superadmin' ? (
+                                    <>
+                                        <div className="border border-dashed border-gray-200 hover:border-green-300 rounded-lg p-4 bg-gray-50/50 flex flex-col items-center justify-center text-center cursor-pointer relative group transition-colors">
+                                            <Input
+                                                type="file"
+                                                onChange={(e) => setFormFile(e.target.files?.[0] || null)}
+                                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                                                accept=".pdf,.png,.jpg,.jpeg,.doc,.docx"
+                                            />
+                                            <Download className="w-6 h-6 text-gray-400 group-hover:text-primary mb-2 transition-colors" />
+                                            <span className="text-xs font-bold text-gray-700">
+                                                {formFile ? formFile.name : "Pilih file baru untuk menggantikan file lama"}
+                                            </span>
+                                            <span className="text-[10px] text-gray-400 mt-1">Mengunggah file akan otomatis menyetujui pengajuan.</span>
+                                        </div>
+                                        {selectedResign.documentUrl && (
+                                            <p className="text-[11px] text-primary-foreground font-bold mt-1">
+                                                File saat ini: <a href={selectedResign.documentUrl} target="_blank" rel="noopener noreferrer" className="underline hover:text-green-800">Lihat dokumen aktif</a>
+                                            </p>
+                                        )}
+                                    </>
+                                ) : (
+                                    <div className="p-3 bg-amber-50 text-amber-700 rounded-lg text-xs font-bold flex items-start gap-2 border border-amber-200/50">
+                                        Hanya Super Admin yang dapat mengunggah dokumen untuk menyetujui pengajuan ini.
+                                    </div>
                                 )}
                             </div>
 

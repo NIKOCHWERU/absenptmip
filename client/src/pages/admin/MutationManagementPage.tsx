@@ -38,6 +38,7 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
 import { useLocation } from "wouter";
+import { useAuth } from "@/hooks/use-auth";
 
 interface MutationData {
     id: number;
@@ -48,6 +49,7 @@ interface MutationData {
     oldPosition: string | null;
     newPosition: string | null;
     documentUrl: string | null;
+    status: "pending" | "approved" | "rejected";
     notes: string | null;
     createdAt: string;
     user: {
@@ -69,6 +71,7 @@ interface ActiveEmployee {
 export default function MutationManagementPage() {
     const [, setLocation] = useLocation();
     const { toast } = useToast();
+    const { user } = useAuth();
     const queryClient = useQueryClient();
     const [searchTerm, setSearchTerm] = useState("");
     
@@ -378,6 +381,7 @@ export default function MutationManagementPage() {
                                     <th className="py-4 px-6">Aksi</th>
                                     <th className="py-4 px-6">Lama</th>
                                     <th className="py-4 px-6">Baru</th>
+                                    <th className="py-4 px-6 text-center">Status</th>
                                     <th className="py-4 px-6 text-center">Dokumen Pendukung</th>
                                     <th className="py-4 px-6 text-center">Tanggal Input</th>
                                     <th className="py-4 px-6 text-center w-40">Aksi</th>
@@ -395,7 +399,7 @@ export default function MutationManagementPage() {
                                     </tr>
                                 ) : filteredMutations.length === 0 ? (
                                     <tr>
-                                        <td colSpan={8} className="py-16 text-center text-gray-400">
+                                        <td colSpan={9} className="py-16 text-center text-gray-400">
                                             <div className="flex flex-col items-center justify-center gap-3">
                                                 <ArrowLeftRight className="w-10 h-10 text-gray-300 animate-pulse" />
                                                 <p className="font-semibold text-gray-500">Tidak ada data mutasi/promosi/demosi</p>
@@ -422,6 +426,15 @@ export default function MutationManagementPage() {
                                                 ) : (
                                                     <span className="flex items-center gap-1 text-emerald-800"><Briefcase className="w-3 h-3 shrink-0" /> {m.newPosition || "-"}</span>
                                                 )}
+                                            </td>
+                                            <td className="py-4 px-6 text-center">
+                                                <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full font-bold text-[10px] uppercase tracking-wider ${
+                                                    m.status === 'approved' ? 'bg-green-100 text-green-700' :
+                                                    m.status === 'rejected' ? 'bg-red-100 text-red-700' :
+                                                    'bg-amber-100 text-amber-700'
+                                                }`}>
+                                                    {m.status}
+                                                </span>
                                             </td>
                                             <td className="py-4 px-6 text-center">
                                                 {m.documentUrl ? (
@@ -621,19 +634,25 @@ export default function MutationManagementPage() {
 
                         <div className="space-y-1.5">
                             <label className="text-xs font-black text-gray-500 uppercase">Upload Surat Keputusan (SK)</label>
-                            <div className="border border-dashed border-gray-200 hover:border-green-300 rounded-lg p-4 bg-gray-50/50 flex flex-col items-center justify-center text-center cursor-pointer relative group transition-colors">
-                                <Input
-                                    type="file"
-                                    onChange={(e) => setFormFile(e.target.files?.[0] || null)}
-                                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                                    accept=".pdf,.png,.jpg,.jpeg,.doc,.docx"
-                                />
-                                <Download className="w-6 h-6 text-gray-400 group-hover:text-primary mb-2 transition-colors" />
-                                <span className="text-xs font-bold text-gray-700">
-                                    {formFile ? formFile.name : "Klik atau seret file SK di sini untuk mengupload"}
-                                </span>
-                                <span className="text-[10px] text-gray-400 mt-1">PDF, JPG, PNG (Maks. 10MB)</span>
-                            </div>
+                            {user?.role === 'superadmin' ? (
+                                <div className="border border-dashed border-gray-200 hover:border-green-300 rounded-lg p-4 bg-gray-50/50 flex flex-col items-center justify-center text-center cursor-pointer relative group transition-colors">
+                                    <Input
+                                        type="file"
+                                        onChange={(e) => setFormFile(e.target.files?.[0] || null)}
+                                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                                        accept=".pdf,.png,.jpg,.jpeg,.doc,.docx"
+                                    />
+                                    <Download className="w-6 h-6 text-gray-400 group-hover:text-primary mb-2 transition-colors" />
+                                    <span className="text-xs font-bold text-gray-700">
+                                        {formFile ? formFile.name : "Klik atau seret file SK di sini untuk mengupload"}
+                                    </span>
+                                    <span className="text-[10px] text-gray-400 mt-1">PDF, JPG, PNG (Maks. 10MB)</span>
+                                </div>
+                            ) : (
+                                <div className="p-3 bg-amber-50 text-amber-700 rounded-lg text-xs font-bold flex items-start gap-2 border border-amber-200/50">
+                                    Hanya Super Admin yang dapat mengunggah berkas SK untuk menyetujui mutasi ini.
+                                </div>
+                            )}
                         </div>
 
                         <div className="flex justify-end gap-2.5 pt-3">
@@ -650,7 +669,7 @@ export default function MutationManagementPage() {
                                 disabled={createMutation.isPending}
                                 className="bg-primary hover:bg-primary/90 text-white rounded-lg px-6 shadow-sm cursor-pointer"
                             >
-                                {createMutation.isPending ? "Menyimpan..." : "Simpan Pergerakan"}
+                                {createMutation.isPending ? "Menyimpan..." : "Simpan Perubahan"}
                             </Button>
                         </div>
                     </form>

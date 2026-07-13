@@ -167,6 +167,7 @@ export const mutations = mysqlTable("mutations", {
   oldPosition: varchar("old_position", { length: 100 }),
   newPosition: varchar("new_position", { length: 100 }),
   documentUrl: varchar("document_url", { length: 512 }),
+  status: mysqlEnum("status", ["pending", "approved", "rejected"]).default("pending"),
   notes: text("notes"),
   createdAt: timestamp("created_at").defaultNow(),
 }, (table) => ({

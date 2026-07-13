@@ -263,6 +263,7 @@ async function runAutoMigrations() {
 
     await checkAndAddColumn("warning_letters", "status", "ENUM('pending', 'approved', 'rejected') DEFAULT 'pending'");
     await checkAndAddColumn("resignations", "status", "ENUM('pending', 'approved', 'rejected') DEFAULT 'pending'");
+    await checkAndAddColumn("mutations", "status", "ENUM('pending', 'approved', 'rejected') DEFAULT 'pending'");
 
     // --- Default admin seeding ---
     const [adminCheck]: any = await conn.query(`SELECT id FROM users WHERE role = 'admin' LIMIT 1`);
