@@ -9,25 +9,31 @@ export async function drawWatermark(
     name: string,
     namaPt?: string,
     logoUrl?: string,
+    type: "attendance" | "complaint" = "attendance",
+    latLng?: string
 ) {
     const padding = Math.max(10, width * 0.025);
 
-    // Footer height — taller to accommodate logo + 4 lines of text
-    const footerHeight = Math.max(90, height * 0.20);
-    const footerY = height - footerHeight;
+    // Footer height — taller to accommodate logo + text + extra bottom margin
+    const bottomMargin = Math.max(15, height * 0.04);
+    const footerHeight = Math.max(100, height * 0.22);
+    const gradientHeight = footerHeight + bottomMargin;
+    const footerY = height - gradientHeight;
 
     // ── Background Gradient ──────────────────────────────────────────────────
     const gradient = ctx.createLinearGradient(0, footerY, 0, height);
     gradient.addColorStop(0, "rgba(0, 0, 0, 0.0)");
-    gradient.addColorStop(0.3, "rgba(0, 0, 0, 0.65)");
-    gradient.addColorStop(1, "rgba(0, 0, 0, 0.88)");
+    gradient.addColorStop(0.3, "rgba(0, 0, 0, 0.7)");
+    gradient.addColorStop(1, "rgba(0, 0, 0, 0.95)");
     ctx.fillStyle = gradient;
-    ctx.fillRect(0, footerY, width, footerHeight);
+    ctx.fillRect(0, footerY, width, gradientHeight);
 
     const now = new Date();
     const timeStr   = format(now, "HH:mm:ss");
     const dateStr   = format(now, "EEEE, d MMMM yyyy", { locale: id });
-    const companyLabel = `Absensi ${namaPt || "Perusahaan"}`;
+    const companyLabel = type === "complaint" 
+        ? (namaPt || "Perusahaan") 
+        : `Absensi ${namaPt || "Perusahaan"}`;
 
     // ── Font Size Scale ──────────────────────────────────────────────────────
     // Capping based on width prevents offside text on portrait mode

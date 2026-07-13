@@ -223,7 +223,7 @@ export default function AdminDashboard() {
                                     Tata Cara & Ketentuan Absensi
                                 </Button>
                             </DialogTrigger>
-                            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-white">
                                 <DialogHeader>
                                     <DialogTitle className="text-xl font-bold text-primary flex items-center gap-2">
                                         <Info className="w-6 h-6" />
