@@ -586,13 +586,13 @@ export default function AdminLeavePage() {
                         <DialogTitle>Detail Surat Izin Cuti</DialogTitle>
                         <DialogDescription>Menampilkan format dokumen cetak cuti.</DialogDescription>
                     </DialogHeader>
-                    <div className="flex-1 w-full relative bg-gray-50/50 p-4 overflow-y-auto">
-                        <div className="bg-white mx-auto shadow-sm border border-gray-200" style={{ maxWidth: '800px', minHeight: '100%' }}>
+                    <div className="flex-1 w-full relative bg-gray-50/50 p-4 overflow-auto">
+                        <div className="bg-white mx-auto shadow-sm border border-gray-200" style={{ width: '800px', maxWidth: 'none', minHeight: '100%' }}>
                             {viewHtml && (
                                 <iframe 
                                     srcDoc={viewHtml.html} 
                                     className="w-full" 
-                                    style={{ height: '800px', border: 'none' }} 
+                                    style={{ width: '800px', height: '1131px', border: 'none' }} 
                                     title="View Detail"
                                 />
                             )}
