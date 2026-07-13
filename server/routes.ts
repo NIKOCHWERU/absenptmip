@@ -1372,7 +1372,33 @@ export function registerRoutes(app: Express) {
         }
       }
 
-      res.status(201).json({ message: "Pengaduan berhasil diajukan" });
+      // Fetch the newly created complaint so we can return it
+      const [newComplaint] = await db.select().from(complaints).where(eq(complaints.id, complaintId));
+
+      const photosData = await db.select().from(complaintPhotos).where(eq(complaintPhotos.complaintId, complaintId));
+
+      res.status(201).json({ 
+        message: "Pengaduan berhasil diajukan",
+        complaint: { ...newComplaint, photos: photosData }
+      });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.delete("/api/employee/complaints/:id", isAuthenticated, async (req: Request, res: Response) => {
+    const userId = (req.user as any).id;
+    const targetId = parseInt(req.params.id);
+    
+    try {
+      // Pastikan pengaduan milik user ini
+      const [complaint] = await db.select().from(complaints).where(and(eq(complaints.id, targetId), eq(complaints.userId, userId)));
+      if (!complaint) return res.status(404).json({ message: "Pengaduan tidak ditemukan" });
+
+      await db.delete(complaintPhotos).where(eq(complaintPhotos.complaintId, targetId));
+      await db.delete(complaints).where(eq(complaints.id, targetId));
+
+      res.json({ message: "Pengaduan berhasil dihapus" });
     } catch (err: any) {
       res.status(500).json({ message: err.message });
     }
@@ -1388,7 +1414,11 @@ export function registerRoutes(app: Express) {
       const sp = await db
         .select()
         .from(warningLetters)
-        .where(and(eq(warningLetters.userId, userId), gte(warningLetters.createdAt, cutoff)));
+        .where(and(
+            eq(warningLetters.userId, userId), 
+            eq(warningLetters.status, 'approved'),
+            gte(warningLetters.createdAt, cutoff)
+        ));
 
       const mut = await db
         .select()
@@ -1398,7 +1428,11 @@ export function registerRoutes(app: Express) {
       const resg = await db
         .select()
         .from(resignations)
-        .where(and(eq(resignations.userId, userId), gte(resignations.createdAt, cutoff)));
+        .where(and(
+            eq(resignations.userId, userId), 
+            eq(resignations.status, 'approved'),
+            gte(resignations.createdAt, cutoff)
+        ));
 
       res.json({
         warningLetters: sp,
@@ -1935,10 +1969,27 @@ export function registerRoutes(app: Express) {
     }
   });
 
-  // 7. Warning Letters (SP)
   app.get("/api/admin/warning-letters", isAdmin, async (req: Request, res: Response) => {
     try {
-      const list = await db.select().from(warningLetters).orderBy(desc(warningLetters.createdAt));
+      const list = await db
+        .select({
+          id: warningLetters.id,
+          userId: warningLetters.userId,
+          type: warningLetters.type,
+          startDate: warningLetters.startDate,
+          endDate: warningLetters.endDate,
+          status: warningLetters.status,
+          documentUrl: warningLetters.documentUrl,
+          notes: warningLetters.notes,
+          createdAt: warningLetters.createdAt,
+          user: {
+            fullName: users.fullName,
+            nik: users.nik,
+          },
+        })
+        .from(warningLetters)
+        .leftJoin(users, eq(warningLetters.userId, users.id))
+        .orderBy(desc(warningLetters.createdAt));
       res.json(list);
     } catch (err: any) {
       res.status(500).json({ message: err.message });
@@ -1961,8 +2012,40 @@ export function registerRoutes(app: Express) {
         endDate,
         documentUrl: docUrl,
         notes: notes || null,
+        status: "pending", // Initially pending for Super Admin approval
       });
-      res.status(201).json({ message: "Surat Peringatan berhasil diterbitkan" });
+      res.status(201).json({ message: "Surat Peringatan berhasil dibuat (Menunggu Persetujuan Super Admin)" });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.patch("/api/admin/warning-letters/:id", isAdmin, upload.single("document"), async (req: Request, res: Response) => {
+    const targetId = Number(req.params.id);
+    const { type, startDate, endDate, notes, status } = req.body;
+    
+    try {
+      const updates: any = {};
+      if (type) updates.type = type;
+      if (startDate) updates.startDate = startDate;
+      if (endDate) updates.endDate = endDate;
+      if (notes !== undefined) updates.notes = notes;
+      
+      // Only super admin can approve/reject
+      if (status) {
+        if ((req.user as any).role !== 'superadmin' && status !== 'pending') {
+          return res.status(403).json({ message: "Hanya Super Admin yang dapat mengubah status persetujuan" });
+        }
+        updates.status = status;
+      }
+
+      if (req.file) {
+        const username = (req.user as any).username;
+        updates.documentUrl = await processSingleUpload(req.file, "document", username);
+      }
+
+      await db.update(warningLetters).set(updates).where(eq(warningLetters.id, targetId));
+      res.json({ message: "Data Surat Peringatan berhasil diperbarui" });
     } catch (err: any) {
       res.status(500).json({ message: err.message });
     }
@@ -1981,7 +2064,23 @@ export function registerRoutes(app: Express) {
   // 8. Resignations
   app.get("/api/admin/resignations", isAdmin, async (req: Request, res: Response) => {
     try {
-      const list = await db.select().from(resignations).orderBy(desc(resignations.createdAt));
+      const list = await db
+        .select({
+          id: resignations.id,
+          userId: resignations.userId,
+          resignDate: resignations.resignDate,
+          reason: resignations.reason,
+          status: resignations.status,
+          documentUrl: resignations.documentUrl,
+          createdAt: resignations.createdAt,
+          user: {
+            fullName: users.fullName,
+            nik: users.nik,
+          },
+        })
+        .from(resignations)
+        .leftJoin(users, eq(resignations.userId, users.id))
+        .orderBy(desc(resignations.createdAt));
       res.json(list);
     } catch (err: any) {
       res.status(500).json({ message: err.message });
@@ -2002,12 +2101,47 @@ export function registerRoutes(app: Express) {
         resignDate,
         reason,
         documentUrl: docUrl,
+        status: "pending", // Pending approval
       });
 
-      // Update employee status to resigned/inactive in users
-      await db.update(users).set({ registrationStatus: "rejected" }).where(eq(users.id, Number(userId)));
+      res.status(201).json({ message: "Pengajuan Resign berhasil dicatat (Menunggu Persetujuan Super Admin)" });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
 
-      res.status(201).json({ message: "Pemberhentian/Resign berhasil dicatat" });
+  app.patch("/api/admin/resignations/:id", isAdmin, upload.single("document"), async (req: Request, res: Response) => {
+    const targetId = Number(req.params.id);
+    const { resignDate, reason, status } = req.body;
+    
+    try {
+      const [existing] = await db.select().from(resignations).where(eq(resignations.id, targetId)).limit(1);
+      if (!existing) return res.status(404).json({ message: "Data tidak ditemukan" });
+
+      const updates: any = {};
+      if (resignDate) updates.resignDate = resignDate;
+      if (reason) updates.reason = reason;
+      
+      // Only super admin can approve/reject
+      if (status) {
+        if ((req.user as any).role !== 'superadmin' && status !== 'pending') {
+          return res.status(403).json({ message: "Hanya Super Admin yang dapat menyetujui pengajuan" });
+        }
+        updates.status = status;
+        
+        // If approved, update user status to rejected (inactive)
+        if (status === 'approved') {
+           await db.update(users).set({ registrationStatus: "rejected" }).where(eq(users.id, existing.userId));
+        }
+      }
+
+      if (req.file) {
+        const username = (req.user as any).username;
+        updates.documentUrl = await processSingleUpload(req.file, "document", username);
+      }
+
+      await db.update(resignations).set(updates).where(eq(resignations.id, targetId));
+      res.json({ message: "Data Resign berhasil diperbarui" });
     } catch (err: any) {
       res.status(500).json({ message: err.message });
     }

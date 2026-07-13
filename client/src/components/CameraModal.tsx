@@ -122,7 +122,18 @@ export function CameraModal({ open, onClose, onCapture, locationAddress, allowCa
     await drawWatermark(ctx, w, h, locationAddress || "", user?.fullName || user?.username || "Tenaga Kerja", namaPt, logoUrl);
 
     // Kompres ke JPEG 65% untuk menjaga ukuran file tetap kecil
-    setCapturedPhoto(canvas.toDataURL("image/jpeg", 0.65));
+    const dataUrl = canvas.toDataURL("image/jpeg", 0.65);
+    if (!allowCaption) {
+      // Instantly confirm
+      try {
+        await onCapture(dataUrl, "");
+      } catch (err) {
+        console.error("Auto confirm failed", err);
+      }
+      return;
+    }
+
+    setCapturedPhoto(dataUrl);
     setCameraState("captured");
   };
 

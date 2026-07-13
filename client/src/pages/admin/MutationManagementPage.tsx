@@ -483,7 +483,7 @@ export default function MutationManagementPage() {
 
             {/* Modal: Tambah Pergerakan Tenaga Kerja */}
             <Dialog open={openAddModal} onOpenChange={setOpenAddModal}>
-                <DialogContent className="max-w-lg rounded-xl">
+                <DialogContent className="max-w-lg rounded-xl max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
                         <DialogTitle>Catat Mutasi / Promosi / Demosi</DialogTitle>
                         <DialogDescription>
@@ -659,7 +659,7 @@ export default function MutationManagementPage() {
 
             {/* Modal: Edit Pergerakan Tenaga Kerja */}
             <Dialog open={openEditModal} onOpenChange={setOpenEditModal}>
-                <DialogContent className="max-w-lg rounded-xl">
+                <DialogContent className="max-w-lg rounded-xl max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
                         <DialogTitle>Edit Mutasi / Promosi / Demosi</DialogTitle>
                         <DialogDescription>
@@ -670,10 +670,10 @@ export default function MutationManagementPage() {
                         <form onSubmit={handleEditSubmit} className="space-y-4 pt-2">
                             <div className="p-3 bg-gray-50 rounded-lg flex items-center gap-3">
                                 <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary-foreground font-bold text-sm shrink-0">
-                                    {selectedMutation.user.fullName.charAt(0).toUpperCase()}
+                                    {selectedMutation.user?.fullName?.charAt(0)?.toUpperCase() || "?"}
                                 </div>
                                 <div>
-                                    <h4 className="font-bold text-gray-800 text-sm">{selectedMutation.user.fullName}</h4>
+                                    <h4 className="font-bold text-gray-800 text-sm">{selectedMutation.user?.fullName || "Pengguna Dihapus"}</h4>
                                     <p className="text-[10px] text-gray-400 font-bold uppercase">Aksi: {selectedMutation.type}</p>
                                 </div>
                             </div>
@@ -777,7 +777,7 @@ export default function MutationManagementPage() {
 
             {/* Modal: View Detail Pergerakan Tenaga Kerja */}
             <Dialog open={openViewModal} onOpenChange={setOpenViewModal}>
-                <DialogContent className="max-w-md rounded-xl">
+                <DialogContent className="max-w-md rounded-xl max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
                         <DialogTitle>Detail Pergerakan Tenaga Kerja</DialogTitle>
                         <DialogDescription>
@@ -789,10 +789,10 @@ export default function MutationManagementPage() {
                             {/* Profile Info */}
                             <div className="flex items-center gap-3 pb-3 border-b border-gray-100">
                                 <div className="w-12 h-12 rounded-full bg-gradient-to-br from-green-500 to-emerald-600 text-white flex items-center justify-center font-bold text-lg">
-                                    {selectedMutation.user.fullName.charAt(0).toUpperCase()}
+                                    {selectedMutation.user?.fullName?.charAt(0)?.toUpperCase() || "?"}
                                 </div>
                                 <div>
-                                    <h4 className="font-bold text-gray-900 text-base">{selectedMutation.user.fullName}</h4>
+                                    <h4 className="font-bold text-gray-900 text-base">{selectedMutation.user?.fullName || "Pengguna Dihapus"}</h4>
                                     <p className="text-xs text-gray-400 font-bold uppercase flex items-center gap-1.5 mt-0.5">
                                         Status: {getActionBadge(selectedMutation.type)}
                                     </p>

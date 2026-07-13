@@ -13,6 +13,7 @@ import {
     Loader2,
     MessageSquare
 } from "lucide-react";
+import { resolveFileUrl } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
@@ -78,15 +79,14 @@ export default function InfoBoardPage() {
                 const error = await res.json();
                 throw new Error(error.message || "Gagal membuat pengumuman");
             }
-            const data = await res.json();
-        
+            return await res.json();
+        },
+        onSuccess: async () => {
             await queryClient.invalidateQueries({ queryKey: ["/api/announcements"] });
             toast({ title: "Berhasil", description: "Pengumuman berhasil dibuat" });
             setOpen(false);
             form.reset();
             setSelectedImage(null);
-            
-            return data;
         },
         onError: (err: any) => {
             toast({ title: "Gagal", description: err.message, variant: "destructive" });
@@ -116,16 +116,15 @@ export default function InfoBoardPage() {
                 const error = await res.json();
                 throw new Error(error.message || "Gagal memperbarui pengumuman");
             }
-            const data = await res.json();
-        
+            return await res.json();
+        },
+        onSuccess: async () => {
             await queryClient.invalidateQueries({ queryKey: ["/api/announcements"] });
             toast({ title: "Berhasil", description: "Pengumuman berhasil diperbarui" });
             setOpen(false);
             setEditingAnnouncement(null);
             form.reset();
             setSelectedImage(null);
-            
-            return data;
         },
         onError: (err: any) => {
             toast({ title: "Gagal", description: err.message, variant: "destructive" });
@@ -135,8 +134,8 @@ export default function InfoBoardPage() {
     const deleteMutation = useMutation({
         mutationFn: async (id: number) => {
             await apiRequest("DELETE", `/api/announcements/${id}`);
-        
-
+        },
+        onSuccess: async () => {
             await queryClient.invalidateQueries({ queryKey: ["/api/announcements"] });
             toast({ title: "Berhasil", description: "Pengumuman berhasil dihapus" });
         },
@@ -197,7 +196,7 @@ export default function InfoBoardPage() {
                     <DialogDescription className="sr-only">Tampilan penuh gambar pengumuman</DialogDescription>
                     {fullscreenImage && (
                         <img
-                            src={fullscreenImage}
+                            src={resolveFileUrl(fullscreenImage)}
                             alt="Full Size"
                             className="w-auto h-auto max-w-full max-h-[85vh] object-contain rounded-lg shadow-2xl"
                         />
@@ -323,7 +322,7 @@ export default function InfoBoardPage() {
                                                 window.dispatchEvent(event);
                                             }}
                                         >
-                                            <img src={item.imageUrl} alt={item.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                                            <img src={resolveFileUrl(item.imageUrl)} alt={item.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                                             <div className="absolute inset-0 bg-black/0 group-hover/image:bg-black/20 transition-colors flex items-center justify-center">
                                                 <ImageIcon className="text-white opacity-0 group-hover/image:opacity-100 w-8 h-8 drop-shadow-md transition-opacity" />
                                             </div>

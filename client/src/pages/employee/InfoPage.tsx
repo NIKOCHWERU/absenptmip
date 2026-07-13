@@ -4,7 +4,7 @@ import { BottomNav } from "@/components/BottomNav";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
-import { Loader2, Newspaper, Calendar, Download, Share2, ExternalLink } from "lucide-react";
+import { Loader2, Newspaper, Calendar, Download, Share2, ExternalLink, FileText, AlertCircle } from "lucide-react";
 import { safeCompressImage, uploadFileWithProgress, resolveFileUrl } from "@/lib/utils";
 import { format } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
@@ -26,7 +26,20 @@ export default function InfoPage() {
     queryKey: ["/api/announcements"],
   });
 
+  const { data: employeeDocs, isLoading: isLoadingDocs } = useQuery<{
+    mutations: any[];
+    warningLetters: any[];
+    resignations: any[];
+  }>({
+    queryKey: ["/api/employee/documents"],
+  });
+
   const announcements = Array.isArray(data) ? data : [];
+  const riwayatSurat = [
+    ...(employeeDocs?.mutations?.map(m => ({ ...m, category: m.type === 'mutasi' ? 'Mutasi' : m.type === 'promosi' ? 'Promosi' : 'Demosi' })) || []),
+    ...(employeeDocs?.warningLetters?.map(sp => ({ ...sp, category: `Surat Peringatan (${sp.type})` })) || []),
+    ...(employeeDocs?.resignations?.map(r => ({ ...r, category: 'Surat Resign/PHK' })) || [])
+  ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
   const handleDownload = async (announcement: Announcement) => {
     if (!announcement.imageUrl) return;
@@ -155,6 +168,49 @@ export default function InfoPage() {
             ))}
           </div>
         )}
+        
+        {/* Riwayat Surat Section */}
+        <div className="mt-8 mb-4">
+            <h2 className="text-lg font-black text-gray-900 mb-3 flex items-center gap-2">
+                <FileText className="w-5 h-5 text-primary" />
+                Riwayat Surat
+            </h2>
+            {isLoadingDocs ? (
+                <div className="flex justify-center py-6">
+                    <Loader2 className="w-5 h-5 animate-spin text-gray-400" />
+                </div>
+            ) : riwayatSurat.length === 0 ? (
+                <div className="bg-white rounded-xl p-6 text-center border border-gray-100 shadow-sm">
+                    <FileText className="w-8 h-8 text-gray-300 mx-auto mb-2" />
+                    <p className="text-xs text-gray-400">Belum ada riwayat surat untuk Anda.</p>
+                </div>
+            ) : (
+                <div className="space-y-3">
+                    {riwayatSurat.map((surat: any) => (
+                        <div key={`${surat.category}-${surat.id}`} className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm flex items-start gap-4">
+                            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                                {surat.category.includes('Peringatan') ? <AlertCircle className="w-5 h-5 text-orange-500" /> : <FileText className="w-5 h-5 text-primary" />}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                <h3 className="font-bold text-sm text-gray-900 truncate">{surat.category}</h3>
+                                <p className="text-xs text-gray-500 mt-0.5">{safeFormat(surat.createdAt, "dd MMMM yyyy")}</p>
+                                {surat.notes && <p className="text-[11px] text-gray-600 mt-2 bg-gray-50 p-2 rounded">{surat.notes}</p>}
+                                {surat.reason && <p className="text-[11px] text-gray-600 mt-2 bg-gray-50 p-2 rounded">{surat.reason}</p>}
+                                
+                                {surat.documentUrl && (
+                                    <div className="mt-3">
+                                        <a href={resolveFileUrl(surat.documentUrl)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-xs font-bold hover:bg-blue-100 transition-colors">
+                                            <Download className="w-3.5 h-3.5" />
+                                            Unduh PDF
+                                        </a>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
+        </div>
       </main>
 
       <BottomNav />

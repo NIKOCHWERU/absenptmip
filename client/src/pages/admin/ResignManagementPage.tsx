@@ -36,12 +36,14 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
 import { useLocation } from "wouter";
+import { useAuth } from "@/hooks/use-auth";
 
 interface ResignationData {
     id: number;
     userId: number;
     resignDate: string;
     reason: string;
+    status: "pending" | "approved" | "rejected";
     documentUrl: string | null;
     createdAt: string;
     user: {
@@ -63,6 +65,7 @@ interface ActiveEmployee {
 }
 
 export default function ResignManagementPage() {
+    const { user: currentUser } = useAuth();
     const [, setLocation] = useLocation();
     const { toast } = useToast();
     const queryClient = useQueryClient();
@@ -162,6 +165,41 @@ export default function ResignManagementPage() {
         },
     });
 
+    const updateStatusMutation = useMutation({
+        mutationFn: async ({ id, status, file }: { id: number; status: string; file?: File | null }) => {
+            const formData = new FormData();
+            formData.append("status", status);
+            if (file) formData.append("document", file);
+
+            const res = await fetch(`/api/admin/resignations/${id}`, {
+                method: "PATCH",
+                body: formData,
+            });
+            if (!res.ok) {
+                const errData = await res.json();
+                throw new Error(errData.message || "Gagal memperbarui status.");
+            }
+            return res.json();
+        },
+        onSuccess: async (data) => {
+            toast({
+                title: "Berhasil",
+                description: data.message || "Status resign berhasil diperbarui.",
+                variant: "default",
+            });
+            await queryClient.invalidateQueries({ queryKey: ["/api/admin/resignations"] });
+            await queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
+            setOpenViewModal(false);
+        },
+        onError: (err: any) => {
+            toast({
+                title: "Gagal",
+                description: err.message,
+                variant: "destructive",
+            });
+        },
+    });
+
     const deleteMutation = useMutation({
         mutationFn: async (id: number) => {
             const res = await fetch(`/api/admin/resignations/${id}`, {
@@ -246,6 +284,7 @@ export default function ResignManagementPage() {
 
     const handleOpenFileView = (resign: ResignationData) => {
         setSelectedResign(resign);
+        setFormFile(null);
         setOpenViewModal(true);
     };
 
@@ -255,13 +294,18 @@ export default function ResignManagementPage() {
         }
     };
 
-    // Filter resignations
     const filteredResignations = resignationsList.filter((r) => {
         const name = r.user?.fullName?.toLowerCase() || "";
         const nik = r.user?.nik?.toLowerCase() || "";
         const term = searchTerm.toLowerCase();
         return name.includes(term) || nik.includes(term);
     });
+
+    const getStatusBadge = (status: string) => {
+        if (status === 'approved') return <span className="inline-block px-2 py-1 rounded bg-green-100 text-green-700 text-[10px] font-bold">Disetujui</span>;
+        if (status === 'rejected') return <span className="inline-block px-2 py-1 rounded bg-red-100 text-red-700 text-[10px] font-bold">Ditolak</span>;
+        return <span className="inline-block px-2 py-1 rounded bg-yellow-100 text-yellow-700 text-[10px] font-bold">Menunggu</span>;
+    };
 
     return (
         <div className="space-y-6">
@@ -321,6 +365,7 @@ export default function ResignManagementPage() {
                                     <th className="py-4 px-6">Tenaga Kerja</th>
                                     <th className="py-4 px-6">NIK</th>
                                     <th className="py-4 px-6">Jabatan / Cabang</th>
+                                    <th className="py-4 px-6">Status</th>
                                     <th className="py-4 px-6">Tanggal Resign</th>
                                     <th className="py-4 px-6">Keterangan</th>
                                     <th className="py-4 px-6 text-center">Surat Resign</th>
@@ -359,6 +404,9 @@ export default function ResignManagementPage() {
                                                     <span className="text-gray-400 mx-1">•</span>
                                                     <span className="text-gray-500">{r.user?.branch || "-"}</span>
                                                 </div>
+                                            </td>
+                                            <td className="py-4 px-6 text-center">
+                                                {getStatusBadge(r.status)}
                                             </td>
                                             <td className="py-4 px-6 font-medium text-gray-700">
                                                 {format(new Date(r.resignDate), "dd MMM yyyy", { locale: id })}
@@ -421,7 +469,7 @@ export default function ResignManagementPage() {
 
             {/* Modal: Tambah Tenaga Kerja Resign */}
             <Dialog open={openAddModal} onOpenChange={setOpenAddModal}>
-                <DialogContent className="max-w-lg rounded-xl">
+                <DialogContent className="max-w-lg rounded-xl max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
                         <DialogTitle>Catat Tenaga Kerja Resign</DialogTitle>
                         <DialogDescription>
@@ -512,7 +560,7 @@ export default function ResignManagementPage() {
                         </div>
 
                         <div className="space-y-1.5">
-                            <label className="text-xs font-black text-gray-500 uppercase">Upload Surat/Dokumen Resign</label>
+                            <label className="text-xs font-black text-gray-500 uppercase">Upload Surat/Dokumen Resign (Opsional)</label>
                             <div className="border border-dashed border-gray-200 hover:border-green-300 rounded-lg p-4 bg-gray-50/50 flex flex-col items-center justify-center text-center cursor-pointer relative group transition-colors">
                                 <Input
                                     type="file"
@@ -522,9 +570,9 @@ export default function ResignManagementPage() {
                                 />
                                 <Download className="w-6 h-6 text-gray-400 group-hover:text-primary mb-2 transition-colors" />
                                 <span className="text-xs font-bold text-gray-700">
-                                    {formFile ? formFile.name : "Klik atau seret file di sini untuk mengupload"}
+                                    {formFile ? formFile.name : "Klik atau seret file di sini (Opsional)"}
                                 </span>
-                                <span className="text-[10px] text-gray-400 mt-1">PDF, JPG, PNG, DOC (Maks. 10MB)</span>
+                                <span className="text-[10px] text-gray-400 mt-1">Belum ada file. File dapat diupload saat disetujui.</span>
                             </div>
                         </div>
 
@@ -551,7 +599,7 @@ export default function ResignManagementPage() {
 
             {/* Modal: Edit Resign */}
             <Dialog open={openEditModal} onOpenChange={setOpenEditModal}>
-                <DialogContent className="max-w-lg rounded-xl">
+                <DialogContent className="max-w-lg rounded-xl max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
                         <DialogTitle>Perbarui Data Resign Tenaga Kerja</DialogTitle>
                         <DialogDescription>
@@ -562,11 +610,11 @@ export default function ResignManagementPage() {
                         <form onSubmit={handleEditSubmit} className="space-y-4 pt-2">
                             <div className="p-3 bg-gray-50 rounded-lg flex items-center gap-3">
                                 <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary-foreground font-bold text-sm shrink-0">
-                                    {selectedResign.user.fullName.charAt(0).toUpperCase()}
+                                    {selectedResign.user?.fullName?.charAt(0)?.toUpperCase() || "?"}
                                 </div>
                                 <div>
-                                    <h4 className="font-bold text-gray-800 text-sm">{selectedResign.user.fullName}</h4>
-                                    <p className="text-xs text-gray-400 font-mono">NIK: {selectedResign.user.nik || "-"}</p>
+                                    <h4 className="font-bold text-gray-800 text-sm">{selectedResign.user?.fullName || "Pengguna Dihapus"}</h4>
+                                    <p className="text-xs text-gray-400 font-mono">NIK: {selectedResign.user?.nik || "-"}</p>
                                 </div>
                             </div>
 
@@ -638,7 +686,7 @@ export default function ResignManagementPage() {
 
             {/* Modal: View Resign Detail */}
             <Dialog open={openViewModal} onOpenChange={setOpenViewModal}>
-                <DialogContent className="max-w-md rounded-xl">
+                <DialogContent className="max-w-md rounded-xl max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
                         <DialogTitle>Detail Resign Tenaga Kerja</DialogTitle>
                         <DialogDescription>
@@ -650,11 +698,11 @@ export default function ResignManagementPage() {
                             {/* Profile Info */}
                             <div className="flex items-center gap-3 pb-3 border-b border-gray-100">
                                 <div className="w-12 h-12 rounded-full bg-gradient-to-br from-green-500 to-emerald-600 text-white flex items-center justify-center font-bold text-lg">
-                                    {selectedResign.user.fullName.charAt(0).toUpperCase()}
+                                    {selectedResign.user?.fullName?.charAt(0)?.toUpperCase() || "?"}
                                 </div>
                                 <div>
-                                    <h4 className="font-bold text-gray-900 text-base">{selectedResign.user.fullName}</h4>
-                                    <p className="text-xs text-gray-400 font-mono">NIK: {selectedResign.user.nik || "-"}</p>
+                                    <h4 className="font-bold text-gray-900 text-base">{selectedResign.user?.fullName || "Pengguna Dihapus"}</h4>
+                                    <p className="text-xs text-gray-400 font-mono">NIK: {selectedResign.user?.nik || "-"}</p>
                                 </div>
                             </div>
 
@@ -662,11 +710,11 @@ export default function ResignManagementPage() {
                             <div className="space-y-3.5 text-sm">
                                 <div className="grid grid-cols-3">
                                     <span className="text-gray-400 font-medium">Jabatan</span>
-                                    <span className="col-span-2 font-bold text-gray-800">{selectedResign.user.position || "-"}</span>
+                                    <span className="col-span-2 font-bold text-gray-800">{selectedResign.user?.position || "-"}</span>
                                 </div>
                                 <div className="grid grid-cols-3">
                                     <span className="text-gray-400 font-medium">Cabang</span>
-                                    <span className="col-span-2 font-bold text-gray-800">{selectedResign.user.branch || "-"}</span>
+                                    <span className="col-span-2 font-bold text-gray-800">{selectedResign.user?.branch || "-"}</span>
                                 </div>
                                 <div className="grid grid-cols-3">
                                     <span className="text-gray-400 font-medium">Tanggal Resign</span>
@@ -692,14 +740,36 @@ export default function ResignManagementPage() {
                                                 className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-primary/5 text-primary-foreground border border-primary/10 rounded-lg text-xs font-bold hover:bg-primary/10 transition-colors"
                                             >
                                                 <Download className="w-3.5 h-3.5" />
-                                                Unduh Surat Resign
+                                                Buka Surat
                                             </a>
                                         ) : (
-                                            <span className="text-xs text-gray-400 italic">Dokumen belum diupload</span>
+                                            <span className="text-xs text-gray-400 italic">Belum ada file terlampir.</span>
                                         )}
                                     </span>
                                 </div>
                             </div>
+                            
+                            {currentUser?.role === 'superadmin' && selectedResign.status === 'pending' && (
+                                <div className="mt-4 p-4 border border-blue-100 bg-blue-50/50 rounded-xl space-y-3">
+                                    <h4 className="text-sm font-bold text-gray-900">Persetujuan Super Admin</h4>
+                                    <div className="space-y-1.5">
+                                        <label className="text-[10px] font-black text-gray-500 uppercase">Upload PDF Resmi (Opsional)</label>
+                                        <div className="border border-dashed border-blue-200 hover:border-blue-400 rounded-lg p-3 bg-white flex flex-col items-center justify-center text-center cursor-pointer relative group transition-colors">
+                                            <Input type="file" onChange={(e) => setFormFile(e.target.files?.[0] || null)} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" accept=".pdf" />
+                                            <Download className="w-4 h-4 text-blue-400 mb-1" />
+                                            <span className="text-xs font-bold text-blue-700">{formFile ? formFile.name : "Upload PDF"}</span>
+                                        </div>
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <Button variant="outline" className="flex-1 text-red-600 border-red-200 hover:bg-red-50" disabled={updateStatusMutation.isPending} onClick={() => updateStatusMutation.mutate({ id: selectedResign.id, status: 'rejected' })}>
+                                            Tolak
+                                        </Button>
+                                        <Button className="flex-1 bg-green-600 hover:bg-green-700 text-white" disabled={updateStatusMutation.isPending} onClick={() => updateStatusMutation.mutate({ id: selectedResign.id, status: 'approved', file: formFile })}>
+                                            {updateStatusMutation.isPending ? "Proses..." : "Setujui Resign"}
+                                        </Button>
+                                    </div>
+                                </div>
+                            )}
 
                             <div className="flex justify-end pt-3">
                                 <Button

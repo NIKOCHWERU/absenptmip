@@ -115,9 +115,10 @@ export default function ProfilePage() {
         const err = await res.json().catch(() => ({ message: "Terjadi kesalahan" }));
         throw new Error(err.message || "Gagal memperbarui profil");
       }
-      return res.json();
-    
-
+      const data = await res.json();
+      return data;
+    },
+    onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["/api/user"] });
       toast({ title: "Profil Diperbarui", description: "Data berhasil disimpan." });
       setIsEditing(false);
@@ -369,7 +370,7 @@ export default function ProfilePage() {
                   variant="outline"
                   size="sm"
                   className="mt-3 w-full border-amber-300 text-amber-700 hover:bg-amber-100 text-xs h-9"
-                  onClick={() => setLocation("/complaint")}
+                  onClick={() => setLocation("/employee/complaint")}
                 >
                   <MessageSquare className="w-3.5 h-3.5 mr-1.5" />
                   Laporkan Kesalahan Data

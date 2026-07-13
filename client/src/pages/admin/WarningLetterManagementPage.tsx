@@ -35,6 +35,7 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
 import { useLocation } from "wouter";
+import { useAuth } from "@/hooks/use-auth";
 
 interface WarningLetterData {
     id: number;
@@ -42,6 +43,7 @@ interface WarningLetterData {
     type: "SP1" | "SP2" | "SP3";
     startDate: string;
     endDate: string;
+    status: "pending" | "approved" | "rejected";
     documentUrl: string | null;
     notes: string | null;
     createdAt: string;
@@ -60,6 +62,7 @@ interface ActiveEmployee {
 }
 
 export default function WarningLetterManagementPage() {
+    const { user: currentUser } = useAuth();
     const [, setLocation] = useLocation();
     const { toast } = useToast();
     const queryClient = useQueryClient();
@@ -159,6 +162,32 @@ export default function WarningLetterManagementPage() {
         },
     });
 
+    const updateLetterStatus = useMutation({
+        mutationFn: async ({ id, status, file }: { id: number; status: string; file?: File | null }) => {
+            const formData = new FormData();
+            formData.append("status", status);
+            if (file) formData.append("document", file);
+
+            const res = await fetch(`/api/admin/warning-letters/${id}`, {
+                method: "PATCH",
+                body: formData,
+            });
+            if (!res.ok) {
+                const errData = await res.json();
+                throw new Error(errData.message || "Gagal memperbarui status.");
+            }
+            await queryClient.invalidateQueries({ queryKey: ["/api/admin/warning-letters"] });
+            return res.json();
+        },
+        onSuccess: async (data) => {
+            toast({ title: "Berhasil", description: data.message });
+            setOpenViewModal(false);
+        },
+        onError: (err: any) => {
+            toast({ title: "Gagal", description: err.message, variant: "destructive" });
+        },
+    });
+
     const deleteLetter = useMutation({
         mutationFn: async (id: number) => {
             const res = await fetch(`/api/admin/warning-letters/${id}`, {
@@ -210,6 +239,7 @@ export default function WarningLetterManagementPage() {
 
     const handleViewClick = (letter: WarningLetterData) => {
         setSelectedLetter(letter);
+        setFormFile(null);
         setOpenViewModal(true);
     };
 
@@ -259,10 +289,12 @@ export default function WarningLetterManagementPage() {
         }
     };
 
-    const filteredLetters = lettersList.filter((letter) =>
-        letter.user.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (letter.user.nik && letter.user.nik.toLowerCase().includes(searchTerm.toLowerCase()))
-    );
+    const filteredLetters = lettersList.filter((letter) => {
+        const fullName = letter.user?.fullName || "";
+        const nik = letter.user?.nik || "";
+        const search = searchTerm.toLowerCase();
+        return fullName.toLowerCase().includes(search) || nik.toLowerCase().includes(search);
+    });
 
     const searchedEmployees = employeeQuery.trim() === "" ? [] : activeEmployees.filter(emp =>
         emp.fullName.toLowerCase().includes(employeeQuery.toLowerCase()) ||
@@ -274,6 +306,12 @@ export default function WarningLetterManagementPage() {
         if (type === 'SP2') return 'text-red-500 bg-red-50 border-red-100';
         if (type === 'SP3') return 'text-red-700 bg-red-100 border-red-200';
         return 'text-gray-600 bg-gray-50 border-gray-100';
+    };
+
+    const getStatusBadge = (status: string) => {
+        if (status === 'approved') return <span className="inline-block px-2 py-1 rounded bg-green-100 text-green-700 text-[10px] font-bold">Disetujui</span>;
+        if (status === 'rejected') return <span className="inline-block px-2 py-1 rounded bg-red-100 text-red-700 text-[10px] font-bold">Ditolak</span>;
+        return <span className="inline-block px-2 py-1 rounded bg-yellow-100 text-yellow-700 text-[10px] font-bold">Menunggu</span>;
     };
 
     return (
@@ -324,6 +362,7 @@ export default function WarningLetterManagementPage() {
                                     <th className="py-4 px-6 text-center w-16">No</th>
                                     <th className="py-4 px-6">Nama Tenaga Kerja</th>
                                     <th className="py-4 px-6 text-center">Tipe SP</th>
+                                    <th className="py-4 px-6 text-center">Status</th>
                                     <th className="py-4 px-6 text-center">Tanggal Dibuat</th>
                                     <th className="py-4 px-6 text-center">Tanggal Berakhir</th>
                                     <th className="py-4 px-6 text-center">Dokumen</th>
@@ -350,13 +389,16 @@ export default function WarningLetterManagementPage() {
                                                 {index + 1}
                                             </td>
                                             <td className="py-4 px-6">
-                                                <div className="font-bold text-gray-900">{letter.user.fullName}</div>
-                                                <div className="text-xs text-gray-500">{letter.user.nik || "-"}</div>
+                                                <div className="font-bold text-gray-900">{letter.user?.fullName || "Pengguna Dihapus"}</div>
+                                                <div className="text-xs text-gray-500">{letter.user?.nik || "-"}</div>
                                             </td>
                                             <td className="py-4 px-6 text-center">
                                                 <span className={`inline-block px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wider border ${getTypeColor(letter.type)}`}>
                                                     {letter.type}
                                                 </span>
+                                            </td>
+                                            <td className="py-4 px-6 text-center">
+                                                {getStatusBadge(letter.status)}
                                             </td>
                                             <td className="py-4 px-6 text-center text-gray-600">
                                                 {format(new Date(letter.startDate), "d MMM yyyy", { locale: id })}
@@ -397,7 +439,7 @@ export default function WarningLetterManagementPage() {
 
             {/* Modal Tambah SP */}
             <Dialog open={openAddModal} onOpenChange={(val) => { if (!val) resetForm(); setOpenAddModal(val); }}>
-                <DialogContent className="sm:max-w-[600px] p-0 overflow-hidden bg-white rounded-2xl">
+                <DialogContent className="sm:max-w-[600px] p-0 max-h-[90vh] overflow-y-auto bg-white rounded-2xl">
                     <DialogHeader className="px-6 py-4 bg-gray-50 border-b border-gray-100">
                         <DialogTitle className="text-lg font-black text-gray-900 flex items-center gap-2">
                             <AlertTriangle className="w-5 h-5 text-red-500" />
@@ -485,7 +527,7 @@ export default function WarningLetterManagementPage() {
                         </div>
 
                         <div className="space-y-1.5">
-                            <label className="text-xs font-black text-gray-500 uppercase">Upload Dokumen SP</label>
+                            <label className="text-xs font-black text-gray-500 uppercase">Upload Dokumen SP (Opsional)</label>
                             <div className="border border-dashed border-gray-200 hover:border-green-300 rounded-lg p-4 bg-gray-50/50 flex flex-col items-center justify-center text-center cursor-pointer relative group transition-colors">
                                 <Input
                                     type="file"
@@ -495,9 +537,9 @@ export default function WarningLetterManagementPage() {
                                 />
                                 <Download className="w-6 h-6 text-gray-400 group-hover:text-primary mb-2 transition-colors" />
                                 <span className="text-xs font-bold text-gray-700">
-                                    {formFile ? formFile.name : "Klik atau seret file SP di sini"}
+                                    {formFile ? formFile.name : "Klik atau seret file SP di sini (Opsional)"}
                                 </span>
-                                <span className="text-[10px] text-gray-400 mt-1">PDF, JPG, PNG (Maks. 10MB)</span>
+                                <span className="text-[10px] text-gray-400 mt-1">Belum ada file. File dapat diupload saat disetujui.</span>
                             </div>
                         </div>
 
@@ -513,7 +555,7 @@ export default function WarningLetterManagementPage() {
 
             {/* Modal Edit SP */}
             <Dialog open={openEditModal} onOpenChange={(val) => { if (!val) resetForm(); setOpenEditModal(val); }}>
-                <DialogContent className="sm:max-w-[600px] p-0 overflow-hidden bg-white rounded-2xl">
+                <DialogContent className="sm:max-w-[600px] p-0 max-h-[90vh] overflow-y-auto bg-white rounded-2xl">
                     <DialogHeader className="px-6 py-4 bg-gray-50 border-b border-gray-100">
                         <DialogTitle className="text-lg font-black text-gray-900 flex items-center gap-2">
                             <Edit2 className="w-5 h-5 text-orange-500" />
@@ -586,7 +628,7 @@ export default function WarningLetterManagementPage() {
 
             {/* Modal Detail SP */}
             <Dialog open={openViewModal} onOpenChange={setOpenViewModal}>
-                <DialogContent className="sm:max-w-[500px] p-0 overflow-hidden bg-white rounded-2xl">
+                <DialogContent className="sm:max-w-[500px] p-0 max-h-[90vh] overflow-y-auto bg-white rounded-2xl">
                     <DialogHeader className="px-6 py-4 bg-gray-50 border-b border-gray-100">
                         <DialogTitle className="text-lg font-black text-gray-900 flex items-center gap-2">
                             <FileText className="w-5 h-5 text-blue-500" />
@@ -597,8 +639,8 @@ export default function WarningLetterManagementPage() {
                         <div className="p-6 space-y-4">
                             <div>
                                 <label className="text-[10px] font-black text-gray-400 uppercase tracking-wider">Tenaga Kerja</label>
-                                <div className="font-bold text-gray-900">{selectedLetter.user.fullName}</div>
-                                <div className="text-xs text-gray-500">{selectedLetter.user.nik || "-"}</div>
+                                <div className="font-bold text-gray-900">{selectedLetter.user?.fullName || "Pengguna Dihapus"}</div>
+                                <div className="text-xs text-gray-500">{selectedLetter.user?.nik || "-"}</div>
                             </div>
                             
                             <div className="grid grid-cols-2 gap-4">
@@ -626,12 +668,40 @@ export default function WarningLetterManagementPage() {
                                 </div>
                             </div>
 
-                            {selectedLetter.documentUrl && (
+                            {selectedLetter.documentUrl ? (
                                 <div className="pt-2">
                                     <a href={selectedLetter.documentUrl} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2 w-full py-2.5 rounded-lg border border-blue-200 bg-blue-50 text-blue-600 hover:bg-blue-100 font-bold transition-colors">
                                         <FileText className="w-4 h-4" />
                                         Buka Dokumen SP
                                     </a>
+                                </div>
+                            ) : (
+                                <div className="pt-2">
+                                    <div className="text-center p-3 rounded-lg border border-dashed border-gray-200 bg-gray-50 text-xs text-gray-500">
+                                        Belum ada file / dokumen terlampir.
+                                    </div>
+                                </div>
+                            )}
+
+                            {currentUser?.role === 'superadmin' && selectedLetter.status === 'pending' && (
+                                <div className="mt-4 p-4 border border-blue-100 bg-blue-50/50 rounded-xl space-y-3">
+                                    <h4 className="text-sm font-bold text-gray-900">Persetujuan Super Admin</h4>
+                                    <div className="space-y-1.5">
+                                        <label className="text-[10px] font-black text-gray-500 uppercase">Upload PDF Resmi (Opsional)</label>
+                                        <div className="border border-dashed border-blue-200 hover:border-blue-400 rounded-lg p-3 bg-white flex flex-col items-center justify-center text-center cursor-pointer relative group transition-colors">
+                                            <Input type="file" onChange={(e) => setFormFile(e.target.files?.[0] || null)} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" accept=".pdf" />
+                                            <Download className="w-4 h-4 text-blue-400 mb-1" />
+                                            <span className="text-xs font-bold text-blue-700">{formFile ? formFile.name : "Upload PDF"}</span>
+                                        </div>
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <Button variant="outline" className="flex-1 text-red-600 border-red-200 hover:bg-red-50" disabled={updateLetterStatus.isPending} onClick={() => updateLetterStatus.mutate({ id: selectedLetter.id, status: 'rejected' })}>
+                                            Tolak
+                                        </Button>
+                                        <Button className="flex-1 bg-green-600 hover:bg-green-700 text-white" disabled={updateLetterStatus.isPending} onClick={() => updateLetterStatus.mutate({ id: selectedLetter.id, status: 'approved', file: formFile })}>
+                                            {updateLetterStatus.isPending ? "Proses..." : "Setujui SP"}
+                                        </Button>
+                                    </div>
                                 </div>
                             )}
                         </div>

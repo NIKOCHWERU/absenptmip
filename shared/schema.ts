@@ -150,6 +150,7 @@ export const resignations = mysqlTable("resignations", {
   userId: int("user_id").notNull(),
   resignDate: date("resign_date").notNull(),
   reason: text("reason").notNull(),
+  status: mysqlEnum("status", ["pending", "approved", "rejected"]).default("pending"),
   documentUrl: varchar("document_url", { length: 512 }),
   createdAt: timestamp("created_at").defaultNow(),
 }, (table) => ({
@@ -179,6 +180,7 @@ export const warningLetters = mysqlTable("warning_letters", {
   type: mysqlEnum("type", ["SP1", "SP2", "SP3"]).notNull(),
   startDate: date("start_date").notNull(),
   endDate: date("end_date").notNull(),
+  status: mysqlEnum("status", ["pending", "approved", "rejected"]).default("pending"),
   documentUrl: varchar("document_url", { length: 512 }),
   notes: text("notes"),
   createdAt: timestamp("created_at").defaultNow(),
@@ -272,6 +274,13 @@ export const mutationsRelations = relations(mutations, ({ one }) => ({
 export const activityLogsRelations = relations(activityLogs, ({ one }) => ({
   user: one(users, {
     fields: [activityLogs.userId],
+    references: [users.id],
+  }),
+}));
+
+export const warningLettersRelations = relations(warningLetters, ({ one }) => ({
+  user: one(users, {
+    fields: [warningLetters.userId],
     references: [users.id],
   }),
 }));

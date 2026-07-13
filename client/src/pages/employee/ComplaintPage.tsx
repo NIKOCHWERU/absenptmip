@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { Loader2, Plus, Send, Image, Clock, CheckCircle, AlertCircle, X, Camera } from "lucide-react";
+import { Loader2, Plus, Send, Image, Clock, CheckCircle, AlertCircle, X, Camera, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
 import { motion } from "framer-motion";
@@ -43,7 +43,7 @@ export default function ComplaintPage() {
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [title, setTitle] = useState("");
     const [description, setDescription] = useState("");
-    const [photos, setPhotos] = useState<{ url: string; caption: string; preview: string; id: string }[]>([]);
+    const [photos, setPhotos] = useState<{ url: string; preview: string; id: string }[]>([]);
     const [uploadingState, setUploadingState] = useState<{ [key: string]: number }>({});
     const [selectedComplaint, setSelectedComplaint] = useState<Complaint | null>(null);
     
@@ -96,7 +96,13 @@ export default function ComplaintPage() {
             if (!res.ok) throw new Error("Gagal mengirim pengaduan");
             return res.json();
         },
-        onSuccess: async () => {
+        onSuccess: async (res) => {
+            if (res.complaint) {
+                queryClient.setQueryData(["/api/employee/complaints"], (old: Complaint[] | undefined) => {
+                    if (!old) return [res.complaint];
+                    return [res.complaint, ...old];
+                });
+            }
             await queryClient.invalidateQueries({ queryKey: ["/api/employee/complaints"] });
             setIsFormOpen(false);
             setTitle("");
@@ -109,6 +115,26 @@ export default function ComplaintPage() {
         },
     });
 
+    const deleteMutation = useMutation({
+        mutationFn: async (id: number) => {
+            const res = await apiRequest("DELETE", `/api/employee/complaints/${id}`);
+            if (!res.ok) throw new Error("Gagal menghapus pengaduan");
+        },
+        onSuccess: async (_, id) => {
+            queryClient.setQueryData(["/api/employee/complaints"], (old: Complaint[] | undefined) => {
+                if (!old) return old;
+                return old.filter((c) => c.id !== id);
+            });
+            await queryClient.invalidateQueries({ queryKey: ["/api/employee/complaints"] });
+            setSelectedComplaint(null);
+            toast({ title: "Terhapus", description: "Pengaduan berhasil dihapus" });
+        },
+        onError: (e: any) => {
+            toast({ title: "Gagal", description: e.message, variant: "destructive" });
+        },
+    });
+
+
     const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const files = Array.from(e.target.files || []);
         if (files.length === 0) return;
@@ -116,7 +142,7 @@ export default function ComplaintPage() {
         for (const file of files) {
             const id = Math.random().toString(36).substring(7);
             const preview = URL.createObjectURL(file);
-            setPhotos(prev => [...prev, { url: "", caption: "", preview, id }]);
+            setPhotos(prev => [...prev, { url: "", preview, id }]);
             setUploadingState(prev => ({ ...prev, [id]: 0 }));
 
             try {
@@ -147,12 +173,12 @@ export default function ComplaintPage() {
         setIsCameraOpen(true);
     };
 
-    const handleCameraCapture = async (photoData: string, caption: string = "") => {
+    const handleCameraCapture = async (photoData: string) => {
         setIsCameraOpen(false); // Close camera modal
         const id = Math.random().toString(36).substring(7);
         const preview = photoData;
         
-        setPhotos(prev => [...prev, { url: "", caption, preview, id }]);
+        setPhotos(prev => [...prev, { url: "", preview, id }]);
         setUploadingState(prev => ({ ...prev, [id]: 0 }));
 
         try {
@@ -184,10 +210,6 @@ export default function ComplaintPage() {
             delete next[id];
             return next;
         });
-    };
-
-    const updateCaption = (id: string, caption: string) => {
-        setPhotos((prev) => prev.map((p) => (p.id === id ? { ...p, caption } : p)));
     };
 
     const getStatusBadge = (status: string) => {
@@ -350,17 +372,11 @@ export default function ComplaintPage() {
                                             )}
                                         </div>
                                         <div className="flex-1 space-y-2">
-                                            <Input
-                                                placeholder="Keterangan foto..."
-                                                value={p.caption}
-                                                onChange={(e) => updateCaption(p.id, e.target.value)}
-                                                className="text-xs rounded-lg"
-                                            />
                                             <Button
                                                 variant="ghost"
                                                 size="sm"
                                                 onClick={() => removePhoto(p.id)}
-                                                className="text-red-500 text-xs h-7"
+                                                className="text-red-500 text-xs h-7 w-full justify-start mt-2"
                                             >
                                                 <X className="w-3 h-3 mr-1" /> Hapus
                                             </Button>
@@ -440,6 +456,22 @@ export default function ComplaintPage() {
                                 ))}
                             </div>
                         )}
+
+                        <div className="pt-4 border-t border-gray-100 flex justify-end">
+                            <Button 
+                                variant="destructive" 
+                                size="sm" 
+                                onClick={() => {
+                                    if(window.confirm('Yakin ingin menghapus pengaduan ini?')) {
+                                        deleteMutation.mutate(selectedComplaint.id);
+                                    }
+                                }}
+                                disabled={deleteMutation.isPending}
+                            >
+                                {deleteMutation.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Trash2 className="w-4 h-4 mr-2" />}
+                                Hapus Pengaduan
+                            </Button>
+                        </div>
                     </div>
                 </DialogContent>
             </Dialog>
@@ -453,7 +485,7 @@ export default function ComplaintPage() {
                     await handleCameraCapture(photoData, caption);
                 }}
                 locationAddress={locationAddress}
-                allowCaption={true}
+                allowCaption={false}
             />
         </div>
     );

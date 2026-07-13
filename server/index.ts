@@ -7,6 +7,7 @@ import { setupAuth, hashPassword } from "./auth.js";
 import { registerRoutes } from "./routes.js";
 import { pool } from "./db.js";
 import { startBackupScheduler } from "./backup.js";
+import { startAutoCheckoutScheduler } from "./autoCheckout.js";
 
 const app = express();
 app.use(express.json({ limit: "20mb" }));
@@ -260,6 +261,9 @@ async function runAutoMigrations() {
     await checkAndAddColumn("attendance", "late_reason_photo", "VARCHAR(255) NULL");
     await checkAndAddColumn("attendance", "is_fake_gps", "BOOLEAN DEFAULT FALSE");
 
+    await checkAndAddColumn("warning_letters", "status", "ENUM('pending', 'approved', 'rejected') DEFAULT 'pending'");
+    await checkAndAddColumn("resignations", "status", "ENUM('pending', 'approved', 'rejected') DEFAULT 'pending'");
+
     // --- Default admin seeding ---
     const [adminCheck]: any = await conn.query(`SELECT id FROM users WHERE role = 'admin' LIMIT 1`);
     if (adminCheck.length === 0) {
@@ -302,6 +306,7 @@ async function startServer() {
   
   registerRoutes(app);
   startBackupScheduler();
+  startAutoCheckoutScheduler();
 
   const PORT = Number(process.env.PORT) || 5000;
   const server = http.createServer(app);

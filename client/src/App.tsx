@@ -245,6 +245,13 @@ export default function App() {
             </Route>
 
             {/* 404 Fallback */}
+            {/* Fallbacks & Redirects */}
+            <Route path="/complaint">
+              {() => {
+                setLocation("/employee/complaint");
+                return null;
+              }}
+            </Route>
             <Route>
               <div className="min-h-screen flex items-center justify-center bg-slate-50 text-slate-400 text-xs font-semibold">
                 Halaman Tidak Ditemukan (404)
