@@ -30,11 +30,12 @@ export async function drawWatermark(
     const companyLabel = `Absensi ${namaPt || "Perusahaan"}`;
 
     // ── Font Size Scale ──────────────────────────────────────────────────────
-    const fTime     = Math.max(18, height * 0.060);  // Big bold time
-    const fCompany  = Math.max(10, height * 0.025);  // "Absensi PT …"
-    const fName     = Math.max(11, height * 0.030);  // Employee name
-    const fDate     = Math.max(9,  height * 0.022);  // Date
-    const fLoc      = Math.max(8,  height * 0.019);  // Location (smallest)
+    // Capping based on width prevents offside text on portrait mode
+    const fTime     = Math.max(18, Math.min(height * 0.060, width * 0.08));  // Big bold time
+    const fCompany  = Math.max(10, Math.min(height * 0.025, width * 0.035)); // "Absensi PT …"
+    const fName     = Math.max(11, Math.min(height * 0.030, width * 0.04));  // Employee name
+    const fDate     = Math.max(9,  Math.min(height * 0.022, width * 0.03));  // Date
+    const fLoc      = Math.max(8,  Math.min(height * 0.019, width * 0.025)); // Location (smallest)
 
     // ── Load Logo ────────────────────────────────────────────────────────────
     const resolvedLogoUrl = logoUrl && logoUrl.trim() && !logoUrl.startsWith("http")
@@ -60,24 +61,25 @@ export async function drawWatermark(
     let textX = padding;
 
     if (logoImg) {
-        const aspect   = logoImg.width / logoImg.height;
-        const logoW    = logoSize * aspect;
-        const logoX    = padding;
-        const logoY    = logoCentreY - logoSize / 2;
+        const logoBoxSize = logoSize;
+        const logoX = padding;
+        const logoY = logoCentreY - logoBoxSize / 2;
 
-        // Circular clip for logo
+        // Kotak icon app (rounded rectangle)
         ctx.save();
         ctx.beginPath();
-        const cx = logoX + logoW / 2;
-        const cy = logoY + logoSize / 2;
-        const r  = Math.min(logoW, logoSize) / 2;
-        ctx.arc(cx, cy, r, 0, Math.PI * 2);
-        ctx.closePath();
+        if (typeof ctx.roundRect === 'function') {
+            ctx.roundRect(logoX, logoY, logoBoxSize, logoBoxSize, 12);
+        } else {
+            ctx.rect(logoX, logoY, logoBoxSize, logoBoxSize);
+        }
         ctx.clip();
-        ctx.drawImage(logoImg, logoX, logoY, logoW, logoSize);
+        
+        // Draw image stretching to fill the box (like an app icon)
+        ctx.drawImage(logoImg, logoX, logoY, logoBoxSize, logoBoxSize);
         ctx.restore();
 
-        textX = logoX + logoW + padding * 1.5;
+        textX = logoX + logoBoxSize + padding * 1.5;
     }
 
     // ── Divider line between logo and text ───────────────────────────────────
