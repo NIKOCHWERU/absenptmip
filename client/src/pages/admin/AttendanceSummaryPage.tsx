@@ -480,7 +480,49 @@ export default function AttendanceSummaryPage() {
                     <p className="text-sm text-gray-500">Analisis statistik kehadiran, tingkat keterlambatan, dan keaktifan presensi tenaga kerja.</p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
-                    
+                    <Select value={reportType} onValueChange={(val: any) => setReportType(val)}>
+                        <SelectTrigger className="w-[150px] bg-white">
+                            <SelectValue placeholder="Tipe Laporan" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="daily">Harian</SelectItem>
+                            <SelectItem value="weekly">Mingguan</SelectItem>
+                            <SelectItem value="monthly">Bulanan</SelectItem>
+                            <SelectItem value="custom">Kustom</SelectItem>
+                        </SelectContent>
+                    </Select>
+
+                    {reportType === "custom" ? (
+                        <div className="flex items-center gap-2">
+                            <Input 
+                                type="date" 
+                                value={customStartDate} 
+                                onChange={(e) => setCustomStartDate(e.target.value)}
+                                className="w-auto bg-white"
+                            />
+                            <span className="text-gray-500 text-sm">-</span>
+                            <Input 
+                                type="date" 
+                                value={customEndDate} 
+                                onChange={(e) => setCustomEndDate(e.target.value)}
+                                className="w-auto bg-white"
+                            />
+                        </div>
+                    ) : (
+                        <div className="flex items-center gap-1 bg-white rounded-md border p-1 shadow-sm">
+                            <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-gray-100" onClick={handlePrev}>
+                                <ChevronLeft className="h-4 w-4" />
+                            </Button>
+                            <div className="px-2 text-sm font-semibold min-w-[120px] text-center text-gray-700">
+                                {reportType === 'daily' && format(targetDate, "d MMM yyyy", { locale: id })}
+                                {reportType === 'weekly' && `Minggu ke-${format(targetDate, "w")}`}
+                                {reportType === 'monthly' && format(targetDate, "MMMM yyyy", { locale: id })}
+                            </div>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-gray-100" onClick={handleNext}>
+                                <ChevronRight className="h-4 w-4" />
+                            </Button>
+                        </div>
+                    )}
                 </div>
             </div>
 
