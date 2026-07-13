@@ -176,7 +176,7 @@ export default function LoginPage() {
           <button 
             type="button"
             onClick={() => setShowInstallPopup(true)}
-            className="inline-flex items-center gap-2 text-xs font-bold text-primary hover:text-primary/80 bg-primary/10 hover:bg-primary/20 px-4 py-2 rounded-xl transition-all"
+            className="inline-flex items-center gap-2 text-xs font-bold text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 px-4 py-2 rounded-xl transition-all"
           >
             <Download className="w-3.5 h-3.5" />
             Install Aplikasi ke HP
@@ -195,7 +195,7 @@ export default function LoginPage() {
             style={{ animation: "slideUp 0.35s cubic-bezier(0.34,1.56,0.64,1)" }}
           >
             {/* Header bar */}
-            <div className="bg-gradient-to-r from-orange-500 to-primary pt-8 pb-8 px-6 relative flex flex-col items-center justify-center">
+            <div className="bg-gradient-to-r from-blue-600 to-blue-800 pt-8 pb-8 px-6 relative flex flex-col items-center justify-center">
               <button
                 onClick={handleDismissInstall}
                 className="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-white hover:bg-white/30 transition-colors"
@@ -208,7 +208,7 @@ export default function LoginPage() {
                 {logoUrl && logoUrl !== "/logo_elok_buah.jpg" ? (
                   <img src={logoUrl} alt="App Icon" className="w-14 h-14 object-contain" />
                 ) : (
-                  <span className="text-3xl font-black text-primary uppercase">{logoInisial}</span>
+                  <span className="text-3xl font-black text-blue-700 uppercase">{logoInisial}</span>
                 )}
               </div>
               
@@ -226,7 +226,7 @@ export default function LoginPage() {
                   <button
                     onClick={handleInstall}
                     disabled={!deferredPrompt}
-                    className="w-full flex items-center justify-center gap-2 py-4 rounded-2xl font-black text-white text-base shadow-lg shadow-orange-500/30 transition-all bg-gradient-to-r from-primary to-orange-600"
+                    className="w-full flex items-center justify-center gap-2 py-4 rounded-2xl font-black text-white text-base shadow-lg shadow-blue-500/30 transition-all bg-gradient-to-r from-blue-600 to-blue-800"
                   >
                     <Download className="w-5 h-5" />
                     Pasang Aplikasi
