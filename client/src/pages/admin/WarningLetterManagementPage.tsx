@@ -526,22 +526,24 @@ export default function WarningLetterManagementPage() {
                             />
                         </div>
 
-                        <div className="space-y-1.5">
-                            <label className="text-xs font-black text-gray-500 uppercase">Upload Dokumen SP (Opsional)</label>
-                            <div className="border border-dashed border-gray-200 hover:border-green-300 rounded-lg p-4 bg-gray-50/50 flex flex-col items-center justify-center text-center cursor-pointer relative group transition-colors">
-                                <Input
-                                    type="file"
-                                    onChange={(e) => setFormFile(e.target.files?.[0] || null)}
-                                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                                    accept=".pdf,.png,.jpg,.jpeg,.doc,.docx"
-                                />
-                                <Download className="w-6 h-6 text-gray-400 group-hover:text-primary mb-2 transition-colors" />
-                                <span className="text-xs font-bold text-gray-700">
-                                    {formFile ? formFile.name : "Klik atau seret file SP di sini (Opsional)"}
-                                </span>
-                                <span className="text-[10px] text-gray-400 mt-1">Belum ada file. File dapat diupload saat disetujui.</span>
+                        {currentUser?.role === 'superadmin' && (
+                            <div className="space-y-1.5">
+                                <label className="text-xs font-black text-gray-500 uppercase">Upload Dokumen SP (Opsional)</label>
+                                <div className="border border-dashed border-gray-200 hover:border-green-300 rounded-lg p-4 bg-gray-50/50 flex flex-col items-center justify-center text-center cursor-pointer relative group transition-colors">
+                                    <Input
+                                        type="file"
+                                        onChange={(e) => setFormFile(e.target.files?.[0] || null)}
+                                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                                        accept=".pdf,.png,.jpg,.jpeg,.doc,.docx"
+                                    />
+                                    <Download className="w-6 h-6 text-gray-400 group-hover:text-primary mb-2 transition-colors" />
+                                    <span className="text-xs font-bold text-gray-700">
+                                        {formFile ? formFile.name : "Klik atau seret file SP di sini (Opsional)"}
+                                    </span>
+                                    <span className="text-[10px] text-gray-400 mt-1">Belum ada file. File dapat diupload saat disetujui.</span>
+                                </div>
                             </div>
-                        </div>
+                        )}
 
                         <div className="flex justify-end gap-2.5 pt-3">
                             <Button type="button" variant="outline" onClick={() => setOpenAddModal(false)}>Batal</Button>
@@ -600,21 +602,23 @@ export default function WarningLetterManagementPage() {
                             />
                         </div>
 
-                        <div className="space-y-1.5">
-                            <label className="text-xs font-black text-gray-500 uppercase">Upload Dokumen (Opsional)</label>
-                            <div className="border border-dashed border-gray-200 hover:border-orange-300 rounded-lg p-4 bg-gray-50/50 flex flex-col items-center justify-center text-center cursor-pointer relative group transition-colors">
-                                <Input
-                                    type="file"
-                                    onChange={(e) => setFormFile(e.target.files?.[0] || null)}
-                                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                                    accept=".pdf,.png,.jpg,.jpeg,.doc,.docx"
-                                />
-                                <Download className="w-6 h-6 text-gray-400 group-hover:text-orange-600 mb-2 transition-colors" />
-                                <span className="text-xs font-bold text-gray-700">
-                                    {formFile ? formFile.name : "Klik/seret file baru untuk mengganti dokumen lama"}
-                                </span>
+                        {currentUser?.role === 'superadmin' && (
+                            <div className="space-y-1.5">
+                                <label className="text-xs font-black text-gray-500 uppercase">Upload Dokumen (Opsional)</label>
+                                <div className="border border-dashed border-gray-200 hover:border-orange-300 rounded-lg p-4 bg-gray-50/50 flex flex-col items-center justify-center text-center cursor-pointer relative group transition-colors">
+                                    <Input
+                                        type="file"
+                                        onChange={(e) => setFormFile(e.target.files?.[0] || null)}
+                                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                                        accept=".pdf,.png,.jpg,.jpeg,.doc,.docx"
+                                    />
+                                    <Download className="w-6 h-6 text-gray-400 group-hover:text-orange-600 mb-2 transition-colors" />
+                                    <span className="text-xs font-bold text-gray-700">
+                                        {formFile ? formFile.name : "Klik/seret file baru untuk mengganti dokumen lama"}
+                                    </span>
+                                </div>
                             </div>
-                        </div>
+                        )}
 
                         <div className="flex justify-end gap-2.5 pt-3">
                             <Button type="button" variant="outline" onClick={() => setOpenEditModal(false)}>Batal</Button>
@@ -685,7 +689,7 @@ export default function WarningLetterManagementPage() {
 
                             {currentUser?.role === 'superadmin' && selectedLetter.status === 'pending' && (
                                 <div className="mt-4 p-4 border border-blue-100 bg-blue-50/50 rounded-xl space-y-3">
-                                    <h4 className="text-sm font-bold text-gray-900">Persetujuan Super Admin</h4>
+                                    <h4 className="text-sm font-bold text-gray-900">Persetujuan HRM</h4>
                                     <div className="space-y-1.5">
                                         <label className="text-[10px] font-black text-gray-500 uppercase">Upload PDF Resmi (Opsional)</label>
                                         <div className="border border-dashed border-blue-200 hover:border-blue-400 rounded-lg p-3 bg-white flex flex-col items-center justify-center text-center cursor-pointer relative group transition-colors">
