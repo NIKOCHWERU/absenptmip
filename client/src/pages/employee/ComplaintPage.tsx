@@ -271,14 +271,7 @@ export default function ComplaintPage() {
                                     <Camera className="w-3 h-3 mr-1" /> Ambil Foto
                                 </Button>
                             </div>
-                            <input
-                                ref={fileInputRef}
-                                type="file"
-                                accept="image/*"
-                                multiple
-                                className="hidden"
-                                onChange={handleFileChange}
-                            />
+                            {/* Input removed, using CameraModal only */}
                             {photos.map((p) => (
                                 <div key={p.id} className="bg-gray-50 rounded-xl p-3 border border-gray-100 relative overflow-hidden">
                                     <div className="flex items-start gap-3">

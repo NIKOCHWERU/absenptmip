@@ -383,7 +383,7 @@ export default function EmployeeDashboard() {
             const position = await new Promise<GeolocationPosition>((resolve, reject) => {
                 navigator.geolocation.getCurrentPosition(resolve, reject, {
                     enableHighAccuracy: true,
-                    timeout: 10000,
+                    timeout: 20000,
                     maximumAge: 0
                 });
             });
