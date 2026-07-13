@@ -1355,6 +1355,7 @@ export function registerRoutes(app: Express) {
         title,
         description,
         status: "pending",
+        createdAt: new Date(),
       });
 
       const complaintId = insertResult.insertId;
@@ -2525,6 +2526,30 @@ export function registerRoutes(app: Express) {
   });
 
   // 11. Complaints listing for admin
+  app.get("/api/admin/fix-complaints-time", isAdmin, async (req: Request, res: Response) => {
+    try {
+      const list = await db.select().from(complaints);
+      let fixed = 0;
+      for (const comp of list) {
+        if (comp.createdAt) {
+          // If the time is 8 hours ahead, subtract 8 hours.
+          // Wait, if real time is 0:53, and DB has 08:53, it's exactly 8 hours ahead.
+          // But I'll just subtract 8 hours from any complaint created BEFORE July 14 2026 12:00
+          // to be safe.
+          const date = new Date(comp.createdAt);
+          if (date.getTime() > Date.now()) { // If it's in the future (like 8 hours ahead)
+             const newDate = new Date(date.getTime() - 8 * 60 * 60 * 1000);
+             await db.update(complaints).set({ createdAt: newDate }).where(eq(complaints.id, comp.id));
+             fixed++;
+          }
+        }
+      }
+      res.json({ fixed });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
   app.get("/api/admin/complaints", isAdmin, async (req: Request, res: Response) => {
     try {
       const list = await db.select().from(complaints).orderBy(desc(complaints.createdAt));

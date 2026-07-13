@@ -254,7 +254,15 @@ export default function AdminComplaintsPage() {
                                             onClick={() => setSelectedComplaint(c)}
                                         >
                                             <TableCell className="whitespace-nowrap text-xs text-gray-500">
-                                                {c.createdAt && format(new Date(c.createdAt), "dd MMM yyyy, HH:mm", { locale: idLocale })}
+                                                {(() => {
+                                                    if (!c.createdAt) return "-";
+                                                    let d = new Date(c.createdAt);
+                                                    // Fix for past records that were saved with +8 hours offset by defaultNow()
+                                                    if (d.getTime() > Date.now() + 60 * 60 * 1000) {
+                                                        d = new Date(d.getTime() - 8 * 60 * 60 * 1000);
+                                                    }
+                                                    return format(d, "dd MMM yyyy, HH:mm", { locale: idLocale });
+                                                })()}
                                             </TableCell>
                                             <TableCell className="whitespace-nowrap font-medium text-gray-800 text-xs">
                                                 <div className="flex items-center gap-1.5">
@@ -323,8 +331,14 @@ export default function AdminComplaintsPage() {
                                 <User className="w-3 h-3" /> {selectedComplaint && getUserName(selectedComplaint.userId)}
                             </span>
                             <span className="text-[10px] text-gray-400">
-                                {selectedComplaint?.createdAt &&
-                                    format(new Date(selectedComplaint.createdAt), "dd MMM yyyy, HH:mm", { locale: idLocale })}
+                                {(() => {
+                                    if (!selectedComplaint?.createdAt) return "-";
+                                    let d = new Date(selectedComplaint.createdAt);
+                                    if (d.getTime() > Date.now() + 60 * 60 * 1000) {
+                                        d = new Date(d.getTime() - 8 * 60 * 60 * 1000);
+                                    }
+                                    return format(d, "dd MMM yyyy, HH:mm", { locale: idLocale });
+                                })()}
                             </span>
                         </div>
                         <p className="text-sm text-gray-600 whitespace-pre-wrap">{selectedComplaint?.description}</p>
