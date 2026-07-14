@@ -41,6 +41,7 @@ export default function RecapPage() {
     });
     const namaPt = config?.namaPt || import.meta.env.VITE_NAMA_PT || "PT MEKANO INDUSTRIAL PRESISI";
     const singkatanPt = config?.singkatanPt || import.meta.env.VITE_SINGKATAN_PT || "PT MIP";
+    const alamatPt = config?.alamatPt || import.meta.env.VITE_ALAMAT_PT || "";
 
     const [targetDate, setTargetDate] = useState(new Date());
     const [selectedPhotoRecord, setSelectedPhotoRecord] = useState<Attendance | null>(null);

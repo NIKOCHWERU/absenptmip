@@ -110,6 +110,7 @@ export default function AttendanceHistoryPage() {
 
     const namaPt = config?.namaPt || import.meta.env.VITE_NAMA_PT || "PT MEKANO INDUSTRIAL PRESISI";
     const singkatanPt = config?.singkatanPt || import.meta.env.VITE_SINGKATAN_PT || "PT MIP";
+    const alamatPt = config?.alamatPt || import.meta.env.VITE_ALAMAT_PT || "";
 
     const getEmployee = (userId: number) => {
         return users?.find(user => user.id === userId);
