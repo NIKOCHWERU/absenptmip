@@ -196,7 +196,6 @@ export default function RecapPage() {
         }
     });
 
-
     const manualMutation = useMutation({
         mutationFn: async (data: any) => {
             const isEdit = !!editingAttendance?.id;
@@ -209,8 +208,8 @@ export default function RecapPage() {
             });
             if (!res.ok) throw new Error(await res.text() || "Gagal menyimpan data");
             return res.json();
-        
-
+        },
+        onSuccess: async () => {
             await queryClient.invalidateQueries({ queryKey: ["/api/attendance"] });
             setIsManualModalOpen(false);
             setEditingAttendance(null);
@@ -225,8 +224,9 @@ export default function RecapPage() {
         mutationFn: async (id: number) => {
             const res = await fetch(`/api/admin/attendance/${id}`, { method: 'DELETE' });
             if (!res.ok) throw new Error("Gagal menghapus data");
-        
-
+            return res.json();
+        },
+        onSuccess: async () => {
             await queryClient.invalidateQueries({ queryKey: ["/api/attendance"] });
             setDeleteConfirmId(null);
             toast({ title: "Dihapus", description: "Data absensi berhasil dihapus." });
