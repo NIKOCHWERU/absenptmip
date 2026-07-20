@@ -6,7 +6,7 @@ import { exec } from "child_process";
 import webpush from "web-push";
 import { db, pool } from "./db.js";
 import { users, shifts, attendance, leaveRequests, complaints, complaintPhotos, resignations, mutations, warningLetters, systemConfigs, activityLogs, announcements, pushSubscriptions } from "../shared/schema.js";
-import { eq, and, gte, lte, desc, sql, isNotNull, isNull, inArray } from "drizzle-orm";
+import { eq, and, or, gte, lte, desc, sql, isNotNull, isNull, inArray } from "drizzle-orm";
 
 import { isAuthenticated, isAdmin, isSuperAdmin, hashPassword } from "./auth.js";
 
@@ -957,7 +957,15 @@ export function registerRoutes(app: Express) {
       const todaySessions = await db
         .select()
         .from(attendance)
-        .where(and(eq(attendance.userId, userId), sql`DATE(${attendance.date}) = ${adminDate}`))
+        .where(
+          and(
+            eq(attendance.userId, userId),
+            or(
+              sql`DATE(${attendance.date}) = ${adminDate}`,
+              isNull(attendance.checkOut)
+            )
+          )
+        )
         .orderBy(desc(attendance.sessionNumber));
 
       if (todaySessions.length === 0) {
@@ -998,7 +1006,15 @@ export function registerRoutes(app: Express) {
       const todaySessions = await db
         .select()
         .from(attendance)
-        .where(and(eq(attendance.userId, userId), sql`DATE(${attendance.date}) = ${adminDate}`))
+        .where(
+          and(
+            eq(attendance.userId, userId),
+            or(
+              sql`DATE(${attendance.date}) = ${adminDate}`,
+              isNull(attendance.checkOut)
+            )
+          )
+        )
         .orderBy(desc(attendance.sessionNumber));
 
       if (todaySessions.length === 0) {
@@ -1042,7 +1058,15 @@ export function registerRoutes(app: Express) {
       const todaySessions = await db
         .select()
         .from(attendance)
-        .where(and(eq(attendance.userId, userId), sql`DATE(${attendance.date}) = ${adminDate}`))
+        .where(
+          and(
+            eq(attendance.userId, userId),
+            or(
+              sql`DATE(${attendance.date}) = ${adminDate}`,
+              isNull(attendance.checkOut)
+            )
+          )
+        )
         .orderBy(desc(attendance.sessionNumber));
 
       if (todaySessions.length === 0) {
@@ -1083,7 +1107,15 @@ export function registerRoutes(app: Express) {
       const todaySessions = await db
         .select()
         .from(attendance)
-        .where(and(eq(attendance.userId, userId), sql`DATE(${attendance.date}) = ${adminDate}`))
+        .where(
+          and(
+            eq(attendance.userId, userId),
+            or(
+              sql`DATE(${attendance.date}) = ${adminDate}`,
+              isNull(attendance.checkOut)
+            )
+          )
+        )
         .orderBy(attendance.sessionNumber);
 
       const activeSession = todaySessions.find(s => !s.checkOut);
@@ -1201,7 +1233,15 @@ export function registerRoutes(app: Express) {
       const todaySessions = await db
         .select()
         .from(attendance)
-        .where(and(eq(attendance.userId, userId), sql`DATE(${attendance.date}) = ${adminDate}`))
+        .where(
+          and(
+            eq(attendance.userId, userId),
+            or(
+              sql`DATE(${attendance.date}) = ${adminDate}`,
+              isNull(attendance.checkOut)
+            )
+          )
+        )
         .orderBy(attendance.sessionNumber);
 
       res.json(todaySessions);
