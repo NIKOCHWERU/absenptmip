@@ -887,6 +887,11 @@ export function registerRoutes(app: Express) {
             isNotNull(attendance.checkIn)
           ));
 
+        const openSessions = existingSessions.filter(s => s.checkOut === null);
+        if (openSessions.length > 0) {
+          return res.status(400).json({ message: "Anda masih memiliki sesi absen yang aktif. Harap absen pulang terlebih dahulu sebelum absen masuk lagi." });
+        }
+
         const nextSessionNum = existingSessions.length + 1;
         if (nextSessionNum > 5) {
           return res.status(400).json({ message: "Batas absensi harian (5 sesi) telah tercapai." });
@@ -1220,6 +1225,48 @@ export function registerRoutes(app: Express) {
       res.json(newAttendance);
     } catch (err: any) {
       res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.get("/api/admin/fix-duplicates", async (req: Request, res: Response) => {
+    try {
+      const records = await db.select().from(attendance);
+      const groups = new Map<string, typeof records>();
+      for (const record of records) {
+        if (!record.checkIn) continue;
+        const dateStr = record.date instanceof Date ? record.date.toISOString().split('T')[0] : String(record.date).split('T')[0];
+        const checkInDate = new Date(record.checkIn);
+        const hh = checkInDate.getHours().toString().padStart(2, '0');
+        const mm = checkInDate.getMinutes().toString().padStart(2, '0');
+        const key = `${record.userId}-${dateStr}-${hh}:${mm}`;
+        if (!groups.has(key)) groups.set(key, []);
+        groups.get(key)!.push(record);
+      }
+      
+      const idsToDelete: number[] = [];
+      for (const [key, group] of groups.entries()) {
+        if (group.length > 1) {
+          group.sort((a, b) => {
+            const aHasBreak = a.breakStart ? 1 : 0;
+            const bHasBreak = b.breakStart ? 1 : 0;
+            if (aHasBreak !== bHasBreak) return bHasBreak - aHasBreak;
+            const aHasOut = a.checkOut ? 1 : 0;
+            const bHasOut = b.checkOut ? 1 : 0;
+            if (aHasOut !== bHasOut) return bHasOut - aHasOut;
+            return a.id - b.id;
+          });
+          for (let i = 1; i < group.length; i++) {
+            idsToDelete.push(group[i].id);
+          }
+        }
+      }
+      
+      if (idsToDelete.length > 0) {
+        await db.delete(attendance).where(inArray(attendance.id, idsToDelete));
+      }
+      res.json({ message: "Deduplication complete", deletedCount: idsToDelete.length, idsToDelete });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
     }
   });
 
