@@ -36,7 +36,8 @@ export default function AttendanceSummaryPage() {
 
     useEffect(() => {
         // Pre-fetch logo to avoid async delays during export that trigger popup blockers
-        fetch('/logo.png')
+        const logoToUse = config?.logoUrl || '/icon-192.png';
+        fetch(logoToUse)
             .then(res => res.blob())
             .then(blob => {
                 const reader = new FileReader();
@@ -44,7 +45,7 @@ export default function AttendanceSummaryPage() {
                 reader.readAsDataURL(blob);
             })
             .catch(() => {});
-    }, []);
+    }, [config?.logoUrl]);
     const [searchTerm, setSearchTerm] = useState("");
     const [sortField, setSortField] = useState<string>("fullName");
     const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");

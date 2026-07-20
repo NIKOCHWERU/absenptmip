@@ -273,7 +273,8 @@ export default function AttendanceHistoryPage() {
             // Fetch logo
             let logoDataUrl = '';
             try {
-                const logoRes = await fetch('/logo_elok_buah.jpg');
+                const logoToUse = config?.logoUrl || '/icon-192.png';
+                const logoRes = await fetch(logoToUse);
                 const logoBlob = await logoRes.blob();
                 logoDataUrl = await new Promise<string>((resolve) => {
                     const reader = new FileReader();
@@ -609,7 +610,8 @@ export default function AttendanceHistoryPage() {
             // Fetch logo
             let logoDataUrl = '';
             try {
-                const logoRes = await fetch('/logo_elok_buah.jpg');
+                const logoToUse = config?.logoUrl || '/icon-192.png';
+                const logoRes = await fetch(logoToUse);
                 const logoBlob = await logoRes.blob();
                 logoDataUrl = await new Promise<string>((resolve) => {
                     const reader = new FileReader();
