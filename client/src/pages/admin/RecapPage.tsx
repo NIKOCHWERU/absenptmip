@@ -303,7 +303,7 @@ export default function RecapPage() {
 <head>
   <title>${fileName}</title>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
+    * { box-sizing: border-box; margin: 0; padding: 0; text-transform: uppercase !important; }
     body { font-family: Arial, Helvetica, sans-serif; font-size: 11px; color: #1e293b; background: white; padding: 28px 36px; }
     .letterhead { display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px; min-height: 50px; }
     .logo-img { height: 50px; max-width: 140px; object-fit: contain; flex-shrink: 0; }
@@ -625,7 +625,7 @@ export default function RecapPage() {
 <head>
   <title>${docTitle}</title>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
+    * { box-sizing: border-box; margin: 0; padding: 0; text-transform: uppercase !important; }
     body { font-family: Arial, Helvetica, sans-serif; font-size: 11px; color: #1e293b; background: white; padding: 28px 36px; }
     .letterhead { display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px; min-height: 50px; }
     .logo-img { height: 50px; max-width: 140px; object-fit: contain; flex-shrink: 0; }
