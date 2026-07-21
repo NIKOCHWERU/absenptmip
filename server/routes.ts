@@ -175,7 +175,7 @@ async function autoCloseExpiredSessions(userId: number) {
         const newNotes = session.notes ? `${session.notes} (Otomatis absen pulang oleh sistem)` : "(Otomatis absen pulang oleh sistem)";
         await db.update(attendance)
           .set({
-            checkOut: checkOutDate, 
+            checkOut: deadlineDate, 
             notes: newNotes,
           })
           .where(eq(attendance.id, session.id));
@@ -1284,16 +1284,25 @@ export function registerRoutes(app: Express) {
         const outDate = new Date(record.checkOut);
         const wibHours = (outDate.getUTCHours() + 7) % 24;
         
-        // Jika checkOut berada pada jam 16:xx WIB akibat bug timezone sebelumnya
-        if (wibHours === 16) {
-          outDate.setUTCHours(outDate.getUTCHours() + 1); // Tambah 1 jam menjadi 17:xx WIB
+        // Target: 1 jam setelah shift selesai.
+        // Shift 17:00 -> seharusnya 18:00. Jika 16:00 (bug TZ) +2 jam. Jika 17:00 (sudah fix TZ) +1 jam.
+        // Shift 22:00 -> seharusnya 23:00. Jika 21:00 (bug TZ) +2 jam. Jika 22:00 (sudah fix TZ) +1 jam.
+        let hoursToAdd = 0;
+        if (wibHours === 16 || wibHours === 21) {
+          hoursToAdd = 2;
+        } else if (wibHours === 17 || wibHours === 22) {
+          hoursToAdd = 1;
+        }
+
+        if (hoursToAdd > 0) {
+          outDate.setUTCHours(outDate.getUTCHours() + hoursToAdd);
           await db.update(attendance).set({ checkOut: outDate }).where(eq(attendance.id, record.id));
           updatedCount++;
           updatedIds.push(record.id);
         }
       }
       
-      res.json({ message: "Fix checkout 16:00 complete", updatedCount, updatedIds });
+      res.json({ message: "Fix checkout shift+1hr complete", updatedCount, updatedIds });
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }

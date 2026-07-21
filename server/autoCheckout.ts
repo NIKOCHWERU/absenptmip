@@ -57,14 +57,16 @@ export function startAutoCheckoutScheduler() {
 
         // Jika waktu sekarang melebihi limit +90 menit, lakukan auto-checkout
         if (now >= autoCheckoutTimeLimit) {
-          // Checkout dengan waktu saat sistem mengeksekusi ini
+          // Checkout dengan waktu exactly 1 jam setelah shift pulang
+          const checkoutRecordedTime = new Date(shiftEnd.getTime() + 60 * 60 * 1000);
+          
           const newNotes = row.att.notes 
-            ? row.att.notes + "\n(Sesi ditutup otomatis oleh sistem)"
-            : "(Sesi ditutup otomatis oleh sistem)";
+            ? row.att.notes + "\n(Otomatis absen pulang oleh sistem)"
+            : "(Otomatis absen pulang oleh sistem)";
 
           await db.update(attendance)
             .set({
-              checkOut: now,
+              checkOut: checkoutRecordedTime,
               notes: newNotes
             })
             .where(eq(attendance.id, row.att.id));
