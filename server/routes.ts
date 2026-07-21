@@ -1272,6 +1272,33 @@ export function registerRoutes(app: Express) {
     }
   });
 
+  app.get("/api/admin/fix-checkout-16", async (req: Request, res: Response) => {
+    try {
+      const records = await db.select().from(attendance);
+      let updatedCount = 0;
+      const updatedIds: number[] = [];
+      
+      for (const record of records) {
+        if (!record.checkOut || !record.notes?.includes("Otomatis absen pulang oleh sistem")) continue;
+        
+        const outDate = new Date(record.checkOut);
+        const wibHours = (outDate.getUTCHours() + 7) % 24;
+        
+        // Jika checkOut berada pada jam 16:xx WIB akibat bug timezone sebelumnya
+        if (wibHours === 16) {
+          outDate.setUTCHours(outDate.getUTCHours() + 1); // Tambah 1 jam menjadi 17:xx WIB
+          await db.update(attendance).set({ checkOut: outDate }).where(eq(attendance.id, record.id));
+          updatedCount++;
+          updatedIds.push(record.id);
+        }
+      }
+      
+      res.json({ message: "Fix checkout 16:00 complete", updatedCount, updatedIds });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   // 7. Get Today's Active Attendance Log for Employee
   app.get("/api/attendance/today", isAuthenticated, async (req: Request, res: Response) => {
     await autoCloseExpiredSessions((req.user as any).id);
