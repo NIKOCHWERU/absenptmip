@@ -39,9 +39,12 @@ export function startAutoCheckoutScheduler() {
         const outHour = parseInt(outHourStr);
         const outMin = parseInt(outMinStr);
         
-        // Buat objek waktu checkout dari shift hari ini (berdasarkan tanggal checkin)
-        const shiftEnd = new Date(checkInTime);
-        shiftEnd.setHours(outHour, outMin, 0, 0);
+        // Buat objek waktu checkout yang mengikat ke WIB (+07:00) untuk menghindari offset timezone VPS
+        const year = checkInTime.getFullYear();
+        const month = checkInTime.getMonth();
+        const dateNum = checkInTime.getDate();
+        const isoString = `${year}-${String(month + 1).padStart(2, '0')}-${String(dateNum).padStart(2, '0')}T${String(outHour).padStart(2, '0')}:${String(outMin).padStart(2, '0')}:00+07:00`;
+        const shiftEnd = new Date(isoString);
 
         // Jika shift malam (pulang pagi hari berikutnya)
         const [inHourStr] = row.shift.checkInTime.split(":");

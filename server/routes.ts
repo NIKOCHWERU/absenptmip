@@ -158,7 +158,9 @@ async function autoCloseExpiredSessions(userId: number) {
         dateNum = d.getDate();
       }
 
-      const checkOutDate = new Date(year, month, dateNum, hh, mm, 0, 0);
+      // Force WIB (+07:00) timezone to prevent VPS server's local timezone from offsetting the clock
+      const isoString = `${year}-${String(month + 1).padStart(2, '0')}-${String(dateNum).padStart(2, '0')}T${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}:00+07:00`;
+      const checkOutDate = new Date(isoString);
 
       const checkInTimeStr = shift?.checkInTime || "08:00";
       const [inHh] = checkInTimeStr.split(":").map(Number);

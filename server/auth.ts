@@ -36,7 +36,11 @@ export async function comparePasswords(password: string, hash: string): Promise<
 export function setupAuth(app: Express) {
   // Use MySQL for session storage
   const SessionStore = (MySQLStore as any)(session);
-  const sessionStore = new SessionStore({}, pool as any);
+  const sessionStore = new SessionStore({
+    expiration: 30 * 24 * 60 * 60 * 1000, // 30 hari
+    clearExpired: true,
+    checkExpirationInterval: 15 * 60 * 1000,
+  }, pool as any);
 
   app.use(
     session({
