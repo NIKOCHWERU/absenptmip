@@ -247,8 +247,19 @@ export default function RegistrationPage() {
                             name="nik"
                             render={({ field }) => (
                               <FormItem>
-                                <FormLabel>NIK</FormLabel>
+                                <FormLabel>NIK / Nomor Tenaga Kerja</FormLabel>
                                 <FormControl><Input {...field} /></FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <FormField
+                            control={form.control}
+                            name="kkNumber"
+                            render={({ field }) => (
+                              <FormItem className="col-span-1 sm:col-span-2">
+                                <FormLabel>Nomor Kartu Keluarga (KK)</FormLabel>
+                                <FormControl><Input placeholder="Masukkan Nomor KK" {...field} /></FormControl>
                                 <FormMessage />
                               </FormItem>
                             )}
@@ -431,17 +442,6 @@ export default function RegistrationPage() {
                       <div className="space-y-4">
                         <CardTitle className="text-xl mb-4">Data Administrasi</CardTitle>
                         <div className="space-y-4">
-                          <FormField
-                            control={form.control}
-                            name="kkNumber"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Nomor Kartu Keluarga (KK)</FormLabel>
-                                <FormControl><Input placeholder="Masukkan Nomor KK" {...field} /></FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
                           <FormField
                             control={form.control}
                             name="npwp"
