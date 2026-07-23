@@ -53,12 +53,13 @@ export default function RegistrationPage() {
       employmentStatus: user?.employmentStatus || "Kontrak",
       npwp: user?.npwp || "",
       bpjs: user?.bpjs || "",
+      kkNumber: user?.kkNumber || "",
     }
   });
 
-  const [previews, setPreviews] = useState<{ ktp?: string; profile?: string; bpjs?: string; npwp?: string }>({});
+  const [previews, setPreviews] = useState<{ ktp?: string; profile?: string; bpjs?: string; npwp?: string; kk?: string }>({});
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, type: 'ktp' | 'profile' | 'bpjs' | 'npwp') => {
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, type: 'ktp' | 'profile' | 'bpjs' | 'npwp' | 'kk') => {
     const file = e.target.files?.[0];
     if (file) {
       // Size Check: 30MB
@@ -97,7 +98,8 @@ export default function RegistrationPage() {
       { key: 'birthDate', name: 'Tanggal Lahir' },
       { key: 'religion', name: 'Agama' },
       { key: 'phoneNumber', name: 'No. HP' },
-      { key: 'address', name: 'Alamat' }
+      { key: 'address', name: 'Alamat' },
+      { key: 'kkNumber', name: 'Nomor KK' }
     ];
 
     const emptyFields = requiredFields.filter(f => !values[f.key]);
@@ -123,6 +125,7 @@ export default function RegistrationPage() {
       const profInput = document.getElementById('prof-upload') as HTMLInputElement;
       const bpjsInput = document.getElementById('bpjs-upload') as HTMLInputElement;
       const npwpInput = document.getElementById('npwp-upload') as HTMLInputElement;
+      const kkInput = document.getElementById('kk-upload') as HTMLInputElement;
 
       if (!ktpInput?.files?.[0]) {
         toast({ title: "Peringatan", description: "Foto KTP wajib diunggah.", variant: "destructive" });
@@ -134,11 +137,17 @@ export default function RegistrationPage() {
         setIsSubmitting(false);
         return;
       }
+      if (!kkInput?.files?.[0]) {
+        toast({ title: "Peringatan", description: "Dokumen KK wajib diunggah.", variant: "destructive" });
+        setIsSubmitting(false);
+        return;
+      }
 
       if (ktpInput?.files?.[0]) formData.append('ktpPhoto', ktpInput.files[0]);
       if (profInput?.files?.[0]) formData.append('profilePhoto', profInput.files[0]);
       if (bpjsInput?.files?.[0]) formData.append('bpjsPhoto', bpjsInput.files[0]);
       if (npwpInput?.files?.[0]) formData.append('npwpPhoto', npwpInput.files[0]);
+      if (kkInput?.files?.[0]) formData.append('kkPhoto', kkInput.files[0]);
 
       const res = await fetch("/api/register-data", {
         method: "POST",
@@ -424,6 +433,17 @@ export default function RegistrationPage() {
                         <div className="space-y-4">
                           <FormField
                             control={form.control}
+                            name="kkNumber"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Nomor Kartu Keluarga (KK)</FormLabel>
+                                <FormControl><Input placeholder="Masukkan Nomor KK" {...field} /></FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <FormField
+                            control={form.control}
                             name="npwp"
                             render={({ field }) => (
                               <FormItem>
@@ -522,6 +542,26 @@ export default function RegistrationPage() {
                                 </>
                               )}
                               <input id="npwp-upload" type="file" className="hidden" accept="image/*" onChange={(e) => handleFileChange(e, 'npwp')} />
+                            </label>
+                          </div>
+
+                          <div className="space-y-2">
+                            <FormLabel className="text-sm font-medium">Dokumen KK (Wajib)</FormLabel>
+                            <label 
+                              htmlFor="kk-upload" 
+                              className="flex flex-col items-center justify-center w-full h-32 sm:h-40 border-2 border-dashed border-slate-300 rounded-xl cursor-pointer bg-slate-50 hover:bg-slate-100 hover:border-primary transition-all overflow-hidden"
+                            >
+                              {previews.kk ? (
+                                previews.kk.startsWith('data:application/pdf') 
+                                  ? <div className="flex flex-col items-center justify-center h-full text-primary"><FileText className="w-10 h-10 mb-2" /><span className="text-xs font-bold">PDF Terpilih</span></div>
+                                  : <img src={previews.kk} className="w-full h-full object-cover" />
+                              ) : (
+                                <>
+                                  <Upload className="w-6 h-6 sm:w-8 sm:h-8 text-slate-400 mb-2" />
+                                  <span className="text-[10px] sm:text-xs text-slate-500 font-medium text-center">Klik untuk upload KK<br/>(Foto / PDF)</span>
+                                </>
+                              )}
+                              <input id="kk-upload" type="file" className="hidden" accept="image/*,application/pdf" onChange={(e) => handleFileChange(e, 'kk')} />
                             </label>
                           </div>
                         </div>

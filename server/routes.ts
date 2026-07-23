@@ -545,6 +545,7 @@ export function registerRoutes(app: Express) {
       { name: "bpjsPhoto", maxCount: 1 },
       { name: "npwpPhoto", maxCount: 1 },
       { name: "photo", maxCount: 1 },
+      { name: "kkPhoto", maxCount: 1 },
     ]),
     async (req: Request, res: Response) => {
       const files = req.files as { [fieldname: string]: Express.Multer.File[] };
@@ -567,6 +568,7 @@ export function registerRoutes(app: Express) {
         position,
         employmentStatus,
         joinDate,
+        kkNumber,
       } = req.body;
 
       if (!username || !password || !fullName || !nik) {
@@ -600,6 +602,7 @@ export function registerRoutes(app: Express) {
           position,
           employmentStatus,
           joinDate,
+          kkNumber,
           role: "employee",
           registrationStatus: "pending", // Directly to pending because they complete it upfront
         };
@@ -608,6 +611,7 @@ export function registerRoutes(app: Express) {
         insertData.bpjsPhotoUrl = files?.bpjsPhoto?.[0] ? await processSingleUpload(files.bpjsPhoto[0], "document", fullName, "BPJS") : null;
         insertData.npwpPhotoUrl = files?.npwpPhoto?.[0] ? await processSingleUpload(files.npwpPhoto[0], "document", fullName, "NPWP") : null;
         insertData.photoUrl = files?.photo?.[0] ? await processSingleUpload(files.photo[0], "profile", fullName, "Profil") : null;
+        insertData.kkPhotoUrl = files?.kkPhoto?.[0] ? await processSingleUpload(files.kkPhoto[0], "document", fullName, "KK") : null;
 
         await (db.insert(users) as any).values(insertData);
 
@@ -627,6 +631,7 @@ export function registerRoutes(app: Express) {
       { name: "profilePhoto", maxCount: 1 },
       { name: "bpjsPhoto", maxCount: 1 },
       { name: "npwpPhoto", maxCount: 1 },
+      { name: "kkPhoto", maxCount: 1 },
     ]),
     async (req: Request, res: Response) => {
       try {
@@ -650,6 +655,7 @@ export function registerRoutes(app: Express) {
           position,
           employmentStatus,
           joinDate,
+          kkNumber,
         } = req.body;
 
         // Normalise birthDate to yyyy-MM-dd (strip ISO timestamp if present)
@@ -682,6 +688,7 @@ export function registerRoutes(app: Express) {
         if (position) updates.position = position;
         if (employmentStatus) updates.employmentStatus = employmentStatus;
         if (joinDate) updates.joinDate = joinDate;
+        if (kkNumber) updates.kkNumber = kkNumber;
 
         const uploadName = fullName || (req.user as any).fullName || (req.user as any).username;
 
@@ -697,6 +704,9 @@ export function registerRoutes(app: Express) {
         }
         if (files?.npwpPhoto?.[0]) {
           updates.npwpPhotoUrl = await processSingleUpload(files.npwpPhoto[0], "document", uploadName, "NPWP");
+        }
+        if (files?.kkPhoto?.[0]) {
+          updates.kkPhotoUrl = await processSingleUpload(files.kkPhoto[0], "document", uploadName, "KK");
         }
 
         await db.update(users).set(updates).where(eq(users.id, userId));
@@ -1775,12 +1785,13 @@ export function registerRoutes(app: Express) {
     { name: "ktpPhoto", maxCount: 1 },
     { name: "bpjsPhoto", maxCount: 1 },
     { name: "npwpPhoto", maxCount: 1 },
+    { name: "kkPhoto", maxCount: 1 },
   ]), async (req: Request, res: Response) => {
     try {
       const { 
         fullName, username, password, role, nik, branch, position, email,
         phoneNumber, religion, npwp, bpjs, birthPlace, birthDate, gender,
-        address, joinDate, employmentStatus, shift, registrationStatus
+        address, joinDate, employmentStatus, shift, registrationStatus, kkNumber
       } = req.body;
       const files = req.files as { [fieldname: string]: Express.Multer.File[] } | undefined;
 
@@ -1822,6 +1833,7 @@ export function registerRoutes(app: Express) {
         employmentStatus: employmentStatus || null,
         shift: shift || null,
         registrationStatus: registrationStatus || "approved",
+        kkNumber: kkNumber || null,
       };
 
       const uploadName = nik || username;
@@ -1836,6 +1848,9 @@ export function registerRoutes(app: Express) {
       }
       if (files?.npwpPhoto?.[0]) {
         insertData.npwpPhotoUrl = await processSingleUpload(files.npwpPhoto[0], "document", uploadName, "NPWP");
+      }
+      if (files?.kkPhoto?.[0]) {
+        insertData.kkPhotoUrl = await processSingleUpload(files.kkPhoto[0], "document", uploadName, "KK");
       }
 
       const [newUser] = await db.insert(users).values(insertData);
@@ -1852,13 +1867,14 @@ export function registerRoutes(app: Express) {
     { name: "ktpPhoto", maxCount: 1 },
     { name: "bpjsPhoto", maxCount: 1 },
     { name: "npwpPhoto", maxCount: 1 },
+    { name: "kkPhoto", maxCount: 1 },
   ]), async (req: Request, res: Response) => {
     const targetId = Number(req.params.id);
     try {
       const { 
         fullName, username, password, role, nik, branch, position, email,
         phoneNumber, religion, npwp, bpjs, birthPlace, birthDate, gender,
-        address, joinDate, employmentStatus, shift, registrationStatus
+        address, joinDate, employmentStatus, shift, registrationStatus, kkNumber
       } = req.body;
       const files = req.files as { [fieldname: string]: Express.Multer.File[] } | undefined;
 
@@ -1893,6 +1909,7 @@ export function registerRoutes(app: Express) {
       if (employmentStatus !== undefined) updateData.employmentStatus = employmentStatus;
       if (shift !== undefined) updateData.shift = shift;
       if (registrationStatus !== undefined) updateData.registrationStatus = registrationStatus;
+      if (kkNumber !== undefined) updateData.kkNumber = kkNumber;
 
       // Handle photos
       const uploadName = nik || username || `user_${targetId}`;
@@ -1964,6 +1981,7 @@ export function registerRoutes(app: Express) {
       if (user.ktpPhotoUrl) documents.push({ name: "KTP", url: user.ktpPhotoUrl, type: "Profil" });
       if (user.npwpPhotoUrl) documents.push({ name: "NPWP", url: user.npwpPhotoUrl, type: "Profil" });
       if (user.bpjsPhotoUrl) documents.push({ name: "BPJS", url: user.bpjsPhotoUrl, type: "Profil" });
+      if (user.kkPhotoUrl) documents.push({ name: "KK", url: user.kkPhotoUrl, type: "Profil" });
 
       const userMutations = await db.select().from(mutations).where(eq(mutations.userId, targetId));
       for (const m of userMutations) {

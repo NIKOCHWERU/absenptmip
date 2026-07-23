@@ -141,6 +141,7 @@ export default function AdminEmployeeList() {
         phoneNumber: z.string().optional(),
         religion: z.string().optional(),
         npwp: z.string().optional(),
+        kkNumber: z.string().optional(),
         bpjs: z.string().optional(),
         birthPlace: z.string().optional(),
         birthDate: z.string().optional(),
@@ -174,7 +175,8 @@ export default function AdminEmployeeList() {
             joinDate: "",
             employmentStatus: "Kontrak",
             registrationStatus: "approved",
-            shift: "-"
+            shift: "-",
+            kkNumber: ""
         }
     });
 
@@ -218,6 +220,7 @@ export default function AdminEmployeeList() {
     const [selectedNpwpPhoto, setSelectedNpwpPhoto] = useState<File | null>(null);
     const [selectedBpjsPhoto, setSelectedBpjsPhoto] = useState<File | null>(null);
     const [selectedKtpPhoto, setSelectedKtpPhoto] = useState<File | null>(null);
+    const [selectedKkPhoto, setSelectedKkPhoto] = useState<File | null>(null);
     const [csvFile, setCsvFile] = useState<File | null>(null);
     const [csvOpen, setCsvOpen] = useState(false);
     const [selectedEmployeeIds, setSelectedEmployeeIds] = useState<number[]>([]);
@@ -269,6 +272,9 @@ export default function AdminEmployeeList() {
             if (selectedNpwpPhoto) {
                 formData.append("npwpPhoto", selectedNpwpPhoto);
             }
+            if (selectedKkPhoto) {
+                formData.append("kkPhoto", selectedKkPhoto);
+            }
 
             const url = selectedEmployee ? `/api/admin/users/${selectedEmployee.id}` : "/api/admin/users";
             const method = selectedEmployee ? "PATCH" : "POST";
@@ -295,6 +301,7 @@ export default function AdminEmployeeList() {
             setSelectedBpjsPhoto(null);
             setSelectedNpwpPhoto(null);
             setSelectedKtpPhoto(null);
+            setSelectedKkPhoto(null);
         },
         onError: (err: any) => {
             toast({ title: "Gagal", description: err.message, variant: "destructive" });
@@ -387,7 +394,8 @@ export default function AdminEmployeeList() {
                                 joinDate: "",
                                 employmentStatus: "Kontrak",
                                 registrationStatus: "approved",
-                                shift: "-"
+                                shift: "-",
+                                kkNumber: ""
                             });
                             setSelectedBpjsPhoto(null);
                             setSelectedNpwpPhoto(null);
@@ -548,6 +556,7 @@ export default function AdminEmployeeList() {
                                                         employmentStatus: (emp as any).employmentStatus || "Kontrak",
                                                         registrationStatus: (emp as any).registrationStatus || "approved",
                                                         shift: emp.shift || "-",
+                                                        kkNumber: (emp as any).kkNumber || "",
                                                         email: emp.email || ""
                                                     });
                                                     setOpen(true);
@@ -911,6 +920,7 @@ export default function AdminEmployeeList() {
                                     <Section title="Administrasi" icon={<CreditCard className="w-4 h-4" />}>
                                         <DataRow label="NPWP" value={(viewEmployee as any).npwp} />
                                         <DataRow label="BPJS" value={(viewEmployee as any).bpjs} />
+                                        <DataRow label="Nomor KK" value={(viewEmployee as any).kkNumber} />
                                         <DataRow label="No. HP" value={viewEmployee.phoneNumber} />
                                         <DataRow label="Email" value={viewEmployee.email} />
                                     </Section>
@@ -921,6 +931,7 @@ export default function AdminEmployeeList() {
                                             <DocumentBox label="KTP" url={(viewEmployee as any).ktpPhotoUrl} isDrive />
                                             <DocumentBox label="BPJS" url={(viewEmployee as any).bpjsPhotoUrl} isDrive />
                                             <DocumentBox label="NPWP" url={(viewEmployee as any).npwpPhotoUrl} isDrive />
+                                            <DocumentBox label="Dokumen KK" url={(viewEmployee as any).kkPhotoUrl} isDrive />
                                         </div>
                                     </Section>
                                 </div>
@@ -1292,6 +1303,13 @@ export default function AdminEmployeeList() {
                                         <FormMessage />
                                     </FormItem>
                                 )} />
+                                <FormField control={form.control} name="kkNumber" render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Nomor KK</FormLabel>
+                                        <FormControl><Input {...field} value={field.value || ''} placeholder="Nomor Kartu Keluarga" /></FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )} />
                                 <div className="space-y-2">
                                     <FormLabel className="text-sm font-medium leading-none">Foto NPWP</FormLabel>
                                     <div className="flex items-center gap-3">
@@ -1314,6 +1332,15 @@ export default function AdminEmployeeList() {
                                         <Input type="file" accept="image/*" onChange={(e) => setSelectedBpjsPhoto(e.target.files?.[0] || null)} />
                                         {(selectedEmployee as any)?.bpjsPhotoUrl && (
                                             <a href={(selectedEmployee as any).bpjsPhotoUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline shrink-0">Lihat Foto</a>
+                                        )}
+                                    </div>
+                                </div>
+                                <div className="space-y-2 pb-2">
+                                    <FormLabel className="text-sm font-medium leading-none">Dokumen KK</FormLabel>
+                                    <div className="flex items-center gap-3">
+                                        <Input type="file" accept="image/*,application/pdf" onChange={(e) => setSelectedKkPhoto(e.target.files?.[0] || null)} />
+                                        {(selectedEmployee as any)?.kkPhotoUrl && (
+                                            <a href={(selectedEmployee as any).kkPhotoUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline shrink-0">Lihat File</a>
                                         )}
                                     </div>
                                 </div>

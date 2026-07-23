@@ -27,6 +27,8 @@ export const users = mysqlTable("users", {
   bpjs: varchar("bpjs", { length: 50 }),
   npwpPhotoUrl: varchar("npwp_photo_url", { length: 512 }),
   bpjsPhotoUrl: varchar("bpjs_photo_url", { length: 512 }),
+  kkNumber: varchar("kk_number", { length: 50 }),
+  kkPhotoUrl: varchar("kk_photo_url", { length: 512 }),
   bankAccount: varchar("bank_account", { length: 100 }),
   ktpPhotoUrl: varchar("ktp_photo_url", { length: 512 }),
   registrationStatus: mysqlEnum("registration_status", ["unregistered", "pending", "approved", "rejected"]).notNull().default("unregistered"),
