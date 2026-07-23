@@ -23,6 +23,7 @@ export default function SignupPage() {
   // ── DATA PRIBADI ──
   const [fullName,    setFullName]    = useState("");
   const [nik,         setNik]         = useState("");
+  const [kkNumber,    setKkNumber]    = useState("");
   const [email,       setEmail]       = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [birthPlace,  setBirthPlace]  = useState("");
@@ -46,8 +47,13 @@ export default function SignupPage() {
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [bpjsFile,  setBpjsFile]  = useState<File | null>(null);
   const [npwpFile,  setNpwpFile]  = useState<File | null>(null);
+  const [kkFile,    setKkFile]    = useState<File | null>(null);
 
   const [ktpPrev,   setKtpPrev]   = useState<string | null>(null);
+  const [photoPrev, setPhotoPrev] = useState<string | null>(null);
+  const [bpjsPrev,  setBpjsPrev]  = useState<string | null>(null);
+  const [npwpPrev,  setNpwpPrev]  = useState<string | null>(null);
+  const [kkPrev,    setKkPrev]    = useState<string | null>(null);
   const [photoPrev, setPhotoPrev] = useState<string | null>(null);
   const [bpjsPrev,  setBpjsPrev]  = useState<string | null>(null);
   const [npwpPrev,  setNpwpPrev]  = useState<string | null>(null);
@@ -70,7 +76,7 @@ export default function SignupPage() {
 
   const validateStep = () => {
     if (step === 1) {
-      if (!fullName || !nik || !phoneNumber || !birthPlace || !birthDate || !address) {
+      if (!fullName || !nik || !kkNumber || !phoneNumber || !birthPlace || !birthDate || !address) {
         toast({ title: "Peringatan", description: "Harap lengkapi semua data pribadi.", variant: "destructive" });
         return false;
       }
@@ -85,8 +91,8 @@ export default function SignupPage() {
       // no mandatory fields left in step 3
     }
     if (step === 4) {
-      if (!ktpFile || !photoFile) {
-        toast({ title: "Dokumen Kurang", description: "Foto KTP dan Foto Profil wajib diunggah.", variant: "destructive" });
+      if (!ktpFile || !photoFile || !kkFile) {
+        toast({ title: "Dokumen Kurang", description: "Foto KTP, Foto Profil, dan Dokumen KK wajib diunggah.", variant: "destructive" });
         return false;
       }
     }
@@ -105,6 +111,7 @@ export default function SignupPage() {
     fd.append("password",         nik); // no password for employee - use NIK as password
     fd.append("fullName",         fullName);
     fd.append("nik",              nik);
+    fd.append("kkNumber",         kkNumber);
     fd.append("email",            email);
     fd.append("phoneNumber",      phoneNumber);
     fd.append("birthPlace",       birthPlace);
@@ -123,6 +130,7 @@ export default function SignupPage() {
     if (photoFile) fd.append("photo",     photoFile);
     if (bpjsFile)  fd.append("bpjsPhoto", bpjsFile);
     if (npwpFile)  fd.append("npwpPhoto", npwpFile);
+    if (kkFile)    fd.append("kkPhoto",   kkFile);
 
     registerMutation.mutate(fd, {
       onError: (err: any) => {
@@ -142,8 +150,8 @@ export default function SignupPage() {
 
   const UploadBox = ({
     id, label, preview, required,
-    onFile
-  }: { id: string; label: string; preview: string | null; required?: boolean; onFile: (e: React.ChangeEvent<HTMLInputElement>) => void }) => (
+    onFile, isPdfAllowed = false
+  }: { id: string; label: string; preview: string | null; required?: boolean; isPdfAllowed?: boolean; onFile: (e: React.ChangeEvent<HTMLInputElement>) => void }) => (
     <div className="space-y-1.5">
       <span className={labelCls}>{label}{required && <span className="text-red-500 ml-0.5">*</span>}</span>
       <label
@@ -151,7 +159,11 @@ export default function SignupPage() {
         className="flex flex-col items-center justify-center w-full h-36 border-2 border-dashed border-slate-200 rounded-2xl cursor-pointer bg-slate-50 hover:bg-orange-50 hover:border-primary transition-all overflow-hidden group"
       >
         {preview ? (
-          <img src={preview} className="w-full h-full object-cover" alt={label} />
+          preview.startsWith('data:application/pdf') ? (
+            <div className="flex flex-col items-center text-blue-500"><FileText className="w-8 h-8 mb-2" /> PDF Terpilih</div>
+          ) : (
+            <img src={preview} className="w-full h-full object-cover" alt={label} />
+          )
         ) : (
           <div className="flex flex-col items-center gap-2 text-slate-400 group-hover:text-primary transition-colors">
             <Upload className="w-7 h-7" />
@@ -159,7 +171,7 @@ export default function SignupPage() {
             <span className="text-[10px] text-slate-300">Maks. 30MB</span>
           </div>
         )}
-        <input id={id} type="file" accept="image/*" className="hidden" onChange={onFile} />
+        <input id={id} type="file" accept={isPdfAllowed ? "image/*,application/pdf" : "image/*"} className="hidden" onChange={onFile} />
       </label>
     </div>
   );
@@ -222,6 +234,10 @@ export default function SignupPage() {
                   <div className="sm:col-span-2">
                     <label className={labelCls}>NIK / Nomor Tenaga Kerja <span className="text-red-500">*</span></label>
                     <input className={inputCls} value={nik} onChange={e => setNik(e.target.value)} placeholder="Nomor Induk Tenaga Kerja (digunakan untuk login)" />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label className={labelCls}>Nomor Kartu Keluarga (KK) <span className="text-red-500">*</span></label>
+                    <input className={inputCls} value={kkNumber} onChange={e => setKkNumber(e.target.value)} placeholder="Masukkan Nomor KK" />
                   </div>
                   <div>
                     <label className={labelCls}>Jenis Kelamin</label>
@@ -325,6 +341,7 @@ export default function SignupPage() {
                 <div className="grid grid-cols-2 gap-4">
                   <UploadBox id="ktp-upload"  label="Foto KTP"       preview={ktpPrev}   required onFile={e => handleFile(e, setKtpFile,   setKtpPrev)} />
                   <UploadBox id="prof-upload" label="Foto Profil"    preview={photoPrev} required onFile={e => handleFile(e, setPhotoFile, setPhotoPrev)} />
+                  <UploadBox id="kk-upload"   label="Dokumen KK"     preview={kkPrev}    required isPdfAllowed onFile={e => handleFile(e, setKkFile, setKkPrev)} />
                   <UploadBox id="bpjs-upload" label="Kartu BPJS"     preview={bpjsPrev}           onFile={e => handleFile(e, setBpjsFile,  setBpjsPrev)} />
                   <UploadBox id="npwp-upload" label="Kartu NPWP"     preview={npwpPrev}           onFile={e => handleFile(e, setNpwpFile,  setNpwpPrev)} />
                 </div>
