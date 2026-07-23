@@ -54,9 +54,6 @@ export default function SignupPage() {
   const [bpjsPrev,  setBpjsPrev]  = useState<string | null>(null);
   const [npwpPrev,  setNpwpPrev]  = useState<string | null>(null);
   const [kkPrev,    setKkPrev]    = useState<string | null>(null);
-  const [photoPrev, setPhotoPrev] = useState<string | null>(null);
-  const [bpjsPrev,  setBpjsPrev]  = useState<string | null>(null);
-  const [npwpPrev,  setNpwpPrev]  = useState<string | null>(null);
 
   const handleFile = (
     e: React.ChangeEvent<HTMLInputElement>,
