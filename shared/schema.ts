@@ -81,6 +81,22 @@ export const attendance = mysqlTable("attendance", {
   userDateIdx: index("idx_attendance_user_date").on(table.userId, table.date),
 }));
 
+export const overtimes = mysqlTable("overtimes", {
+  id: int("id").primaryKey().autoincrement(),
+  attendanceId: int("attendance_id").notNull(),
+  startTime: timestamp("start_time").notNull(),
+  endTime: timestamp("end_time"),
+  splDocumentUrl: varchar("spl_document_url", { length: 512 }),
+  initialProofUrl: varchar("initial_proof_url", { length: 512 }),
+  finalProofUrl: varchar("final_proof_url", { length: 512 }),
+  description: text("description"),
+  finalDescription: text("final_description"),
+  status: mysqlEnum("status", ["ongoing", "completed", "cancelled"]).default("ongoing"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  attendanceIdx: index("idx_overtimes_attendance_id").on(table.attendanceId),
+}));
+
 export const announcements = mysqlTable("announcements", {
   id: int("id").primaryKey().autoincrement(),
   title: varchar("title", { length: 255 }).notNull(),

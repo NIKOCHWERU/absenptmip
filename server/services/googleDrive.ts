@@ -38,7 +38,7 @@ const drive = oauth2Client ? google.drive({ version: 'v3', auth: oauth2Client })
 const subfolderCache: Record<string, string> = {};
 
 // Get or create a subfolder inside ROOT_FOLDER_ID
-async function getOrCreateSubfolder(folderName: 'Absensi' | 'Dokumen' | 'Pengaduan'): Promise<string> {
+async function getOrCreateSubfolder(folderName: 'Absensi' | 'Dokumen' | 'Pengaduan' | 'Lembur'): Promise<string> {
     if (subfolderCache[folderName]) return subfolderCache[folderName];
     if (!drive || !ROOT_FOLDER_ID) throw new Error("Drive not configured");
 
@@ -113,7 +113,7 @@ export function buildDriveFilename(
     return `${cleanName}_${date}_${action}_${timeStr}.jpg`;
 }
 
-export type DriveFolder = 'Absensi' | 'Dokumen' | 'Pengaduan';
+export type DriveFolder = 'Absensi' | 'Dokumen' | 'Pengaduan' | 'Lembur';
 
 export async function uploadFile(
     fileBuffer: Buffer,

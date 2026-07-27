@@ -5,7 +5,7 @@ import fs from "fs";
 import { exec } from "child_process";
 import webpush from "web-push";
 import { db, pool } from "./db.js";
-import { users, shifts, attendance, leaveRequests, complaints, complaintPhotos, resignations, mutations, warningLetters, systemConfigs, activityLogs, announcements, pushSubscriptions } from "../shared/schema.js";
+import { users, shifts, attendance, leaveRequests, complaints, complaintPhotos, resignations, mutations, warningLetters, systemConfigs, activityLogs, announcements, pushSubscriptions, overtimes } from "../shared/schema.js";
 import { eq, and, or, gte, lte, desc, sql, isNotNull, isNull, inArray } from "drizzle-orm";
 
 import { isAuthenticated, isAdmin, isSuperAdmin, hashPassword } from "./auth.js";
@@ -38,7 +38,7 @@ import { uploadFile, isDriveConfigured, buildDriveFilename, DriveFolder, downloa
 
 async function processSingleUpload(
   file: Express.Multer.File | undefined,
-  actionType: 'clockIn' | 'breakStart' | 'breakEnd' | 'clockOut' | 'lateReason' | 'complaint' | 'document' | 'profile',
+  actionType: 'clockIn' | 'breakStart' | 'breakEnd' | 'clockOut' | 'lateReason' | 'complaint' | 'document' | 'profile' | 'overtimeSPL' | 'overtimeInitial' | 'overtimeFinal',
   fullName: string,
   docLabel?: string, // e.g. 'KTP', 'NPWP', 'BPJS', 'Profil'
   base64Data?: string | null
@@ -73,18 +73,15 @@ async function processSingleUpload(
     return null;
   }
 
-  // Determine target subfolder
-  const folderMap: Record<string, DriveFolder> = {
-    clockIn: 'Absensi',
-    breakStart: 'Absensi',
-    breakEnd: 'Absensi',
-    clockOut: 'Absensi',
-    lateReason: 'Absensi',
-    complaint: 'Pengaduan',
-    document: 'Dokumen',
-    profile: 'Dokumen',
-  };
-  const driveFolder: DriveFolder = folderMap[actionType] || 'Dokumen';
+  let targetFolder: DriveFolder = 'Absensi';
+  if (actionType === 'document' || actionType === 'profile') {
+    targetFolder = 'Dokumen';
+  } else if (actionType === 'complaint') {
+    targetFolder = 'Pengaduan';
+  } else if (actionType === 'overtimeSPL' || actionType === 'overtimeInitial' || actionType === 'overtimeFinal') {
+    targetFolder = 'Lembur';
+  }
+  const driveFolder: DriveFolder = targetFolder;
 
   if (isDriveConfigured) {
     try {
@@ -168,14 +165,20 @@ async function autoCloseExpiredSessions(userId: number) {
          checkOutDate.setDate(checkOutDate.getDate() + 1);
       }
 
-      // Deadline is + 1 hr
-      const deadlineDate = new Date(checkOutDate.getTime() + 60 * 60 * 1000);
+      // Deadline is + 10 mins
+      const deadlineDate = new Date(checkOutDate.getTime() + 10 * 60 * 1000);
 
       if (now > deadlineDate) {
+        // If there's an ongoing overtime, skip auto-checkout (or do it but don't mess up overtime)
+        const activeOvertime = await db.select().from(overtimes).where(and(eq(overtimes.attendanceId, session.id), eq(overtimes.status, "ongoing")));
+        if (activeOvertime.length > 0) {
+           continue; // Already handled by overtime
+        }
+
         const newNotes = session.notes ? `${session.notes} (Otomatis absen pulang oleh sistem)` : "(Otomatis absen pulang oleh sistem)";
         await db.update(attendance)
           .set({
-            checkOut: deadlineDate, 
+            checkOut: checkOutDate, 
             notes: newNotes,
           })
           .where(eq(attendance.id, session.id));
@@ -1319,6 +1322,136 @@ export function registerRoutes(app: Express) {
   });
 
   // 7. Get Today's Active Attendance Log for Employee
+  app.post("/api/attendance/overtime/start", isAuthenticated, upload.fields([{ name: "splPhoto" }, { name: "initialProofPhoto" }]), async (req: Request, res: Response) => {
+    try {
+      const userId = req.session.userId!;
+      const user = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+      if (!user.length) return res.status(404).json({ message: "User not found" });
+
+      const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+      const description = req.body.description;
+
+      const adminDate = getAdminDate();
+      const todaySessions = await db.select()
+        .from(attendance)
+        .where(and(
+          eq(attendance.userId, userId),
+          eq(attendance.date, adminDate)
+        ))
+        .orderBy(desc(attendance.sessionNumber));
+
+      if (todaySessions.length === 0) {
+        return res.status(400).json({ message: "Anda belum absen masuk hari ini" });
+      }
+
+      const activeSession = todaySessions[0];
+      
+      // If haven't checked out normally, check them out at shift end time
+      if (!activeSession.checkOut) {
+        const userShift = await db.select().from(shifts).where(eq(shifts.id, activeSession.shiftId!)).limit(1);
+        const shiftEndStr = userShift.length > 0 ? userShift[0].checkOutTime : "17:00";
+        const [hh, mm] = shiftEndStr.split(":").map(Number);
+        
+        let year, month, dateNum;
+        if (typeof activeSession.date === 'string') {
+          const parts = (activeSession.date as string).split("-");
+          year = Number(parts[0]); month = Number(parts[1]) - 1; dateNum = Number(parts[2]);
+        } else {
+          const d = activeSession.date as Date;
+          year = d.getFullYear(); month = d.getMonth(); dateNum = d.getDate();
+        }
+        
+        const isoString = `${year}-${String(month + 1).padStart(2, '0')}-${String(dateNum).padStart(2, '0')}T${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}:00+07:00`;
+        let checkOutDate = new Date(isoString);
+        
+        // Ensure checkout is not tomorrow unless shift spans midnight (handled simply here)
+        await db.update(attendance).set({ checkOut: checkOutDate }).where(eq(attendance.id, activeSession.id));
+      }
+
+      // Check if overtime already started
+      const existingOvertimes = await db.select().from(overtimes).where(and(eq(overtimes.attendanceId, activeSession.id), eq(overtimes.status, "ongoing")));
+      if (existingOvertimes.length > 0) {
+        return res.status(400).json({ message: "Lembur sudah berjalan" });
+      }
+
+      const splUrl = files?.splPhoto?.[0] ? await processSingleUpload(files.splPhoto[0], "overtimeSPL", user[0].fullName) : null;
+      const initialProofUrl = files?.initialProofPhoto?.[0] ? await processSingleUpload(files.initialProofPhoto[0], "overtimeInitial", user[0].fullName) : null;
+
+      await db.insert(overtimes).values({
+        attendanceId: activeSession.id,
+        startTime: new Date(),
+        description: description,
+        splDocumentUrl: splUrl,
+        initialProofUrl: initialProofUrl,
+        status: "ongoing"
+      });
+
+      res.json({ message: "Lembur berhasil dimulai" });
+    } catch (e: any) {
+      console.error("Overtime start error:", e);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.post("/api/attendance/overtime/end", isAuthenticated, upload.fields([{ name: "finalProofPhoto" }]), async (req: Request, res: Response) => {
+    try {
+      const userId = req.session.userId!;
+      const user = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+      if (!user.length) return res.status(404).json({ message: "User not found" });
+
+      const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+      const finalDescription = req.body.finalDescription;
+      
+      const adminDate = getAdminDate();
+      const todaySessions = await db.select()
+        .from(attendance)
+        .where(and(eq(attendance.userId, userId), eq(attendance.date, adminDate)))
+        .orderBy(desc(attendance.sessionNumber));
+
+      if (todaySessions.length === 0) return res.status(400).json({ message: "Sesi tidak ditemukan" });
+
+      const activeSession = todaySessions[0];
+      const activeOvertimes = await db.select().from(overtimes).where(and(eq(overtimes.attendanceId, activeSession.id), eq(overtimes.status, "ongoing"))).limit(1);
+      
+      if (activeOvertimes.length === 0) {
+         return res.status(400).json({ message: "Tidak ada lembur yang sedang berjalan" });
+      }
+
+      const finalProofUrl = files?.finalProofPhoto?.[0] ? await processSingleUpload(files.finalProofPhoto[0], "overtimeFinal", user[0].fullName) : null;
+
+      await db.update(overtimes).set({
+        endTime: new Date(),
+        finalProofUrl: finalProofUrl,
+        finalDescription: finalDescription,
+        status: "completed"
+      }).where(eq(overtimes.id, activeOvertimes[0].id));
+
+      res.json({ message: "Lembur berhasil diakhiri" });
+    } catch(e: any) {
+      console.error("Overtime end error:", e);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.get("/api/attendance/overtime/today", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const userId = req.session.userId!;
+      const adminDate = getAdminDate();
+      const todaySessions = await db.select().from(attendance).where(and(eq(attendance.userId, userId), eq(attendance.date, adminDate))).orderBy(desc(attendance.sessionNumber));
+      if (todaySessions.length === 0) return res.json(null);
+
+      const activeSession = todaySessions[0];
+      const overtimesList = await db.select().from(overtimes).where(eq(overtimes.attendanceId, activeSession.id));
+      if (overtimesList.length > 0) {
+        res.json(overtimesList[overtimesList.length - 1]);
+      } else {
+        res.json(null);
+      }
+    } catch (e: any) {
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
   app.get("/api/attendance/today", isAuthenticated, async (req: Request, res: Response) => {
     await autoCloseExpiredSessions((req.user as any).id);
     const userId = (req.user as any).id;

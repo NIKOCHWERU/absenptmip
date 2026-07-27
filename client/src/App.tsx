@@ -17,6 +17,8 @@ import ComplaintPage from "./pages/employee/ComplaintPage.js";
 import ProfilePage from "./pages/employee/ProfilePage.js";
 import InfoPage from "./pages/employee/InfoPage.js";
 import RegistrationPage from "./pages/employee/RegistrationPage.js";
+import EmployeeOvertimePreviewPage from "./pages/preview/EmployeeOvertimePreviewPage.js";
+import AdminOvertimePreviewPage from "./pages/preview/AdminOvertimePreviewPage.js";
 
 import AdminDashboard from "./pages/admin/DashboardPage.js";
 import EmployeeListPage from "./pages/admin/EmployeeListPage.js";
@@ -148,6 +150,8 @@ export default function App() {
             <Route path="/login" component={LoginPage} />
             <Route path="/admin/login" component={AdminLoginPage} />
             <Route path="/employee/signup" component={SignupPage} />
+            <Route path="/preview/overtime-employee" component={EmployeeOvertimePreviewPage} />
+            <Route path="/preview/overtime-admin" component={AdminOvertimePreviewPage} />
 
             {/* Root & admin redirects — gunakan component= agar hooks valid */}
             <Route path="/" component={RootRedirect} />
