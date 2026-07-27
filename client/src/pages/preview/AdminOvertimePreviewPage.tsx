@@ -1,12 +1,12 @@
 import React, { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import {
-  Users, Clock, CalendarDays, FileText, FileDown, Eye, ShieldAlert, ArrowLeft, Download, FolderCheck, Search, Image as ImageIcon
+  FileText, FileDown, Eye, ShieldAlert, ArrowLeft, Download, FolderCheck, Search, Image as ImageIcon
 } from "lucide-react";
 import { Link } from "wouter";
 
@@ -15,95 +15,150 @@ export default function AdminOvertimePreviewPage() {
   const [searchName, setSearchName] = useState("");
   const [selectedOvertime, setSelectedOvertime] = useState<any | null>(null);
 
-  // Mock data rekap absensi & lembur persis seperti format ekspor asli
+  // Mock data rekap absensi persis dari Screenshot 1
   const mockAttendanceData = [
     {
-      id: 101,
-      date: "Sabtu, 25 Juli 2026",
-      employeeName: "RENALDI",
-      nik: "EMP-042",
-      type: "regular",
-      shift: "Shift Pagi (08:00 - 17:00)",
-      checkIn: "07:55",
-      breakStart: "12:00",
-      breakEnd: "13:00",
-      checkOut: "17:00 (Lock Shift)",
-      duration: "9 Jam",
+      id: 1,
+      date: "SABTU, 25 JULI 2026",
+      employeeName: "ANDRI",
+      shift: "TIM STAMPING ( SHIFT 2 )",
+      nik: "3215190705910002",
+      masuk: "12:45",
+      istirahat: "18:19",
+      selesai: "19:06",
+      pulang: "22:06",
+      jamKerja: "8J 33M",
+      totalIstirahat: "0J 47M",
       status: "HADIR",
+      keterangan: "-",
+      isOvertime: false,
       isContinuation: false,
     },
     {
-      id: 102,
-      date: "Sabtu, 25 Juli 2026",
-      employeeName: "RENALDI",
-      nik: "EMP-042",
-      type: "overtime",
-      shift: "LEMBUR / OVERTIME",
-      checkIn: "17:00",
-      breakStart: "-",
-      breakEnd: "-",
-      checkOut: "20:30",
-      duration: "3 Jam 30 Mnt",
+      id: 2,
+      date: "SABTU, 25 JULI 2026",
+      employeeName: "DENI",
+      shift: "TIM STAMPING SHIFT 1",
+      nik: "3215180601940004",
+      masuk: "07:44",
+      istirahat: "12:11",
+      selesai: "13:00",
+      pulang: "17:00",
+      jamKerja: "8J 27M",
+      totalIstirahat: "0J 49M",
+      status: "HADIR",
+      keterangan: "-",
+      isOvertime: false,
+      isContinuation: false,
+    },
+    // BARIS TAMBAHAN KHUSUS LEMBUR DENI
+    {
+      id: 202,
+      date: "SABTU, 25 JULI 2026",
+      employeeName: "DENI",
+      shift: "LEMBUR TIM STAMPING",
+      nik: "3215180601940004",
+      masuk: "17:00",
+      istirahat: "-",
+      selesai: "-",
+      pulang: "20:30",
+      jamKerja: "3J 30M",
+      totalIstirahat: "-",
       status: "LEMBUR SELESAI",
-      isContinuation: true, // Baris kedua (Lembur) di bawah tanggal & karyawan yang sama
-      splUrl: "https://drive.google.com/file/d/demo-spl-renaldi",
-      splName: "SPL_RENALDI_25JUL.PDF",
+      keterangan: "[DOKUMEN LEMBUR & SPL COMPLETE]",
+      isOvertime: true,
+      isContinuation: true,
+      splUrl: "https://drive.google.com/file/d/demo-spl-deni",
+      splName: "SPL_DENI_25JUL.PDF",
       initialPhoto: "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?w=500&q=80",
       finalPhoto: "https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=500&q=80",
       startDesc: "Overtime repair 3 mesin press bersama Pak Dede",
       finalDesc: "Perbaikan 3 mesin selesai 100%, sudah diuji coba siap pakai besok.",
-      driveFolder: "Google Drive/Lembur/Renaldi_2026-07-25_Lembur.jpg"
+      driveFolder: "Google Drive/Lembur/Deni_2026-07-25_Lembur.jpg"
     },
     {
-      id: 201,
-      date: "Sabtu, 25 Juli 2026",
-      employeeName: "KOMARUDIN",
-      nik: "EMP-015",
-      type: "regular",
-      shift: "Shift Pagi (08:00 - 17:00)",
-      checkIn: "08:02",
-      breakStart: "12:05",
-      breakEnd: "13:00",
-      checkOut: "17:00 (Auto Close 10 min)",
-      duration: "8 Jam 58 Mnt",
-      status: "HADIR",
+      id: 3,
+      date: "SABTU, 25 JULI 2026",
+      employeeName: "DIAN KURDIANSYAH",
+      shift: "TIM STAMPING SHIFT 1",
+      nik: "3215140312880006",
+      masuk: "08:08",
+      istirahat: "12:25",
+      selesai: "13:00",
+      pulang: "17:19",
+      jamKerja: "8J 37M",
+      totalIstirahat: "0J 35M",
+      status: "TELAT",
+      keterangan: "[TELAT: BAN BOCOR]",
+      isOvertime: false,
       isContinuation: false,
     },
     {
-      id: 202,
-      date: "Sabtu, 25 Juli 2026",
-      employeeName: "KOMARUDIN",
-      nik: "EMP-015",
-      type: "overtime",
-      shift: "LEMBUR / OVERTIME",
-      checkIn: "17:00",
-      breakStart: "-",
-      breakEnd: "-",
-      checkOut: "21:00",
-      duration: "4 Jam 00 Mnt",
-      status: "LEMBUR SELESAI",
-      isContinuation: true,
-      splUrl: "https://drive.google.com/file/d/demo-spl-komarudin",
-      splName: "SPL_KOMARUDIN_25JUL.PDF",
-      initialPhoto: "https://images.unsplash.com/photo-1581092335397-9583fe92d232?w=500&q=80",
-      finalPhoto: "https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=500&q=80",
-      startDesc: "Pengelasan rangka besi conveyor utama",
-      finalDesc: "Pengelasan selesai 4 unit conveyor utama.",
-      driveFolder: "Google Drive/Lembur/Komarudin_2026-07-25_Lembur.jpg"
+      id: 4,
+      date: "SABTU, 25 JULI 2026",
+      employeeName: "EKA PERMANA",
+      shift: "TIM STAMPING ( SHIFT 2 )",
+      nik: "3215070607950001",
+      masuk: "12:30",
+      istirahat: "18:19",
+      selesai: "-",
+      pulang: "23:00",
+      jamKerja: "10J 29M",
+      totalIstirahat: "-",
+      status: "HADIR",
+      keterangan: "(OTOMATIS ABSEN PULANG OLEH SISTEM)",
+      isOvertime: false,
+      isContinuation: false,
     },
     {
-      id: 301,
-      date: "Sabtu, 25 Juli 2026",
-      employeeName: "DIAN",
-      nik: "EMP-088",
-      type: "regular",
-      shift: "Shift Pagi (08:00 - 17:00)",
-      checkIn: "07:50",
-      breakStart: "12:00",
-      breakEnd: "13:00",
-      checkOut: "17:00",
-      duration: "9 Jam 10 Mnt",
+      id: 5,
+      date: "SABTU, 25 JULI 2026",
+      employeeName: "EMUL MULYANA",
+      shift: "SECURITY 2",
+      nik: "3215052804790002",
+      masuk: "18:43",
+      istirahat: "00:29",
+      selesai: "00:52",
+      pulang: "07:37",
+      jamKerja: "12J 30M",
+      totalIstirahat: "0J 23M",
       status: "HADIR",
+      keterangan: "-",
+      isOvertime: false,
+      isContinuation: false,
+    },
+    {
+      id: 6,
+      date: "SABTU, 25 JULI 2026",
+      employeeName: "HENDRIK SETIAWAN",
+      shift: "TIM STAMPING SHIFT 1",
+      nik: "3215190810960003",
+      masuk: "07:23",
+      istirahat: "17:00",
+      selesai: "17:00",
+      pulang: "17:01",
+      jamKerja: "9J 37M",
+      totalIstirahat: "-",
+      status: "HADIR",
+      keterangan: "-",
+      isOvertime: false,
+      isContinuation: false,
+    },
+    {
+      id: 7,
+      date: "SABTU, 25 JULI 2026",
+      employeeName: "HERMAN",
+      shift: "TIM STAMPING SHIFT 1",
+      nik: "3215182007870002",
+      masuk: "07:06",
+      istirahat: "12:05",
+      selesai: "12:19",
+      pulang: "12:20",
+      jamKerja: "5J 0M",
+      totalIstirahat: "0J 14M",
+      status: "IZIN",
+      keterangan: "[IZIN (SAAT BEKERJA)] PULANG CEPAT ADA URUSAN KELUARGA",
+      isOvertime: false,
       isContinuation: false,
     }
   ];
@@ -114,14 +169,14 @@ export default function AdminOvertimePreviewPage() {
   );
 
   return (
-    <div className="min-h-screen bg-slate-50 p-4 md:p-8 space-y-6">
+    <div className="min-h-screen bg-slate-100 p-4 md:p-6 space-y-4 font-sans">
       {/* Banner Preview Notice */}
       <div className="bg-amber-500 text-white p-3 rounded-2xl shadow-sm text-xs flex items-center justify-between">
         <div className="flex items-center gap-2">
           <ShieldAlert className="w-5 h-5 shrink-0" />
           <div>
-            <p className="font-bold">MODE SIMULASI PREVIEW: Halaman Rekap & Riwayat Absen Admin</p>
-            <p className="text-[11px] opacity-90">Tampilan disesuaikan 100% dengan komponen dan format ekspor absensi asli yang ada di aplikasi.</p>
+            <p className="font-bold">MODE SIMULASI PREVIEW: LAPORAN REKAPITULASI ABSENSI & LEMBUR</p>
+            <p className="text-[11px] opacity-90">Format tabel disesuaikan 100% dengan Screenshot 1 (Kop Surat & Kolom Resmi PT MIP).</p>
           </div>
         </div>
         <Link href="/preview/overtime-employee">
@@ -131,31 +186,10 @@ export default function AdminOvertimePreviewPage() {
         </Link>
       </div>
 
-      {/* Header Halaman Admin */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
-        <div>
-          <h1 className="text-xl font-bold text-slate-900">Riwayat & Rekap Absensi Tenaga Kerja</h1>
-          <p className="text-xs text-slate-500 mt-1">
-            Data kehadiran dan baris lembur otomatis tersusun di bawah tanggal dan nama karyawan yang sama.
-          </p>
-        </div>
-
-        {/* Action Controls & Export Buttons */}
-        <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
-          <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs rounded-xl font-bold h-9">
-            <FileDown className="w-4 h-4 mr-1.5" /> Export Excel Rekap
-          </Button>
-          <Button size="sm" variant="outline" className="text-slate-700 border-slate-300 text-xs rounded-xl font-semibold h-9">
-            <FileText className="w-4 h-4 mr-1.5 text-red-500" /> Export PDF
-          </Button>
-        </div>
-      </div>
-
-      {/* Filters Bar (Samakan Persis dengan AttendanceHistoryPage Asli) */}
-      <Card className="border-slate-100 shadow-sm">
+      {/* Control Bar: Filters & Search */}
+      <Card className="border-slate-200 shadow-sm">
         <CardContent className="p-4">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-            {/* Filter Tipe Laporan */}
             <div>
               <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block mb-1">Tipe Periode</label>
               <Select value={reportType} onValueChange={(val: any) => setReportType(val)}>
@@ -171,146 +205,167 @@ export default function AdminOvertimePreviewPage() {
               </Select>
             </div>
 
-            {/* Range Info */}
             <div>
               <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block mb-1">Periode Aktif</label>
-              <div className="h-9 px-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center text-xs font-mono text-slate-700">
-                26 Juni 2026 - 25 Juli 2026
+              <div className="h-9 px-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center text-xs font-mono font-bold text-slate-700">
+                JUMAT, 26 JUNI 2026 - SABTU, 25 JULI 2026
               </div>
             </div>
 
-            {/* Search Input */}
             <div className="md:col-span-2">
               <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block mb-1">Cari Karyawan / NIK</label>
-              <div className="relative">
-                <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
-                <Input 
-                  placeholder="Ketik Nama Tenaga Kerja / NIK..." 
-                  value={searchName}
-                  onChange={(e) => setSearchName(e.target.value)}
-                  className="h-9 pl-9 text-xs rounded-xl"
-                />
+              <div className="relative flex gap-2">
+                <div className="relative flex-1">
+                  <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
+                  <Input 
+                    placeholder="Cari DENI, EKA, HERMAN..." 
+                    value={searchName}
+                    onChange={(e) => setSearchName(e.target.value)}
+                    className="h-9 pl-9 text-xs rounded-xl"
+                  />
+                </div>
+                <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold h-9 rounded-xl">
+                  <FileDown className="w-4 h-4 mr-1" /> Export Excel
+                </Button>
               </div>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Tabel Rekap Absensi & Lembur (Samakan Persis dengan Format PDF/Excel Asli) */}
-      <Card className="border-slate-100 shadow-sm overflow-hidden">
-        <CardHeader className="bg-slate-900 text-white p-4">
-          <CardTitle className="text-sm font-bold flex items-center justify-between">
-            <span>Tabel Laporan Kehadiran & Lembur</span>
-            <span className="text-xs font-normal text-slate-300">Total Records: {filteredData.length}</span>
-          </CardTitle>
-        </CardHeader>
+      {/* PAPER CONTAINER (DISAMAKAN 100% DENGAN SCREENSHOT 1) */}
+      <div className="bg-white p-6 md:p-8 rounded-2xl shadow-md border border-slate-200 overflow-x-auto">
+        {/* KOP SURAT PERUSAHAAN */}
+        <div className="flex justify-between items-start pb-4 border-b-2 border-slate-800">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-[#0b1d8a] text-white font-black text-xs flex items-center justify-center rounded-xl">
+              MEKANO
+            </div>
+            <div>
+              <h1 className="text-2xl font-black text-[#0b1d8a] tracking-tight">MEKANO</h1>
+            </div>
+          </div>
 
-        <CardContent className="p-0 overflow-x-auto">
-          <table className="w-full text-left text-xs border-collapse">
-            <thead>
-              <tr className="bg-slate-100 border-b border-slate-200 text-slate-700 font-bold uppercase text-[10px]">
-                <th className="p-3 text-center w-10">No</th>
-                <th className="p-3">Hari & Tanggal</th>
-                <th className="p-3">Nama Tenaga Kerja</th>
-                <th className="p-3">Shift / Kategori</th>
-                <th className="p-3 font-mono">Masuk</th>
-                <th className="p-3 font-mono">Pulang</th>
-                <th className="p-3">Durasi</th>
-                <th className="p-3">Status</th>
-                <th className="p-3 text-center">Tindakan / Berkas</th>
-              </tr>
-            </thead>
+          <div className="text-right">
+            <h2 className="text-base font-black text-slate-900 tracking-wide uppercase">PT MEKANO INDUSTRIAL PRESISI</h2>
+            <p className="text-[10px] text-slate-600 font-medium">JL. RAYA DUKUH, INDUSTRI AGGADITA, KARAWANG TIMUR</p>
+          </div>
+        </div>
 
-            <tbody className="divide-y divide-slate-200">
-              {filteredData.map((row, index) => {
-                const isOvertime = row.type === "overtime";
-                return (
-                  <tr 
-                    key={row.id}
-                    className={isOvertime ? "bg-orange-50/80 hover:bg-orange-100/70 border-l-4 border-l-orange-500" : "hover:bg-slate-50/80"}
-                  >
-                    {/* No / Continuation Indicator */}
-                    <td className="p-3 text-center font-bold text-slate-400">
-                      {row.isContinuation ? (
-                        <span className="text-orange-600 text-sm font-black">↳</span>
-                      ) : (
-                        index + 1
-                      )}
-                    </td>
+        {/* JUDUL LAPORAN */}
+        <div className="text-center py-5 space-y-1">
+          <h3 className="text-lg font-black text-slate-900 tracking-wide uppercase">LAPORAN REKAPITULASI ABSENSI</h3>
+          <p className="text-xs font-bold text-slate-600">TIPE: BULANAN</p>
+          <p className="text-xs font-bold text-slate-600">PERIODE: JUMAT, 26 JUNI 2026 - SABTU, 25 JULI 2026</p>
+        </div>
 
-                    {/* Tanggal */}
-                    <td className="p-3 font-medium text-slate-700">
-                      {row.isContinuation ? (
-                        <span className="text-slate-300 text-[10px] italic">Sama</span>
-                      ) : (
-                        row.date
-                      )}
-                    </td>
+        {/* TABEL REKAPITULASI ABSENSI DISAMAKAN PERSIS DENGAN SCREENSHOT 1 */}
+        <table className="w-full text-left text-xs border-collapse font-sans">
+          <thead>
+            <tr className="border-y-2 border-slate-900 bg-slate-50 text-slate-800 font-extrabold uppercase text-[10px] tracking-wider">
+              <th className="p-2.5 text-center w-10">NO</th>
+              <th className="p-2.5 w-36">HARI & TANGGAL</th>
+              <th className="p-2.5 w-52">NAMA TENAGA KERJA</th>
+              <th className="p-2.5 text-center font-bold">MASUK</th>
+              <th className="p-2.5 text-center font-bold">ISTIRAHAT</th>
+              <th className="p-2.5 text-center font-bold">SELESAI</th>
+              <th className="p-2.5 text-center font-bold">PULANG</th>
+              <th className="p-2.5 text-center font-bold">JAM KERJA</th>
+              <th className="p-2.5 text-center font-bold">TOTAL ISTIRAHAT</th>
+              <th className="p-2.5 text-center font-bold">STATUS</th>
+              <th className="p-2.5">KETERANGAN</th>
+            </tr>
+          </thead>
 
-                    {/* Nama Karyawan */}
-                    <td className="p-3 font-bold text-slate-900">
-                      {row.isContinuation ? (
-                        <span className="text-slate-300 text-[10px] italic">Sama</span>
-                      ) : (
-                        <div>
-                          <div>{row.employeeName}</div>
-                          <div className="text-[10px] font-normal text-slate-400">{row.nik}</div>
-                        </div>
-                      )}
-                    </td>
+          <tbody className="divide-y divide-slate-200">
+            {filteredData.map((row) => {
+              const isOvertime = row.isOvertime;
+              return (
+                <tr 
+                  key={row.id}
+                  className={isOvertime ? "bg-orange-50/90 hover:bg-orange-100/80 font-medium" : "hover:bg-slate-50/80"}
+                >
+                  {/* NO */}
+                  <td className="p-2.5 text-center font-bold text-slate-600">
+                    {row.isContinuation ? (
+                      <span className="text-orange-600 font-black text-sm">↳</span>
+                    ) : (
+                      row.id
+                    )}
+                  </td>
 
-                    {/* Shift */}
-                    <td className="p-3">
-                      {isOvertime ? (
-                        <Badge className="bg-orange-500 hover:bg-orange-600 text-white font-black text-[9px] tracking-wider px-2 py-0.5">
-                          ⚡ {row.shift}
-                        </Badge>
-                      ) : (
-                        <span className="text-slate-600 font-medium">{row.shift}</span>
-                      )}
-                    </td>
+                  {/* HARI & TANGGAL */}
+                  <td className="p-2.5 font-bold text-slate-800 text-[11px]">
+                    {row.isContinuation ? <span className="text-slate-300 italic text-[10px]">Sama</span> : row.date}
+                  </td>
 
-                    {/* Masuk & Pulang */}
-                    <td className="p-3 font-mono font-semibold text-slate-800">{row.checkIn}</td>
-                    <td className="p-3 font-mono font-semibold text-slate-800">{row.checkOut}</td>
+                  {/* NAMA TENAGA KERJA + SHIFT + NIK */}
+                  <td className="p-2.5">
+                    {row.isContinuation ? (
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-orange-700 font-black">{row.employeeName}</span>
+                        <Badge className="bg-orange-500 text-white text-[9px] font-bold">LEMBUR</Badge>
+                      </div>
+                    ) : (
+                      <div>
+                        <div className="font-extrabold text-blue-900 text-sm">{row.employeeName}</div>
+                        <div className="text-[10px] font-bold text-emerald-600 uppercase">{row.shift}</div>
+                        <div className="text-[9px] font-mono text-slate-500">NIK: {row.nik}</div>
+                      </div>
+                    )}
+                  </td>
 
-                    {/* Durasi */}
-                    <td className="p-3 font-bold text-slate-900">{row.duration}</td>
+                  {/* WAKTU */}
+                  <td className={`p-2.5 text-center font-mono font-bold ${row.masuk !== '-' ? 'text-emerald-700' : 'text-slate-400'}`}>
+                    {row.masuk}
+                  </td>
+                  <td className={`p-2.5 text-center font-mono font-bold ${row.istirahat !== '-' ? 'text-orange-600' : 'text-slate-400'}`}>
+                    {row.istirahat}
+                  </td>
+                  <td className={`p-2.5 text-center font-mono font-bold ${row.selesai !== '-' ? 'text-orange-600' : 'text-slate-400'}`}>
+                    {row.selesai}
+                  </td>
+                  <td className={`p-2.5 text-center font-mono font-bold ${row.pulang !== '-' ? 'text-red-600' : 'text-slate-400'}`}>
+                    {row.pulang}
+                  </td>
 
-                    {/* Status Badge */}
-                    <td className="p-3">
-                      {isOvertime ? (
-                        <span className="inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-orange-200 text-orange-800">
-                          {row.status}
-                        </span>
-                      ) : (
-                        <span className="inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-700">
-                          {row.status}
-                        </span>
-                      )}
-                    </td>
+                  {/* DURASI */}
+                  <td className="p-2.5 text-center font-bold text-slate-900">{row.jamKerja}</td>
+                  <td className="p-2.5 text-center font-bold text-orange-600">{row.totalIstirahat}</td>
 
-                    {/* Actions / Documents */}
-                    <td className="p-3 text-center">
-                      {isOvertime ? (
+                  {/* STATUS */}
+                  <td className="p-2.5 text-center">
+                    {row.status === "HADIR" && <span className="font-extrabold text-emerald-600">HADIR</span>}
+                    {row.status === "TELAT" && <span className="font-extrabold text-red-600">TELAT</span>}
+                    {row.status === "IZIN" && <span className="font-extrabold text-purple-600">IZIN</span>}
+                    {row.status === "LEMBUR SELESAI" && <span className="font-black text-orange-600">LEMBUR</span>}
+                  </td>
+
+                  {/* KETERANGAN & BERKAS */}
+                  <td className="p-2.5 text-[10px]">
+                    {isOvertime ? (
+                      <div className="flex items-center gap-2">
                         <Button 
                           size="sm" 
-                          className="bg-orange-600 hover:bg-orange-700 text-white text-[10px] h-7 px-2.5 rounded-lg shadow-sm font-bold"
+                          className="bg-orange-600 hover:bg-orange-700 text-white font-bold text-[10px] h-6 px-2 rounded-lg"
                           onClick={() => setSelectedOvertime(row)}
                         >
-                          <Eye className="w-3.5 h-3.5 mr-1" /> Lihat SPL & Dokumen
+                          <Eye className="w-3.5 h-3.5 mr-1" /> Lihat SPL & Foto
                         </Button>
-                      ) : (
-                        <span className="text-[10px] text-slate-400 italic">Absen Reguler</span>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </CardContent>
-      </Card>
+                        <span className="text-slate-400 text-[9px]">{row.keterangan}</span>
+                      </div>
+                    ) : (
+                      <span className={row.keterangan.includes('TELAT') ? 'text-red-600 font-bold' : 'text-slate-600'}>
+                        {row.keterangan}
+                      </span>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
 
       {/* Modal Detail Lembur untuk Admin */}
       <Dialog open={!!selectedOvertime} onOpenChange={() => setSelectedOvertime(null)}>
@@ -322,7 +377,7 @@ export default function AdminOvertimePreviewPage() {
                 <Badge className="bg-orange-500 text-white text-[10px]">{selectedOvertime.date}</Badge>
               </DialogTitle>
               <DialogDescription className="text-xs text-slate-500">
-                Durasi Lembur: <strong>{selectedOvertime.duration}</strong> ({selectedOvertime.checkIn} - {selectedOvertime.checkOut})
+                Shift: <strong>{selectedOvertime.shift}</strong> | Jam: <strong>{selectedOvertime.masuk} - {selectedOvertime.pulang}</strong> ({selectedOvertime.jamKerja})
               </DialogDescription>
             </DialogHeader>
 

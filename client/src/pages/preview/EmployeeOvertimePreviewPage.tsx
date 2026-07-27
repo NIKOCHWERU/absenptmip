@@ -1,29 +1,39 @@
 import React, { useState, useEffect } from "react";
-import { CompanyHeader } from "@/components/CompanyHeader";
-import { DigitalClock } from "@/components/DigitalClock";
-import { BottomNav } from "@/components/BottomNav";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
-import { Clock, Upload, FileText, Camera, CheckCircle2, Play, AlertCircle, ShieldAlert, ArrowLeft, LogOut, Coffee } from "lucide-react";
+import { Clock, Upload, FileText, Camera, CheckCircle2, Play, ShieldAlert, ArrowLeft, LogOut, Check } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
 
 export default function EmployeeOvertimePreviewPage() {
   const { toast } = useToast();
 
-  // State Absensi Reguler
+  // Shift & User Info Example from Screenshot
+  const shiftName = "TIM STAMPING SHIFT 1";
+  const shiftStart = "08:00";
   const shiftEnd = "17:00";
+  const employeeName = "DENI";
+  const nik = "3215180601940004";
+  const cabang = "PT. AKINAWA";
+  const jabatan = "OPERATOR STAMPING";
+
+  // Attendance State
+  const [hasCheckedIn, setHasCheckedIn] = useState(false); // Mode awal: BELUM ABSEN MASUK
   const [isCheckedOut, setIsCheckedOut] = useState(false);
   const [regularCheckoutTime, setRegularCheckoutTime] = useState<string | null>(null);
 
-  // State Lembur
+  // Overtime State
   const [isOvertimeActive, setIsOvertimeActive] = useState(false);
   const [isOvertimeCompleted, setIsOvertimeCompleted] = useState(false);
   const [overtimeStartTime, setOvertimeStartTime] = useState<string | null>(null);
   const [overtimeEndTime, setOvertimeEndTime] = useState<string | null>(null);
   const [timerSeconds, setTimerSeconds] = useState(0);
+
+  // Alert Dialog Confirmation State
+  const [isAlertOpen, setIsAlertOpen] = useState(false);
 
   // Modal State - Start Overtime
   const [isStartModalOpen, setIsStartModalOpen] = useState(false);
@@ -39,7 +49,17 @@ export default function EmployeeOvertimePreviewPage() {
   const [finalProofPreview, setFinalProofPreview] = useState<string | null>(null);
   const [finalDescription, setFinalDescription] = useState("");
 
-  // Timer Effect
+  // Digital Clock Simulation
+  const [currentTimeStr, setCurrentTimeStr] = useState("10:35:14");
+  useEffect(() => {
+    const timer = setInterval(() => {
+      const d = new Date();
+      setCurrentTimeStr(d.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit", second: "2-digit" }));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // Overtime Timer Effect
   useEffect(() => {
     let interval: any = null;
     if (isOvertimeActive && !isOvertimeCompleted) {
@@ -59,10 +79,48 @@ export default function EmployeeOvertimePreviewPage() {
     return `${String(hrs).padStart(2, '0')}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
   };
 
-  const handleStartOvertimeClick = () => {
+  // Step 1: User Action -> Absen Masuk
+  const handleCheckIn = () => {
+    setHasCheckedIn(true);
+    toast({
+      title: "Absen Masuk Berhasil",
+      description: `Jam Masuk: 07:44 WIB (${shiftName})`,
+    });
+  };
+
+  // Step 2: User Action -> Absen Pulang
+  const handleCheckOut = () => {
+    setIsCheckedOut(true);
+    setRegularCheckoutTime(shiftEnd);
+    toast({
+      title: "Absen Pulang Berhasil",
+      description: `Jam Pulang dicatat: ${shiftEnd} WIB`,
+    });
+  };
+
+  // Step 3: Click Overtime Button -> Trigger Confirmation Alert First
+  const handleOvertimeButtonClick = () => {
+    setIsAlertOpen(true);
+  };
+
+  // Step 4: Confirm Alert -> Open Overtime Upload Form Modal
+  const handleConfirmAlert = () => {
+    setIsAlertOpen(false);
+
+    // Rule: Jika langsung tekan lembur tanpa absen pulang dulu, otomatis catat absen pulang di jam 17:00 (shiftEnd)
+    if (!isCheckedOut) {
+      setIsCheckedOut(true);
+      setRegularCheckoutTime(shiftEnd);
+      toast({
+        title: "Absen Pulang Otomatis",
+        description: `Absen reguler otomatis dicatat tepat jam ${shiftEnd} WIB karena memulai lembur.`,
+      });
+    }
+
     setIsStartModalOpen(true);
   };
 
+  // Step 5: Submit Start Overtime Modal
   const handleConfirmStartOvertime = (e: React.FormEvent) => {
     e.preventDefault();
     if (!splFile || !initialProofFile || !startDescription.trim()) {
@@ -74,24 +132,23 @@ export default function EmployeeOvertimePreviewPage() {
       return;
     }
 
-    setIsCheckedOut(true);
-    setRegularCheckoutTime(shiftEnd);
-
     const nowStr = new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" });
     setOvertimeStartTime(nowStr);
     setIsOvertimeActive(true);
     setIsStartModalOpen(false);
 
     toast({
-      title: "Lembur Dimulai",
-      description: `Absen reguler otomatis dikunci jam ${shiftEnd}. Timer lembur berjalan!`,
+      title: "Lembur Resmi Dimulai",
+      description: `Timer lembur berjalan. Berkas SPL & Foto Awal tersimpan.`,
     });
   };
 
+  // Step 6: End Overtime Click
   const handleEndOvertimeClick = () => {
     setIsEndModalOpen(true);
   };
 
+  // Step 7: Confirm End Overtime Modal
   const handleConfirmEndOvertime = (e: React.FormEvent) => {
     e.preventDefault();
     if (!finalProofFile || !finalDescription.trim()) {
@@ -131,6 +188,7 @@ export default function EmployeeOvertimePreviewPage() {
   };
 
   const resetDemo = () => {
+    setHasCheckedIn(false);
     setIsCheckedOut(false);
     setRegularCheckoutTime(null);
     setIsOvertimeActive(false);
@@ -146,130 +204,203 @@ export default function EmployeeOvertimePreviewPage() {
     setFinalProofFile(null);
     setFinalProofPreview(null);
     setFinalDescription("");
-    toast({ title: "Demo Direset", description: "Silakan mencoba alur kembali." });
+    toast({ title: "Demo Direset", description: "Silakan mencoba alur dari awal." });
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col justify-between pb-24">
+    <div className="min-h-screen bg-[#f4f6fb] flex flex-col font-sans pb-12">
       {/* Top Banner Notice */}
       <div className="bg-amber-500 text-white px-4 py-2 text-xs flex items-center justify-between sticky top-0 z-50 shadow-sm">
         <div className="flex items-center gap-2">
           <ShieldAlert className="w-4 h-4 shrink-0" />
-          <span><strong>MODE SIMULASI PREVIEW:</strong> Tampilan persis Halaman Absensi Karyawan yang sudah ada.</span>
+          <span><strong>SIMULASI PREVIEW ALUR LEMBUR:</strong> Tampilan disamakan 100% dengan screenshot aplikasi asli.</span>
         </div>
         <div className="flex items-center gap-2">
           <Link href="/preview/overtime-admin" className="underline font-bold text-white text-[11px]">
             Ke Preview Admin
           </Link>
           <Button size="sm" variant="outline" className="text-amber-900 bg-white border-none text-[10px] h-6 px-2 font-bold" onClick={resetDemo}>
-            Reset
+            Reset Demo
           </Button>
         </div>
       </div>
 
-      {/* Main Container */}
-      <div className="max-w-md w-full mx-auto p-4 space-y-4">
-        {/* Header Perusahaan Samakan dengan Komponen Asli */}
-        <CompanyHeader />
+      {/* 1. HEADER UTAMA DISAMAKAN DENGAN SCREENSHOT 2 */}
+      <div className="bg-[#0b1d8a] text-white px-6 pt-6 pb-14 flex justify-between items-start rounded-b-[2rem] shadow-md">
+        <div>
+          <h1 className="text-base font-black tracking-wide uppercase">PT MEKANO INDUSTRIAL PRESISI</h1>
+          <p className="text-[11px] text-blue-200 mt-0.5">ABSENSI TENAGA KERJA PT MIP</p>
+        </div>
+        {/* Logo Box */}
+        <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center p-2 shadow-sm">
+          <div className="text-[#0b1d8a] font-black text-xs tracking-tighter text-center leading-none">
+            MEKANO
+          </div>
+        </div>
+      </div>
 
-        {/* Card Waktu & Jam Digital */}
-        <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 text-center space-y-3">
-          <DigitalClock />
-          <div className="inline-flex items-center gap-2 bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-xs font-semibold">
-            <span>Shift 1 (Pagi): 08:00 - {shiftEnd} WIB</span>
+      {/* CONTAINER UTAMA */}
+      <div className="max-w-md w-full mx-auto px-4 -mt-8 space-y-4">
+        {/* Card 1: Notifikasi Pengumuman */}
+        <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 space-y-2">
+          <h2 className="text-xs font-extrabold text-[#0b1d8a] uppercase tracking-wide">AKTIFKAN NOTIFIKASI PENGUMUMAN</h2>
+          <p className="text-[11px] text-slate-500 leading-snug">
+            AGAR ANDA TIDAK KETINGGALAN INFO PENTING DARI ADMIN MESKIPUN APLIKASI DITUTUP.
+          </p>
+          <Button className="w-full bg-[#2563eb] hover:bg-blue-700 text-white text-xs font-bold h-9 rounded-xl shadow-sm">
+            IZINKAN NOTIFIKASI
+          </Button>
+        </div>
+
+        {/* Card 2: Profil Karyawan (Contoh: DENI - TIM STAMPING SHIFT 1) */}
+        <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex justify-between items-center">
+          <div className="space-y-1 text-xs">
+            <h3 className="text-sm font-black text-slate-900">{employeeName}</h3>
+            <p className="text-[10px] text-slate-500 font-mono">NIK: <strong className="text-slate-800 font-bold">{nik}</strong></p>
+            <p className="text-[10px] text-slate-500">CABANG: <strong className="text-slate-800 font-bold">{cabang}</strong></p>
+            <p className="text-[10px] text-slate-500">JABATAN: <strong className="text-slate-800 font-bold">{jabatan}</strong></p>
+            <p className="text-[10px] text-slate-500">
+              SHIFT: <strong className="text-[#0b1d8a] font-bold">{hasCheckedIn ? shiftName : "BELUM ABSEN MASUK"}</strong>
+            </p>
+          </div>
+          <div className="w-16 h-20 bg-slate-200 rounded-xl overflow-hidden shrink-0 border border-slate-200">
+            <img 
+              src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&q=80" 
+              alt="Foto Profil" 
+              className="w-full h-full object-cover"
+            />
           </div>
         </div>
 
-        {/* Kartu Status Absen Reguler */}
-        <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 space-y-4">
-          <div className="flex justify-between items-center pb-3 border-b border-slate-100">
-            <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">Status Absensi Reguler</span>
-            <Badge className="bg-emerald-100 text-emerald-700 border-none font-bold text-[11px]">Hadir Shift 1</Badge>
+        {/* Card 3: Digital Clock & Status Hari Ini */}
+        <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 text-center space-y-3">
+          <div className="bg-[#f0f3ff] rounded-2xl py-4 border border-blue-100">
+            <div className="text-3xl font-black font-mono tracking-widest text-slate-900">
+              {currentTimeStr}
+            </div>
+            <p className="text-xs text-slate-500 mt-1 font-medium">Senin, 27 Jul 2026</p>
           </div>
 
-          <div className="grid grid-cols-2 gap-3 text-xs">
-            <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
-              <span className="text-slate-400 block text-[10px]">Absen Masuk</span>
-              <strong className="text-slate-800 text-sm font-mono">07:55 WIB</strong>
-            </div>
-            <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
-              <span className="text-slate-400 block text-[10px]">Absen Pulang</span>
-              <strong className="text-slate-800 text-sm font-mono">
-                {isCheckedOut ? `${regularCheckoutTime} WIB` : "Belum Pulang"}
-              </strong>
+          <div className="space-y-1">
+            <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">STATUS HARI INI</span>
+            <div className="text-sm font-black text-[#0b1d8a] uppercase">
+              {!hasCheckedIn ? "BELUM ABSEN" : isCheckedOut ? "SUDAH ABSEN PULANG" : "HADIR (KERJA)"}
             </div>
           </div>
+        </div>
 
-          {/* 1. Tombol Absen Utama Reguler */}
-          {!isCheckedOut ? (
+        {/* Card 4: Tombol Absen Utama & Tombol Lembur */}
+        <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 space-y-3">
+          {/* Tombol ABSEN MASUK / PULANG */}
+          {!hasCheckedIn ? (
             <Button 
-              className="w-full h-13 bg-slate-900 hover:bg-black text-white font-bold rounded-xl shadow-md flex items-center justify-center gap-2 text-sm"
-              onClick={() => {
-                setIsCheckedOut(true);
-                setRegularCheckoutTime(shiftEnd);
-                toast({ title: "Absen Pulang Berhasil", description: `Jam pulang otomatis dicatat ${shiftEnd}` });
-              }}
+              className="w-full h-14 bg-[#0b1d8a] hover:bg-[#07135c] text-white font-black text-sm rounded-xl shadow-md flex items-center justify-center gap-2 tracking-wider uppercase"
+              onClick={handleCheckIn}
             >
-              <LogOut className="w-4 h-4" /> ABSEN PULANG SHIFT REGULER
+              <Camera className="w-5 h-5" /> ABSEN MASUK
+            </Button>
+          ) : !isCheckedOut ? (
+            <Button 
+              className="w-full h-14 bg-[#0b1d8a] hover:bg-[#07135c] text-white font-black text-sm rounded-xl shadow-md flex items-center justify-center gap-2 tracking-wider uppercase"
+              onClick={handleCheckOut}
+            >
+              <LogOut className="w-5 h-5" /> ABSEN PULANG SHIFT 1 ({shiftEnd})
             </Button>
           ) : (
-            <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-center text-xs text-emerald-800 font-semibold flex items-center justify-center gap-1.5">
-              <CheckCircle2 className="w-4 h-4 text-emerald-600" /> Absen Pulang Terkunci ({regularCheckoutTime} WIB)
+            <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-center text-xs text-emerald-800 font-bold flex items-center justify-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600" /> ABSEN PULANG TERKUNCI ({regularCheckoutTime} WIB)
             </div>
           )}
 
-          {/* Divider */}
-          <div className="relative my-2">
-            <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-slate-200"></div></div>
-            <div className="relative flex justify-center text-[10px] uppercase font-bold text-slate-400">
-              <span className="bg-white px-3 text-orange-600">Fitur Lembur Perusahaan</span>
-            </div>
-          </div>
-
-          {/* 2. Tombol Lembur Statis Tepat di Bawah Absen Utama */}
-          {!isOvertimeActive && !isOvertimeCompleted && (
-            <Button 
-              className="w-full h-14 bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-black rounded-xl shadow-lg flex items-center justify-center gap-2 text-base tracking-wide"
-              onClick={handleStartOvertimeClick}
-            >
-              <Play className="w-5 h-5 fill-current" /> LEMBUR (OVERTIME)
-            </Button>
-          )}
-
-          {/* State Sedang Lembur */}
-          {isOvertimeActive && !isOvertimeCompleted && (
-            <div className="bg-gradient-to-b from-orange-50 to-orange-100/50 border-2 border-orange-300 p-4 rounded-2xl space-y-3 text-center shadow-sm">
-              <div className="inline-flex items-center gap-1.5 bg-orange-500 text-white px-3 py-1 rounded-full text-xs font-black animate-pulse">
-                <Clock className="w-3.5 h-3.5" /> LEMBUR SEDANG BERJALAN
-              </div>
-              <div className="text-3xl font-black font-mono text-orange-700 tracking-wider">
-                {formatTimer(timerSeconds)}
-              </div>
-              <p className="text-[11px] text-slate-500 font-medium">Jam Mulai Lembur: {overtimeStartTime} WIB</p>
-              
-              <Button 
-                className="w-full h-12 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl shadow text-sm"
-                onClick={handleEndOvertimeClick}
-              >
-                <CheckCircle2 className="mr-2 h-4 h-4" /> SELESAI LEMBUR
-              </Button>
+          {/* Tombol Pilihan Lainnya (Sakit, Izin, Libur) jika Belum Absen */}
+          {!hasCheckedIn && (
+            <div className="grid grid-cols-3 gap-2 pt-1">
+              <Button variant="outline" className="h-10 text-xs font-bold text-[#0b1d8a] border-slate-200 rounded-xl">SAKIT</Button>
+              <Button variant="outline" className="h-10 text-xs font-bold text-purple-700 border-slate-200 rounded-xl">IZIN</Button>
+              <Button variant="outline" className="h-10 text-xs font-bold text-slate-700 border-slate-200 rounded-xl">LIBUR</Button>
             </div>
           )}
 
-          {/* State Lembur Completed */}
-          {isOvertimeCompleted && (
-            <div className="bg-emerald-50 border border-emerald-200 p-4 rounded-xl space-y-1.5 text-xs text-emerald-800">
-              <div className="flex items-center gap-2 font-bold text-emerald-900 text-sm">
-                <CheckCircle2 className="w-5 h-5 text-emerald-600" /> Lembur Hari Ini Selesai
+          {/* ATURAN BARU: LOGIKA MUNCULNYA TOMBOL LEMBUR (OVERTIME) */}
+          {/* HANYA MUNCUL SETELAH TEKAN ABSEN MASUK. DAN TETAP ADA SETELAH TEKAN ABSEN PULANG! */}
+          {hasCheckedIn && (
+            <div className="pt-2 border-t border-slate-100 space-y-2">
+              <div className="flex justify-between items-center text-[11px] font-bold text-[#0b1d8a]">
+                <span>⚡ LAYANAN LEMBUR (OVERTIME)</span>
+                <span className="text-[9px] text-slate-400 font-normal">TIM STAMPING SHIFT 1</span>
               </div>
-              <p>Total Durasi Lembur: <strong>{formatTimer(timerSeconds)}</strong> ({overtimeStartTime} - {overtimeEndTime})</p>
-              <p className="text-[10px] text-emerald-600">Dokumen SPL & Foto Hasil Kerja sudah tersimpan di Google Drive <strong>Folder Lembur</strong>.</p>
+
+              {!isOvertimeActive && !isOvertimeCompleted && (
+                <Button 
+                  className="w-full h-14 bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-black text-sm rounded-xl shadow-lg flex items-center justify-center gap-2 tracking-wide uppercase"
+                  onClick={handleOvertimeButtonClick}
+                >
+                  <Play className="w-5 h-5 fill-current" /> LEMBUR (OVERTIME)
+                </Button>
+              )}
+
+              {/* State Sedang Lembur */}
+              {isOvertimeActive && !isOvertimeCompleted && (
+                <div className="bg-orange-50 border-2 border-orange-300 p-4 rounded-2xl space-y-3 text-center shadow-sm">
+                  <div className="inline-flex items-center gap-1.5 bg-orange-500 text-white px-3 py-1 rounded-full text-xs font-black animate-pulse">
+                    <Clock className="w-3.5 h-3.5" /> LEMBUR SEDANG BERJALAN
+                  </div>
+                  <div className="text-3xl font-black font-mono text-orange-700 tracking-wider">
+                    {formatTimer(timerSeconds)}
+                  </div>
+                  <p className="text-[11px] text-slate-500 font-medium">Mulai Lembur: {overtimeStartTime} WIB</p>
+                  
+                  <Button 
+                    className="w-full h-12 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl shadow text-sm"
+                    onClick={handleEndOvertimeClick}
+                  >
+                    <CheckCircle2 className="mr-2 h-4 h-4" /> SELESAI LEMBUR
+                  </Button>
+                </div>
+              )}
+
+              {/* State Lembur Completed */}
+              {isOvertimeCompleted && (
+                <div className="bg-emerald-50 border border-emerald-200 p-4 rounded-xl space-y-1.5 text-xs text-emerald-800">
+                  <div className="flex items-center gap-2 font-bold text-emerald-900 text-sm">
+                    <CheckCircle2 className="w-5 h-5 text-emerald-600" /> Lembur Hari Ini Selesai
+                  </div>
+                  <p>Total Durasi Lembur: <strong>{formatTimer(timerSeconds)}</strong> ({overtimeStartTime} - {overtimeEndTime})</p>
+                  <p className="text-[10px] text-emerald-600">Dokumen SPL & Foto Hasil Kerja tersimpan di Google Drive <strong>Folder Lembur</strong>.</p>
+                </div>
+              )}
             </div>
           )}
         </div>
       </div>
 
-      {/* Modal POPUP 1: MULAI LEMBUR */}
+      {/* ALERT DIALOG KONFIRMASI (SESUAI PERINTAH: "ketika di klik alert dulu") */}
+      <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
+        <AlertDialogContent className="bg-white rounded-2xl max-w-sm">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-base font-bold text-slate-900">Konfirmasi Memulai Lembur?</AlertDialogTitle>
+            <AlertDialogDescription className="text-xs text-slate-600 space-y-2">
+              <p>Anda memilih untuk melakukan <strong>Lembur (Overtime)</strong> setelah Shift 1 ({shiftEnd}).</p>
+              {!isCheckedOut && (
+                <p className="text-orange-700 bg-orange-50 p-2 rounded-lg border border-orange-200">
+                  ⚠️ Absen reguler Anda akan otomatis dicatat pulang tepat di jam <strong>{shiftEnd} WIB</strong>.
+                </p>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="gap-2 sm:gap-0">
+            <AlertDialogCancel className="text-xs rounded-xl">Batal</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleConfirmAlert}
+              className="bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold rounded-xl"
+            >
+              Ya, Lanjutkan Lembur
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Modal POPUP 1: MULAI LEMBUR (UPLOAD SPL & FOTO AWAL) */}
       <Dialog open={isStartModalOpen} onOpenChange={setIsStartModalOpen}>
         <DialogContent className="sm:max-w-md bg-white rounded-2xl">
           <DialogHeader>
@@ -411,9 +542,6 @@ export default function EmployeeOvertimePreviewPage() {
           </form>
         </DialogContent>
       </Dialog>
-
-      {/* Bottom Navigation Component Asli */}
-      <BottomNav />
     </div>
   );
 }
