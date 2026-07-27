@@ -1,24 +1,59 @@
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
-import { Clock, Upload, FileText, Camera, CheckCircle2, Play, ShieldAlert, ArrowLeft, LogOut, Check } from "lucide-react";
+import { Clock, Upload, FileText, Camera, CheckCircle2, Play, ShieldAlert, ArrowLeft, LogOut, Users } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
 
 export default function EmployeeOvertimePreviewPage() {
   const { toast } = useToast();
 
-  // Shift & User Info Example from Screenshot
-  const shiftName = "TIM STAMPING SHIFT 1";
-  const shiftStart = "08:00";
-  const shiftEnd = "17:00";
-  const employeeName = "DENI";
-  const nik = "3215180601940004";
-  const cabang = "PT. AKINAWA";
-  const jabatan = "OPERATOR STAMPING";
+  // Daftar Karyawan Dummy untuk Pengujian
+  const dummyEmployees = [
+    {
+      id: "1",
+      label: "Karyawan 1: DENI (TIM STAMPING SHIFT 1: 08:00 - 17:00)",
+      employeeName: "DENI",
+      nik: "3215180601940004",
+      cabang: "PT. AKINAWA",
+      jabatan: "OPERATOR STAMPING",
+      shiftName: "TIM STAMPING SHIFT 1",
+      shiftStart: "08:00",
+      shiftEnd: "17:00",
+      photo: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&q=80"
+    },
+    {
+      id: "2",
+      label: "Karyawan 2: ANDRI (TIM STAMPING SHIFT 2: 12:45 - 22:06)",
+      employeeName: "ANDRI",
+      nik: "3215190705910002",
+      cabang: "PT. AKINAWA",
+      jabatan: "OPERATOR STAMPING",
+      shiftName: "TIM STAMPING SHIFT 2",
+      shiftStart: "12:45",
+      shiftEnd: "22:06",
+      photo: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&q=80"
+    },
+    {
+      id: "3",
+      label: "Karyawan 3: EMUL MULYANA (SECURITY 2: 18:43 - 07:37)",
+      employeeName: "EMUL MULYANA",
+      nik: "3215052804790002",
+      cabang: "PT. AKINAWA",
+      jabatan: "SECURITY",
+      shiftName: "SECURITY 2",
+      shiftStart: "18:43",
+      shiftEnd: "07:37",
+      photo: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&q=80"
+    }
+  ];
+
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState("1");
+  const selectedEmp = dummyEmployees.find(e => e.id === selectedEmployeeId) || dummyEmployees[0];
 
   // Attendance State
   const [hasCheckedIn, setHasCheckedIn] = useState(false); // Mode awal: BELUM ABSEN MASUK
@@ -79,22 +114,32 @@ export default function EmployeeOvertimePreviewPage() {
     return `${String(hrs).padStart(2, '0')}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
   };
 
+  const handleSelectEmployee = (empId: string) => {
+    setSelectedEmployeeId(empId);
+    resetDemo();
+    const emp = dummyEmployees.find(e => e.id === empId);
+    toast({
+      title: `Beralih ke ${emp?.employeeName}`,
+      description: `Shift: ${emp?.shiftName}`,
+    });
+  };
+
   // Step 1: User Action -> Absen Masuk
   const handleCheckIn = () => {
     setHasCheckedIn(true);
     toast({
       title: "Absen Masuk Berhasil",
-      description: `Jam Masuk: 07:44 WIB (${shiftName})`,
+      description: `Jam Masuk: ${selectedEmp.shiftStart} WIB (${selectedEmp.shiftName})`,
     });
   };
 
   // Step 2: User Action -> Absen Pulang
   const handleCheckOut = () => {
     setIsCheckedOut(true);
-    setRegularCheckoutTime(shiftEnd);
+    setRegularCheckoutTime(selectedEmp.shiftEnd);
     toast({
       title: "Absen Pulang Berhasil",
-      description: `Jam Pulang dicatat: ${shiftEnd} WIB`,
+      description: `Jam Pulang dicatat: ${selectedEmp.shiftEnd} WIB`,
     });
   };
 
@@ -107,13 +152,13 @@ export default function EmployeeOvertimePreviewPage() {
   const handleConfirmAlert = () => {
     setIsAlertOpen(false);
 
-    // Rule: Jika langsung tekan lembur tanpa absen pulang dulu, otomatis catat absen pulang di jam 17:00 (shiftEnd)
+    // Rule: Jika langsung tekan lembur tanpa absen pulang dulu, otomatis catat absen pulang di jam shiftEnd
     if (!isCheckedOut) {
       setIsCheckedOut(true);
-      setRegularCheckoutTime(shiftEnd);
+      setRegularCheckoutTime(selectedEmp.shiftEnd);
       toast({
         title: "Absen Pulang Otomatis",
-        description: `Absen reguler otomatis dicatat tepat jam ${shiftEnd} WIB karena memulai lembur.`,
+        description: `Absen reguler otomatis dicatat tepat jam ${selectedEmp.shiftEnd} WIB karena memulai lembur.`,
       });
     }
 
@@ -139,7 +184,7 @@ export default function EmployeeOvertimePreviewPage() {
 
     toast({
       title: "Lembur Resmi Dimulai",
-      description: `Timer lembur berjalan. Berkas SPL & Foto Awal tersimpan.`,
+      description: `Timer lembur berjalan untuk ${selectedEmp.employeeName}.`,
     });
   };
 
@@ -204,7 +249,6 @@ export default function EmployeeOvertimePreviewPage() {
     setFinalProofFile(null);
     setFinalProofPreview(null);
     setFinalDescription("");
-    toast({ title: "Demo Direset", description: "Silakan mencoba alur dari awal." });
   };
 
   return (
@@ -213,14 +257,14 @@ export default function EmployeeOvertimePreviewPage() {
       <div className="bg-amber-500 text-white px-4 py-2 text-xs flex items-center justify-between sticky top-0 z-50 shadow-sm">
         <div className="flex items-center gap-2">
           <ShieldAlert className="w-4 h-4 shrink-0" />
-          <span><strong>SIMULASI PREVIEW ALUR LEMBUR:</strong> Tampilan disamakan 100% dengan screenshot aplikasi asli.</span>
+          <span><strong>SIMULASI PREVIEW KARYAWAN DUMMY:</strong> Uji alur untuk Karyawan 1, 2, atau 3.</span>
         </div>
         <div className="flex items-center gap-2">
           <Link href="/preview/overtime-admin" className="underline font-bold text-white text-[11px]">
             Ke Preview Admin
           </Link>
           <Button size="sm" variant="outline" className="text-amber-900 bg-white border-none text-[10px] h-6 px-2 font-bold" onClick={resetDemo}>
-            Reset Demo
+            Reset
           </Button>
         </div>
       </div>
@@ -241,6 +285,27 @@ export default function EmployeeOvertimePreviewPage() {
 
       {/* CONTAINER UTAMA */}
       <div className="max-w-md w-full mx-auto px-4 -mt-8 space-y-4">
+
+        {/* PILIH KARYAWAN DUMMY (SELECT DROPDOWN) */}
+        <div className="bg-gradient-to-r from-blue-900 to-indigo-900 text-white rounded-2xl p-3.5 shadow-md space-y-2 border border-blue-700">
+          <div className="flex items-center gap-2 text-xs font-extrabold uppercase tracking-wide">
+            <Users className="w-4 h-4 text-orange-400" />
+            <span>PILIH PROFIL KARYAWAN DUMMY:</span>
+          </div>
+          <Select value={selectedEmployeeId} onValueChange={handleSelectEmployee}>
+            <SelectTrigger className="w-full bg-white text-slate-900 font-bold text-xs h-10 rounded-xl border-none shadow-inner">
+              <SelectValue placeholder="Pilih Karyawan Dummy" />
+            </SelectTrigger>
+            <SelectContent>
+              {dummyEmployees.map((emp) => (
+                <SelectItem key={emp.id} value={emp.id} className="text-xs font-medium">
+                  {emp.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
         {/* Card 1: Notifikasi Pengumuman */}
         <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 space-y-2">
           <h2 className="text-xs font-extrabold text-[#0b1d8a] uppercase tracking-wide">AKTIFKAN NOTIFIKASI PENGUMUMAN</h2>
@@ -252,21 +317,21 @@ export default function EmployeeOvertimePreviewPage() {
           </Button>
         </div>
 
-        {/* Card 2: Profil Karyawan (Contoh: DENI - TIM STAMPING SHIFT 1) */}
+        {/* Card 2: Profil Karyawan (Dinamis Sesuai Pilihan Dummy) */}
         <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex justify-between items-center">
           <div className="space-y-1 text-xs">
-            <h3 className="text-sm font-black text-slate-900">{employeeName}</h3>
-            <p className="text-[10px] text-slate-500 font-mono">NIK: <strong className="text-slate-800 font-bold">{nik}</strong></p>
-            <p className="text-[10px] text-slate-500">CABANG: <strong className="text-slate-800 font-bold">{cabang}</strong></p>
-            <p className="text-[10px] text-slate-500">JABATAN: <strong className="text-slate-800 font-bold">{jabatan}</strong></p>
+            <h3 className="text-sm font-black text-slate-900">{selectedEmp.employeeName}</h3>
+            <p className="text-[10px] text-slate-500 font-mono">NIK: <strong className="text-slate-800 font-bold">{selectedEmp.nik}</strong></p>
+            <p className="text-[10px] text-slate-500">CABANG: <strong className="text-slate-800 font-bold">{selectedEmp.cabang}</strong></p>
+            <p className="text-[10px] text-slate-500">JABATAN: <strong className="text-slate-800 font-bold">{selectedEmp.jabatan}</strong></p>
             <p className="text-[10px] text-slate-500">
-              SHIFT: <strong className="text-[#0b1d8a] font-bold">{hasCheckedIn ? shiftName : "BELUM ABSEN MASUK"}</strong>
+              SHIFT: <strong className="text-[#0b1d8a] font-bold">{hasCheckedIn ? selectedEmp.shiftName : "BELUM ABSEN MASUK"}</strong>
             </p>
           </div>
           <div className="w-16 h-20 bg-slate-200 rounded-xl overflow-hidden shrink-0 border border-slate-200">
             <img 
-              src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&q=80" 
-              alt="Foto Profil" 
+              src={selectedEmp.photo} 
+              alt={selectedEmp.employeeName} 
               className="w-full h-full object-cover"
             />
           </div>
@@ -304,7 +369,7 @@ export default function EmployeeOvertimePreviewPage() {
               className="w-full h-14 bg-[#0b1d8a] hover:bg-[#07135c] text-white font-black text-sm rounded-xl shadow-md flex items-center justify-center gap-2 tracking-wider uppercase"
               onClick={handleCheckOut}
             >
-              <LogOut className="w-5 h-5" /> ABSEN PULANG SHIFT 1 ({shiftEnd})
+              <LogOut className="w-5 h-5" /> ABSEN PULANG SHIFT ({selectedEmp.shiftEnd})
             </Button>
           ) : (
             <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-center text-xs text-emerald-800 font-bold flex items-center justify-center gap-2">
@@ -321,13 +386,14 @@ export default function EmployeeOvertimePreviewPage() {
             </div>
           )}
 
-          {/* ATURAN BARU: LOGIKA MUNCULNYA TOMBOL LEMBUR (OVERTIME) */}
-          {/* HANYA MUNCUL SETELAH TEKAN ABSEN MASUK. DAN TETAP ADA SETELAH TEKAN ABSEN PULANG! */}
+          {/* LOGIKA TOMBOL LEMBUR (OVERTIME):
+              1. Hanya muncul setelah tekan ABSEN MASUK.
+              2. Tetap ADA setelah tekan ABSEN PULANG! */}
           {hasCheckedIn && (
             <div className="pt-2 border-t border-slate-100 space-y-2">
               <div className="flex justify-between items-center text-[11px] font-bold text-[#0b1d8a]">
                 <span>⚡ LAYANAN LEMBUR (OVERTIME)</span>
-                <span className="text-[9px] text-slate-400 font-normal">TIM STAMPING SHIFT 1</span>
+                <span className="text-[9px] text-slate-400 font-normal">{selectedEmp.shiftName}</span>
               </div>
 
               {!isOvertimeActive && !isOvertimeCompleted && (
@@ -363,7 +429,7 @@ export default function EmployeeOvertimePreviewPage() {
               {isOvertimeCompleted && (
                 <div className="bg-emerald-50 border border-emerald-200 p-4 rounded-xl space-y-1.5 text-xs text-emerald-800">
                   <div className="flex items-center gap-2 font-bold text-emerald-900 text-sm">
-                    <CheckCircle2 className="w-5 h-5 text-emerald-600" /> Lembur Hari Ini Selesai
+                    <CheckCircle2 className="w-5 h-5 text-emerald-600" /> Lembur {selectedEmp.employeeName} Selesai
                   </div>
                   <p>Total Durasi Lembur: <strong>{formatTimer(timerSeconds)}</strong> ({overtimeStartTime} - {overtimeEndTime})</p>
                   <p className="text-[10px] text-emerald-600">Dokumen SPL & Foto Hasil Kerja tersimpan di Google Drive <strong>Folder Lembur</strong>.</p>
@@ -380,10 +446,10 @@ export default function EmployeeOvertimePreviewPage() {
           <AlertDialogHeader>
             <AlertDialogTitle className="text-base font-bold text-slate-900">Konfirmasi Memulai Lembur?</AlertDialogTitle>
             <AlertDialogDescription className="text-xs text-slate-600 space-y-2">
-              <p>Anda memilih untuk melakukan <strong>Lembur (Overtime)</strong> setelah Shift 1 ({shiftEnd}).</p>
+              <p>Anda memilih untuk melakukan <strong>Lembur (Overtime)</strong> untuk {selectedEmp.employeeName} ({selectedEmp.shiftName}).</p>
               {!isCheckedOut && (
                 <p className="text-orange-700 bg-orange-50 p-2 rounded-lg border border-orange-200">
-                  ⚠️ Absen reguler Anda akan otomatis dicatat pulang tepat di jam <strong>{shiftEnd} WIB</strong>.
+                  ⚠️ Absen reguler Anda akan otomatis dicatat pulang tepat di jam <strong>{selectedEmp.shiftEnd} WIB</strong>.
                 </p>
               )}
             </AlertDialogDescription>
@@ -405,7 +471,7 @@ export default function EmployeeOvertimePreviewPage() {
         <DialogContent className="sm:max-w-md bg-white rounded-2xl">
           <DialogHeader>
             <DialogTitle className="text-lg font-bold text-slate-900 flex items-center gap-2">
-              <FileText className="w-5 h-5 text-orange-500" /> Form Mulai Lembur
+              <FileText className="w-5 h-5 text-orange-500" /> Form Mulai Lembur - {selectedEmp.employeeName}
             </DialogTitle>
             <DialogDescription className="text-xs text-slate-500">
               Unggah Surat Perintah Lembur (SPL) & Foto bukti sebelum memulai timer lembur.
@@ -492,7 +558,7 @@ export default function EmployeeOvertimePreviewPage() {
               <Camera className="w-5 h-5 text-emerald-600" /> Dokumentasi Hasil Lembur
             </DialogTitle>
             <DialogDescription className="text-xs text-slate-500">
-              Ambil foto hasil pekerjaan lembur dan berikan keterangan singkat.
+              Ambil foto hasil pekerjaan lembur {selectedEmp.employeeName} dan berikan keterangan singkat.
             </DialogDescription>
           </DialogHeader>
 
@@ -526,7 +592,7 @@ export default function EmployeeOvertimePreviewPage() {
                 2. Keterangan / Catatan Hasil Lembur <span className="text-red-500">*</span>
               </label>
               <Textarea 
-                placeholder="Contoh: Perbaikan 3 unit mesin selesai 100%, siap beroperasi besok pagi."
+                placeholder="Contoh: Perbaikan unit mesin selesai 100%, siap beroperasi besok pagi."
                 value={finalDescription}
                 onChange={(e) => setFinalDescription(e.target.value)}
                 className="text-xs h-20 rounded-xl"
