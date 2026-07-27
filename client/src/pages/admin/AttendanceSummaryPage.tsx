@@ -58,6 +58,10 @@ export default function AttendanceSummaryPage() {
         queryKey: ["/api/attendance"],
     });
 
+    const { data: allOvertimes } = useQuery<any[]>({
+        queryKey: ["/api/admin/overtimes"],
+    });
+
     const [reportType, setReportType] = useState<"daily" | "weekly" | "monthly" | "custom">("daily");
 
     // Calculate Period Range
@@ -137,6 +141,10 @@ export default function AttendanceSummaryPage() {
         const permission = empAttendance.filter(a => a.status === 'permission').length;
         const off = empAttendance.filter(a => a.status === 'off').length;
 
+        // Lembur calculation:
+        const empOvertimes = allOvertimes?.filter(o => o.userId === emp.id && isDateInRange(new Date(o.date))) || [];
+        const overtimeCount = empOvertimes.length;
+
         // Alpha calculation:
         // iterate days from startDate to min(endDate, today)
         // check if record exists. if not -> alpha.
@@ -160,6 +168,7 @@ export default function AttendanceSummaryPage() {
             ...emp,
             stats: {
                 present,
+                overtime: overtimeCount,
                 late,
                 sick,
                 permission,
@@ -562,10 +571,13 @@ export default function AttendanceSummaryPage() {
                                     <TableHead className="min-w-[200px] cursor-pointer hover:bg-gray-100" onClick={() => toggleSort('fullName')}>
                                         <div className="flex items-center gap-1">Tenaga Kerja <ArrowUpDown className="h-3 w-3" /></div>
                                     </TableHead>
-                                    <TableHead className="text-center bg-primary/5 text-primary w-[100px] cursor-pointer hover:bg-primary/10" onClick={() => toggleSort('present')}>
-                                        <div className="flex items-center justify-center gap-1">Hadir <ArrowUpDown className="h-3 w-3" /></div>
-                                    </TableHead>
-                                    <TableHead className="text-center bg-yellow-50 text-yellow-700 w-[100px] cursor-pointer hover:bg-yellow-100" onClick={() => toggleSort('late')}>
+                                    <TableHead className="text-center bg-primary/5 text-primary w-[90px] cursor-pointer hover:bg-primary/10" onClick={() => toggleSort('present')}>
+                                         <div className="flex items-center justify-center gap-1">Hadir <ArrowUpDown className="h-3 w-3" /></div>
+                                     </TableHead>
+                                     <TableHead className="text-center bg-orange-50 text-orange-700 w-[90px] cursor-pointer hover:bg-orange-100" onClick={() => toggleSort('overtime')}>
+                                         <div className="flex items-center justify-center gap-1">Lembur <ArrowUpDown className="h-3 w-3" /></div>
+                                     </TableHead>
+                                     <TableHead className="text-center bg-yellow-50 text-yellow-700 w-[90px] cursor-pointer hover:bg-yellow-100" onClick={() => toggleSort('late')}>
                                         <div className="flex items-center justify-center gap-1">Telat <ArrowUpDown className="h-3 w-3" /></div>
                                     </TableHead>
                                     <TableHead className="text-center bg-blue-50 text-blue-700 w-[100px] cursor-pointer hover:bg-blue-100" onClick={() => toggleSort('sick')}>
@@ -597,6 +609,9 @@ export default function AttendanceSummaryPage() {
                                             </TableCell>
                                             <TableCell className="text-center font-mono font-bold text-primary bg-primary/5/30">
                                                 {emp.stats.present}
+                                            </TableCell>
+                                            <TableCell className="text-center font-mono font-bold text-orange-600 bg-orange-50/30">
+                                                {emp.stats.overtime}
                                             </TableCell>
                                             <TableCell className="text-center font-mono font-bold text-yellow-600 bg-yellow-50/30">
                                                 {emp.stats.late}

@@ -1452,6 +1452,34 @@ export function registerRoutes(app: Express) {
     }
   });
 
+  app.get("/api/admin/overtimes", isAuthenticated, isAdmin, async (req: Request, res: Response) => {
+    try {
+      const allOvertimes = await db.select({
+        id: overtimes.id,
+        attendanceId: overtimes.attendanceId,
+        startTime: overtimes.startTime,
+        endTime: overtimes.endTime,
+        splDocumentUrl: overtimes.splDocumentUrl,
+        initialProofUrl: overtimes.initialProofUrl,
+        finalProofUrl: overtimes.finalProofUrl,
+        description: overtimes.description,
+        finalDescription: overtimes.finalDescription,
+        status: overtimes.status,
+        createdAt: overtimes.createdAt,
+        userId: attendance.userId,
+        date: attendance.date
+      })
+      .from(overtimes)
+      .innerJoin(attendance, eq(overtimes.attendanceId, attendance.id))
+      .orderBy(desc(overtimes.createdAt));
+
+      res.json(allOvertimes);
+    } catch (e: any) {
+      console.error("Fetch all overtimes error:", e);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
   app.get("/api/attendance/today", isAuthenticated, async (req: Request, res: Response) => {
     await autoCloseExpiredSessions((req.user as any).id);
     const userId = (req.user as any).id;
