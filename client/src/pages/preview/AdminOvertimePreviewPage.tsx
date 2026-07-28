@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import {
-  FileText, FileDown, Eye, ShieldAlert, ArrowLeft, Download, FolderCheck, Search, Image as ImageIcon
+  FileText, FileDown, Eye, ShieldAlert, ArrowLeft, Download, FolderCheck, Search, Image as ImageIcon, Printer, CheckCircle2
 } from "lucide-react";
 import { Link } from "wouter";
 
@@ -14,6 +14,7 @@ export default function AdminOvertimePreviewPage() {
   const [reportType, setReportType] = useState<"daily" | "weekly" | "monthly" | "custom">("monthly");
   const [searchName, setSearchName] = useState("");
   const [selectedOvertime, setSelectedOvertime] = useState<any | null>(null);
+  const [isPdfModalOpen, setIsPdfModalOpen] = useState(false);
 
   // Mock data rekap absensi persis dari Screenshot 1
   const mockAttendanceData = [
@@ -168,15 +169,19 @@ export default function AdminOvertimePreviewPage() {
     r.nik.toLowerCase().includes(searchName.toLowerCase())
   );
 
+  const handlePrintPdf = () => {
+    window.print();
+  };
+
   return (
     <div className="min-h-screen bg-slate-100 p-4 md:p-6 space-y-4 font-sans">
       {/* Banner Preview Notice */}
-      <div className="bg-amber-500 text-white p-3 rounded-2xl shadow-sm text-xs flex items-center justify-between">
+      <div className="bg-amber-500 text-white p-3 rounded-2xl shadow-sm text-xs flex items-center justify-between print:hidden">
         <div className="flex items-center gap-2">
           <ShieldAlert className="w-5 h-5 shrink-0" />
           <div>
             <p className="font-bold">MODE SIMULASI PREVIEW: LAPORAN REKAPITULASI ABSENSI & LEMBUR</p>
-            <p className="text-[11px] opacity-90">Format tabel disesuaikan 100% dengan Screenshot 1 (Kop Surat & Kolom Resmi PT MIP).</p>
+            <p className="text-[11px] opacity-90">Klik tombol "Preview & Export PDF" untuk melihat cetakan PDF lengkap dengan Kop Surat & Lampiran Foto Lembur.</p>
           </div>
         </div>
         <Link href="/preview/overtime-employee">
@@ -187,7 +192,7 @@ export default function AdminOvertimePreviewPage() {
       </div>
 
       {/* Control Bar: Filters & Search */}
-      <Card className="border-slate-200 shadow-sm">
+      <Card className="border-slate-200 shadow-sm print:hidden">
         <CardContent className="p-4">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
             <div>
@@ -224,8 +229,12 @@ export default function AdminOvertimePreviewPage() {
                     className="h-9 pl-9 text-xs rounded-xl"
                   />
                 </div>
-                <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold h-9 rounded-xl">
-                  <FileDown className="w-4 h-4 mr-1" /> Export Excel
+                <Button 
+                  size="sm" 
+                  className="bg-red-600 hover:bg-red-700 text-white text-xs font-bold h-9 rounded-xl shadow-sm"
+                  onClick={() => setIsPdfModalOpen(true)}
+                >
+                  <FileText className="w-4 h-4 mr-1.5" /> Preview & Export PDF
                 </Button>
               </div>
             </div>
@@ -234,7 +243,7 @@ export default function AdminOvertimePreviewPage() {
       </Card>
 
       {/* PAPER CONTAINER (DISAMAKAN 100% DENGAN SCREENSHOT 1) */}
-      <div className="bg-white p-6 md:p-8 rounded-2xl shadow-md border border-slate-200 overflow-x-auto">
+      <div className="bg-white p-6 md:p-8 rounded-2xl shadow-md border border-slate-200 overflow-x-auto print:shadow-none print:border-none print:p-0">
         {/* KOP SURAT PERUSAHAAN */}
         <div className="flex justify-between items-start pb-4 border-b-2 border-slate-800">
           <div className="flex items-center gap-3">
@@ -347,7 +356,7 @@ export default function AdminOvertimePreviewPage() {
                       <div className="flex items-center gap-2">
                         <Button 
                           size="sm" 
-                          className="bg-orange-600 hover:bg-orange-700 text-white font-bold text-[10px] h-6 px-2 rounded-lg"
+                          className="bg-orange-600 hover:bg-orange-700 text-white font-bold text-[10px] h-6 px-2 rounded-lg print:hidden"
                           onClick={() => setSelectedOvertime(row)}
                         >
                           <Eye className="w-3.5 h-3.5 mr-1" /> Lihat SPL & Foto
@@ -366,6 +375,154 @@ export default function AdminOvertimePreviewPage() {
           </tbody>
         </table>
       </div>
+
+      {/* MODAL POPUP PREVIEW HASIL CETAK EXPORT PDF DENGAN KOP SURAT & LAMPIRAN BUKTI FOTO LEMBUR */}
+      <Dialog open={isPdfModalOpen} onOpenChange={setIsPdfModalOpen}>
+        <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto bg-slate-100 p-4 md:p-6 rounded-2xl">
+          <DialogHeader className="flex flex-col sm:flex-row justify-between sm:items-center gap-2 border-b pb-3 bg-white p-4 rounded-xl shadow-sm">
+            <div>
+              <DialogTitle className="text-lg font-black text-slate-900 flex items-center gap-2">
+                <FileText className="w-5 h-5 text-red-600" /> Preview Dokumen Cetak PDF (Kop Surat & Lampiran Lembur)
+              </DialogTitle>
+              <DialogDescription className="text-xs text-slate-500">
+                Berikut tampilan cetak PDF resmi lengkap dengan Kop Surat Perusahaan dan Lampiran Foto Bukti Lembur.
+              </DialogDescription>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button size="sm" onClick={handlePrintPdf} className="bg-red-600 hover:bg-red-700 text-white font-bold text-xs h-9 rounded-xl shadow">
+                <Printer className="w-4 h-4 mr-1.5" /> Cetak / Download PDF
+              </Button>
+            </div>
+          </DialogHeader>
+
+          {/* DOKUMEN HASIL CETAK PDF PREVIEW */}
+          <div className="bg-white p-8 rounded-xl shadow-lg border border-slate-300 space-y-6 text-slate-900 font-sans my-2">
+            
+            {/* 1. KOP SURAT PERUSAHAAN */}
+            <div className="flex justify-between items-center pb-3 border-b-2 border-slate-900">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-[#0b1d8a] text-white font-black text-sm flex items-center justify-center rounded-xl">
+                  MEKANO
+                </div>
+                <div>
+                  <h1 className="text-2xl font-black text-[#0b1d8a] tracking-tight">PT MEKANO INDUSTRIAL PRESISI</h1>
+                  <p className="text-xs text-slate-600 font-medium">JL. RAYA DUKUH, INDUSTRI AGGADITA, KARAWANG TIMUR</p>
+                </div>
+              </div>
+            </div>
+
+            {/* 2. JUDUL LAPORAN */}
+            <div className="text-center py-2 space-y-1">
+              <h2 className="text-base font-black text-slate-900 tracking-wider uppercase">LAPORAN REKAPITULASI ABSENSI & DOKUMEN LEMBUR</h2>
+              <p className="text-xs font-bold text-slate-600">PERIODE: JUMAT, 26 JUNI 2026 - SABTU, 25 JULI 2026</p>
+            </div>
+
+            {/* 3. TABEL REKAPITULASI ABSENSI */}
+            <table className="w-full text-left text-[11px] border-collapse border border-slate-300">
+              <thead>
+                <tr className="bg-slate-100 text-slate-900 font-bold border-b border-slate-300 uppercase">
+                  <th className="p-2 border-r border-slate-300 text-center w-8">NO</th>
+                  <th className="p-2 border-r border-slate-300">HARI & TANGGAL</th>
+                  <th className="p-2 border-r border-slate-300">NAMA TENAGA KERJA</th>
+                  <th className="p-2 border-r border-slate-300 text-center">MASUK</th>
+                  <th className="p-2 border-r border-slate-300 text-center">PULANG</th>
+                  <th className="p-2 border-r border-slate-300 text-center">JAM KERJA</th>
+                  <th className="p-2 border-r border-slate-300 text-center">STATUS</th>
+                  <th className="p-2">KETERANGAN</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredData.map((row) => (
+                  <tr key={row.id} className={row.isOvertime ? "bg-orange-50 font-semibold" : ""}>
+                    <td className="p-2 border-t border-r border-slate-300 text-center font-bold">
+                      {row.isContinuation ? <span className="text-orange-600 font-black">↳</span> : row.id}
+                    </td>
+                    <td className="p-2 border-t border-r border-slate-300">{row.isContinuation ? "Sama" : row.date}</td>
+                    <td className="p-2 border-t border-r border-slate-300 font-bold">
+                      {row.isContinuation ? `${row.employeeName} (LEMBUR)` : row.employeeName}
+                    </td>
+                    <td className="p-2 border-t border-r border-slate-300 text-center font-mono">{row.masuk}</td>
+                    <td className="p-2 border-t border-r border-slate-300 text-center font-mono">{row.pulang}</td>
+                    <td className="p-2 border-t border-r border-slate-300 text-center font-bold">{row.jamKerja}</td>
+                    <td className="p-2 border-t border-r border-slate-300 text-center font-bold">
+                      {row.status}
+                    </td>
+                    <td className="p-2 border-t border-slate-300">{row.keterangan}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
+            {/* 4. HUKUM / LAMPIRAN DOKUMEN & BUKTI FOTO LEMBUR (KHUSUS UNTUK LEMBUR) */}
+            <div className="pt-4 border-t-2 border-slate-900 space-y-4">
+              <h3 className="text-sm font-black text-slate-900 uppercase tracking-wide flex items-center gap-2">
+                <FileText className="w-4 h-4 text-orange-600" /> LAMPIRAN DOKUMEN & BUKTI FOTO LEMBUR TENAGA KERJA
+              </h3>
+
+              <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl space-y-3">
+                <div className="flex justify-between items-center border-b pb-2">
+                  <div>
+                    <span className="font-black text-sm text-slate-900">1. KARYAWAN: DENI (NIK: 3215180601940004)</span>
+                    <p className="text-xs text-slate-600 font-medium">Tanggal Lembur: Sabtu, 25 Juli 2026 | Durasi: 3 Jam 30 Menit (17:00 - 20:30 WIB)</p>
+                  </div>
+                  <Badge className="bg-orange-600 text-white font-bold text-xs">BERKAS LEMBUR LENGKAP</Badge>
+                </div>
+
+                {/* Grid 3 Foto Bukti (SPL, Foto Awal, Foto Hasil Kerja) */}
+                <div className="grid grid-cols-3 gap-4 pt-1">
+                  {/* Foto 1: SPL */}
+                  <div className="bg-white p-2.5 rounded-lg border border-slate-200 text-center space-y-1.5">
+                    <span className="text-[11px] font-bold text-slate-700 block">A. SURAT PERINTAH LEMBUR (SPL)</span>
+                    <div className="h-32 bg-slate-100 rounded flex flex-col items-center justify-center p-2 border border-dashed border-slate-300">
+                      <FileText className="w-8 h-8 text-orange-500 mb-1" />
+                      <span className="text-[10px] font-bold text-blue-600">SPL_DENI_25JUL.PDF</span>
+                      <span className="text-[9px] text-slate-400">Terverifikasi Koordinator</span>
+                    </div>
+                  </div>
+
+                  {/* Foto 2: Bukti Awal */}
+                  <div className="bg-white p-2.5 rounded-lg border border-slate-200 text-center space-y-1.5">
+                    <span className="text-[11px] font-bold text-slate-700 block">B. FOTO BUKTI AWAL KERJA</span>
+                    <img 
+                      src="https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?w=500&q=80" 
+                      alt="Foto Awal" 
+                      className="h-32 w-full object-cover rounded border"
+                    />
+                    <p className="text-[10px] text-slate-600 italic">"Overtime repair 3 mesin press bersama Pak Dede"</p>
+                  </div>
+
+                  {/* Foto 3: Dokumentasi Hasil */}
+                  <div className="bg-white p-2.5 rounded-lg border border-slate-200 text-center space-y-1.5">
+                    <span className="text-[11px] font-bold text-slate-700 block">C. DOKUMENTASI HASIL KERJA</span>
+                    <img 
+                      src="https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=500&q=80" 
+                      alt="Foto Hasil" 
+                      className="h-32 w-full object-cover rounded border"
+                    />
+                    <p className="text-[10px] text-emerald-800 font-bold italic">"Perbaikan 3 mesin selesai 100%"</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* TANDA TANGAN KOP LAPORAN */}
+            <div className="pt-6 flex justify-between items-end text-xs font-semibold text-slate-800">
+              <div>
+                <p>Diperiksa Oleh,</p>
+                <div className="h-16"></div>
+                <p className="font-bold underline">Mbak Intan (HRD/Payroll)</p>
+              </div>
+              <div className="text-right">
+                <p>Karawang, 25 Juli 2026</p>
+                <p>Disetujui Oleh,</p>
+                <div className="h-16"></div>
+                <p className="font-bold underline">Pimpinan PT Mekano Industrial Presisi</p>
+              </div>
+            </div>
+
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Modal Detail Lembur untuk Admin */}
       <Dialog open={!!selectedOvertime} onOpenChange={() => setSelectedOvertime(null)}>
