@@ -19,6 +19,7 @@ import InfoPage from "./pages/employee/InfoPage.js";
 import RegistrationPage from "./pages/employee/RegistrationPage.js";
 import EmployeeOvertimePreviewPage from "./pages/preview/EmployeeOvertimePreviewPage.js";
 import AdminOvertimePreviewPage from "./pages/preview/AdminOvertimePreviewPage.js";
+import AdminOvertimePage from "./pages/admin/AdminOvertimePage.js";
 
 import AdminDashboard from "./pages/admin/DashboardPage.js";
 import EmployeeListPage from "./pages/admin/EmployeeListPage.js";
@@ -152,6 +153,7 @@ export default function App() {
             <Route path="/employee/signup" component={SignupPage} />
             <Route path="/preview/overtime-employee" component={EmployeeOvertimePreviewPage} />
             <Route path="/preview/overtime-admin" component={AdminOvertimePreviewPage} />
+            <Route path="/preview/overtime-management" component={AdminOvertimePage} />
 
             {/* Root & admin redirects — gunakan component= agar hooks valid */}
             <Route path="/" component={RootRedirect} />
@@ -195,6 +197,9 @@ export default function App() {
             </Route>
             <Route path="/admin/recap">
               {() => <AdminLayout><ProtectedRoute component={AdminRecapPage} roles={["admin", "superadmin"]} /></AdminLayout>}
+            </Route>
+            <Route path="/admin/overtime">
+              {() => <AdminLayout><ProtectedRoute component={AdminOvertimePage} roles={["admin", "superadmin"]} /></AdminLayout>}
             </Route>
             <Route path="/admin/summary">
               {() => <AdminLayout><ProtectedRoute component={AttendanceSummaryPage} roles={["admin", "superadmin"]} /></AdminLayout>}

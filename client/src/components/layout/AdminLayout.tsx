@@ -521,6 +521,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                             }
                         ] : []),
                         {
+                            title: "Kelola & Rekap Lembur",
+                            url: "/admin/overtime",
+                            icon: Clock,
+                        },
+                        {
                             title: "Riwayat Absensi (Foto)",
                             url: "/admin/attendance",
                             icon: ImageIcon,
