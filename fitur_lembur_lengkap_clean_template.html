@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <title>Presentasi Fitur Lembur Digital - PT Mekano Industrial Presisi</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: "Times New Roman", Times, Georgia, serif; }
+    body { background: #f4f6f8; color: #000000; line-height: 1.7; padding: 20px 0; }
+
+    /* Floating Print Bar */
+    .print-bar {
+      max-width: 1100px;
+      margin: 0 auto 20px auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #0b1d8a;
+      color: #ffffff;
+      padding: 14px 24px;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    .print-btn {
+      background: #f97316;
+      color: #ffffff;
+      border: none;
+      padding: 10px 22px;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    /* Layout PPT Landscape Printable (A4 Landscape 297mm x 210mm) */
+    .slide-page {
+      background: #ffffff;
+      width: 297mm;  /* A4 Landscape Width */
+      height: 210mm; /* A4 Landscape Height */
+      margin: 0 auto 30px auto;
+      padding: 18mm 20mm 15mm 20mm;
+      border: 2px solid #000000;
+      border-radius: 6px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.06);
+      page-break-after: always;
+      break-after: page;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    /* H1 JUDUL SANGAT MENONJOL & FONT BESAR TIMES NEW ROMAN */
+    .page-h1-title {
+      font-size: 26px;
+      font-weight: 900;
+      color: #0b1d8a;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      border-bottom: 4px solid #f97316;
+      padding-bottom: 8px;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .h1-badge {
+      background: #0b1d8a;
+      color: #ffffff;
+      font-size: 13px;
+      font-weight: bold;
+      padding: 5px 14px;
+      border-radius: 20px;
+      font-family: Arial, sans-serif;
+    }
+
+    /* Body Grid (Gambar Kiri & Deskripsi Kanan) */
+    .slide-body {
+      display: grid;
+      grid-template-columns: 1.1fr 1fr;
+      gap: 24px;
+      align-items: center;
+      flex: 1;
+    }
+
+    .ui-box {
+      background: #ffffff;
+      border: 2px dashed #000000;
+      border-radius: 8px;
+      padding: 14px;
+      text-align: center;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      position: relative;
+    }
+    .ui-box img {
+      max-width: 100%;
+      max-height: 380px;
+      object-fit: contain;
+      border: 1px solid #000000;
+      border-radius: 6px;
+      background: white;
+    }
+
+    .upload-input-label {
+      margin-top: 12px;
+      background: #0b1d8a;
+      color: #ffffff;
+      font-size: 12px;
+      font-weight: bold;
+      padding: 8px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      display: inline-block;
+      font-family: Arial, sans-serif;
+    }
+    .upload-input-file { display: none; }
+
+    .desc-box {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+    .desc-header {
+      font-size: 16px;
+      font-weight: bold;
+      color: #000000;
+      background: #e5e7eb;
+      padding: 8px 14px;
+      border-left: 6px solid #f97316;
+      margin-bottom: 14px;
+    }
+    .desc-content {
+      font-size: 14.5px;
+      color: #000000;
+      font-weight: bold;
+      line-height: 1.75;
+    }
+    .desc-content p { margin-bottom: 8px; color: #000000; }
+    .desc-content ul, .desc-content ol { margin-left: 22px; margin-bottom: 8px; color: #000000; }
+    .desc-content li { margin-bottom: 5px; color: #000000; }
+    .desc-content strong { color: #000000; font-weight: 900; }
+
+    /* CSS PRINT KE PDF (A4 LANDSCAPE 1 SLIDE = 1 HALAMAN TANPA TERPOTONG) */
+    @media print {
+      @page {
+        size: A4 landscape;
+        margin: 0;
+      }
+      body { background: white; padding: 0; margin: 0; color: #000000; }
+      .print-bar { display: none !important; }
+      .upload-input-label { display: none !important; }
+      .slide-page {
+        width: 100vw;
+        height: 100vh;
+        margin: 0;
+        padding: 15mm 15mm 15mm 15mm;
+        border: none;
+        border-radius: 0;
+        box-shadow: none;
+        page-break-after: always !important;
+        break-after: page !important;
+      }
+      .ui-box img { max-height: 360px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Floating Print Bar -->
+  <div class="print-bar">
+    <div>
+      <strong style="font-size: 16px;">Dokumen Fitur Lembur Digital (Font Times New Roman & Ukuran Teks Besar)</strong>
+      <p style="font-size: 12px; opacity: 0.9;">Klik tombol "Pilih / Upload Gambar" di setiap slide jika ingin melampirkan screenshot milik Anda.</p>
+    </div>
+    <button class="print-btn" onclick="window.print()">🖨️ Cetak / Download PDF</button>
+  </div>
+
+  <!-- SLIDE 1 -->
+  <div class="slide-page">
+    <h1 class="page-h1-title">
+      <span>1. Tombol Lembur (Overtime) di HP Karyawan</span>
+      <span class="h1-badge">FITUR KARYAWAN</span>
+    </h1>
+
+    <div class="slide-body">
+      <div class="ui-box">
+        <img id="img-preview-1" src="ss1_karyawan_dashboard.png" alt="Tombol Lembur di HP">
+        <label class="upload-input-label">
+          📁 Pilih / Upload Gambar Slide 1
+          <input type="file" class="upload-input-file" accept="image/*" onchange="previewImage(event, 'img-preview-1')">
+        </label>
+      </div>
+
+      <div class="desc-box">
+        <div class="desc-header">Posisi & Aturan Munculnya Tombol Lembur</div>
+        <div class="desc-content">
+          <p>Tombol <strong>LEMBUR (OVERTIME)</strong> berwarna oranye disediakan di halaman utama aplikasi absensi HP karyawan.</p>
+          <ul>
+            <li><strong>Syarat Muncul:</strong> Tombol Lembur otomatis aktif setelah karyawan melakukan Absen Masuk reguler.</li>
+            <li><strong>Tetap Ada Setelah Pulang:</strong> Saat karyawan sudah menekan Absen Pulang biasa, tombol Lembur <strong>TETAP ADA</strong> di layar HP untuk mengantisipasi instruksi lembur mendadak dari atasan/Koordinator.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 2 -->
+  <div class="slide-page">
+    <h1 class="page-h1-title">
+      <span>2. Pop-Up Alert Konfirmasi Lembur</span>
+      <span class="h1-badge">FITUR KARYAWAN</span>
+    </h1>
+
+    <div class="slide-body">
+      <div class="ui-box">
+        <img id="img-preview-2" src="ss1_karyawan_dashboard.png" alt="Pop-Up Alert Konfirmasi">
+        <label class="upload-input-label">
+          📁 Pilih / Upload Gambar Slide 2
+          <input type="file" class="upload-input-file" accept="image/*" onchange="previewImage(event, 'img-preview-2')">
+        </label>
+      </div>
+
+      <div class="desc-box">
+        <div class="desc-header">Peringatan Kesiapan Sebelum Memulai</div>
+        <div class="desc-content">
+          <p>Saat karyawan mengklik tombol Lembur, aplikasi memunculkan <strong>Pop-Up Alert Konfirmasi</strong> terlebih dahulu.</p>
+          <ul>
+            <li><strong>Tujuan Alert:</strong> Mencegah karyawan tidak sengaja/tertekan tombol lembur.</li>
+            <li><strong>Tindakan:</strong> Jika menekan <strong>"Ya, Lanjutkan"</strong>, sistem otomatis membuka formulir lembur dan mengunci jam pulang shift reguler (contoh: 17:00).</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 3 -->
+  <div class="slide-page">
+    <h1 class="page-h1-title">
+      <span>3. Pop-Up Form Mulai Lembur & Upload Berkas</span>
+      <span class="h1-badge">FITUR KARYAWAN</span>
+    </h1>
+
+    <div class="slide-body">
+      <div class="ui-box">
+        <img id="img-preview-3" src="ss2_modal_mulai_lembur.png" alt="Form Mulai Lembur">
+        <label class="upload-input-label">
+          📁 Pilih / Upload Gambar Slide 3
+          <input type="file" class="upload-input-file" accept="image/*" onchange="previewImage(event, 'img-preview-3')">
+        </label>
+      </div>
+
+      <div class="desc-box">
+        <div class="desc-header">Pengisian Dokumen SPL & Foto Awal Kerja</div>
+        <div class="desc-content">
+          <p>Karyawan melengkapi 3 persyaratan dokumen awal sebelum mulai kerja lembur:</p>
+          <ol>
+            <li><strong>1. Upload Surat SPL:</strong> Lampirkan foto atau PDF Surat Perintah Lembur yang sudah ditandatangani Koordinator.</li>
+            <li><strong>2. Upload Foto Bukti Awal:</strong> Ambil foto kondisi lokasi/mesin sebelum pekerjaan lembur dimulai.</li>
+            <li><strong>3. Deskripsi Tugas:</strong> Tulis singkat pekerjaan yang akan dilakukan.</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 4 -->
+  <div class="slide-page">
+    <h1 class="page-h1-title">
+      <span>4. Live Timer Lembur Real-Time di HP</span>
+      <span class="h1-badge">FITUR KARYAWAN</span>
+    </h1>
+
+    <div class="slide-body">
+      <div class="ui-box">
+        <img id="img-preview-4" src="ss3_timer_lembur.png" alt="Timer Lembur Berjalan">
+        <label class="upload-input-label">
+          📁 Pilih / Upload Gambar Slide 4
+          <input type="file" class="upload-input-file" accept="image/*" onchange="previewImage(event, 'img-preview-4')">
+        </label>
+      </div>
+
+      <div class="desc-box">
+        <div class="desc-header">Hitungan Waktu Lembur Berjalan Otomatis</div>
+        <div class="desc-content">
+          <p>Setelah formulir awal dikirim, penanda waktu lembur aktif di layar HP karyawan:</p>
+          <ul>
+            <li><strong>Timer Otomatis (HH:MM:SS):</strong> Hitungan jam, menit, dan detik lembur berdetik sendiri secara otomatis.</li>
+            <li><strong>Penguncian Jam Pulang Shift:</strong> Jam pulang reguler (17:00) sudah terkunci dan tersimpan aman di database.</li>
+            <li><strong>Tombol Merah "SELESAI LEMBUR":</strong> Tekan tombol ini nanti saat pekerjaan lembur sudah benar-benar selesai.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 5 -->
+  <div class="slide-page">
+    <h1 class="page-h1-title">
+      <span>5. Form Selesai Lembur & Foto Hasil Kerja</span>
+      <span class="h1-badge">FITUR KARYAWAN</span>
+    </h1>
+
+    <div class="slide-body">
+      <div class="ui-box">
+        <img id="img-preview-5" src="ss4_modal_selesai_lembur.png" alt="Form Selesai Lembur">
+        <label class="upload-input-label">
+          📁 Pilih / Upload Gambar Slide 5
+          <input type="file" class="upload-input-file" accept="image/*" onchange="previewImage(event, 'img-preview-5')">
+        </label>
+      </div>
+
+      <div class="desc-box">
+        <div class="desc-header">Mengakhiri Lembur & Upload Dokumentasi</div>
+        <div class="desc-content">
+          <p>Saat pekerjaan lembur selesai, karyawan menekan tombol merah **Selesai Lembur**:</p>
+          <ol>
+            <li><strong>Upload Foto Hasil Kerja:</strong> Ambil foto fisik hasil pekerjaan yang telah selesai 100%.</li>
+            <li><strong>Catatan Hasil Akhir:</strong> Tuliskan keterangan singkat hasil pengerjaan.</li>
+            <li><strong>Penyimpanan Google Drive:</strong> Seluruh foto (SPL, Foto Awal, Foto Hasil) otomatis ter-sync ke <strong>Google Drive Perusahaan (Folder Lembur)</strong>.</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 6 -->
+  <div class="slide-page">
+    <h1 class="page-h1-title">
+      <span>6. Tabel Rekapitulasi Absen & Lembur Admin</span>
+      <span class="h1-badge">FITUR ADMIN</span>
+    </h1>
+
+    <div class="slide-body">
+      <div class="ui-box">
+        <img id="img-preview-6" src="ss5_admin_rekap_tabel.png" alt="Tabel Rekapitulasi Admin">
+        <label class="upload-input-label">
+          📁 Pilih / Upload Gambar Slide 6
+          <input type="file" class="upload-input-file" accept="image/*" onchange="previewImage(event, 'img-preview-6')">
+        </label>
+      </div>
+
+      <div class="desc-box">
+        <div class="desc-header">Pemantauan Otomatis Tanpa Hitung Manual</div>
+        <div class="desc-content">
+          <p>Admin atau HRD dapat melihat seluruh data lembur di menu **Rekap Absen** pada komputer Admin:</p>
+          <ul>
+            <li><strong>Baris Panah Oranye (↳):</strong> Data lembur otomatis disisipkan sebagai baris baru berwarna oranye bertanda panah `↳` tepat di bawah baris absensi reguler karyawan.</li>
+            <li><strong>Durasi Otomatis:</strong> Jam mulai (17:00), jam selesai (20:30), dan total durasi lembur (3J 30M) dihitung otomatis oleh sistem.</li>
+            <li><strong>Tombol "Lihat SPL & Foto":</strong> Klik tombol ini untuk membuka berkas Surat SPL dan foto bukti kerja karyawan.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 7 -->
+  <div class="slide-page">
+    <h1 class="page-h1-title">
+      <span>7. Pop-Up Modal Detail Berkas Lembur Admin</span>
+      <span class="h1-badge">FITUR ADMIN</span>
+    </h1>
+
+    <div class="slide-body">
+      <div class="ui-box">
+        <img id="img-preview-7" src="ss5_admin_rekap_tabel.png" alt="Modal Detail Berkas Admin">
+        <label class="upload-input-label">
+          📁 Pilih / Upload Gambar Slide 7
+          <input type="file" class="upload-input-file" accept="image/*" onchange="previewImage(event, 'img-preview-7')">
+        </label>
+      </div>
+
+      <div class="desc-box">
+        <div class="desc-header">Inspeksi Dokumen & Verifikasi Berkas</div>
+        <div class="desc-content">
+          <p>Saat Admin mengklik tombol <strong>Lihat SPL & Foto</strong> di tabel, modal detail akan muncul di layar komputer Admin:</p>
+          <ul>
+            <li><strong>File PDF SPL:</strong> Admin dapat melihat dan mengunduh berkas Surat Perintah Lembur asli.</li>
+            <li><strong>Foto Awal & Foto Hasil:</strong> Menampilkan perbandingan foto kondisi awal vs foto hasil pekerjaan akhir karyawan.</li>
+            <li><strong>Status Google Drive:</strong> Menampilkan lokasi penyimpanan folder terverifikasi di Google Drive.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 8 -->
+  <div class="slide-page">
+    <h1 class="page-h1-title">
+      <span>8. Hasil Ekspor Cetak PDF Resmi & Lampiran</span>
+      <span class="h1-badge">EKSPOR LAPORAN</span>
+    </h1>
+
+    <div class="slide-body">
+      <div class="ui-box">
+        <img id="img-preview-8" src="real_screenshot_pdf_lembur.png" alt="Cetak PDF Laporan Resmi">
+        <label class="upload-input-label">
+          📁 Pilih / Upload Gambar Slide 8
+          <input type="file" class="upload-input-file" accept="image/*" onchange="previewImage(event, 'img-preview-8')">
+        </label>
+      </div>
+
+      <div class="desc-box">
+        <div class="desc-header">Dokumen Cetak Kop Surat & Lampiran Bukti Foto</div>
+        <div class="desc-content">
+          <p>Saat laporan diekspor ke PDF, aplikasi mencetak dokumen resmi perusahaan yang sah:</p>
+          <ul>
+            <li><strong>Kop Surat Perusahaan:</strong> Dilengkapi Logo dan Alamat PT MEKANO INDUSTRIAL PRESISI (Karawang Timur).</li>
+            <li><strong>Tabel Rekapitulasi:</strong> Memuat data hadir reguler dan baris lembur `↳`.</li>
+            <li><strong>Lampiran Foto Bukti Lembur:</strong> Di bagian bawah tabel, melampirkan foto Surat SPL, foto awal kerja, dan foto hasil kerja akhir.</li>
+            <li><strong>Pengesahan Tanda Tangan:</strong> Siap ditandatangani oleh HRD (Mbak Intan) dan Pimpinan PT MIP.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function previewImage(event, targetImgId) {
+      const reader = new FileReader();
+      reader.onload = function() {
+        const output = document.getElementById(targetImgId);
+        output.src = reader.result;
+      };
+      if (event.target.files[0]) {
+        reader.readAsDataURL(event.target.files[0]);
+      }
+    }
+  </script>
+</body>
+</html>
+```

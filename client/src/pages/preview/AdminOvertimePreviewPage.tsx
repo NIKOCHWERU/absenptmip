@@ -16,14 +16,14 @@ export default function AdminOvertimePreviewPage() {
   const [selectedOvertime, setSelectedOvertime] = useState<any | null>(null);
   const [isPdfModalOpen, setIsPdfModalOpen] = useState(false);
 
-  // Mock data rekap absensi persis dari Screenshot 1
+  // Mock data rekap absensi untuk keperluan simulasi (Karyawan A, B, C)
   const mockAttendanceData = [
     {
       id: 1,
       date: "SABTU, 25 JULI 2026",
-      employeeName: "ANDRI",
-      shift: "TIM STAMPING ( SHIFT 2 )",
-      nik: "3215190705910002",
+      employeeName: "KARYAWAN A",
+      shift: "TIM PRODUCTION ( SHIFT 2 )",
+      nik: "3215000000000001",
       masuk: "12:45",
       istirahat: "18:19",
       selesai: "19:06",
@@ -38,9 +38,9 @@ export default function AdminOvertimePreviewPage() {
     {
       id: 2,
       date: "SABTU, 25 JULI 2026",
-      employeeName: "DENI",
-      shift: "TIM STAMPING SHIFT 1",
-      nik: "3215180601940004",
+      employeeName: "KARYAWAN B",
+      shift: "TIM PRODUCTION SHIFT 1",
+      nik: "3215000000000002",
       masuk: "07:44",
       istirahat: "12:11",
       selesai: "13:00",
@@ -52,13 +52,13 @@ export default function AdminOvertimePreviewPage() {
       isOvertime: false,
       isContinuation: false,
     },
-    // BARIS TAMBAHAN KHUSUS LEMBUR DENI
+    // BARIS TAMBAHAN KHUSUS LEMBUR KARYAWAN B
     {
       id: 202,
       date: "SABTU, 25 JULI 2026",
-      employeeName: "DENI",
-      shift: "LEMBUR TIM STAMPING",
-      nik: "3215180601940004",
+      employeeName: "KARYAWAN B",
+      shift: "LEMBUR TIM PRODUCTION",
+      nik: "3215000000000002",
       masuk: "17:00",
       istirahat: "-",
       selesai: "-",
@@ -69,20 +69,20 @@ export default function AdminOvertimePreviewPage() {
       keterangan: "[DOKUMEN LEMBUR & SPL COMPLETE]",
       isOvertime: true,
       isContinuation: true,
-      splUrl: "https://drive.google.com/file/d/demo-spl-deni",
-      splName: "SPL_DENI_25JUL.PDF",
+      splUrl: "https://drive.google.com/file/d/demo-spl-karyawan-b",
+      splName: "SPL_KARYAWAN_B.PDF",
       initialPhoto: "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?w=500&q=80",
       finalPhoto: "https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=500&q=80",
-      startDesc: "Overtime repair 3 mesin press bersama Pak Dede",
-      finalDesc: "Perbaikan 3 mesin selesai 100%, sudah diuji coba siap pakai besok.",
-      driveFolder: "Google Drive/Lembur/Deni_2026-07-25_Lembur.jpg"
+      startDesc: "Pekerjaan Lembur Awal: Perbaikan Mesin Production 3",
+      finalDesc: "Hasil Pekerjaan Lembur: Perbaikan Selesai 100%, Siap Beroperasi",
+      driveFolder: "Google Drive/Lembur/Karyawan_B_2026-07-25_Lembur.jpg"
     },
     {
       id: 3,
       date: "SABTU, 25 JULI 2026",
-      employeeName: "DIAN KURDIANSYAH",
-      shift: "TIM STAMPING SHIFT 1",
-      nik: "3215140312880006",
+      employeeName: "KARYAWAN C",
+      shift: "TIM PRODUCTION SHIFT 1",
+      nik: "3215000000000003",
       masuk: "08:08",
       istirahat: "12:25",
       selesai: "13:00",
@@ -90,16 +90,16 @@ export default function AdminOvertimePreviewPage() {
       jamKerja: "8J 37M",
       totalIstirahat: "0J 35M",
       status: "TELAT",
-      keterangan: "[TELAT: BAN BOCOR]",
+      keterangan: "[TELAT: KENDARAAN TROUBLE]",
       isOvertime: false,
       isContinuation: false,
     },
     {
       id: 4,
       date: "SABTU, 25 JULI 2026",
-      employeeName: "EKA PERMANA",
-      shift: "TIM STAMPING ( SHIFT 2 )",
-      nik: "3215070607950001",
+      employeeName: "KARYAWAN D",
+      shift: "TIM PRODUCTION ( SHIFT 2 )",
+      nik: "3215000000000004",
       masuk: "12:30",
       istirahat: "18:19",
       selesai: "-",
@@ -114,9 +114,9 @@ export default function AdminOvertimePreviewPage() {
     {
       id: 5,
       date: "SABTU, 25 JULI 2026",
-      employeeName: "EMUL MULYANA",
+      employeeName: "KARYAWAN E",
       shift: "SECURITY 2",
-      nik: "3215052804790002",
+      nik: "3215000000000005",
       masuk: "18:43",
       istirahat: "00:29",
       selesai: "00:52",
@@ -125,40 +125,6 @@ export default function AdminOvertimePreviewPage() {
       totalIstirahat: "0J 23M",
       status: "HADIR",
       keterangan: "-",
-      isOvertime: false,
-      isContinuation: false,
-    },
-    {
-      id: 6,
-      date: "SABTU, 25 JULI 2026",
-      employeeName: "HENDRIK SETIAWAN",
-      shift: "TIM STAMPING SHIFT 1",
-      nik: "3215190810960003",
-      masuk: "07:23",
-      istirahat: "17:00",
-      selesai: "17:00",
-      pulang: "17:01",
-      jamKerja: "9J 37M",
-      totalIstirahat: "-",
-      status: "HADIR",
-      keterangan: "-",
-      isOvertime: false,
-      isContinuation: false,
-    },
-    {
-      id: 7,
-      date: "SABTU, 25 JULI 2026",
-      employeeName: "HERMAN",
-      shift: "TIM STAMPING SHIFT 1",
-      nik: "3215182007870002",
-      masuk: "07:06",
-      istirahat: "12:05",
-      selesai: "12:19",
-      pulang: "12:20",
-      jamKerja: "5J 0M",
-      totalIstirahat: "0J 14M",
-      status: "IZIN",
-      keterangan: "[IZIN (SAAT BEKERJA)] PULANG CEPAT ADA URUSAN KELUARGA",
       isOvertime: false,
       isContinuation: false,
     }
@@ -223,7 +189,7 @@ export default function AdminOvertimePreviewPage() {
                 <div className="relative flex-1">
                   <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
                   <Input 
-                    placeholder="Cari DENI, EKA, HERMAN..." 
+                    placeholder="Cari KARYAWAN TEST A, B, C..." 
                     value={searchName}
                     onChange={(e) => setSearchName(e.target.value)}
                     className="h-9 pl-9 text-xs rounded-xl"
@@ -462,7 +428,7 @@ export default function AdminOvertimePreviewPage() {
               <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl space-y-3">
                 <div className="flex justify-between items-center border-b pb-2">
                   <div>
-                    <span className="font-black text-sm text-slate-900">1. KARYAWAN: DENI (NIK: 3215180601940004)</span>
+                    <span className="font-black text-sm text-slate-900">1. KARYAWAN: KARYAWAN B (NIK: 3215000000000002)</span>
                     <p className="text-xs text-slate-600 font-medium">Tanggal Lembur: Sabtu, 25 Juli 2026 | Durasi: 3 Jam 30 Menit (17:00 - 20:30 WIB)</p>
                   </div>
                   <Badge className="bg-orange-600 text-white font-bold text-xs">BERKAS LEMBUR LENGKAP</Badge>
@@ -471,11 +437,11 @@ export default function AdminOvertimePreviewPage() {
                 {/* Grid 3 Foto Bukti (SPL, Foto Awal, Foto Hasil Kerja) */}
                 <div className="grid grid-cols-3 gap-4 pt-1">
                   {/* Foto 1: SPL */}
-                  <div className="bg-white p-2.5 rounded-lg border border-slate-200 text-center space-y-1.5">
+                  <div className="bg-[#f8fafc] p-2.5 rounded-lg border border-slate-200 text-center space-y-1.5">
                     <span className="text-[11px] font-bold text-slate-700 block">A. SURAT PERINTAH LEMBUR (SPL)</span>
                     <div className="h-32 bg-slate-100 rounded flex flex-col items-center justify-center p-2 border border-dashed border-slate-300">
                       <FileText className="w-8 h-8 text-orange-500 mb-1" />
-                      <span className="text-[10px] font-bold text-blue-600">SPL_DENI_25JUL.PDF</span>
+                      <span className="text-[10px] font-bold text-blue-600">SPL_KARYAWAN_B.PDF</span>
                       <span className="text-[9px] text-slate-400">Terverifikasi Koordinator</span>
                     </div>
                   </div>
