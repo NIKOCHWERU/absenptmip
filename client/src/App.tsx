@@ -198,9 +198,6 @@ export default function App() {
             <Route path="/admin/recap">
               {() => <AdminLayout><ProtectedRoute component={AdminRecapPage} roles={["admin", "superadmin"]} /></AdminLayout>}
             </Route>
-            <Route path="/admin/overtime">
-              {() => <AdminLayout><ProtectedRoute component={AdminOvertimePage} roles={["admin", "superadmin"]} /></AdminLayout>}
-            </Route>
             <Route path="/admin/summary">
               {() => <AdminLayout><ProtectedRoute component={AttendanceSummaryPage} roles={["admin", "superadmin"]} /></AdminLayout>}
             </Route>

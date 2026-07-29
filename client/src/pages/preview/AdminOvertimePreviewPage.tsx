@@ -150,11 +150,18 @@ export default function AdminOvertimePreviewPage() {
             <p className="text-[11px] opacity-90">Klik tombol "Preview & Export PDF" untuk melihat cetakan PDF lengkap dengan Kop Surat & Lampiran Foto Lembur.</p>
           </div>
         </div>
-        <Link href="/preview/overtime-employee">
-          <Button size="sm" variant="outline" className="text-amber-900 bg-white border-none text-[11px] font-bold h-7">
-            <ArrowLeft className="w-3.5 h-3.5 mr-1" /> Ke Preview Karyawan
-          </Button>
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link href="/preview/overtime-management">
+            <Button size="sm" className="bg-orange-600 hover:bg-orange-700 text-white text-[11px] font-bold h-7 shadow-sm">
+              📋 Ke Preview Kelola Lembur (SPL)
+            </Button>
+          </Link>
+          <Link href="/preview/overtime-employee">
+            <Button size="sm" variant="outline" className="text-amber-900 bg-white border-none text-[11px] font-bold h-7">
+              <ArrowLeft className="w-3.5 h-3.5 mr-1" /> Ke Preview Karyawan
+            </Button>
+          </Link>
+        </div>
       </div>
 
       {/* Control Bar: Filters & Search */}
