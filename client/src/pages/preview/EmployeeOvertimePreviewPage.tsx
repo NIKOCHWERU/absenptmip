@@ -85,6 +85,9 @@ export default function EmployeeOvertimePreviewPage() {
   const [finalProofPreview, setFinalProofPreview] = useState<string | null>(null);
   const [finalDescription, setFinalDescription] = useState("");
 
+  // Modal State - View SPL Received
+  const [isViewSplModalOpen, setIsViewSplModalOpen] = useState(false);
+
   // Digital Clock Simulation
   const [currentTimeStr, setCurrentTimeStr] = useState("10:35:14");
   useEffect(() => {
@@ -335,6 +338,38 @@ export default function EmployeeOvertimePreviewPage() {
               alt={selectedEmp.employeeName} 
               className="w-full h-full object-cover"
             />
+          </div>
+        </div>
+
+        {/* Card 2.5: Notifikasi Penugasan Lembur (Surat SPL Diterima Dari Admin) */}
+        <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-2xl p-4 shadow-sm border-2 border-orange-200 space-y-2.5">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-black text-orange-900 uppercase tracking-wide flex items-center gap-1.5">
+              <FileText className="w-4 h-4 text-orange-600" /> SURAT PERINTAH LEMBUR (SPL) DITERIMA
+            </span>
+            <Badge className="bg-orange-600 text-white font-bold text-[9px] px-2 py-0.5">TUGAS DARI ADMIN</Badge>
+          </div>
+          <p className="text-xs text-slate-700 font-medium leading-relaxed">
+            Instruksi Tugas: <strong>"{selectedEmp.id === '1' ? 'Overtime maintenance rutin panel listrik gedung B' : selectedEmp.id === '2' ? 'Perbaikan Mesin Production Line 3 bersama Tim Maintenance' : 'Patroli pengawasan ekstra pengiriman barang malam'}"</strong>
+          </p>
+          <div className="flex items-center gap-2 pt-1">
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex-1 bg-white text-orange-800 border-orange-300 hover:bg-orange-100 text-xs font-bold h-9 rounded-xl gap-1"
+              onClick={() => setIsViewSplModalOpen(true)}
+            >
+              <Eye className="w-3.5 h-3.5" /> Lihat Surat SPL
+            </Button>
+            {!isOvertimeActive && !isOvertimeCompleted && (
+              <Button
+                size="sm"
+                className="flex-1 bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold h-9 rounded-xl gap-1 shadow-sm"
+                onClick={handleOvertimeButtonClick}
+              >
+                <Play className="w-3.5 h-3.5 fill-current" /> Mulai Lembur
+              </Button>
+            )}
           </div>
         </div>
 
@@ -609,6 +644,69 @@ export default function EmployeeOvertimePreviewPage() {
           </form>
         </DialogContent>
       </Dialog>
+      {/* MODAL POPUP VIEW SURAT PERINTAH LEMBUR (SPL) DITERIMA */}
+      <Dialog open={isViewSplModalOpen} onOpenChange={setIsViewSplModalOpen}>
+        <DialogContent className="sm:max-w-lg rounded-2xl p-6 bg-white">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-black text-gray-900 flex items-center gap-2">
+              <FileText className="w-5 h-5 text-orange-600" /> Surat Perintah Lembur (SPL)
+            </DialogTitle>
+            <DialogDescription className="text-xs text-gray-500">
+              Dokumen resmi penugasan lembur dari HRD {selectedEmp.cabang}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2 border-y my-2 text-xs text-gray-800 font-sans">
+            <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-1.5">
+              <div className="flex justify-between">
+                <span className="text-gray-400 font-bold">Penerima Tugas:</span>
+                <span className="font-extrabold text-blue-900">{selectedEmp.employeeName}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-400 font-bold">NIK Karyawan:</span>
+                <span className="font-mono">{selectedEmp.nik}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-400 font-bold">Jabatan:</span>
+                <span>{selectedEmp.jabatan}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-400 font-bold">Shift Kerja:</span>
+                <span>{selectedEmp.shiftName}</span>
+              </div>
+            </div>
+
+            <div>
+              <span className="text-gray-500 font-bold block mb-1">Uraian Tugas Pekerjaan Lembur:</span>
+              <p className="p-3 bg-amber-50/60 border border-amber-200 rounded-xl font-medium text-slate-800 italic">
+                "{selectedEmp.id === '1' ? 'Overtime maintenance rutin panel listrik gedung B' : selectedEmp.id === '2' ? 'Perbaikan Mesin Production Line 3 bersama Tim Maintenance' : 'Patroli pengawasan ekstra pengiriman barang malam'}"
+              </p>
+            </div>
+
+            <div className="bg-blue-50 p-3 rounded-xl border border-blue-200 text-blue-900 text-[11px] leading-relaxed">
+              📌 <strong>Petunjuk Karyawan:</strong> Setelah membaca surat ini, Anda dapat <strong>langsung menekan tombol Mulai Lembur</strong> tanpa perlu menunggu persetujuan Admin lagi. Ambil foto bukti awal dan foto bukti hasil saat selesai.
+            </div>
+          </div>
+
+          <DialogFooter className="pt-2 flex flex-row justify-between items-center">
+            <Button variant="outline" onClick={() => setIsViewSplModalOpen(false)} className="rounded-xl text-xs font-semibold">
+              Tutup
+            </Button>
+            {!isOvertimeActive && !isOvertimeCompleted && (
+              <Button 
+                onClick={() => {
+                  setIsViewSplModalOpen(false);
+                  handleOvertimeButtonClick();
+                }} 
+                className="rounded-xl text-xs font-bold bg-orange-600 hover:bg-orange-700 text-white gap-2"
+              >
+                <Play className="w-4 h-4 fill-current" /> Mulai Lembur Sekarang
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <BottomNav />
     </div>
   );
