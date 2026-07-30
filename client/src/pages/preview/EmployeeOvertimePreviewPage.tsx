@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Clock, Upload, FileText, Camera, CheckCircle2, Play, ShieldAlert, ArrowLeft, LogOut, Users } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
+import { BottomNav } from "@/components/BottomNav";
 
 export default function EmployeeOvertimePreviewPage() {
   const { toast } = useToast();
@@ -608,6 +609,7 @@ export default function EmployeeOvertimePreviewPage() {
           </form>
         </DialogContent>
       </Dialog>
+      <BottomNav />
     </div>
   );
 }
