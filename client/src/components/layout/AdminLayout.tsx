@@ -509,6 +509,23 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                     }
                 ] : []),
                 {
+                    title: "Kelola Lembur",
+                    url: "#overtime",
+                    icon: Clock,
+                    items: [
+                        {
+                            title: "Pengajuan Lembur",
+                            url: "/preview/overtime-management",
+                            icon: Clock,
+                        },
+                        {
+                            title: "Riwayat Lembur",
+                            url: "/preview/overtime-admin",
+                            icon: History,
+                        },
+                    ]
+                },
+                {
                     title: "Rekap & Riwayat",
                     url: "#attendance",
                     icon: Clock,

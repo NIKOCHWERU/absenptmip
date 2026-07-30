@@ -152,8 +152,12 @@ export default function App() {
             <Route path="/admin/login" component={AdminLoginPage} />
             <Route path="/employee/signup" component={SignupPage} />
             <Route path="/preview/overtime-employee" component={EmployeeOvertimePreviewPage} />
-            <Route path="/preview/overtime-admin" component={AdminOvertimePreviewPage} />
-            <Route path="/preview/overtime-management" component={AdminOvertimePage} />
+            <Route path="/preview/overtime-admin">
+              {() => <AdminLayout><AdminOvertimePreviewPage /></AdminLayout>}
+            </Route>
+            <Route path="/preview/overtime-management">
+              {() => <AdminLayout><AdminOvertimePage /></AdminLayout>}
+            </Route>
 
             {/* Root & admin redirects — gunakan component= agar hooks valid */}
             <Route path="/" component={RootRedirect} />
