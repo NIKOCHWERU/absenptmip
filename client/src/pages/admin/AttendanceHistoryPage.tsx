@@ -908,7 +908,7 @@ export default function AttendanceHistoryPage() {
                 }));
 
                 try {
-                    const pdfBlob = await html2pdf().set(opt).from(container).output('blob');
+                    const pdfBlob = await html2pdf().set(opt).from(container).outputPdf('blob');
                     zip.file(pdfFileName, pdfBlob);
                 } catch (e) {
                     console.error("Gagal membuat PDF foto untuk tanggal", d1, e);
