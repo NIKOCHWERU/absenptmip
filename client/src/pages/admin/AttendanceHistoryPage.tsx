@@ -15,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import {
     Users, Clock, CalendarDays, LogOut, FileText, MessageSquare, History, Image as ImageIcon, MapPin, ChevronLeft, ChevronRight, FileDown, ArrowUpDown, Menu, AlertTriangle
 } from "lucide-react";
+import JSZip from "jszip";
 
 // Helper: resolve photo URL — handles both local uploads and Google Drive File IDs
 function getPhotoUrl(value: string | null | undefined): string {
@@ -56,7 +57,7 @@ const loadHtml2Pdf = () => {
 export default function AttendanceHistoryPage() {
     const [, setLocation] = useLocation();
     const { toast } = useToast();
-    const { logout } = useAuth();
+    const { user, logout } = useAuth();
     const [targetDate, setTargetDate] = useState(new Date());
     const [reportType, setReportType] = useState<"daily" | "weekly" | "monthly" | "custom">("daily");
     const [customStartDate, setCustomStartDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
@@ -532,15 +533,39 @@ export default function AttendanceHistoryPage() {
     };
 
     const handleBulkExport = async () => {
-        const dates: Date[] = [];
-        let curr = new Date(startDate);
-        const end = new Date(endDate);
-        while (curr <= end) {
-            dates.push(new Date(curr));
-            curr = addDays(curr, 1);
+        if (user?.role !== "superadmin") {
+            toast({
+                title: "Akses Ditolak",
+                description: "Hanya Super Admin yang dapat melakukan export massal.",
+                variant: "destructive"
+            });
+            return;
         }
 
-        if (dates.length === 0) {
+        const datePairs: { d1: Date; d2: Date }[] = [];
+        let curr = new Date(startDate);
+        const end = new Date(endDate);
+
+        while (curr <= end) {
+            const d1 = new Date(curr);
+            const dayOfWeek = d1.getDay();
+            let step = 1;
+            let d2Add = 1;
+
+            if (dayOfWeek === 5) {
+                d2Add = 3;
+                step = 3;
+            } else if (dayOfWeek === 6) {
+                d2Add = 2;
+                step = 2;
+            }
+
+            const d2 = addDays(d1, d2Add);
+            datePairs.push({ d1, d2 });
+            curr = addDays(curr, step);
+        }
+
+        if (datePairs.length === 0) {
             toast({
                 title: "Info",
                 description: "Tidak ada data untuk rentang tanggal yang dipilih.",
@@ -549,7 +574,6 @@ export default function AttendanceHistoryPage() {
         }
 
         setIsExporting(true);
-        
         let html2pdf: any;
         try {
             html2pdf = await loadHtml2Pdf();
@@ -565,26 +589,21 @@ export default function AttendanceHistoryPage() {
 
         toast({
             title: "Export Massal Dimulai",
-            description: `Mengekspor ${dates.length} laporan foto harian dalam format PDF secara massal. Harap izinkan download multipel jika diminta browser.`,
+            description: `Mengekspor ${datePairs.length} laporan foto harian ke dalam 1 file ZIP. Harap tunggu sebentar...`,
         });
 
         const imageCache: Record<string, string> = {};
         const fetchImageBase64 = async (url: string, retries = 2) => {
             if (!url) return '';
             if (url.startsWith('data:')) return url;
-            
             let resolvedUrl = getPhotoUrl(url);
-            
             if (imageCache[resolvedUrl]) return imageCache[resolvedUrl];
-            
             for (let i = 0; i <= retries; i++) {
                 try {
                     const controller = new AbortController();
-                    const timeoutId = setTimeout(() => controller.abort(), 5000); 
-
+                    const timeoutId = setTimeout(() => controller.abort(), 5000);
                     const res = await fetch(resolvedUrl, { signal: controller.signal });
                     clearTimeout(timeoutId);
-
                     if (!res.ok) throw new Error(`HTTP ${res.status}`);
                     const blob = await res.blob();
                     const b64 = await new Promise<string>((resolve) => {
@@ -598,16 +617,16 @@ export default function AttendanceHistoryPage() {
                         return b64;
                     }
                 } catch (e) {
-                    console.warn(`Export fetch attempt ${i + 1} failed for ${resolvedUrl}:`, e);
                     if (i === retries) return '';
-                    await new Promise(r => setTimeout(r, 1000)); 
+                    await new Promise(r => setTimeout(r, 1000));
                 }
             }
             return '';
         };
 
+        const zip = new JSZip();
+
         try {
-            // Fetch logo
             let logoDataUrl = '';
             try {
                 const logoToUse = config?.logoUrl || '/icon-192.png';
@@ -620,11 +639,8 @@ export default function AttendanceHistoryPage() {
                 });
             } catch (_) { }
 
-            // Loop through each day and export
-            for (let dIdx = 0; dIdx < dates.length; dIdx++) {
-                const d1 = dates[dIdx];
-                const d2 = addDays(d1, 1);
-                
+            for (let dIdx = 0; dIdx < datePairs.length; dIdx++) {
+                const { d1, d2 } = datePairs[dIdx];
                 const dayStr1 = format(d1, "d");
                 const monthStr1 = format(d1, "MMMM", { locale: id }).toUpperCase();
                 const dayStr2 = format(d2, "d");
@@ -632,13 +648,11 @@ export default function AttendanceHistoryPage() {
                 const yearStr = format(d1, "yyyy");
                 
                 const docTitle = `REKAP ABSENSI FOTO NON MANAJEMEN ${dayStr1} ${monthStr1} - ${dayStr2} ${monthStr2} ${yearStr} ${singkatanPt}`;
+                const pdfFileName = `${docTitle}.pdf`;
 
                 const dayRecords = attendanceHistory?.filter(att => {
                     const emp = getEmployee(att.userId);
                     if (!emp) return false;
-                    
-                    if (searchName && !emp.fullName.toLowerCase().includes(searchName.toLowerCase())) return false;
-                    
                     const attDate = new Date(att.date);
                     return format(attDate, "yyyy-MM-dd") === format(d1, "yyyy-MM-dd");
                 }).sort((a, b) => {
@@ -660,11 +674,7 @@ export default function AttendanceHistoryPage() {
                 });
 
                 const urlArray = Array.from(dayUniqueUrls);
-                const chunkSize = 10;
-                for (let k = 0; k < urlArray.length; k += chunkSize) {
-                    const chunk = urlArray.slice(k, k + chunkSize);
-                    await Promise.all(chunk.map(url => fetchImageBase64(url)));
-                }
+                await Promise.all(urlArray.map(url => fetchImageBase64(url)));
 
                 let lastShownName = "";
                 let lastShownDate = "";
@@ -711,11 +721,8 @@ export default function AttendanceHistoryPage() {
     .sig-label { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px; color: #374151; margin-bottom: 64px; }
     .sig-name { font-size: 11px; font-weight: 800; border-top: 1.5px solid #374151; padding-top: 6px; text-transform: uppercase; letter-spacing: 0.5px; color: #1e293b; }
     .footer { margin-top: 18px; font-size: 8.5px; color: #94a3b8; border-top: 1px dashed #cbd5e1; padding-top: 8px; }
-    .btn-wrap { text-align: center; margin-top: 20px; }
-    .download-btn { display: inline-flex; align-items: center; gap: 8px; background: #1d4ed8; color: #fff; border: none; padding: 10px 28px; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; letter-spacing: 0.5px; text-decoration: none; }
     @media print {
       body { padding: 12px 16px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-      .btn-wrap { display: none !important; }
       tr { page-break-inside: avoid; }
     }
   </style>
@@ -756,7 +763,6 @@ export default function AttendanceHistoryPage() {
             const currentName = getEmployee(r.userId)?.fullName || '-';
             const emp = getEmployee(r.userId);
             const currentDateStr = format(new Date(r.date), 'EEEE, d MMMM yyyy', { locale: id });
-
             const isContinuation = currentName === lastShownName && currentDateStr === lastShownDate;
             lastShownName = currentName;
             lastShownDate = currentDateStr;
@@ -782,7 +788,6 @@ export default function AttendanceHistoryPage() {
                     }
                 }
             };
-
             addPhoto(r.checkInPhoto, 'Masuk');
             addPhoto(r.breakStartPhoto, 'Mulai Ist.');
             addPhoto(r.breakEndPhoto, 'Selesai Ist.');
@@ -845,12 +850,17 @@ export default function AttendanceHistoryPage() {
         }).join('')}
 </tbody>
 </table>
+<div class="signature-section">
+  <div class="sig-box"><p class="sig-label">Checked By</p><div class="sig-name">NIKO</div></div>
+  <div class="sig-box"><p class="sig-label">Approved By</p><div class="sig-name">CLAVERINA</div></div>
+</div>
+<div class="footer">Dokumen ini dicetak secara otomatis oleh Sistem Absensi ${namaPt.toUpperCase()} &mdash; ${format(new Date(), "d MMMM yyyy, HH:mm", { locale: id })} WIB</div>
 </body>
 </html>`;
 
                 const opt = {
                     margin:       [10, 10, 10, 10],
-                    filename:     `${docTitle}.pdf`,
+                    filename:     pdfFileName,
                     image:        { type: 'jpeg', quality: 0.98 },
                     html2canvas:  { scale: 2, useCORS: true, logging: false },
                     jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' },
@@ -858,25 +868,66 @@ export default function AttendanceHistoryPage() {
                 };
 
                 const container = document.createElement('div');
-                container.style.position = 'absolute';
-                container.style.left = '-9999px';
-                container.style.top = '-9999px';
+                container.style.position = 'fixed';
+                container.style.left = '0';
+                container.style.top = '0';
                 container.style.width = '794px';
+                container.style.zIndex = '-9999';
+                container.style.opacity = '0.01';
+                container.style.pointerEvents = 'none';
                 container.style.backgroundColor = 'white';
                 container.innerHTML = html;
 
                 document.body.appendChild(container);
 
+                const imgs = Array.from(container.querySelectorAll('img'));
+                await Promise.all(imgs.map(img => {
+                    if (img.complete) return Promise.resolve();
+                    return new Promise(res => {
+                        img.onload = res;
+                        img.onerror = res;
+                    });
+                }));
+
                 try {
-                    await html2pdf().set(opt).from(container).save();
+                    const pdfBlob = await html2pdf().set(opt).from(container).output('blob');
+                    zip.file(pdfFileName, pdfBlob);
                 } catch (e) {
-                    console.error("Gagal membuat PDF untuk tanggal", d1, e);
+                    console.error("Gagal membuat PDF foto untuk tanggal", d1, e);
+                } finally {
+                    if (container.parentNode) {
+                        container.parentNode.removeChild(container);
+                    }
                 }
-
-                document.body.removeChild(container);
-
-                await new Promise(resolve => setTimeout(resolve, 600));
             }
+
+            const zipBlob = await zip.generateAsync({ type: 'blob' });
+            const zipFileName = `REKAP_ABSENSI_FOTO_MASSAL_${format(startDate, 'yyyyMMdd')}_SD_${format(endDate, 'yyyyMMdd')}.zip`;
+            const blobUrl = URL.createObjectURL(zipBlob);
+
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = blobUrl;
+            a.download = zipFileName;
+            document.body.appendChild(a);
+            a.click();
+
+            setTimeout(() => {
+                if (a.parentNode) a.parentNode.removeChild(a);
+                URL.revokeObjectURL(blobUrl);
+            }, 5000);
+
+            toast({
+                title: "Export Massal Selesai",
+                description: `File ZIP ${zipFileName} berhasil diunduh.`,
+            });
+        } catch (e) {
+            console.error("Gagal membuat ZIP", e);
+            toast({
+                title: "Error",
+                description: "Gagal mengemas file PDF ke dalam ZIP.",
+                variant: "destructive"
+            });
         } finally {
             setIsExporting(false);
         }
@@ -975,7 +1026,7 @@ export default function AttendanceHistoryPage() {
                     >
                         Lihat Rekap Absen
                     </Button>
-                    {reportType === "custom" && (
+                    {reportType === "custom" && user?.role === "superadmin" && (
                         <Button 
                             variant="outline" 
                             className="gap-2 bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100 h-10 font-bold shadow-sm" 

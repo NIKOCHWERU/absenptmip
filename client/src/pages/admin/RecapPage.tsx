@@ -15,6 +15,8 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { useToast } from "@/hooks/use-toast";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import JSZip from "jszip";
+import { useAuth } from "@/hooks/use-auth";
 
 const loadHtml2Pdf = () => {
     return new Promise<any>((resolve, reject) => {
@@ -33,6 +35,7 @@ const loadHtml2Pdf = () => {
 export default function RecapPage() {
     const [, setLocation] = useLocation();
     const { toast } = useToast();
+    const { user } = useAuth();
     const queryClient = useQueryClient();
     const [isExporting, setIsExporting] = useState(false);
 
@@ -530,15 +533,41 @@ export default function RecapPage() {
     };
 
     const handleBulkExport = async () => {
-        const dates: Date[] = [];
-        let curr = new Date(startDate);
-        const end = new Date(endDate);
-        while (curr <= end) {
-            dates.push(new Date(curr));
-            curr = addDays(curr, 1);
+        if (user?.role !== "superadmin") {
+            toast({
+                title: "Akses Ditolak",
+                description: "Hanya Super Admin yang dapat melakukan export massal.",
+                variant: "destructive"
+            });
+            return;
         }
 
-        if (dates.length === 0) {
+        const datePairs: { d1: Date; d2: Date }[] = [];
+        let curr = new Date(startDate);
+        const end = new Date(endDate);
+
+        while (curr <= end) {
+            const d1 = new Date(curr);
+            const dayOfWeek = d1.getDay(); // 0 = Sun, 1 = Mon, ..., 5 = Fri, 6 = Sat
+            let step = 1;
+            let d2Add = 1;
+
+            if (dayOfWeek === 5) {
+                // Friday -> Friday to Monday (+3 days)
+                d2Add = 3;
+                step = 3;
+            } else if (dayOfWeek === 6) {
+                // Saturday -> Saturday to Monday (+2 days)
+                d2Add = 2;
+                step = 2;
+            }
+
+            const d2 = addDays(d1, d2Add);
+            datePairs.push({ d1, d2 });
+            curr = addDays(curr, step);
+        }
+
+        if (datePairs.length === 0) {
             toast({
                 title: "Info",
                 description: "Tidak ada data untuk rentang tanggal yang dipilih.",
@@ -563,7 +592,7 @@ export default function RecapPage() {
 
         toast({
             title: "Export Massal Dimulai",
-            description: `Mengekspor ${dates.length} laporan harian dalam format PDF secara massal. Harap izinkan download multipel jika diminta browser.`,
+            description: `Mengekspor ${datePairs.length} laporan harian ke dalam 1 file ZIP. Harap tunggu sebentar...`,
         });
 
         let logoDataUrl = '';
@@ -578,9 +607,10 @@ export default function RecapPage() {
             });
         } catch (_) { }
 
-        for (let i = 0; i < dates.length; i++) {
-            const d1 = dates[i];
-            const d2 = addDays(d1, 1);
+        const zip = new JSZip();
+
+        for (let i = 0; i < datePairs.length; i++) {
+            const { d1, d2 } = datePairs[i];
             
             const dayStr1 = format(d1, "d");
             const monthStr1 = format(d1, "MMMM", { locale: id }).toUpperCase();
@@ -589,6 +619,7 @@ export default function RecapPage() {
             const yearStr = format(d1, "yyyy");
             
             const docTitle = `REKAP ABSENSI NON MANAJEMEN ${dayStr1} ${monthStr1} - ${dayStr2} ${monthStr2} ${yearStr} ${singkatanPt}`;
+            const pdfFileName = `${docTitle}.pdf`;
 
             const dayRecords = allAttendance?.filter(row => {
                 if (!getUserName(row.userId)) return false;
@@ -668,11 +699,8 @@ export default function RecapPage() {
     .sig-label { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px; color: #374151; margin-bottom: 64px; }
     .sig-name { font-size: 11px; font-weight: 800; border-top: 1.5px solid #374151; padding-top: 6px; text-transform: uppercase; letter-spacing: 0.5px; color: #1e293b; }
     .footer { margin-top: 18px; font-size: 8.5px; color: #94a3b8; border-top: 1px dashed #cbd5e1; padding-top: 8px; }
-    .btn-wrap { text-align: center; margin-top: 20px; }
-    .download-btn { display: inline-flex; align-items: center; gap: 8px; background: #1d4ed8; color: #fff; border: none; padding: 10px 28px; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; letter-spacing: 0.5px; text-decoration: none; }
     @media print {
       body { padding: 12px 16px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-      .btn-wrap { display: none !important; }
       tr { page-break-inside: avoid; }
     }
   </style>
@@ -768,7 +796,7 @@ export default function RecapPage() {
 
             const opt = {
                 margin:       [10, 10, 10, 10],
-                filename:     `${docTitle}.pdf`,
+                filename:     pdfFileName,
                 image:        { type: 'jpeg', quality: 0.98 },
                 html2canvas:  { scale: 2, useCORS: true, logging: false },
                 jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' },
@@ -776,26 +804,70 @@ export default function RecapPage() {
             };
 
             const container = document.createElement('div');
-            container.style.position = 'absolute';
-            container.style.left = '-9999px';
-            container.style.top = '-9999px';
+            container.style.position = 'fixed';
+            container.style.left = '0';
+            container.style.top = '0';
             container.style.width = '794px';
+            container.style.zIndex = '-9999';
+            container.style.opacity = '0.01';
+            container.style.pointerEvents = 'none';
             container.style.backgroundColor = 'white';
             container.innerHTML = html;
 
             document.body.appendChild(container);
 
+            const imgs = Array.from(container.querySelectorAll('img'));
+            await Promise.all(imgs.map(img => {
+                if (img.complete) return Promise.resolve();
+                return new Promise(res => {
+                    img.onload = res;
+                    img.onerror = res;
+                });
+            }));
+
             try {
-                await html2pdf().set(opt).from(container).save();
+                const pdfBlob = await html2pdf().set(opt).from(container).output('blob');
+                zip.file(pdfFileName, pdfBlob);
             } catch (e) {
                 console.error("Gagal membuat PDF untuk tanggal", d1, e);
+            } finally {
+                if (container.parentNode) {
+                    container.parentNode.removeChild(container);
+                }
             }
-
-            document.body.removeChild(container);
-
-            await new Promise(resolve => setTimeout(resolve, 600));
         }
-        setIsExporting(false);
+
+        try {
+            const zipBlob = await zip.generateAsync({ type: 'blob' });
+            const zipFileName = `REKAP_ABSENSI_HARIAN_MASSAL_${format(startDate, 'yyyyMMdd')}_SD_${format(endDate, 'yyyyMMdd')}.zip`;
+            const blobUrl = URL.createObjectURL(zipBlob);
+
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = blobUrl;
+            a.download = zipFileName;
+            document.body.appendChild(a);
+            a.click();
+
+            setTimeout(() => {
+                if (a.parentNode) a.parentNode.removeChild(a);
+                URL.revokeObjectURL(blobUrl);
+            }, 5000);
+
+            toast({
+                title: "Export Massal Selesai",
+                description: `File ZIP ${zipFileName} berhasil diunduh.`,
+            });
+        } catch (e) {
+            console.error("Gagal membuat ZIP", e);
+            toast({
+                title: "Error",
+                description: "Gagal mengemas file PDF ke dalam ZIP.",
+                variant: "destructive"
+            });
+        } finally {
+            setIsExporting(false);
+        }
     };
 
     return (
@@ -875,7 +947,7 @@ export default function RecapPage() {
                             <Button variant="outline" className="gap-2 bg-primary/5 text-primary border-primary/20 hover:bg-primary/10 h-10 font-bold" onClick={() => handleOpenManualModal()}>
                                 <Plus className="h-4 w-4" /> Input Manual
                             </Button>
-                            {reportType === "custom" && (
+                            {reportType === "custom" && user?.role === "superadmin" && (
                                 <Button 
                                     variant="outline" 
                                     className="gap-2 bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100 h-10 font-bold shadow-sm" 
