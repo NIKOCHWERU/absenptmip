@@ -67,6 +67,76 @@ const loadJSZip = () => {
     });
 };
 
+const generatePdfBlobFromHtml = async (htmlContent: string): Promise<Blob> => {
+    const container = document.createElement('div');
+    container.className = 'pdf-export-container';
+    container.style.position = 'fixed';
+    container.style.left = '0';
+    container.style.top = '0';
+    container.style.width = '794px';
+    container.style.backgroundColor = '#ffffff';
+    container.style.zIndex = '9990';
+    container.style.opacity = '1';
+    container.style.pointerEvents = 'none';
+    container.style.color = '#1e293b';
+    container.style.fontFamily = 'Arial, Helvetica, sans-serif';
+    container.style.fontSize = '11px';
+    container.style.padding = '28px 36px';
+    container.style.boxSizing = 'border-box';
+    container.innerHTML = htmlContent;
+
+    document.body.appendChild(container);
+
+    const imgs = Array.from(container.querySelectorAll('img'));
+    await Promise.all(imgs.map(img => {
+        if (img.complete) return Promise.resolve();
+        return new Promise(res => {
+            img.onload = res;
+            img.onerror = res;
+        });
+    }));
+
+    try {
+        const html2canvasFn = (window as any).html2canvas || (window as any).html2pdf?.Worker?.prototype?.html2canvas;
+        const canvas = await html2canvasFn(container, {
+            scale: 2,
+            useCORS: true,
+            logging: false,
+            width: 794,
+            windowWidth: 794,
+            scrollX: 0,
+            scrollY: 0
+        });
+
+        const imgData = canvas.toDataURL('image/jpeg', 0.95);
+        const JSPDFClass = (window as any).jspdf?.jsPDF || (window as any).jsPDF;
+        const pdf = new JSPDFClass('p', 'mm', 'a4');
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = pdf.internal.pageSize.getHeight();
+        const imgWidth = pdfWidth;
+        const imgHeight = (canvas.height * pdfWidth) / canvas.width;
+
+        let heightLeft = imgHeight;
+        let position = 0;
+
+        pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
+        heightLeft -= pdfHeight;
+
+        while (heightLeft > 0) {
+            position = heightLeft - imgHeight;
+            pdf.addPage();
+            pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
+            heightLeft -= pdfHeight;
+        }
+
+        return pdf.output('blob');
+    } finally {
+        if (container.parentNode) {
+            container.parentNode.removeChild(container);
+        }
+    }
+};
+
 export default function AttendanceHistoryPage() {
     const [, setLocation] = useLocation();
     const { toast } = useToast();
@@ -692,6 +762,17 @@ export default function AttendanceHistoryPage() {
                 const urlArray = Array.from(dayUniqueUrls);
                 await Promise.all(urlArray.map(url => fetchImageBase64(url)));
 
+                let totalHadirCount = 0;
+                let totalJamKerjaMins = 0;
+
+                dayRecords.forEach(r => {
+                    if (r.status === 'present' || r.status === 'late') {
+                        totalHadirCount++;
+                    }
+                    const { netWorkMins } = calculateDailyTotal([r]);
+                    totalJamKerjaMins += netWorkMins;
+                });
+
                 let lastShownName = "";
                 let lastShownDate = "";
 
@@ -701,7 +782,7 @@ export default function AttendanceHistoryPage() {
   <title>${docTitle}</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; text-transform: uppercase !important; }
-    body { font-family: Arial, Helvetica, sans-serif; font-size: 11px; color: #1e293b; background: white; padding: 28px 36px; }
+    body, .pdf-export-container { font-family: Arial, Helvetica, sans-serif; font-size: 11px; color: #1e293b; background: white; padding: 28px 36px; box-sizing: border-box; }
     .letterhead { display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px; min-height: 50px; }
     .logo-container { flex-shrink: 0; }
     .logo-img { height: 35px; max-width: 100px; object-fit: contain; }
@@ -711,9 +792,10 @@ export default function AttendanceHistoryPage() {
     .company-address { font-size: 12px; font-weight: normal; color: #334155; line-height: 1.4; }
     .hr-thick { border: none; border-top: 2px solid #cbd5e1; margin: 6px 0 2px; }
     .hr-thin  { border: none; border-top: 1px solid #e2e8f0; margin-bottom: 18px; }
-    .report-meta { text-align: center; margin-bottom: 20px; }
+    .report-meta { text-align: center; margin-bottom: 15px; }
     .report-meta h2 { font-size: 16px; font-weight: 900; text-transform: uppercase; letter-spacing: 1.5px; color: #1e293b; }
     .report-meta .sub { font-size: 10.5px; margin-top: 4px; color: #475569; }
+    .summary-card { margin-top: 12px; margin-bottom: 18px; padding: 10px 14px; background: #f8fafc; border: 1.5px solid #cbd5e1; border-radius: 6px; display: flex; justify-content: space-around; font-size: 10.5px; text-transform: uppercase; }
     table { width: 100%; border-collapse: collapse; font-size: 10.5px; }
     thead tr { background-color: #f8fafc; }
     th { color: #374151; font-weight: 700; text-align: left; padding: 8px 8px; font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.4px; border-bottom: 2px solid #1e293b; border-right: 1px solid #e2e8f0; }
@@ -728,17 +810,16 @@ export default function AttendanceHistoryPage() {
     .st-hadir { background: #dcfce7; color: #16a34a; }
     .st-telat { background: #ffedd5; color: #ea580c; }
     .st-sakit { background: #dbeafe; color: #2563eb; }
-    .st-izin  { background: #f3e8ff; color: #7c3aed; }
-    .st-cuti  { background: #e0f2fe; color: #0369a1; }
+    .st-izin { background: #f3e8ff; color: #7c3aed; }
+    .st-cuti { background: #ccfbf1; color: #0d9488; }
     .st-alpha { background: #fee2e2; color: #dc2626; }
-    .st-unknown { background: #f1f5f9; color: #64748b; }
     .signature-section { margin-top: 48px; display: flex; justify-content: center; gap: 100px; padding: 0; }
     .sig-box { text-align: center; width: 160px; }
     .sig-label { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px; color: #374151; margin-bottom: 64px; }
     .sig-name { font-size: 11px; font-weight: 800; border-top: 1.5px solid #374151; padding-top: 6px; text-transform: uppercase; letter-spacing: 0.5px; color: #1e293b; }
     .footer { margin-top: 18px; font-size: 8.5px; color: #94a3b8; border-top: 1px dashed #cbd5e1; padding-top: 8px; }
     @media print {
-      body { padding: 12px 16px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      body, .pdf-export-container { padding: 12px 16px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       tr { page-break-inside: avoid; }
     }
   </style>
@@ -750,24 +831,28 @@ export default function AttendanceHistoryPage() {
     </div>
     <div class="company-info">
       <div class="company-name">${namaPt}</div>
-      ${alamatPt ? `<div class="company-address">${alamatPt}</div>` : `<div class="company-tagline">Sistem Manajemen Kehadiran & Tenaga Kerja Digital</div>`}
+      ${alamatPt ? `<div class="company-address">${alamatPt}</div>` : `<div class="company-tagline">Sistem Manajemen Kehadiran Digital</div>`}
     </div>
   </div>
   <hr class="hr-thick" />
   <hr class="hr-thin" />
   <div class="report-meta">
-    <h2>Laporan Absensi Foto Harian</h2>
+    <h2>Laporan Riwayat Absensi dan Foto Presensi</h2>
     <p class="sub">Periode: ${format(d1, "EEEE, d MMMM yyyy", { locale: id })}</p>
+  </div>
+  <div class="summary-card">
+    <div><b>TOTAL TENAGA KERJA HADIR:</b> <span style="color:#16a34a; font-weight:800;">${totalHadirCount} ORANG</span></div>
+    <div><b>REKAPITULASI TOTAL JAM KERJA:</b> <span style="color:#1d4ed8; font-weight:800;">${formatDuration(totalJamKerjaMins)}</span></div>
   </div>
   <table>
     <thead>
       <tr>
-        <th class="c" style="width:28px;">No</th>
-        <th style="width:130px;">Hari & Tanggal</th>
-        <th style="width:180px;">Nama Tenaga Kerja</th>
-        <th style="width:180px;">Waktu & Jam Kerja</th>
-        <th>Status & Catatan</th>
-        <th style="width:220px;">Bukti Absen</th>
+        <th class="c" style="width:30px;">No</th>
+        <th style="width:110px;">Hari & Tanggal</th>
+        <th style="width:140px;">Nama Tenaga Kerja</th>
+        <th style="width:160px;">Rincian Waktu & Lokasi</th>
+        <th style="width:90px;">Status</th>
+        <th>Foto Presensi (Masuk, Istirahat, Pulang)</th>
       </tr>
     </thead>
     <tbody>
@@ -876,8 +961,13 @@ export default function AttendanceHistoryPage() {
 
                 setExportProgress(`Mengekspor ${dIdx + 1} dari ${datePairs.length} laporan foto (${format(d1, "dd MMM yyyy", { locale: id })})...`);
 
-                const htmlFileName = `${docTitle}.html`;
-                zip.file(htmlFileName, html);
+                try {
+                    const pdfFileName = `${docTitle}.pdf`;
+                    const pdfBlob = await generatePdfBlobFromHtml(html);
+                    zip.file(pdfFileName, pdfBlob);
+                } catch (e) {
+                    console.error("Gagal membuat PDF foto untuk tanggal", d1, e);
+                }
             }
 
             const zipBlob = await zip.generateAsync({ type: 'blob' });

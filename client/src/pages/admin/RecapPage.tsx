@@ -45,6 +45,76 @@ const loadJSZip = () => {
     });
 };
 
+const generatePdfBlobFromHtml = async (htmlContent: string): Promise<Blob> => {
+    const container = document.createElement('div');
+    container.className = 'pdf-export-container';
+    container.style.position = 'fixed';
+    container.style.left = '0';
+    container.style.top = '0';
+    container.style.width = '794px';
+    container.style.backgroundColor = '#ffffff';
+    container.style.zIndex = '9990';
+    container.style.opacity = '1';
+    container.style.pointerEvents = 'none';
+    container.style.color = '#1e293b';
+    container.style.fontFamily = 'Arial, Helvetica, sans-serif';
+    container.style.fontSize = '11px';
+    container.style.padding = '28px 36px';
+    container.style.boxSizing = 'border-box';
+    container.innerHTML = htmlContent;
+
+    document.body.appendChild(container);
+
+    const imgs = Array.from(container.querySelectorAll('img'));
+    await Promise.all(imgs.map(img => {
+        if (img.complete) return Promise.resolve();
+        return new Promise(res => {
+            img.onload = res;
+            img.onerror = res;
+        });
+    }));
+
+    try {
+        const html2canvasFn = (window as any).html2canvas || (window as any).html2pdf?.Worker?.prototype?.html2canvas;
+        const canvas = await html2canvasFn(container, {
+            scale: 2,
+            useCORS: true,
+            logging: false,
+            width: 794,
+            windowWidth: 794,
+            scrollX: 0,
+            scrollY: 0
+        });
+
+        const imgData = canvas.toDataURL('image/jpeg', 0.95);
+        const JSPDFClass = (window as any).jspdf?.jsPDF || (window as any).jsPDF;
+        const pdf = new JSPDFClass('p', 'mm', 'a4');
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = pdf.internal.pageSize.getHeight();
+        const imgWidth = pdfWidth;
+        const imgHeight = (canvas.height * pdfWidth) / canvas.width;
+
+        let heightLeft = imgHeight;
+        let position = 0;
+
+        pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
+        heightLeft -= pdfHeight;
+
+        while (heightLeft > 0) {
+            position = heightLeft - imgHeight;
+            pdf.addPage();
+            pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
+            heightLeft -= pdfHeight;
+        }
+
+        return pdf.output('blob');
+    } finally {
+        if (container.parentNode) {
+            container.parentNode.removeChild(container);
+        }
+    }
+};
+
 export default function RecapPage() {
     const [, setLocation] = useLocation();
     const { toast } = useToast();
@@ -667,13 +737,29 @@ export default function RecapPage() {
                 }
             });
 
+            let totalHadirCount = 0;
+            let totalJamKerjaMins = 0;
+            let totalIstirahatMins = 0;
+
+            filteredDayRecords.forEach(row => {
+                const breakMins = calculateDuration(row.breakStart, row.breakEnd);
+                totalIstirahatMins += breakMins;
+                if (row.status === 'present' || row.status === 'late') {
+                    totalHadirCount++;
+                }
+            });
+
+            localDailyTotals.forEach(val => {
+                totalJamKerjaMins += val.mins;
+            });
+
             const html = `<!DOCTYPE html>
 <html>
 <head>
   <title>${docTitle}</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; text-transform: uppercase !important; }
-    body { font-family: Arial, Helvetica, sans-serif; font-size: 11px; color: #1e293b; background: white; padding: 28px 36px; }
+    body, .pdf-export-container { font-family: Arial, Helvetica, sans-serif; font-size: 11px; color: #1e293b; background: white; padding: 28px 36px; box-sizing: border-box; }
     .letterhead { display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px; min-height: 50px; }
     .logo-img { height: 50px; max-width: 140px; object-fit: contain; flex-shrink: 0; }
     .company-block { text-align: right; flex-grow: 1; margin-left: 20px; }
@@ -681,9 +767,10 @@ export default function RecapPage() {
     .company-block .alamat { font-size: 12px; font-weight: normal; color: #334155; line-height: 1.4; margin-top: 4px; }
     .hr-thick { border: none; border-top: 2px solid #cbd5e1; margin: 6px 0 2px; }
     .hr-thin  { border: none; border-top: 1px solid #e2e8f0; margin-bottom: 18px; }
-    .report-meta { text-align: center; margin-bottom: 20px; }
+    .report-meta { text-align: center; margin-bottom: 15px; }
     .report-meta h2 { font-size: 16px; font-weight: 900; text-transform: uppercase; letter-spacing: 1.5px; color: #1e293b; }
     .report-meta .sub { font-size: 10.5px; margin-top: 4px; color: #475569; }
+    .summary-card { margin-top: 12px; margin-bottom: 18px; padding: 10px 14px; background: #f8fafc; border: 1.5px solid #cbd5e1; border-radius: 6px; display: flex; justify-content: space-around; font-size: 10.5px; text-transform: uppercase; }
     table { width: 100%; border-collapse: collapse; font-size: 10.5px; }
     thead tr { background-color: #f8fafc; }
     th { color: #374151; font-weight: 700; text-align: left; padding: 8px 8px; font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.4px; border-bottom: 2px solid #1e293b; border-right: 1px solid #e2e8f0; white-space: nowrap; }
@@ -716,7 +803,7 @@ export default function RecapPage() {
     .sig-name { font-size: 11px; font-weight: 800; border-top: 1.5px solid #374151; padding-top: 6px; text-transform: uppercase; letter-spacing: 0.5px; color: #1e293b; }
     .footer { margin-top: 18px; font-size: 8.5px; color: #94a3b8; border-top: 1px dashed #cbd5e1; padding-top: 8px; }
     @media print {
-      body { padding: 12px 16px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      body, .pdf-export-container { padding: 12px 16px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       tr { page-break-inside: avoid; }
     }
   </style>
@@ -734,6 +821,11 @@ export default function RecapPage() {
   <div class="report-meta">
     <h2>Laporan Rekapitulasi Absensi Harian</h2>
     <p class="sub">Periode: ${format(d1, "EEEE, d MMMM yyyy", { locale: id })}</p>
+  </div>
+  <div class="summary-card">
+    <div><b>TOTAL HADIR:</b> <span style="color:#16a34a; font-weight:800;">${totalHadirCount} ORANG</span></div>
+    <div><b>REKAPITULASI TOTAL JAM KERJA:</b> <span style="color:#1d4ed8; font-weight:800;">${formatDuration(totalJamKerjaMins)}</span></div>
+    <div><b>TOTAL WAKTU ISTIRAHAT:</b> <span style="color:#ea580c; font-weight:800;">${formatDuration(totalIstirahatMins)}</span></div>
   </div>
   <table>
     <thead>
@@ -812,8 +904,13 @@ export default function RecapPage() {
 
             setExportProgress(`Mengekspor ${i + 1} dari ${datePairs.length} laporan harian (${format(d1, "dd MMM yyyy", { locale: id })})...`);
 
-            const htmlFileName = `${docTitle}.html`;
-            zip.file(htmlFileName, html);
+            try {
+                const pdfFileName = `${docTitle}.pdf`;
+                const pdfBlob = await generatePdfBlobFromHtml(html);
+                zip.file(pdfFileName, pdfBlob);
+            } catch (e) {
+                console.error("Gagal membuat PDF untuk tanggal", d1, e);
+            }
         }
 
         try {
