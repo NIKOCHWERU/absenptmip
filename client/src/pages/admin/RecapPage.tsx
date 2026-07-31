@@ -812,21 +812,12 @@ export default function RecapPage() {
 
             setExportProgress(`Mengekspor ${i + 1} dari ${datePairs.length} laporan harian (${format(d1, "dd MMM yyyy", { locale: id })})...`);
 
-            const opt = {
-                margin:       [10, 10, 10, 10],
-                filename:     pdfFileName,
-                image:        { type: 'jpeg', quality: 0.98 },
-                html2canvas:  { scale: 2, useCORS: true, logging: false, scrollX: 0, scrollY: 0, windowWidth: 794 },
-                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' },
-                pagebreak:    { mode: ['avoid-all', 'css', 'legacy'] }
-            };
-
             const container = document.createElement('div');
-            container.style.position = 'absolute';
+            container.style.position = 'fixed';
             container.style.left = '0';
             container.style.top = '0';
             container.style.width = '794px';
-            container.style.zIndex = '9999';
+            container.style.zIndex = '9990';
             container.style.opacity = '1';
             container.style.pointerEvents = 'none';
             container.style.backgroundColor = 'white';
@@ -844,7 +835,39 @@ export default function RecapPage() {
             }));
 
             try {
-                const pdfBlob = await html2pdf().set(opt).from(container).outputPdf('blob');
+                const html2canvasFn = (window as any).html2canvas || (window as any).html2pdf?.Worker?.prototype?.html2canvas;
+                const canvas = await html2canvasFn(container, {
+                    scale: 2,
+                    useCORS: true,
+                    logging: false,
+                    width: 794,
+                    windowWidth: 794,
+                    scrollX: 0,
+                    scrollY: 0
+                });
+
+                const imgData = canvas.toDataURL('image/jpeg', 0.95);
+                const JSPDFClass = (window as any).jspdf?.jsPDF || (window as any).jsPDF;
+                const pdf = new JSPDFClass('p', 'mm', 'a4');
+                const pdfWidth = pdf.internal.pageSize.getWidth();
+                const pdfHeight = pdf.internal.pageSize.getHeight();
+                const imgWidth = pdfWidth;
+                const imgHeight = (canvas.height * pdfWidth) / canvas.width;
+
+                let heightLeft = imgHeight;
+                let position = 0;
+
+                pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
+                heightLeft -= pdfHeight;
+
+                while (heightLeft > 0) {
+                    position = heightLeft - imgHeight;
+                    pdf.addPage();
+                    pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
+                    heightLeft -= pdfHeight;
+                }
+
+                const pdfBlob = pdf.output('blob');
                 zip.file(pdfFileName, pdfBlob);
             } catch (e) {
                 console.error("Gagal membuat PDF untuk tanggal", d1, e);
