@@ -15,7 +15,6 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { useToast } from "@/hooks/use-toast";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import JSZip from "jszip";
 import { useAuth } from "@/hooks/use-auth";
 
 const loadHtml2Pdf = () => {
@@ -28,6 +27,20 @@ const loadHtml2Pdf = () => {
         script.src = "https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js";
         script.onload = () => resolve((window as any).html2pdf);
         script.onerror = () => reject(new Error("Gagal memuat script html2pdf"));
+        document.head.appendChild(script);
+    });
+};
+
+const loadJSZip = () => {
+    return new Promise<any>((resolve, reject) => {
+        if ((window as any).JSZip) {
+            resolve((window as any).JSZip);
+            return;
+        }
+        const script = document.createElement('script');
+        script.src = "https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js";
+        script.onload = () => resolve((window as any).JSZip);
+        script.onerror = () => reject(new Error("Gagal memuat script JSZip"));
         document.head.appendChild(script);
     });
 };
@@ -578,12 +591,14 @@ export default function RecapPage() {
         setIsExporting(true);
         
         let html2pdf: any;
+        let JSZip: any;
         try {
             html2pdf = await loadHtml2Pdf();
+            JSZip = await loadJSZip();
         } catch (err) {
             toast({
                 title: "Error",
-                description: "Gagal memuat engine pembuat PDF.",
+                description: "Gagal memuat engine pembuat PDF atau ZIP.",
                 variant: "destructive"
             });
             setIsExporting(false);
