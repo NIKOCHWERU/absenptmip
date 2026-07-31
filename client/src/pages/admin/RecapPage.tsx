@@ -51,6 +51,7 @@ export default function RecapPage() {
     const { user } = useAuth();
     const queryClient = useQueryClient();
     const [isExporting, setIsExporting] = useState(false);
+    const [exportProgress, setExportProgress] = useState("");
 
     const { data: config } = useQuery<any>({
         queryKey: ["/api/config"],
@@ -809,22 +810,24 @@ export default function RecapPage() {
 </body>
 </html>`;
 
+            setExportProgress(`Mengekspor ${i + 1} dari ${datePairs.length} laporan harian (${format(d1, "dd MMM yyyy", { locale: id })})...`);
+
             const opt = {
                 margin:       [10, 10, 10, 10],
                 filename:     pdfFileName,
                 image:        { type: 'jpeg', quality: 0.98 },
-                html2canvas:  { scale: 2, useCORS: true, logging: false },
+                html2canvas:  { scale: 2, useCORS: true, logging: false, scrollX: 0, scrollY: 0, windowWidth: 794 },
                 jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' },
                 pagebreak:    { mode: ['avoid-all', 'css', 'legacy'] }
             };
 
             const container = document.createElement('div');
-            container.style.position = 'fixed';
+            container.style.position = 'absolute';
             container.style.left = '0';
             container.style.top = '0';
             container.style.width = '794px';
-            container.style.zIndex = '-9999';
-            container.style.opacity = '0.01';
+            container.style.zIndex = '9999';
+            container.style.opacity = '1';
             container.style.pointerEvents = 'none';
             container.style.backgroundColor = 'white';
             container.innerHTML = html;
@@ -1227,6 +1230,18 @@ export default function RecapPage() {
                     </div>
                 </DialogContent>
             </Dialog>
+
+            {isExporting && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[99999] flex flex-col items-center justify-center text-white p-4">
+                    <div className="bg-white text-gray-900 rounded-2xl p-6 shadow-2xl max-w-sm w-full text-center space-y-4">
+                        <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent mx-auto"></div>
+                        <div>
+                            <h3 className="font-bold text-lg text-gray-900">Mengekspor Laporan PDF</h3>
+                            <p className="text-xs text-gray-500 mt-1">{exportProgress || "Harap tunggu sebentar..."}</p>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
