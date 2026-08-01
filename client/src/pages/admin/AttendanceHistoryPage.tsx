@@ -67,9 +67,8 @@ const loadJSZip = () => {
     });
 };
 
-const generatePdfBlobFromHtml = async (htmlContent: string): Promise<Blob> => {
+const generatePdfBlobFromHtml = async (htmlContent: string, pdfFileName: string): Promise<Blob> => {
     const container = document.createElement('div');
-    container.className = 'pdf-export-container';
     container.style.position = 'fixed';
     container.style.left = '0';
     container.style.top = '0';
@@ -97,39 +96,17 @@ const generatePdfBlobFromHtml = async (htmlContent: string): Promise<Blob> => {
     }));
 
     try {
-        const html2canvasFn = (window as any).html2canvas || (window as any).html2pdf?.Worker?.prototype?.html2canvas;
-        const canvas = await html2canvasFn(container, {
-            scale: 2,
-            useCORS: true,
-            logging: false,
-            width: 794,
-            windowWidth: 794,
-            scrollX: 0,
-            scrollY: 0
-        });
-
-        const imgData = canvas.toDataURL('image/jpeg', 0.95);
-        const JSPDFClass = (window as any).jspdf?.jsPDF || (window as any).jsPDF;
-        const pdf = new JSPDFClass('p', 'mm', 'a4');
-        const pdfWidth = pdf.internal.pageSize.getWidth();
-        const pdfHeight = pdf.internal.pageSize.getHeight();
-        const imgWidth = pdfWidth;
-        const imgHeight = (canvas.height * pdfWidth) / canvas.width;
-
-        let heightLeft = imgHeight;
-        let position = 0;
-
-        pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
-        heightLeft -= pdfHeight;
-
-        while (heightLeft > 0) {
-            position = heightLeft - imgHeight;
-            pdf.addPage();
-            pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
-            heightLeft -= pdfHeight;
-        }
-
-        return pdf.output('blob');
+        const opt = {
+            margin:       [10, 10, 10, 10],
+            filename:     pdfFileName,
+            image:        { type: 'jpeg', quality: 0.98 },
+            html2canvas:  { scale: 2, useCORS: true, logging: false, scrollX: 0, scrollY: 0, windowWidth: 794 },
+            jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' },
+            pagebreak:    { mode: ['avoid-all', 'css', 'legacy'] }
+        };
+        const html2pdf = (window as any).html2pdf;
+        const pdfBlob = await html2pdf().set(opt).from(container).outputPdf('blob');
+        return pdfBlob;
     } finally {
         if (container.parentNode) {
             container.parentNode.removeChild(container);
@@ -963,7 +940,7 @@ export default function AttendanceHistoryPage() {
 
                 try {
                     const pdfFileName = `${docTitle}.pdf`;
-                    const pdfBlob = await generatePdfBlobFromHtml(html);
+                    const pdfBlob = await generatePdfBlobFromHtml(html, pdfFileName);
                     zip.file(pdfFileName, pdfBlob);
                 } catch (e) {
                     console.error("Gagal membuat PDF foto untuk tanggal", d1, e);

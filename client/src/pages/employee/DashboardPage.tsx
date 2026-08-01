@@ -5,9 +5,10 @@ import { CompanyHeader } from "@/components/CompanyHeader";
 import { DigitalClock } from "@/components/DigitalClock";
 import { BottomNav } from "@/components/BottomNav";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, User, Camera, MapPin, Coffee, LogOut, X, Check, RefreshCw, SwitchCamera, Zap, ChevronRight, Stethoscope, Umbrella, FileText, Timer, Bell, Info, AlertTriangle, Download } from "lucide-react";
+import { Loader2, User, Camera, MapPin, Coffee, LogOut, X, Check, RefreshCw, SwitchCamera, Zap, ChevronRight, Stethoscope, Umbrella, FileText, Timer, Bell, Info, AlertTriangle, Download, Play, CheckCircle2, Clock, Upload } from "lucide-react";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
 import { motion } from "framer-motion";
@@ -266,6 +267,171 @@ export default function EmployeeDashboard() {
     const [isShiftModalOpen, setIsShiftModalOpen] = useState(false);
     const [isOffDayOpen, setIsOffDayOpen] = useState(false);
     const [selectedShiftId, setSelectedShiftId] = useState<number | null>(null);
+
+    // Overtime Access Rule: Super Admin or NIK 12345
+    const isAllowedOvertime = user?.role === "superadmin" || user?.nik === "12345" || user?.username === "12345";
+
+    const { data: activeOvertimeToday, refetch: refetchOvertime } = useQuery<any>({
+        queryKey: ["/api/attendance/overtime/today"],
+        enabled: !!isAllowedOvertime,
+    });
+
+    const [isOvertimeAlertOpen, setIsOvertimeAlertOpen] = useState(false);
+    const [isStartOvertimeModalOpen, setIsStartOvertimeModalOpen] = useState(false);
+    const [isEndOvertimeModalOpen, setIsEndOvertimeModalOpen] = useState(false);
+
+    const [splFile, setSplFile] = useState<File | null>(null);
+    const [splPreview, setSplPreview] = useState<string | null>(null);
+    const [initialProofFile, setInitialProofFile] = useState<File | null>(null);
+    const [initialProofPreview, setInitialProofPreview] = useState<string | null>(null);
+    const [startDescription, setStartDescription] = useState("");
+
+    const [finalProofFile, setFinalProofFile] = useState<File | null>(null);
+    const [finalProofPreview, setFinalProofPreview] = useState<string | null>(null);
+    const [finalDescription, setFinalDescription] = useState("");
+
+    const [isSubmittingOvertime, setIsSubmittingOvertime] = useState(false);
+    const [overtimeTimerSeconds, setOvertimeTimerSeconds] = useState(0);
+
+    useEffect(() => {
+        let interval: any = null;
+        if (activeOvertimeToday?.status === "ongoing" && activeOvertimeToday?.startTime) {
+            const startMs = new Date(activeOvertimeToday.startTime).getTime();
+            const updateTimer = () => {
+                const nowMs = Date.now();
+                setOvertimeTimerSeconds(Math.max(0, Math.floor((nowMs - startMs) / 1000)));
+            };
+            updateTimer();
+            interval = setInterval(updateTimer, 1000);
+        } else {
+            setOvertimeTimerSeconds(0);
+        }
+        return () => {
+            if (interval) clearInterval(interval);
+        };
+    }, [activeOvertimeToday]);
+
+    const formatOvertimeTimer = (totalSecs: number) => {
+        const h = Math.floor(totalSecs / 3600);
+        const m = Math.floor((totalSecs % 3600) / 60);
+        const s = totalSecs % 60;
+        return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+    };
+
+    const handleConfirmStartOvertimeAlert = () => {
+        setIsOvertimeAlertOpen(false);
+        setIsStartOvertimeModalOpen(true);
+    };
+
+    const handleOvertimeFileChange = (
+        e: React.ChangeEvent<HTMLInputElement>,
+        setFile: (f: File | null) => void,
+        setPreview: (p: string | null) => void
+    ) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            setFile(file);
+            if (file.type.startsWith("image/")) {
+                setPreview(URL.createObjectURL(file));
+            } else {
+                setPreview("pdf");
+            }
+        }
+    };
+
+    const handleSubmitStartOvertime = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!splFile || !initialProofFile || !startDescription.trim()) {
+            toast({
+                title: "Dokumen Belum Lengkap",
+                description: "Wajib unggah Surat Perintah Lembur (SPL), Foto Bukti Awal, dan Deskripsi Pekerjaan.",
+                variant: "destructive",
+            });
+            return;
+        }
+
+        try {
+            setIsSubmittingOvertime(true);
+            const formData = new FormData();
+            formData.append("splPhoto", splFile);
+            formData.append("initialProofPhoto", initialProofFile);
+            formData.append("description", startDescription);
+
+            const res = await fetch("/api/attendance/overtime/start", {
+                method: "POST",
+                body: formData,
+            });
+
+            if (!res.ok) {
+                const errData = await res.json();
+                throw new Error(errData.message || "Gagal memulai lembur");
+            }
+
+            toast({
+                title: "Lembur Berhasil Dimulai",
+                description: "Timer lembur kini aktif di halaman utama HP Anda.",
+            });
+            setIsStartOvertimeModalOpen(false);
+            setSplFile(null); setSplPreview(null);
+            setInitialProofFile(null); setInitialProofPreview(null);
+            setStartDescription("");
+            await refetchOvertime();
+        } catch (err: any) {
+            toast({
+                title: "Gagal Memulai Lembur",
+                description: err.message,
+                variant: "destructive",
+            });
+        } finally {
+            setIsSubmittingOvertime(false);
+        }
+    };
+
+    const handleSubmitEndOvertime = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!finalProofFile || !finalDescription.trim()) {
+            toast({
+                title: "Dokumen Belum Lengkap",
+                description: "Wajib mengambil Foto Hasil Pekerjaan dan Keterangan Hasil Lembur.",
+                variant: "destructive",
+            });
+            return;
+        }
+
+        try {
+            setIsSubmittingOvertime(true);
+            const formData = new FormData();
+            formData.append("finalProofPhoto", finalProofFile);
+            formData.append("finalDescription", finalDescription);
+
+            const res = await fetch("/api/attendance/overtime/end", {
+                method: "POST",
+                body: formData,
+            });
+
+            if (!res.ok) {
+                const errData = await res.json();
+                throw new Error(errData.message || "Gagal mengakhiri lembur");
+            }
+
+            toast({
+                title: "Lembur Selesai!",
+                description: "Dokumentasi dan hasil lembur telah berhasil disimpan.",
+            });
+            setIsEndOvertimeModalOpen(false);
+            setFinalProofFile(null); setFinalProofPreview(null);
+            setFinalDescription("");
+            await refetchOvertime();
+        } catch (err: any) {
+            toast({
+                title: "Gagal Mengakhiri Lembur",
+                description: err.message,
+                variant: "destructive",
+            });
+        } finally {
+            setIsSubmittingOvertime(false);
+        }
+    };
 
     // Generic Confirm Dialog (replaces native window.confirm to avoid PWA blank screen)
     const [confirmDialog, setConfirmDialog] = useState<{
@@ -1059,6 +1225,56 @@ export default function EmployeeDashboard() {
                                 </div>
                             </Button>
                         </div>
+
+                        {/* FITUR LEMBUR DIGITAL (KHUSUS SUPER ADMIN & NIK 12345) */}
+                        {isAllowedOvertime && (hasCheckedIn || today?.checkIn) && (
+                            <div className="pt-3 border-t border-slate-200 space-y-2 mt-2">
+                                <div className="flex justify-between items-center text-[11px] font-extrabold text-amber-700">
+                                    <span className="flex items-center gap-1.5 uppercase">⚡ LAYANAN LEMBUR (OVERTIME)</span>
+                                </div>
+
+                                {(!activeOvertimeToday || activeOvertimeToday.status === "cancelled") && (
+                                    <Button
+                                        type="button"
+                                        className="w-full h-14 bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-black text-sm rounded-xl shadow-lg flex items-center justify-center gap-2 tracking-wide uppercase"
+                                        onClick={() => setIsOvertimeAlertOpen(true)}
+                                    >
+                                        <Play className="w-5 h-5 fill-current" /> LEMBUR (OVERTIME)
+                                    </Button>
+                                )}
+
+                                {activeOvertimeToday?.status === "ongoing" && (
+                                    <div className="bg-orange-50 border-2 border-orange-300 p-4 rounded-2xl space-y-3 text-center shadow-sm">
+                                        <div className="inline-flex items-center gap-1.5 bg-orange-500 text-white px-3 py-1 rounded-full text-xs font-black animate-pulse">
+                                            <Clock className="w-3.5 h-3.5" /> LEMBUR SEDANG BERJALAN
+                                        </div>
+                                        <div className="text-3xl font-black font-mono text-orange-700 tracking-wider">
+                                            {formatOvertimeTimer(overtimeTimerSeconds)}
+                                        </div>
+                                        <p className="text-[11px] text-slate-500 font-medium">
+                                            Mulai Lembur: {activeOvertimeToday.startTime ? format(new Date(activeOvertimeToday.startTime), "HH:mm") : "-"} WIB
+                                        </p>
+                                        <Button
+                                            type="button"
+                                            className="w-full h-12 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl shadow text-sm flex items-center justify-center gap-2"
+                                            onClick={() => setIsEndOvertimeModalOpen(true)}
+                                        >
+                                            <CheckCircle2 className="w-4 h-4" /> SELESAI LEMBUR
+                                        </Button>
+                                    </div>
+                                )}
+
+                                {activeOvertimeToday?.status === "completed" && (
+                                    <div className="bg-emerald-50 border border-emerald-200 p-4 rounded-2xl space-y-1.5 text-xs text-emerald-800">
+                                        <div className="flex items-center gap-2 font-bold text-emerald-900 text-sm">
+                                            <CheckCircle2 className="w-5 h-5 text-emerald-600" /> Lembur Hari Ini Selesai
+                                        </div>
+                                        <p>Mulai: <strong>{activeOvertimeToday.startTime ? format(new Date(activeOvertimeToday.startTime), "HH:mm") : "-"} WIB</strong> &bull; Selesai: <strong>{activeOvertimeToday.endTime ? format(new Date(activeOvertimeToday.endTime), "HH:mm") : "-"} WIB</strong></p>
+                                        <p className="text-[10px] text-emerald-600">Dokumen Perintah &amp; Bukti Lembur tersimpan di database.</p>
+                                    </div>
+                                )}
+                            </div>
+                        )}
                     </div>
                 </motion.div>
 
@@ -1436,6 +1652,172 @@ export default function EmployeeDashboard() {
                             Batalkan
                         </Button>
                     </div>
+                </DialogContent>
+            </Dialog>
+
+            {/* ALERT DIALOG KONFIRMASI LEMBUR */}
+            <AlertDialog open={isOvertimeAlertOpen} onOpenChange={setIsOvertimeAlertOpen}>
+                <AlertDialogContent className="bg-white rounded-2xl max-w-sm">
+                    <AlertDialogHeader>
+                        <AlertDialogTitle className="text-base font-bold text-slate-900">Konfirmasi Memulai Lembur?</AlertDialogTitle>
+                        <AlertDialogDescription className="text-xs text-slate-600 space-y-2">
+                            <p>Anda memilih untuk melakukan <strong>Lembur (Overtime)</strong>.</p>
+                            {!hasCheckedOut && (
+                                <p className="text-orange-700 bg-orange-50 p-2 rounded-lg border border-orange-200">
+                                    ⚠️ Absen reguler Anda akan otomatis dicatat pulang tepat pada jam selesai shift reguler.
+                                </p>
+                            )}
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter className="gap-2 sm:gap-0">
+                        <AlertDialogCancel className="text-xs rounded-xl">Batal</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={handleConfirmStartOvertimeAlert}
+                            className="bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold rounded-xl"
+                        >
+                            Ya, Lanjutkan Lembur
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+            {/* MODAL 1: MULAI LEMBUR (UPLOAD SPL & FOTO AWAL) */}
+            <Dialog open={isStartOvertimeModalOpen} onOpenChange={setIsStartOvertimeModalOpen}>
+                <DialogContent className="sm:max-w-md bg-white rounded-2xl">
+                    <DialogHeader>
+                        <DialogTitle className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                            <FileText className="w-5 h-5 text-orange-500" /> Form Mulai Lembur
+                        </DialogTitle>
+                        <DialogDescription className="text-xs text-slate-500">
+                            Unggah Surat Perintah Lembur (SPL) &amp; Foto bukti sebelum memulai timer lembur.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <form onSubmit={handleSubmitStartOvertime} className="space-y-4 py-2">
+                        <div className="space-y-1.5">
+                            <label className="text-xs font-semibold text-slate-700">
+                                1. Upload Surat Perintah Lembur (SPL) <span className="text-red-500">*</span>
+                            </label>
+                            <div className="border-2 border-dashed border-slate-200 rounded-xl p-3 bg-slate-50 hover:bg-orange-50/50 transition-colors text-center cursor-pointer relative">
+                                <input
+                                    type="file"
+                                    accept="image/*,application/pdf"
+                                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                    onChange={(e) => handleOvertimeFileChange(e, setSplFile, setSplPreview)}
+                                />
+                                {splFile ? (
+                                    <div className="text-xs font-medium text-blue-600 flex items-center justify-center gap-1.5">
+                                        <FileText className="w-4 h-4" /> {splFile.name}
+                                    </div>
+                                ) : (
+                                    <div className="space-y-1 text-slate-400">
+                                        <Upload className="w-6 h-6 mx-auto text-slate-400" />
+                                        <p className="text-xs">Klik / Pilih file SPL (Foto/PDF)</p>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="space-y-1.5">
+                            <label className="text-xs font-semibold text-slate-700">
+                                2. Foto Bukti Awal Lembur <span className="text-red-500">*</span>
+                            </label>
+                            <div className="border-2 border-dashed border-slate-200 rounded-xl p-3 bg-slate-50 hover:bg-orange-50/50 transition-colors text-center cursor-pointer relative">
+                                <input
+                                    type="file"
+                                    accept="image/*"
+                                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                    onChange={(e) => handleOvertimeFileChange(e, setInitialProofFile, setInitialProofPreview)}
+                                />
+                                {initialProofPreview ? (
+                                    <img src={initialProofPreview} alt="Bukti Awal" className="h-24 mx-auto object-cover rounded-lg" />
+                                ) : (
+                                    <div className="space-y-1 text-slate-400">
+                                        <Camera className="w-6 h-6 mx-auto text-slate-400" />
+                                        <p className="text-xs">Ambil Foto / Upload Bukti Awal</p>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="space-y-1.5">
+                            <label className="text-xs font-semibold text-slate-700">
+                                3. Deskripsi Pekerjaan Lembur <span className="text-red-500">*</span>
+                            </label>
+                            <Textarea
+                                placeholder="Contoh: Overtime repair mesin produksi line 2..."
+                                value={startDescription}
+                                onChange={(e) => setStartDescription(e.target.value)}
+                                className="text-xs h-20 rounded-xl"
+                            />
+                        </div>
+
+                        <DialogFooter className="gap-2 sm:gap-0 pt-2">
+                            <Button type="button" variant="ghost" size="sm" onClick={() => setIsStartOvertimeModalOpen(false)}>Batal</Button>
+                            <Button type="submit" disabled={isSubmittingOvertime} className="bg-orange-600 hover:bg-orange-700 text-white text-xs rounded-xl font-bold h-10 px-5">
+                                {isSubmittingOvertime ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                                Mulai Lembur Sekarang
+                            </Button>
+                        </DialogFooter>
+                    </form>
+                </DialogContent>
+            </Dialog>
+
+            {/* MODAL 2: SELESAI LEMBUR */}
+            <Dialog open={isEndOvertimeModalOpen} onOpenChange={setIsEndOvertimeModalOpen}>
+                <DialogContent className="sm:max-w-md bg-white rounded-2xl">
+                    <DialogHeader>
+                        <DialogTitle className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                            <Camera className="w-5 h-5 text-emerald-600" /> Dokumentasi Hasil Lembur
+                        </DialogTitle>
+                        <DialogDescription className="text-xs text-slate-500">
+                            Ambil foto hasil pekerjaan lembur dan berikan keterangan singkat.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <form onSubmit={handleSubmitEndOvertime} className="space-y-4 py-2">
+                        <div className="space-y-1.5">
+                            <label className="text-xs font-semibold text-slate-700">
+                                1. Foto Dokumentasi Hasil Pekerjaan Lembur <span className="text-red-500">*</span>
+                            </label>
+                            <div className="border-2 border-dashed border-emerald-200 rounded-xl p-4 bg-emerald-50/50 hover:bg-emerald-50 transition-colors text-center cursor-pointer relative">
+                                <input
+                                    type="file"
+                                    accept="image/*"
+                                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                    onChange={(e) => handleOvertimeFileChange(e, setFinalProofFile, setFinalProofPreview)}
+                                />
+                                {finalProofPreview ? (
+                                    <img src={finalProofPreview} alt="Hasil Lembur" className="h-32 mx-auto object-cover rounded-lg shadow-sm" />
+                                ) : (
+                                    <div className="space-y-1.5 text-emerald-700">
+                                        <Camera className="w-8 h-8 mx-auto text-emerald-600" />
+                                        <p className="text-xs font-medium">Ambil Kamera / Pilih Foto Hasil Kerja</p>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="space-y-1.5">
+                            <label className="text-xs font-semibold text-slate-700">
+                                2. Keterangan / Catatan Hasil Lembur <span className="text-red-500">*</span>
+                            </label>
+                            <Textarea
+                                placeholder="Contoh: Pekerjaan perbaikan selesai 100%, mesin beroperasi normal."
+                                value={finalDescription}
+                                onChange={(e) => setFinalDescription(e.target.value)}
+                                className="text-xs h-20 rounded-xl"
+                            />
+                        </div>
+
+                        <DialogFooter className="gap-2 sm:gap-0 pt-2">
+                            <Button type="button" variant="ghost" size="sm" onClick={() => setIsEndOvertimeModalOpen(false)}>Batal</Button>
+                            <Button type="submit" disabled={isSubmittingOvertime} className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs rounded-xl font-bold h-10 px-5">
+                                {isSubmittingOvertime ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                                Simpan &amp; Selesai Lembur
+                            </Button>
+                        </DialogFooter>
+                    </form>
                 </DialogContent>
             </Dialog>
 

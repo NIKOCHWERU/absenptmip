@@ -1321,9 +1321,14 @@ export function registerRoutes(app: Express) {
     }
   });
 
-  // 7. Get Today's Active Attendance Log for Employee
+  // 7. Overtime Endpoints (Khusus Super Admin & NIK 12345)
   app.post("/api/attendance/overtime/start", isAuthenticated, upload.fields([{ name: "splPhoto" }, { name: "initialProofPhoto" }]), async (req: Request, res: Response) => {
     try {
+      const isAllowedOvertime = (req.user as any)?.role === 'superadmin' || (req.user as any)?.nik === '12345' || (req.user as any)?.username === '12345';
+      if (!isAllowedOvertime) {
+        return res.status(403).json({ message: "Akses lembur hanya diizinkan untuk Super Admin dan NIK 12345" });
+      }
+
       const userId = req.session.userId!;
       const user = await db.select().from(users).where(eq(users.id, userId)).limit(1);
       if (!user.length) return res.status(404).json({ message: "User not found" });
@@ -1395,6 +1400,11 @@ export function registerRoutes(app: Express) {
 
   app.post("/api/attendance/overtime/end", isAuthenticated, upload.fields([{ name: "finalProofPhoto" }]), async (req: Request, res: Response) => {
     try {
+      const isAllowedOvertime = (req.user as any)?.role === 'superadmin' || (req.user as any)?.nik === '12345' || (req.user as any)?.username === '12345';
+      if (!isAllowedOvertime) {
+        return res.status(403).json({ message: "Akses lembur hanya diizinkan untuk Super Admin dan NIK 12345" });
+      }
+
       const userId = req.session.userId!;
       const user = await db.select().from(users).where(eq(users.id, userId)).limit(1);
       if (!user.length) return res.status(404).json({ message: "User not found" });
@@ -1435,6 +1445,11 @@ export function registerRoutes(app: Express) {
 
   app.get("/api/attendance/overtime/today", isAuthenticated, async (req: Request, res: Response) => {
     try {
+      const isAllowedOvertime = (req.user as any)?.role === 'superadmin' || (req.user as any)?.nik === '12345' || (req.user as any)?.username === '12345';
+      if (!isAllowedOvertime) {
+        return res.json(null);
+      }
+
       const userId = req.session.userId!;
       const adminDate = getAdminDate();
       const todaySessions = await db.select().from(attendance).where(and(eq(attendance.userId, userId), eq(attendance.date, adminDate))).orderBy(desc(attendance.sessionNumber));
@@ -1477,6 +1492,56 @@ export function registerRoutes(app: Express) {
     } catch (e: any) {
       console.error("Fetch all overtimes error:", e);
       res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // API Tambah & Edit Lembur Manual oleh Admin
+  app.post("/api/admin/overtimes/manual", isAuthenticated, isAdmin, async (req: Request, res: Response) => {
+    try {
+      const { attendanceId, startTime, endTime, description, finalDescription, status } = req.body;
+      if (!attendanceId || !startTime) {
+        return res.status(400).json({ message: "Attendance ID dan Jam Mulai Wajib Diisi" });
+      }
+      const [newOt] = await (db.insert(overtimes) as any).values({
+        attendanceId: Number(attendanceId),
+        startTime: new Date(startTime),
+        endTime: endTime ? new Date(endTime) : null,
+        description: description || "Lembur Manual Admin",
+        finalDescription: finalDescription || null,
+        status: status || (endTime ? "completed" : "ongoing"),
+      });
+      res.json({ message: "Lembur manual berhasil ditambahkan", id: newOt.insertId });
+    } catch (e: any) {
+      console.error("Manual overtime error:", e);
+      res.status(500).json({ message: e.message || "Internal server error" });
+    }
+  });
+
+  app.put("/api/admin/overtimes/:id", isAuthenticated, isAdmin, async (req: Request, res: Response) => {
+    try {
+      const id = Number(req.params.id);
+      const { startTime, endTime, description, finalDescription, status } = req.body;
+      const updateData: any = {};
+      if (startTime) updateData.startTime = new Date(startTime);
+      if (endTime !== undefined) updateData.endTime = endTime ? new Date(endTime) : null;
+      if (description !== undefined) updateData.description = description;
+      if (finalDescription !== undefined) updateData.finalDescription = finalDescription;
+      if (status) updateData.status = status;
+
+      await db.update(overtimes).set(updateData).where(eq(overtimes.id, id));
+      res.json({ message: "Data lembur berhasil diperbarui" });
+    } catch (e: any) {
+      res.status(500).json({ message: e.message || "Internal server error" });
+    }
+  });
+
+  app.delete("/api/admin/overtimes/:id", isAuthenticated, isAdmin, async (req: Request, res: Response) => {
+    try {
+      const id = Number(req.params.id);
+      await db.delete(overtimes).where(eq(overtimes.id, id));
+      res.json({ message: "Data lembur berhasil dihapus" });
+    } catch (e: any) {
+      res.status(500).json({ message: e.message || "Internal server error" });
     }
   });
 

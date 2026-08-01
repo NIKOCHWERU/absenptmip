@@ -45,9 +45,8 @@ const loadJSZip = () => {
     });
 };
 
-const generatePdfBlobFromHtml = async (htmlContent: string): Promise<Blob> => {
+const generatePdfBlobFromHtml = async (htmlContent: string, pdfFileName: string): Promise<Blob> => {
     const container = document.createElement('div');
-    container.className = 'pdf-export-container';
     container.style.position = 'fixed';
     container.style.left = '0';
     container.style.top = '0';
@@ -75,39 +74,17 @@ const generatePdfBlobFromHtml = async (htmlContent: string): Promise<Blob> => {
     }));
 
     try {
-        const html2canvasFn = (window as any).html2canvas || (window as any).html2pdf?.Worker?.prototype?.html2canvas;
-        const canvas = await html2canvasFn(container, {
-            scale: 2,
-            useCORS: true,
-            logging: false,
-            width: 794,
-            windowWidth: 794,
-            scrollX: 0,
-            scrollY: 0
-        });
-
-        const imgData = canvas.toDataURL('image/jpeg', 0.95);
-        const JSPDFClass = (window as any).jspdf?.jsPDF || (window as any).jsPDF;
-        const pdf = new JSPDFClass('p', 'mm', 'a4');
-        const pdfWidth = pdf.internal.pageSize.getWidth();
-        const pdfHeight = pdf.internal.pageSize.getHeight();
-        const imgWidth = pdfWidth;
-        const imgHeight = (canvas.height * pdfWidth) / canvas.width;
-
-        let heightLeft = imgHeight;
-        let position = 0;
-
-        pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
-        heightLeft -= pdfHeight;
-
-        while (heightLeft > 0) {
-            position = heightLeft - imgHeight;
-            pdf.addPage();
-            pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
-            heightLeft -= pdfHeight;
-        }
-
-        return pdf.output('blob');
+        const opt = {
+            margin:       [10, 10, 10, 10],
+            filename:     pdfFileName,
+            image:        { type: 'jpeg', quality: 0.98 },
+            html2canvas:  { scale: 2, useCORS: true, logging: false, scrollX: 0, scrollY: 0, windowWidth: 794 },
+            jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' },
+            pagebreak:    { mode: ['avoid-all', 'css', 'legacy'] }
+        };
+        const html2pdf = (window as any).html2pdf;
+        const pdfBlob = await html2pdf().set(opt).from(container).outputPdf('blob');
+        return pdfBlob;
     } finally {
         if (container.parentNode) {
             container.parentNode.removeChild(container);
@@ -175,6 +152,18 @@ export default function RecapPage() {
 
     const { data: allAttendance } = useQuery<Attendance[]>({
         queryKey: [`/api/attendance?startDate=${format(startDate, 'yyyy-MM-dd')}&endDate=${format(endDate, 'yyyy-MM-dd')}`],
+    });
+
+    const { data: allOvertimes } = useQuery<any[]>({
+        queryKey: ["/api/admin/overtimes"],
+    });
+
+    const [showOvertimeInput, setShowOvertimeInput] = useState(false);
+    const [manualOvertime, setManualOvertime] = useState({
+        id: null as number | null,
+        startTime: "",
+        endTime: "",
+        description: "",
     });
 
     const handlePrev = () => {
@@ -294,13 +283,51 @@ export default function RecapPage() {
                 body: JSON.stringify(data),
             });
             if (!res.ok) throw new Error(await res.text() || "Gagal menyimpan data");
-            return res.json();
+            const attendanceResult = await res.json();
+            const targetAttId = editingAttendance?.id || attendanceResult?.id;
+
+            // Simpan Data Lembur Manual jika diisi
+            if (targetAttId && showOvertimeInput && manualOvertime.startTime) {
+                const attDateStr = manualEntry.date;
+                const startIso = `${attDateStr}T${manualOvertime.startTime}:00`;
+                const endIso = manualOvertime.endTime ? `${attDateStr}T${manualOvertime.endTime}:00` : null;
+
+                if (manualOvertime.id) {
+                    await fetch(`/api/admin/overtimes/${manualOvertime.id}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            startTime: startIso,
+                            endTime: endIso,
+                            description: manualOvertime.description,
+                            status: endIso ? "completed" : "ongoing"
+                        })
+                    });
+                } else {
+                    await fetch("/api/admin/overtimes/manual", {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            attendanceId: targetAttId,
+                            startTime: startIso,
+                            endTime: endIso,
+                            description: manualOvertime.description,
+                            status: endIso ? "completed" : "ongoing"
+                        })
+                    });
+                }
+            }
+
+            return attendanceResult;
         },
         onSuccess: async () => {
             await queryClient.invalidateQueries({ queryKey: ["/api/attendance"] });
+            await queryClient.invalidateQueries({ queryKey: ["/api/admin/overtimes"] });
             setIsManualModalOpen(false);
             setEditingAttendance(null);
-            toast({ title: "Berhasil", description: "Data absensi telah diperbarui." });
+            setShowOvertimeInput(false);
+            setManualOvertime({ id: null, startTime: "", endTime: "", description: "" });
+            toast({ title: "Berhasil", description: "Data absensi & lembur telah diperbarui." });
         },
         onError: (err: any) => {
             toast({ title: "Gagal", description: err.message, variant: "destructive" });
@@ -315,6 +342,7 @@ export default function RecapPage() {
         },
         onSuccess: async () => {
             await queryClient.invalidateQueries({ queryKey: ["/api/attendance"] });
+            await queryClient.invalidateQueries({ queryKey: ["/api/admin/overtimes"] });
             setDeleteConfirmId(null);
             toast({ title: "Dihapus", description: "Data absensi berhasil dihapus." });
         },
@@ -338,6 +366,21 @@ export default function RecapPage() {
                 notes: existing.notes || "",
                 shift: existing.shift || "-"
             });
+
+            // Cek apakah ada record lembur untuk absensi ini
+            const ot = allOvertimes?.find(o => o.attendanceId === existing.id);
+            if (ot) {
+                setShowOvertimeInput(true);
+                setManualOvertime({
+                    id: ot.id,
+                    startTime: ot.startTime ? format(new Date(ot.startTime), "HH:mm") : "",
+                    endTime: ot.endTime ? format(new Date(ot.endTime), "HH:mm") : "",
+                    description: ot.description || "",
+                });
+            } else {
+                setShowOvertimeInput(false);
+                setManualOvertime({ id: null, startTime: "", endTime: "", description: "" });
+            }
         } else {
             setEditingAttendance(null);
             setManualEntry({
@@ -351,6 +394,8 @@ export default function RecapPage() {
                 notes: "",
                 shift: "-"
             });
+            setShowOvertimeInput(false);
+            setManualOvertime({ id: null, startTime: "", endTime: "", description: "" });
         }
         setIsManualModalOpen(true);
     };
@@ -906,7 +951,7 @@ export default function RecapPage() {
 
             try {
                 const pdfFileName = `${docTitle}.pdf`;
-                const pdfBlob = await generatePdfBlobFromHtml(html);
+                const pdfBlob = await generatePdfBlobFromHtml(html, pdfFileName);
                 zip.file(pdfFileName, pdfBlob);
             } catch (e) {
                 console.error("Gagal membuat PDF untuk tanggal", d1, e);
@@ -1273,8 +1318,75 @@ export default function RecapPage() {
                             </SelectContent>
                         </Select>
                         <Textarea placeholder="Catatan..." value={manualEntry.notes} onChange={(e) => setManualEntry(prev => ({ ...prev, notes: e.target.value }))} />
+
+                        {/* FITUR TAMBAHKAN LEMBUR MANUAL */}
+                        <div className="pt-2 border-t space-y-3">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                className="w-full border-orange-400 text-orange-700 hover:bg-orange-50 font-bold rounded-xl text-xs gap-1.5 h-10"
+                                onClick={() => setShowOvertimeInput(!showOvertimeInput)}
+                            >
+                                ⚡ {showOvertimeInput ? "Sembunyikan Form Lembur" : "Tambahkan Lembur Manual"}
+                            </Button>
+
+                            {showOvertimeInput && (
+                                <div className="p-3.5 bg-orange-50/80 border border-orange-200 rounded-xl space-y-3">
+                                    <p className="text-xs font-extrabold text-orange-900 uppercase tracking-wide">Input Data Lembur Manual</p>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div className="space-y-1">
+                                            <Label className="text-[11px] text-slate-700 font-semibold">Mulai Lembur (HH:MM)</Label>
+                                            <Input
+                                                type="text"
+                                                maxLength={5}
+                                                value={manualOvertime.startTime}
+                                                onChange={(e) => {
+                                                    let val = e.target.value.replace(/\D/g, '');
+                                                    if (val.length > 4) val = val.substring(0, 4);
+                                                    let h = val.substring(0, 2); let m = val.substring(2, 4);
+                                                    if (h.length === 2 && parseInt(h) > 23) h = '23';
+                                                    if (m.length === 2 && parseInt(m) > 59) m = '59';
+                                                    let formatted = h; if (val.length >= 2) formatted += (val.length > 2 || e.target.value.includes(':')) ? ':' + m : '';
+                                                    setManualOvertime(prev => ({ ...prev, startTime: formatted }));
+                                                }}
+                                                placeholder="17:00"
+                                                className="bg-white text-xs h-9 rounded-lg"
+                                            />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <Label className="text-[11px] text-slate-700 font-semibold">Selesai Lembur (HH:MM)</Label>
+                                            <Input
+                                                type="text"
+                                                maxLength={5}
+                                                value={manualOvertime.endTime}
+                                                onChange={(e) => {
+                                                    let val = e.target.value.replace(/\D/g, '');
+                                                    if (val.length > 4) val = val.substring(0, 4);
+                                                    let h = val.substring(0, 2); let m = val.substring(2, 4);
+                                                    if (h.length === 2 && parseInt(h) > 23) h = '23';
+                                                    if (m.length === 2 && parseInt(m) > 59) m = '59';
+                                                    let formatted = h; if (val.length >= 2) formatted += (val.length > 2 || e.target.value.includes(':')) ? ':' + m : '';
+                                                    setManualOvertime(prev => ({ ...prev, endTime: formatted }));
+                                                }}
+                                                placeholder="20:00"
+                                                className="bg-white text-xs h-9 rounded-lg"
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <Label className="text-[11px] text-slate-700 font-semibold">Deskripsi Pekerjaan Lembur</Label>
+                                        <Textarea
+                                            value={manualOvertime.description}
+                                            onChange={(e) => setManualOvertime(prev => ({ ...prev, description: e.target.value }))}
+                                            placeholder="Contoh: Overtime perbaikan instalasi mesin..."
+                                            className="bg-white text-xs h-16 rounded-lg"
+                                        />
+                                    </div>
+                                </div>
+                            )}
+                        </div>
                     </div>
-                    <Button className="w-full bg-primary hover:bg-primary/90 text-white rounded-xl h-11 font-bold" onClick={() => manualMutation.mutate({ ...manualEntry, userId: parseInt(manualEntry.userId) })} disabled={manualMutation.isPending || !manualEntry.userId}>Simpan</Button>
+                    <Button className="w-full bg-primary hover:bg-primary/90 text-white rounded-xl h-11 font-bold" onClick={() => manualMutation.mutate({ ...manualEntry, userId: parseInt(manualEntry.userId) })} disabled={manualMutation.isPending || !manualEntry.userId}>Simpan Data Absen &amp; Lembur</Button>
                 </DialogContent>
             </Dialog>
 
