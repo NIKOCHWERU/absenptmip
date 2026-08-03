@@ -1,13 +1,13 @@
-const CACHE_NAME = "ptmip-attendance-v3-auto-refresh";
+const CACHE_NAME = "ptmip-attendance-v4-pwa-refresh";
 const ASSETS = [
   "/",
   "/manifest.json",
   "/icon-192.png"
 ];
 
-// Install Event - cache core assets and skip waiting immediately
+// Install Event - skip waiting immediately
 self.addEventListener("install", (event) => {
-  self.skipWaiting(); // Force the waiting service worker to become active immediately
+  self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
       return cache.addAll(ASSETS);
@@ -17,12 +17,12 @@ self.addEventListener("install", (event) => {
 
 // Activate Event - clean up ALL old caches and claim clients immediately
 self.addEventListener("activate", (event) => {
-  self.clients.claim(); // Take control of all open pages immediately
+  self.clients.claim();
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames.map((cache) => {
-          console.log("🧹 SW: Purging cache:", cache);
+          console.log("🧹 SW: Purging cache on activate:", cache);
           return caches.delete(cache);
         })
       );
@@ -30,7 +30,7 @@ self.addEventListener("activate", (event) => {
   );
 });
 
-// Fetch Event
+// Fetch Event - Network-First Strategy for PWA
 self.addEventListener("fetch", (event) => {
   // Bypass service worker in development
   if (self.location.hostname === "localhost" || self.location.hostname === "127.0.0.1") {
@@ -44,53 +44,57 @@ self.addEventListener("fetch", (event) => {
 
   const url = new URL(event.request.url);
 
-  // Network-First Strategy for HTML documents & manifest to ensure instant updates when online
-  if (url.pathname === "/" || url.pathname === "/index.html" || url.pathname === "/manifest.json") {
+  // Network-First for HTML, JS, CSS, and API/Manifest
+  if (
+    url.pathname === "/" ||
+    url.pathname.endsWith(".html") ||
+    url.pathname.endsWith(".js") ||
+    url.pathname.endsWith(".css") ||
+    url.pathname === "/manifest.json"
+  ) {
     event.respondWith(
       fetch(event.request)
-        .then((response) => {
+        .then(async (response) => {
           if (response && response.status === 200) {
             const responseToCache = response.clone();
             caches.open(CACHE_NAME).then((cache) => {
               cache.put(event.request, responseToCache);
             });
+            return response;
+          }
+          // If 404 on an old hashed asset chunk, purge cache and serve /
+          if (response && response.status === 404 && url.pathname.startsWith("/assets/")) {
+            console.warn("🧹 SW: Asset 404 detected, purging cache for new deployment...");
+            const names = await caches.keys();
+            await Promise.all(names.map((n) => caches.delete(n)));
+            return fetch("/?t=" + Date.now());
           }
           return response;
         })
-        .catch(() => {
+        .catch(async () => {
           // Fallback to cache if offline
-          return caches.match(event.request);
+          const cached = await caches.match(event.request);
+          if (cached) return cached;
+          return caches.match("/");
         })
     );
     return;
   }
 
-  // Cache-First (Stale-While-Revalidate) for static assets like images, js, css
+  // Stale-while-revalidate for images & static assets
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
       if (cachedResponse) {
-        // Fetch background update to keep cache fresh
         fetch(event.request).then((response) => {
           if (response && response.status === 200) {
             caches.open(CACHE_NAME).then((cache) => {
               cache.put(event.request, response.clone());
             });
           }
-        }).catch(() => {/* ignore background errors */});
-        
+        }).catch(() => {});
         return cachedResponse;
       }
-
-      return fetch(event.request).then((response) => {
-        if (!response || response.status !== 200 || response.type !== "basic") {
-          return response;
-        }
-        const responseToCache = response.clone();
-        caches.open(CACHE_NAME).then((cache) => {
-          cache.put(event.request, responseToCache);
-        });
-        return response;
-      });
+      return fetch(event.request);
     })
   );
 });
