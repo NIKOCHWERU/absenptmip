@@ -1863,42 +1863,48 @@ export default function EmployeeDashboard() {
                 </DialogContent>
             </Dialog>
 
-            {/* ALERT DIALOG KONFIRMASI LEMBUR - INTERACTIVE MOBILE BOTTOM SHEET */}
+            {/* ALERT DIALOG KONFIRMASI LEMBUR - PERSIS MODAL SP 1 */}
             <AlertDialog open={isOvertimeAlertOpen} onOpenChange={setIsOvertimeAlertOpen}>
-                <AlertDialogContent className="fixed bottom-0 sm:bottom-auto inset-x-0 sm:inset-x-auto sm:max-w-md w-full bg-white rounded-t-3xl sm:rounded-3xl p-6 border-0 shadow-2xl max-h-[90vh] overflow-y-auto">
-                    <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mb-3 sm:hidden" />
-                    <AlertDialogHeader className="text-center space-y-2">
-                        <AlertDialogTitle className="text-base font-extrabold text-slate-900">Konfirmasi Memulai Lembur?</AlertDialogTitle>
-                        <AlertDialogDescription className="text-xs text-slate-600 space-y-3 leading-relaxed">
+                <AlertDialogContent className="rounded-3xl max-w-xs md:max-w-md p-6 bg-white border border-slate-100 shadow-2xl space-y-3">
+                    <AlertDialogHeader className="text-center">
+                        <div className="mx-auto w-14 h-14 bg-orange-50 text-orange-600 rounded-full flex items-center justify-center mb-3 border border-orange-100">
+                            <Zap className="w-7 h-7 text-orange-600 fill-orange-600" />
+                        </div>
+                        <AlertDialogTitle className="text-center text-lg font-extrabold text-slate-950">
+                            Konfirmasi Memulai Lembur?
+                        </AlertDialogTitle>
+                        <AlertDialogDescription className="text-center text-xs text-slate-600 space-y-3 pt-1 leading-relaxed">
                             <p>
-                                Anda memilih untuk melakukan <strong>Lembur (Overtime)</strong> untuk <strong className="text-slate-900 uppercase">{user?.fullName || "KARYAWAN A"} ({user?.shift || "TIM PRODUCTION SHIFT 1"})</strong>.
+                                Anda memilih untuk melakukan <strong>Lembur (Overtime)</strong> untuk <strong className="text-slate-950 uppercase">{user?.fullName || "KARYAWAN A"} ({user?.shift || "TIM PRODUCTION SHIFT 1"})</strong>.
                             </p>
-                            <div className="text-orange-900 bg-orange-50/90 p-3 rounded-2xl border border-orange-200 text-[11px] font-bold text-left leading-relaxed">
+                            <div className="text-orange-900 bg-orange-50/90 p-3.5 rounded-2xl border border-orange-200 text-[11px] font-bold text-left leading-relaxed">
                                 ⚠️ Absen reguler Anda akan otomatis dicatat pulang tepat di jam 17:00 WIB.
                             </div>
                         </AlertDialogDescription>
                     </AlertDialogHeader>
-                    <AlertDialogFooter className="flex flex-col gap-2 pt-3">
+                    <AlertDialogFooter className="flex flex-col gap-2 pt-2">
                         <AlertDialogAction
                             onClick={handleConfirmStartOvertimeAlert}
-                            className="w-full h-12 bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-bold text-xs rounded-xl shadow-md"
+                            className="w-full h-12 rounded-2xl font-bold bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white text-xs shadow-md"
                         >
                             Ya, Lanjutkan Lembur
                         </AlertDialogAction>
-                        <AlertDialogCancel className="w-full h-11 text-xs font-bold rounded-xl border border-slate-300 m-0">Batal</AlertDialogCancel>
+                        <AlertDialogCancel className="w-full h-12 rounded-2xl font-bold border border-slate-200 text-xs text-slate-700 m-0">Batal</AlertDialogCancel>
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
 
-            {/* MODAL 1: MULAI LEMBUR (UPLOAD SPL & FOTO AWAL) - INTERACTIVE MOBILE BOTTOM SHEET */}
+            {/* MODAL 1: MULAI LEMBUR (UPLOAD SPL & FOTO AWAL) - PERSIS MODAL SP 1 */}
             <Dialog open={isStartOvertimeModalOpen} onOpenChange={setIsStartOvertimeModalOpen}>
-                <DialogContent className="fixed bottom-0 sm:bottom-auto inset-x-0 sm:inset-x-auto sm:max-w-md w-full bg-white rounded-t-3xl sm:rounded-3xl p-6 border-0 shadow-2xl max-h-[90vh] overflow-y-auto">
-                    <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mb-3 sm:hidden" />
-                    <DialogHeader className="pb-2 border-b border-slate-100">
-                        <DialogTitle className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
-                            <FileText className="w-5 h-5 text-orange-600" /> Form Mulai Lembur – {user?.fullName || "KARYAWAN A"}
+                <DialogContent className="rounded-3xl max-w-xs md:max-w-md p-6 bg-white border border-slate-100 shadow-2xl space-y-3 max-h-[90vh] overflow-y-auto">
+                    <DialogHeader className="text-center">
+                        <div className="mx-auto w-14 h-14 bg-orange-50 text-orange-600 rounded-full flex items-center justify-center mb-3 border border-orange-100">
+                            <FileText className="w-7 h-7 text-orange-600" />
+                        </div>
+                        <DialogTitle className="text-center text-lg font-extrabold text-slate-950">
+                            Form Mulai Lembur – {user?.fullName || "KARYAWAN A"}
                         </DialogTitle>
-                        <DialogDescription className="text-[11px] text-slate-500 font-medium leading-relaxed">
+                        <DialogDescription className="text-center text-xs text-slate-400 mt-0.5">
                             Unggah Surat Perintah Lembur (SPL) &amp; Foto bukti sebelum memulai timer lembur.
                         </DialogDescription>
                     </DialogHeader>
@@ -1966,7 +1972,7 @@ export default function EmployeeDashboard() {
                             <Button
                                 type="submit"
                                 disabled={isSubmittingOvertime}
-                                className="w-full h-12 bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white text-xs rounded-xl font-bold shadow-md"
+                                className="w-full h-12 bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white text-xs rounded-2xl font-bold shadow-md"
                             >
                                 {isSubmittingOvertime ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
                                 Mulai Lembur Sekarang
@@ -1974,7 +1980,7 @@ export default function EmployeeDashboard() {
                             <Button
                                 type="button"
                                 variant="ghost"
-                                className="w-full text-xs font-bold text-slate-600"
+                                className="w-full h-10 text-xs font-bold text-slate-600 rounded-2xl"
                                 onClick={() => setIsStartOvertimeModalOpen(false)}
                             >
                                 Batal
@@ -1984,25 +1990,27 @@ export default function EmployeeDashboard() {
                 </DialogContent>
             </Dialog>
 
-            {/* MODAL 2: SELESAI LEMBUR - INTERACTIVE MOBILE BOTTOM SHEET */}
+            {/* MODAL 2: SELESAI LEMBUR - PERSIS MODAL SP 1 */}
             <Dialog open={isEndOvertimeModalOpen} onOpenChange={setIsEndOvertimeModalOpen}>
-                <DialogContent className="fixed bottom-0 sm:bottom-auto inset-x-0 sm:inset-x-auto sm:max-w-md w-full bg-white rounded-t-3xl sm:rounded-3xl p-6 border-0 shadow-2xl max-h-[90vh] overflow-y-auto">
-                    <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mb-3 sm:hidden" />
-                    <DialogHeader>
-                        <DialogTitle className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                            <Camera className="w-5 h-5 text-emerald-600" /> Dokumentasi Hasil Lembur
+                <DialogContent className="rounded-3xl max-w-xs md:max-w-md p-6 bg-white border border-slate-100 shadow-2xl space-y-3 max-h-[90vh] overflow-y-auto">
+                    <DialogHeader className="text-center">
+                        <div className="mx-auto w-14 h-14 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center mb-3 border border-emerald-100">
+                            <Camera className="w-7 h-7 text-emerald-600" />
+                        </div>
+                        <DialogTitle className="text-center text-lg font-extrabold text-slate-950">
+                            Dokumentasi Hasil Lembur
                         </DialogTitle>
-                        <DialogDescription className="text-xs text-slate-500">
+                        <DialogDescription className="text-center text-xs text-slate-400 mt-0.5">
                             Ambil foto hasil pekerjaan lembur dan berikan keterangan singkat.
                         </DialogDescription>
                     </DialogHeader>
 
                     <form onSubmit={handleSubmitEndOvertime} className="space-y-4 py-2">
                         <div className="space-y-1.5">
-                            <label className="text-xs font-semibold text-slate-700">
+                            <label className="text-xs font-bold text-slate-800">
                                 1. Foto Dokumentasi Hasil Pekerjaan Lembur <span className="text-red-500">*</span>
                             </label>
-                            <div className="border-2 border-dashed border-emerald-200 rounded-xl p-4 bg-emerald-50/50 hover:bg-emerald-50 transition-colors text-center cursor-pointer relative">
+                            <div className="border-2 border-dashed border-emerald-200 rounded-2xl p-4 bg-emerald-50/50 hover:bg-emerald-50 transition-colors text-center cursor-pointer relative">
                                 <input
                                     type="file"
                                     accept="image/*"
@@ -2010,9 +2018,9 @@ export default function EmployeeDashboard() {
                                     onChange={(e) => handleOvertimeFileChange(e, setFinalProofFile, setFinalProofPreview)}
                                 />
                                 {finalProofPreview ? (
-                                    <img src={finalProofPreview} alt="Hasil Lembur" className="h-32 mx-auto object-cover rounded-lg shadow-sm" />
+                                    <img src={finalProofPreview} alt="Hasil Lembur" className="h-32 mx-auto object-cover rounded-xl shadow-sm" />
                                 ) : (
-                                    <div className="space-y-1.5 text-emerald-700">
+                                    <div className="space-y-1.5 text-emerald-700 py-1">
                                         <Camera className="w-8 h-8 mx-auto text-emerald-600" />
                                         <p className="text-xs font-medium">Ambil Kamera / Pilih Foto Hasil Kerja</p>
                                     </div>
@@ -2021,40 +2029,39 @@ export default function EmployeeDashboard() {
                         </div>
 
                         <div className="space-y-1.5">
-                            <label className="text-xs font-semibold text-slate-700">
+                            <label className="text-xs font-bold text-slate-800">
                                 2. Keterangan / Catatan Hasil Lembur <span className="text-red-500">*</span>
                             </label>
                             <Textarea
                                 placeholder="Contoh: Pekerjaan perbaikan selesai 100%, mesin beroperasi normal."
                                 value={finalDescription}
                                 onChange={(e) => setFinalDescription(e.target.value)}
-                                className="text-xs h-20 rounded-xl"
+                                className="text-xs h-20 rounded-2xl"
                             />
                         </div>
 
-                        <DialogFooter className="gap-2 sm:gap-0 pt-2">
-                            <Button type="button" variant="ghost" size="sm" onClick={() => setIsEndOvertimeModalOpen(false)}>Batal</Button>
-                            <Button type="submit" disabled={isSubmittingOvertime} className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs rounded-xl font-bold h-10 px-5">
+                        <div className="flex flex-col gap-2 pt-2">
+                            <Button type="submit" disabled={isSubmittingOvertime} className="w-full h-12 bg-emerald-600 hover:bg-emerald-700 text-white text-xs rounded-2xl font-bold shadow-md">
                                 {isSubmittingOvertime ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
                                 Simpan &amp; Selesai Lembur
                             </Button>
-                        </DialogFooter>
+                            <Button type="button" variant="ghost" size="sm" onClick={() => setIsEndOvertimeModalOpen(false)} className="w-full h-10 text-xs font-bold text-slate-600 rounded-2xl">Batal</Button>
+                        </div>
                     </form>
                 </DialogContent>
             </Dialog>
 
-            {/* MODAL AUTO-POPUP PEMBERITAHUAN PENUGASAN LEMBUR (SPL) SAAT MASUK APLIKASI - INTERACTIVE MOBILE BOTTOM SHEET */}
+            {/* MODAL AUTO-POPUP PEMBERITAHUAN PENUGASAN LEMBUR (SPL) - PERSIS MODAL SP 1 */}
             <Dialog open={isSplNoticePopupOpen} onOpenChange={setIsSplNoticePopupOpen}>
-                <DialogContent className="fixed bottom-0 sm:bottom-auto inset-x-0 sm:inset-x-auto sm:max-w-md w-full bg-white rounded-t-3xl sm:rounded-3xl p-6 border-2 border-orange-300 shadow-2xl max-h-[90vh] overflow-y-auto">
-                    <div className="w-12 h-1.5 bg-orange-200 rounded-full mx-auto mb-3 sm:hidden" />
-                    <DialogHeader className="text-center pb-2 border-b border-orange-100">
-                        <div className="w-14 h-14 bg-gradient-to-tr from-orange-500 to-amber-500 text-white rounded-full flex items-center justify-center mx-auto mb-2 shadow-lg shadow-orange-500/20">
+                <DialogContent className="rounded-3xl max-w-xs md:max-w-md p-6 bg-white border border-orange-200 shadow-2xl space-y-3 max-h-[90vh] overflow-y-auto">
+                    <DialogHeader className="text-center pb-1 border-b border-orange-100">
+                        <div className="mx-auto w-14 h-14 bg-gradient-to-tr from-orange-500 to-amber-500 text-white rounded-full flex items-center justify-center mb-3 shadow-lg shadow-orange-500/20">
                             <Zap className="w-7 h-7 fill-white" />
                         </div>
-                        <DialogTitle className="text-lg font-black text-slate-900 tracking-tight">
+                        <DialogTitle className="text-center text-lg font-black text-slate-900 tracking-tight">
                             Penugasan Surat Perintah Lembur (SPL)
                         </DialogTitle>
-                        <DialogDescription className="text-xs text-orange-700 font-semibold pt-1">
+                        <DialogDescription className="text-center text-xs text-orange-700 font-semibold pt-1">
                             Pemberitahuan resmi penugasan lembur dari Manajemen HRD
                         </DialogDescription>
                     </DialogHeader>
@@ -2094,7 +2101,7 @@ export default function EmployeeDashboard() {
                                 <Button
                                     type="button"
                                     variant="outline"
-                                    className="w-full h-10 bg-white border-orange-300 text-orange-900 hover:bg-orange-50 font-bold text-xs rounded-xl flex items-center justify-center gap-2 shadow-sm"
+                                    className="w-full h-11 rounded-2xl bg-white border-orange-300 text-orange-900 hover:bg-orange-50 font-bold text-xs flex items-center justify-center gap-2 shadow-sm"
                                     onClick={() => {
                                         setIsSplNoticePopupOpen(false);
                                         setIsSplViewModalOpen(true);
@@ -2105,7 +2112,7 @@ export default function EmployeeDashboard() {
                                 <div className="grid grid-cols-2 gap-2">
                                     <Button
                                         type="button"
-                                        className="h-11 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 shadow"
+                                        className="h-12 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-2xl flex items-center justify-center gap-1.5 shadow"
                                         onClick={() => {
                                             setIsSplNoticePopupOpen(false);
                                             overtimeRespondMutation.mutate({ action: "approve" });
@@ -2117,7 +2124,7 @@ export default function EmployeeDashboard() {
                                     <Button
                                         type="button"
                                         variant="outline"
-                                        className="h-11 bg-red-50 hover:bg-red-100 text-red-700 border-red-200 font-bold text-xs rounded-xl flex items-center justify-center gap-1.5"
+                                        className="h-12 bg-red-50 hover:bg-red-100 text-red-700 border-red-200 font-bold text-xs rounded-2xl flex items-center justify-center gap-1.5"
                                         onClick={() => {
                                             setIsSplNoticePopupOpen(false);
                                             setIsRejectOvertimeModalOpen(true);
@@ -2133,15 +2140,17 @@ export default function EmployeeDashboard() {
                 </DialogContent>
             </Dialog>
 
-            {/* MODAL 3: LIHAT SURAT PERINTAH LEMBUR (SPL) - INTERACTIVE MOBILE BOTTOM SHEET */}
+            {/* MODAL 3: LIHAT SURAT PERINTAH LEMBUR (SPL) - PERSIS MODAL SP 1 */}
             <Dialog open={isSplViewModalOpen} onOpenChange={setIsSplViewModalOpen}>
-                <DialogContent className="fixed bottom-0 sm:bottom-auto inset-x-0 sm:inset-x-auto sm:max-w-md w-full bg-white rounded-t-3xl sm:rounded-3xl p-6 border-0 shadow-2xl max-h-[90vh] overflow-y-auto">
-                    <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mb-3 sm:hidden" />
-                    <DialogHeader className="pb-3 border-b border-slate-100">
-                        <DialogTitle className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
-                            <FileText className="w-5 h-5 text-orange-600" /> Surat Perintah Lembur (SPL)
+                <DialogContent className="rounded-3xl max-w-xs md:max-w-md p-6 bg-white border border-slate-100 shadow-2xl space-y-3 max-h-[90vh] overflow-y-auto">
+                    <DialogHeader className="text-center pb-1">
+                        <div className="mx-auto w-14 h-14 bg-orange-50 text-orange-600 rounded-full flex items-center justify-center mb-3 border border-orange-100">
+                            <FileText className="w-7 h-7 text-orange-600" />
+                        </div>
+                        <DialogTitle className="text-center text-lg font-extrabold text-slate-900">
+                            Surat Perintah Lembur (SPL)
                         </DialogTitle>
-                        <DialogDescription className="text-[11px] text-slate-500 font-medium">
+                        <DialogDescription className="text-center text-xs text-slate-400 mt-0.5">
                             Dokumen resmi penugasan lembur dari HRD PT MEKANO INDUSTRIAL PRESISI
                         </DialogDescription>
                     </DialogHeader>
@@ -2189,7 +2198,7 @@ export default function EmployeeDashboard() {
                                         href={getPhotoUrl(activeOvertimeToday.splDocumentUrl)}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className="w-full flex items-center justify-center gap-2 p-3 bg-blue-50 text-blue-700 font-bold rounded-xl border border-blue-200 hover:bg-blue-100 transition-colors text-xs"
+                                        className="w-full flex items-center justify-center gap-2 p-3 bg-blue-50 text-blue-700 font-bold rounded-2xl border border-blue-200 hover:bg-blue-100 transition-colors text-xs"
                                     >
                                         <Download className="w-4 h-4" /> Unduh Lampiran Berkas SPL (PDF/Gambar)
                                     </a>
@@ -2198,18 +2207,10 @@ export default function EmployeeDashboard() {
                         </div>
                     )}
 
-                    <DialogFooter className="pt-3 border-t border-slate-100 flex flex-row items-center justify-between gap-2">
+                    <div className="pt-3 border-t border-slate-100 flex flex-col gap-2">
                         <Button
                             type="button"
-                            variant="outline"
-                            className="rounded-xl text-xs font-bold px-4 h-11 border-slate-300"
-                            onClick={() => setIsSplViewModalOpen(false)}
-                        >
-                            Tutup
-                        </Button>
-                        <Button
-                            type="button"
-                            className="flex-1 bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-bold text-xs rounded-xl h-11 gap-1.5 shadow"
+                            className="w-full bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-bold text-xs rounded-2xl h-12 gap-1.5 shadow"
                             onClick={() => {
                                 setIsSplViewModalOpen(false);
                                 setIsOvertimeAlertOpen(true);
@@ -2217,19 +2218,29 @@ export default function EmployeeDashboard() {
                         >
                             <Play className="w-4 h-4 fill-white" /> Mulai Lembur Sekarang
                         </Button>
-                    </DialogFooter>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            className="w-full rounded-2xl text-xs font-bold px-4 h-11 border-slate-300 text-slate-700"
+                            onClick={() => setIsSplViewModalOpen(false)}
+                        >
+                            Tutup
+                        </Button>
+                    </div>
                 </DialogContent>
             </Dialog>
 
-            {/* MODAL 4: IZIN TIDAK LEMBUR (ALASAN PENOLAKAN) - INTERACTIVE MOBILE BOTTOM SHEET */}
+            {/* MODAL 4: IZIN TIDAK LEMBUR (ALASAN PENOLAKAN) - PERSIS MODAL SP 1 */}
             <Dialog open={isRejectOvertimeModalOpen} onOpenChange={setIsRejectOvertimeModalOpen}>
-                <DialogContent className="fixed bottom-0 sm:bottom-auto inset-x-0 sm:inset-x-auto sm:max-w-md w-full bg-white rounded-t-3xl sm:rounded-3xl p-6 border-0 shadow-2xl max-h-[90vh] overflow-y-auto">
-                    <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mb-3 sm:hidden" />
-                    <DialogHeader>
-                        <DialogTitle className="text-lg font-bold text-red-700 flex items-center gap-2">
-                            <X className="w-5 h-5 text-red-600" /> Permohonan Izin Tidak Lembur
+                <DialogContent className="rounded-3xl max-w-xs md:max-w-md p-6 bg-white border border-slate-100 shadow-2xl space-y-3 max-h-[90vh] overflow-y-auto">
+                    <DialogHeader className="text-center">
+                        <div className="mx-auto w-14 h-14 bg-red-50 text-red-600 rounded-full flex items-center justify-center mb-3 border border-red-100">
+                            <X className="w-7 h-7 text-red-600" />
+                        </div>
+                        <DialogTitle className="text-center text-lg font-bold text-red-700">
+                            Permohonan Izin Tidak Lembur
                         </DialogTitle>
-                        <DialogDescription className="text-xs text-slate-500">
+                        <DialogDescription className="text-center text-xs text-slate-400 mt-0.5">
                             Mohon sampaikan alasan yang jelas kepada Admin / HRD mengapa Anda tidak dapat melaksanakan penugasan lembur ini.
                         </DialogDescription>
                     </DialogHeader>
@@ -2248,16 +2259,16 @@ export default function EmployeeDashboard() {
                                 placeholder="Contoh: Ada keperluan keluarga mendadak / Kondisi kesehatan kurang fit..."
                                 value={rejectionReasonInput}
                                 onChange={(e) => setRejectionReasonInput(e.target.value)}
-                                className="text-xs rounded-xl min-h-[90px]"
+                                className="text-xs rounded-2xl min-h-[90px]"
                             />
                         </div>
 
-                        <DialogFooter className="gap-2 sm:gap-0 pt-2 border-t border-slate-100">
-                            <Button type="button" variant="ghost" size="sm" onClick={() => setIsRejectOvertimeModalOpen(false)}>Batal</Button>
-                            <Button type="submit" disabled={overtimeRespondMutation.isPending} className="bg-red-600 hover:bg-red-700 text-white text-xs rounded-xl font-bold h-10 px-5">
+                        <div className="flex flex-col gap-2 pt-2 border-t border-slate-100">
+                            <Button type="submit" disabled={overtimeRespondMutation.isPending} className="w-full bg-red-600 hover:bg-red-700 text-white text-xs rounded-2xl font-bold h-12">
                                 {overtimeRespondMutation.isPending ? "Sending..." : "Kirim Alasan ke Admin"}
                             </Button>
-                        </DialogFooter>
+                            <Button type="button" variant="ghost" size="sm" onClick={() => setIsRejectOvertimeModalOpen(false)} className="w-full h-10 text-xs font-bold text-slate-600 rounded-2xl">Batal</Button>
+                        </div>
                     </form>
                 </DialogContent>
             </Dialog>
