@@ -125,16 +125,26 @@ self.addEventListener("push", (event) => {
 // Click notification handler
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
+  const targetPath = event.notification.data || "/";
+  // Build full URL from origin + path
+  const targetUrl = self.registration.scope.replace(/\/$/, "") + (targetPath.startsWith("/") ? targetPath : "/" + targetPath);
   event.waitUntil(
     clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
-      const targetUrl = event.notification.data || "/";
+      // Check if app is already open — if yes, focus and navigate
       for (const client of clientList) {
-        if (client.url === targetUrl && "focus" in client) {
-          return client.focus();
+        const clientOrigin = new URL(client.url).origin;
+        const scopeOrigin = new URL(self.registration.scope).origin;
+        if (clientOrigin === scopeOrigin && "focus" in client) {
+          client.focus();
+          if ("navigate" in client) {
+            return client.navigate(targetUrl);
+          }
+          return;
         }
       }
+      // App not open — open a new window at root (SPA will handle routing)
       if (clients.openWindow) {
-        return clients.openWindow(targetUrl);
+        return clients.openWindow("/");
       }
     })
   );

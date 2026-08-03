@@ -2349,25 +2349,57 @@ export default function EmployeeDashboard() {
 
                         <div className="space-y-1.5">
                             <label className="text-xs font-bold text-slate-800">
-                                2. Upload Foto / Ambil Foto Bukti Izin <span className="text-red-500">*</span>
+                                2. Foto Bukti Izin <span className="text-red-500">*</span>
                             </label>
-                            <div className="border-2 border-dashed border-red-200 rounded-2xl p-4 bg-red-50/30 hover:bg-red-50/60 transition-colors text-center cursor-pointer relative">
-                                <input
-                                    type="file"
-                                    accept="image/*"
-                                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                                    onChange={(e) => handleOvertimeFileChange(e, setRejectionProofFile, setRejectionProofPreview)}
-                                />
-                                {rejectionProofPreview ? (
-                                    <img src={rejectionProofPreview} alt="Bukti Izin" className="h-28 mx-auto object-cover rounded-xl shadow-sm" />
-                                ) : (
-                                    <div className="space-y-1.5 text-red-600 py-1">
-                                        <Camera className="w-6 h-6 mx-auto text-red-400" />
-                                        <p className="text-xs font-medium text-red-700">Ambil Kamera / Upload Foto Bukti</p>
+
+                            {/* Preview foto */}
+                            {rejectionProofPreview && (
+                                <div className="relative">
+                                    <img src={rejectionProofPreview} alt="Bukti Izin" className="h-36 w-full object-cover rounded-2xl shadow-sm border border-red-200" />
+                                    <button
+                                        type="button"
+                                        onClick={() => { setRejectionProofFile(null); setRejectionProofPreview(null); }}
+                                        className="absolute top-2 right-2 bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-black shadow"
+                                    >✕</button>
+                                </div>
+                            )}
+
+                            {/* Dua tombol: Upload Foto & Ambil Foto */}
+                            <div className="grid grid-cols-2 gap-2">
+                                {/* Upload dari galeri */}
+                                <label className="cursor-pointer">
+                                    <input
+                                        type="file"
+                                        accept="image/*"
+                                        className="hidden"
+                                        onChange={(e) => handleOvertimeFileChange(e, setRejectionProofFile, setRejectionProofPreview)}
+                                    />
+                                    <div className="flex flex-col items-center justify-center gap-1.5 h-16 rounded-2xl border-2 border-dashed border-blue-300 bg-blue-50 hover:bg-blue-100 transition-colors text-blue-700">
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4-4m0 0l4 4m-4-4v12M4 4h16" />
+                                        </svg>
+                                        <span className="text-[10px] font-black">📁 Upload Foto</span>
                                     </div>
-                                )}
+                                </label>
+
+                                {/* Ambil foto dari kamera */}
+                                <label className="cursor-pointer">
+                                    <input
+                                        type="file"
+                                        accept="image/*"
+                                        capture="environment"
+                                        className="hidden"
+                                        onChange={(e) => handleOvertimeFileChange(e, setRejectionProofFile, setRejectionProofPreview)}
+                                    />
+                                    <div className="flex flex-col items-center justify-center gap-1.5 h-16 rounded-2xl border-2 border-dashed border-emerald-300 bg-emerald-50 hover:bg-emerald-100 transition-colors text-emerald-700">
+                                        <Camera className="w-5 h-5" />
+                                        <span className="text-[10px] font-black">📷 Ambil Foto</span>
+                                    </div>
+                                </label>
                             </div>
+                            <p className="text-[10px] text-slate-400 text-center">Upload foto dari galeri atau ambil foto langsung dari kamera HP</p>
                         </div>
+
 
                         <div className="flex flex-col gap-2 pt-2 border-t border-slate-100">
                             <Button
