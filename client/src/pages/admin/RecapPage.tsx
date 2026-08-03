@@ -706,6 +706,115 @@ export default function RecapPage() {
         }, 5000);
     };
 
+    const handleExportPdf = async () => {
+        let periodStr = '';
+        if (reportType === 'daily') {
+            periodStr = format(targetDate, "dd MMMM yyyy", { locale: id }).toUpperCase();
+        } else if (reportType === 'weekly') {
+            periodStr = `${format(startDate, "dd MMM")} - ${format(endDate, "dd MMM yyyy", { locale: id })}`.toUpperCase();
+        } else if (reportType === 'custom') {
+            periodStr = `${format(startDate, "dd MMM yyyy", { locale: id })} - ${format(endDate, "dd MMM yyyy", { locale: id })}`.toUpperCase();
+        } else {
+            periodStr = format(targetDate, "MMMM yyyy", { locale: id }).toUpperCase();
+        }
+        const pdfFileName = `REKAP ABSENSI ${singkatanPt} - ${periodStr}.pdf`;
+
+        setIsExporting(true);
+        try {
+            let logoDataUrl = '';
+            try {
+                const logoToUse = config?.logoUrl || '/icon-192.png';
+                const logoRes = await fetch(logoToUse);
+                const logoBlob = await logoRes.blob();
+                logoDataUrl = await new Promise<string>((resolve) => {
+                    const reader = new FileReader();
+                    reader.onload = () => resolve(reader.result as string);
+                    reader.readAsDataURL(logoBlob);
+                });
+            } catch (_) {}
+
+            // Build compact HTML for PDF (same structure as HTML export but no download button/script)
+            const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>
+            * { box-sizing: border-box; margin: 0; padding: 0; }
+            body { font-family: Arial, Helvetica, sans-serif; font-size: 10px; color: #1e293b; background: white; padding: 16px 20px; }
+            .letterhead { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+            .logo-img { height: 32px; max-width: 90px; object-fit: contain; }
+            .company-info { text-align: right; flex-grow: 1; margin-left: 16px; }
+            .company-name { font-size: 16px; font-weight: bold; text-transform: uppercase; }
+            .company-address { font-size: 9px; color: #334155; line-height: 1.3; }
+            .hr-thick { border: none; border-top: 2px solid #cbd5e1; margin: 4px 0 2px; }
+            .hr-thin { border: none; border-top: 1px solid #e2e8f0; margin-bottom: 10px; }
+            .report-meta { text-align: center; margin-bottom: 12px; }
+            .report-meta h2 { font-size: 13px; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; }
+            .report-meta .sub { font-size: 9px; margin-top: 2px; color: #475569; text-transform: uppercase; }
+            table { width: 100%; border-collapse: collapse; font-size: 9px; }
+            th { background: #f8fafc; color: #374151; font-weight: 700; padding: 5px 6px; font-size: 8px; text-transform: uppercase; border-bottom: 2px solid #1e293b; border-right: 1px solid #e2e8f0; }
+            td { padding: 5px 6px; border-bottom: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0; vertical-align: top; }
+            tbody tr:nth-child(even) { background: #f8fafc; }
+            .st-hadir { color: #16a34a; font-weight: bold; } .st-alpha { color: #dc2626; font-weight: bold; }
+            .st-telat { color: #ea580c; font-weight: bold; } .st-sakit { color: #2563eb; font-weight: bold; }
+            .st-izin  { color: #7c3aed; font-weight: bold; } .st-cuti  { color: #0d9488; font-weight: bold; }
+            </style></head><body>
+            <div class="letterhead">
+                <div>${logoDataUrl ? `<img src="${logoDataUrl}" class="logo-img" alt="Logo" />` : ''}</div>
+                <div class="company-info">
+                    <div class="company-name">${namaPt}</div>
+                    ${alamatPt ? `<div class="company-address">${alamatPt}</div>` : ''}
+                </div>
+            </div>
+            <hr class="hr-thick" /><hr class="hr-thin" />
+            <div class="report-meta">
+                <h2>Rekap Absensi Tenaga Kerja</h2>
+                <p class="sub">Periode: ${periodStr}</p>
+                <p class="sub">Dicetak: ${format(new Date(), "dd MMMM yyyy HH:mm", { locale: id })}</p>
+            </div>
+            <table><thead><tr>
+                <th style="width:22px">No</th>
+                <th>Nama Tenaga Kerja</th>
+                <th style="width:50px;text-align:center">Hadir</th>
+                <th style="width:50px;text-align:center">Telat</th>
+                <th style="width:50px;text-align:center">Sakit</th>
+                <th style="width:50px;text-align:center">Izin</th>
+                <th style="width:50px;text-align:center">Alpha</th>
+                <th style="width:50px;text-align:center">Cuti</th>
+                <th style="width:80px;text-align:center">Total Jam</th>
+            </tr></thead><tbody>
+            ${usersSummary.map((summary, idx) => `<tr>
+                <td style="text-align:center">${idx + 1}</td>
+                <td style="font-weight:bold;text-transform:uppercase">${summary.name}</td>
+                <td style="text-align:center" class="st-hadir">${summary.present}</td>
+                <td style="text-align:center" class="st-telat">${summary.late}</td>
+                <td style="text-align:center" class="st-sakit">${summary.sick}</td>
+                <td style="text-align:center" class="st-izin">${summary.permission}</td>
+                <td style="text-align:center" class="st-alpha">${summary.absent}</td>
+                <td style="text-align:center" class="st-cuti">${summary.cuti || 0}</td>
+                <td style="text-align:center;font-family:monospace">${summary.totalMins > 0 ? formatDuration(summary.totalMins) : '-'}</td>
+            </tr>`).join('')}
+            </tbody></table>
+            <div style="margin-top:30px; display:flex; justify-content:flex-end; gap:60px; font-size:10px;">
+                <div style="text-align:center"><p style="margin-bottom:50px">Checked By</p><strong>NIKO</strong></div>
+                <div style="text-align:center"><p style="margin-bottom:50px">Approved By</p><strong>CLAVERINA</strong></div>
+            </div>
+            <p style="font-size:8px;color:#94a3b8;text-align:center;margin-top:16px">Dicetak otomatis oleh Sistem Absensi ${namaPt.toUpperCase()} — ${format(new Date(), "d MMMM yyyy, HH:mm", { locale: id })} WIB</p>
+            </body></html>`;
+
+            const html2pdfLib = await loadHtml2Pdf();
+            const opt = {
+                margin: [8, 8, 8, 8],
+                filename: pdfFileName,
+                image: { type: 'jpeg', quality: 0.95 },
+                html2canvas: { scale: 2, useCORS: true, logging: false },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' },
+            };
+            await html2pdfLib().set(opt).from(html).save();
+            toast({ title: "✅ PDF Berhasil Diunduh", description: pdfFileName });
+        } catch (e: any) {
+            toast({ title: "Gagal Export PDF", description: e.message, variant: "destructive" });
+        } finally {
+            setIsExporting(false);
+        }
+    };
+
     const handleBulkExport = async () => {
         if (user?.role !== "superadmin") {
             toast({
@@ -1124,6 +1233,9 @@ export default function RecapPage() {
                             )}
                             <Button variant="outline" className="gap-2 h-10 font-bold shadow-sm" onClick={handleExport}>
                                 <FileDown className="h-4 w-4" /> Export HTML
+                            </Button>
+                            <Button variant="outline" className="gap-2 h-10 font-bold shadow-sm bg-red-50 text-red-700 border-red-200 hover:bg-red-100" onClick={handleExportPdf} disabled={isExporting}>
+                                <FileDown className="h-4 w-4" /> Export PDF
                             </Button>
                         </div>
                     </div>

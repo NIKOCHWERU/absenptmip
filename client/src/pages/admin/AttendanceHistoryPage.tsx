@@ -119,7 +119,7 @@ export default function AttendanceHistoryPage() {
     const { toast } = useToast();
     const { user, logout } = useAuth();
     const [targetDate, setTargetDate] = useState(new Date());
-    const [reportType, setReportType] = useState<"daily" | "weekly" | "monthly" | "custom">("daily");
+    const [reportType, setReportType] = useState<"daily" | "weekly" | "monthly" | "custom" | "twoDays">("daily");
     const [customStartDate, setCustomStartDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
     const [customEndDate, setCustomEndDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
     const [searchName, setSearchName] = useState("");
@@ -146,6 +146,10 @@ export default function AttendanceHistoryPage() {
     if (reportType === "daily") {
         startDate = startOfDay(targetDate);
         endDate = endOfDay(targetDate);
+    } else if (reportType === "twoDays") {
+        // Rentang 2 hari: hari ini dan besok (misal 21-22, 22-23, dst)
+        startDate = startOfDay(targetDate);
+        endDate = endOfDay(addDays(targetDate, 1));
     } else if (reportType === "weekly") {
         startDate = startOfWeek(targetDate, { weekStartsOn: 1 }); // Monday
         endDate = endOfWeek(targetDate, { weekStartsOn: 1 });
@@ -271,6 +275,7 @@ export default function AttendanceHistoryPage() {
 
     const handlePrev = () => {
         if (reportType === "daily") setTargetDate(d => subDays(d, 1));
+        else if (reportType === "twoDays") setTargetDate(d => subDays(d, 1));
         else if (reportType === "weekly") setTargetDate(d => subDays(d, 7));
         else setTargetDate(d => subMonths(d, 1));
         setCurrentPage(1);
@@ -278,6 +283,7 @@ export default function AttendanceHistoryPage() {
 
     const handleNext = () => {
         if (reportType === "daily") setTargetDate(d => addDays(d, 1));
+        else if (reportType === "twoDays") setTargetDate(d => addDays(d, 1));
         else if (reportType === "weekly") setTargetDate(d => addDays(d, 7));
         else setTargetDate(d => addMonths(d, 1));
         setCurrentPage(1);
@@ -594,6 +600,200 @@ export default function AttendanceHistoryPage() {
             }, 5000);
         } finally {
             setIsExporting(false);
+        }
+    };
+
+    const handleExportPdf = async () => {
+        let periodStr = '';
+        if (reportType === 'daily') {
+            periodStr = format(targetDate, "dd MMMM yyyy", { locale: id }).toUpperCase();
+        } else if (reportType === 'twoDays') {
+            periodStr = `${format(targetDate, "dd")} - ${format(addDays(targetDate, 1), "dd MMMM yyyy", { locale: id })}`.toUpperCase();
+        } else if (reportType === 'weekly') {
+            periodStr = `${format(startDate, "dd MMM")} - ${format(endDate, "dd MMM yyyy", { locale: id })}`.toUpperCase();
+        } else if (reportType === 'custom') {
+            periodStr = `${format(startDate, "dd MMM yyyy", { locale: id })} - ${format(endDate, "dd MMM yyyy", { locale: id })}`.toUpperCase();
+        } else {
+            periodStr = format(targetDate, "MMMM yyyy", { locale: id }).toUpperCase();
+        }
+        const pdfFileName = `LAPORAN ABSENSI FOTO ${singkatanPt} - ${periodStr}.pdf`;
+
+        const imageCache: Record<string, string> = {};
+        const fetchImageBase64 = async (url: string, retries = 2) => {
+            if (!url) return '';
+            if (url.startsWith('data:')) return url;
+            const resolvedUrl = getPhotoUrl(url);
+            if (imageCache[resolvedUrl]) return imageCache[resolvedUrl];
+            for (let i = 0; i <= retries; i++) {
+                try {
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 5000);
+                    const res = await fetch(resolvedUrl, { signal: controller.signal });
+                    clearTimeout(timeoutId);
+                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                    const blob = await res.blob();
+                    const b64 = await new Promise<string>((resolve) => {
+                        const reader = new FileReader();
+                        reader.onload = () => resolve(reader.result as string);
+                        reader.onerror = () => resolve('');
+                        reader.readAsDataURL(blob);
+                    });
+                    if (b64) { imageCache[resolvedUrl] = b64; return b64; }
+                } catch (e) {
+                    if (i === retries) return '';
+                    await new Promise(r => setTimeout(r, 800));
+                }
+            }
+            return '';
+        };
+
+        setIsExporting(true);
+        setExportProgress("Menyiapkan data PDF...");
+        try {
+            let logoDataUrl = '';
+            try {
+                const logoToUse = config?.logoUrl || '/icon-192.png';
+                const logoRes = await fetch(logoToUse);
+                const logoBlob = await logoRes.blob();
+                logoDataUrl = await new Promise<string>((resolve) => {
+                    const reader = new FileReader();
+                    reader.onload = () => resolve(reader.result as string);
+                    reader.readAsDataURL(logoBlob);
+                });
+            } catch (_) {}
+
+            // Parallel fetch all images
+            const uniqueUrls = new Set<string>();
+            filteredRecords.forEach(r => {
+                if (r.checkInPhoto) uniqueUrls.add(r.checkInPhoto);
+                if (r.breakStartPhoto) uniqueUrls.add(r.breakStartPhoto);
+                if (r.breakEndPhoto) uniqueUrls.add(r.breakEndPhoto);
+                if (r.checkOutPhoto) uniqueUrls.add(r.checkOutPhoto);
+                if ((r as any).lateReasonPhoto) uniqueUrls.add((r as any).lateReasonPhoto);
+            });
+            const urlArray = Array.from(uniqueUrls);
+            const chunkSize = 10;
+            for (let i = 0; i < urlArray.length; i += chunkSize) {
+                setExportProgress(`Mengambil foto ${i + 1} - ${Math.min(i + chunkSize, urlArray.length)} dari ${urlArray.length}...`);
+                const chunk = urlArray.slice(i, i + chunkSize);
+                await Promise.all(chunk.map(url => fetchImageBase64(url)));
+            }
+
+            setExportProgress("Membuat PDF...");
+
+            // Build same HTML content as handleExport
+            let html = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>
+            * { box-sizing: border-box; margin: 0; padding: 0; }
+            body { font-family: Arial, Helvetica, sans-serif; font-size: 10px; color: #1e293b; background: white; }
+            .letterhead { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+            .logo-img { height: 32px; max-width: 90px; object-fit: contain; }
+            .company-info { text-align: right; flex-grow: 1; margin-left: 16px; }
+            .company-name { font-size: 18px; font-weight: bold; text-transform: uppercase; }
+            .company-address { font-size: 9px; color: #334155; line-height: 1.3; }
+            .hr-thick { border: none; border-top: 2px solid #cbd5e1; margin: 4px 0 2px; }
+            .hr-thin { border: none; border-top: 1px solid #e2e8f0; margin-bottom: 12px; }
+            .report-meta { text-align: center; margin-bottom: 14px; }
+            .report-meta h2 { font-size: 13px; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; }
+            .report-meta .sub { font-size: 9px; margin-top: 3px; color: #475569; text-transform: uppercase; }
+            table { width: 100%; border-collapse: collapse; font-size: 9px; }
+            th { color: #374151; font-weight: 700; text-align: left; padding: 5px 6px; font-size: 8px; text-transform: uppercase; border-bottom: 2px solid #1e293b; border-right: 1px solid #e2e8f0; background: #f8fafc; }
+            td { padding: 5px 6px; border-bottom: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0; vertical-align: top; }
+            tbody tr:nth-child(even) { background: #f8fafc; }
+            .photo-grid { display: flex; flex-wrap: wrap; gap: 4px; }
+            .photo-item { width: 80px; text-align: center; border: 1px solid #e2e8f0; border-radius: 3px; padding: 3px; }
+            .photo-img { width: 100%; height: 70px; object-fit: cover; border-radius: 2px; }
+            .photo-label { font-size: 7px; font-weight: bold; color: #64748b; margin-top: 2px; text-transform: uppercase; }
+            .status-badge { display: inline-block; padding: 2px 5px; border-radius: 3px; font-weight: bold; font-size: 8px; text-transform: uppercase; }
+            .st-hadir { background: #dcfce7; color: #16a34a; }
+            .st-telat { background: #ffedd5; color: #ea580c; }
+            .st-sakit { background: #dbeafe; color: #2563eb; }
+            .st-izin { background: #f3e8ff; color: #7c3aed; }
+            .st-alpha { background: #fee2e2; color: #dc2626; }
+            </style></head><body>
+            <div class="letterhead">
+                <div>${logoDataUrl ? `<img src="${logoDataUrl}" class="logo-img" alt="Logo" />` : ''}</div>
+                <div class="company-info">
+                    <div class="company-name">${namaPt}</div>
+                    ${alamatPt ? `<div class="company-address">${alamatPt}</div>` : ''}
+                </div>
+            </div>
+            <hr class="hr-thick" /><hr class="hr-thin" />
+            <div class="report-meta">
+                <h2>Laporan Riwayat &amp; Foto Absensi</h2>
+                <p class="sub">Periode: ${periodStr}</p>
+                <p class="sub">Dicetak: ${format(new Date(), "dd MMMM yyyy HH:mm", { locale: id })}</p>
+            </div>
+            <table><thead><tr>
+                <th style="width:22px">No</th>
+                <th style="width:100px">Tanggal</th>
+                <th style="width:110px">Nama</th>
+                <th style="width:130px">Waktu</th>
+                <th style="width:80px">Status</th>
+                <th>Foto</th>
+            </tr></thead><tbody>`;
+
+            let lastShownName = "";
+            let lastShownDate = "";
+            for (let i = 0; i < filteredRecords.length; i++) {
+                const r = filteredRecords[i];
+                const emp = getEmployee(r.userId);
+                const currentName = emp?.fullName || '-';
+                const currentDateStr = format(new Date(r.date), 'EEEE, d MMMM yyyy', { locale: id });
+                const isContinuation = currentName === lastShownName && currentDateStr === lastShownDate;
+                lastShownName = currentName; lastShownDate = currentDateStr;
+
+                const sts = isContinuation && r.status === 'late' ? 'present' : (r.status || '-');
+                const statusLabel = sts === 'present' ? 'Hadir' : sts === 'late' ? 'Telat' : sts === 'sick' ? 'Sakit' : sts === 'permission' ? 'Izin' : sts === 'cuti' ? 'Cuti' : sts === 'absent' ? 'Alpha' : sts;
+                const statusClass = sts === 'present' ? 'st-hadir' : sts === 'late' ? 'st-telat' : sts === 'sick' ? 'st-sakit' : sts === 'permission' ? 'st-izin' : 'st-alpha';
+                const fmt = (d: any) => d ? format(new Date(d), 'HH:mm') : '-';
+                const tIn = fmt(r.checkIn); const tBrkS = fmt(r.breakStart); const tBrkE = fmt(r.breakEnd); const tOut = fmt(r.checkOut);
+
+                const photoMap: { key: string; url: string | null }[] = [
+                    { key: 'Masuk', url: r.checkInPhoto || null },
+                    { key: 'Mulai Ist', url: r.breakStartPhoto || null },
+                    { key: 'Slsai Ist', url: r.breakEndPhoto || null },
+                    { key: 'Pulang', url: r.checkOutPhoto || null },
+                ];
+                const photosHtml = `<div class="photo-grid">${photoMap.filter(p => p.url).map(async p => {
+                    const b64 = await fetchImageBase64(p.url!);
+                    return b64 ? `<div class="photo-item"><img class="photo-img" src="${b64}" /><div class="photo-label">${p.key}</div></div>` : '';
+                }).join('')}</div>`;
+                // Note: photos already fetched above, use cached
+                const photosSync = photoMap.filter(p => p.url).map(p => {
+                    const resolvedUrl = getPhotoUrl(p.url!);
+                    const b64 = imageCache[resolvedUrl] || '';
+                    return b64 ? `<div class="photo-item"><img class="photo-img" src="${b64}" /><div class="photo-label">${p.key}</div></div>` : '';
+                }).join('');
+
+                html += `<tr>
+                    <td style="text-align:center">${i + 1}</td>
+                    <td style="text-transform:uppercase;font-size:8px">${currentDateStr}</td>
+                    <td style="font-weight:bold;text-transform:uppercase">${isContinuation ? '' : currentName}</td>
+                    <td style="font-family:monospace;font-size:9px">IN: ${tIn}<br/>BRK: ${tBrkS} - ${tBrkE}<br/>OUT: ${tOut}<br/><strong>${(() => { const { netWorkMins } = calculateDailyTotal([r]); return netWorkMins > 0 ? `TOTAL: ${formatDuration(netWorkMins)}` : 'TIDAK LENGKAP'; })()}</strong></td>
+                    <td><span class="status-badge ${statusClass}">${statusLabel}</span></td>
+                    <td><div class="photo-grid">${photosSync}</div></td>
+                </tr>`;
+            }
+            html += `</tbody></table></body></html>`;
+
+            // Use html2pdf to convert and download as PDF
+            const html2pdf = await loadHtml2Pdf();
+            const opt = {
+                margin: [8, 8, 8, 8],
+                filename: pdfFileName,
+                image: { type: 'jpeg', quality: 0.92 },
+                html2canvas: { scale: 1.5, useCORS: true, logging: false },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' },
+                pagebreak: { mode: ['avoid-all', 'css'] }
+            };
+            await html2pdf().set(opt).from(html).save();
+
+            toast({ title: "✅ PDF Berhasil Diunduh", description: pdfFileName });
+        } catch (e: any) {
+            toast({ title: "Gagal Export PDF", description: e.message, variant: "destructive" });
+        } finally {
+            setIsExporting(false);
+            setExportProgress("");
         }
     };
 
@@ -1029,6 +1229,9 @@ export default function AttendanceHistoryPage() {
                         </SelectTrigger>
                         <SelectContent>
                             <SelectItem value="daily">Harian</SelectItem>
+                            {user?.role === "superadmin" && (
+                                <SelectItem value="twoDays">2 Hari (Shift Malam)</SelectItem>
+                            )}
                             <SelectItem value="weekly">Mingguan</SelectItem>
                             <SelectItem value="monthly">Bulanan</SelectItem>
                             <SelectItem value="custom">Rentang Khusus</SelectItem>
@@ -1056,9 +1259,11 @@ export default function AttendanceHistoryPage() {
                             <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-gray-100" onClick={handlePrev}>
                                 <ChevronLeft className="h-4 w-4" />
                             </Button>
-                            <div className="text-sm font-bold px-2 min-w-[120px] text-center text-gray-700">
-                                {reportType === 'daily' 
+                            <div className="text-sm font-bold px-2 min-w-[140px] text-center text-gray-700">
+                                {reportType === 'daily'
                                     ? format(targetDate, "dd MMM yyyy", { locale: id })
+                                    : reportType === 'twoDays'
+                                    ? `${format(targetDate, "dd")} - ${format(addDays(targetDate, 1), "dd MMM yyyy", { locale: id })}`
                                     : reportType === 'weekly'
                                     ? `${format(startOfWeek(targetDate, { weekStartsOn: 1 }), "dd MMM")} - ${format(endOfWeek(targetDate, { weekStartsOn: 1 }), "dd MMM")}`
                                     : format(targetDate, "MMM yyyy", { locale: id })
@@ -1092,7 +1297,15 @@ export default function AttendanceHistoryPage() {
                         onClick={handleExport}
                         disabled={isExporting}
                     >
-                        <FileDown className="h-4 w-4" /> Export Foto
+                        <FileDown className="h-4 w-4" /> Export Foto (HTML)
+                    </Button>
+                    <Button 
+                        variant="outline" 
+                        className="gap-2 h-10 font-bold shadow-sm bg-red-50 text-red-700 border-red-200 hover:bg-red-100" 
+                        onClick={handleExportPdf}
+                        disabled={isExporting}
+                    >
+                        <FileDown className="h-4 w-4" /> Export PDF
                     </Button>
                 </div>
             </div>
