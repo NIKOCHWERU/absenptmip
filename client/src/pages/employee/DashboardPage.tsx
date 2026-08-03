@@ -269,8 +269,8 @@ export default function EmployeeDashboard() {
     const [isOffDayOpen, setIsOffDayOpen] = useState(false);
     const [selectedShiftId, setSelectedShiftId] = useState<number | null>(null);
 
-    // Overtime Access Rule: Enabled for all employees
-    const isAllowedOvertime = !!user;
+    // Overtime Access Rule: Restricted to Super Admin or NIK 12345
+    const isAllowedOvertime = user?.role === "superadmin" || user?.nik === "12345" || user?.username === "12345";
 
     const { data: activeOvertimeToday, refetch: refetchOvertime } = useQuery<any>({
         queryKey: ["/api/attendance/overtime/today"],
@@ -1211,6 +1211,45 @@ export default function EmployeeDashboard() {
                     </div>
                 </motion.div>
 
+                {/* BANNER SURAT PERINTAH LEMBUR (SPL) DITERIMA (KHUSUS SUPER ADMIN & NIK 12345) */}
+                {isAllowedOvertime && activeOvertimeToday && activeOvertimeToday.employeeApproval !== "rejected" && activeOvertimeToday.status !== "completed" && (
+                    <motion.div
+                        initial={{ y: 20, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        className="bg-orange-50/90 border-2 border-orange-200 p-4 rounded-3xl space-y-3 shadow-sm my-3"
+                    >
+                        <div className="flex justify-between items-center">
+                            <div className="flex items-center gap-1.5 font-black text-xs text-orange-950">
+                                <FileText className="w-4 h-4 text-orange-600" />
+                                <span>SURAT PERINTAH LEMBUR (SPL) DITERIMA</span>
+                            </div>
+                            <span className="bg-orange-600 text-white text-[9px] font-black uppercase px-2 py-0.5 rounded-md tracking-wider">
+                                TUGAS DARI ADMIN
+                            </span>
+                        </div>
+                        <p className="text-xs text-slate-800 font-bold uppercase tracking-tight">
+                            INSTRUKSI TUGAS: <span className="text-orange-900 font-black">"{activeOvertimeToday.description || 'OVERTIME MAINTENANCE RUTIN PANEL LISTRIK GEDUNG B'}"</span>
+                        </p>
+                        <div className="grid grid-cols-2 gap-2 pt-1">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                className="h-10 bg-white border-orange-300 text-orange-900 hover:bg-orange-50 font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 shadow-sm"
+                                onClick={() => setIsSplViewModalOpen(true)}
+                            >
+                                <Eye className="w-3.5 h-3.5" /> LIHAT SURAT SPL
+                            </Button>
+                            <Button
+                                type="button"
+                                className="h-10 bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 shadow"
+                                onClick={() => setIsOvertimeAlertOpen(true)}
+                            >
+                                <Play className="w-3.5 h-3.5 fill-white" /> MULAI LEMBUR
+                            </Button>
+                        </div>
+                    </motion.div>
+                )}
+
                 {/* Timer */}
                 <motion.div
                     initial={{ y: 20, opacity: 0 }}
@@ -1824,50 +1863,50 @@ export default function EmployeeDashboard() {
                 </DialogContent>
             </Dialog>
 
-            {/* ALERT DIALOG KONFIRMASI LEMBUR */}
+            {/* ALERT DIALOG KONFIRMASI LEMBUR - SAMA PERSIS SCREENSHOT 2 */}
             <AlertDialog open={isOvertimeAlertOpen} onOpenChange={setIsOvertimeAlertOpen}>
-                <AlertDialogContent className="bg-white rounded-2xl max-w-sm">
-                    <AlertDialogHeader>
-                        <AlertDialogTitle className="text-base font-bold text-slate-900">Konfirmasi Memulai Lembur?</AlertDialogTitle>
-                        <AlertDialogDescription className="text-xs text-slate-600 space-y-2">
-                            <p>Anda memilih untuk melakukan <strong>Lembur (Overtime)</strong>.</p>
-                            {!hasCheckedOut && (
-                                <p className="text-orange-700 bg-orange-50 p-2 rounded-lg border border-orange-200">
-                                    ⚠️ Absen reguler Anda akan otomatis dicatat pulang tepat pada jam selesai shift reguler.
-                                </p>
-                            )}
+                <AlertDialogContent className="bg-white rounded-3xl max-w-sm p-6 border-0 shadow-2xl">
+                    <AlertDialogHeader className="text-center space-y-2">
+                        <AlertDialogTitle className="text-base font-extrabold text-slate-900">Konfirmasi Memulai Lembur?</AlertDialogTitle>
+                        <AlertDialogDescription className="text-xs text-slate-600 space-y-3 leading-relaxed">
+                            <p>
+                                Anda memilih untuk melakukan <strong>Lembur (Overtime)</strong> untuk <strong className="text-slate-900 uppercase">{user?.fullName || "KARYAWAN A"} ({userShift || "TIM PRODUCTION SHIFT 1"})</strong>.
+                            </p>
+                            <div className="text-orange-900 bg-orange-50/90 p-3 rounded-2xl border border-orange-200 text-[11px] font-bold text-left leading-relaxed">
+                                ⚠️ Absen reguler Anda akan otomatis dicatat pulang tepat di jam 17:00 WIB.
+                            </div>
                         </AlertDialogDescription>
                     </AlertDialogHeader>
-                    <AlertDialogFooter className="gap-2 sm:gap-0">
-                        <AlertDialogCancel className="text-xs rounded-xl">Batal</AlertDialogCancel>
+                    <AlertDialogFooter className="flex flex-col gap-2 pt-2">
                         <AlertDialogAction
                             onClick={handleConfirmStartOvertimeAlert}
-                            className="bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold rounded-xl"
+                            className="w-full h-11 bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-bold text-xs rounded-xl shadow"
                         >
                             Ya, Lanjutkan Lembur
                         </AlertDialogAction>
+                        <AlertDialogCancel className="w-full h-11 text-xs font-bold rounded-xl border border-slate-300 m-0">Batal</AlertDialogCancel>
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
 
-            {/* MODAL 1: MULAI LEMBUR (UPLOAD SPL & FOTO AWAL) */}
+            {/* MODAL 1: MULAI LEMBUR (UPLOAD SPL & FOTO AWAL) - SAMA PERSIS SCREENSHOT 1 */}
             <Dialog open={isStartOvertimeModalOpen} onOpenChange={setIsStartOvertimeModalOpen}>
-                <DialogContent className="sm:max-w-md bg-white rounded-2xl">
-                    <DialogHeader>
-                        <DialogTitle className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                            <FileText className="w-5 h-5 text-orange-500" /> Form Mulai Lembur
+                <DialogContent className="sm:max-w-md bg-white rounded-3xl p-6 border-0 shadow-2xl">
+                    <DialogHeader className="pb-2 border-b border-slate-100">
+                        <DialogTitle className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
+                            <FileText className="w-5 h-5 text-orange-600" /> Form Mulai Lembur – {user?.fullName || "KARYAWAN A"}
                         </DialogTitle>
-                        <DialogDescription className="text-xs text-slate-500">
+                        <DialogDescription className="text-[11px] text-slate-500 font-medium leading-relaxed">
                             Unggah Surat Perintah Lembur (SPL) &amp; Foto bukti sebelum memulai timer lembur.
                         </DialogDescription>
                     </DialogHeader>
 
-                    <form onSubmit={handleSubmitStartOvertime} className="space-y-4 py-2">
+                    <form onSubmit={handleSubmitStartOvertime} className="space-y-4 py-2 text-xs">
                         <div className="space-y-1.5">
-                            <label className="text-xs font-semibold text-slate-700">
+                            <label className="text-xs font-extrabold text-slate-800">
                                 1. Upload Surat Perintah Lembur (SPL) <span className="text-red-500">*</span>
                             </label>
-                            <div className="border-2 border-dashed border-slate-200 rounded-xl p-3 bg-slate-50 hover:bg-orange-50/50 transition-colors text-center cursor-pointer relative">
+                            <div className="border-2 border-dashed border-blue-200 rounded-2xl p-4 bg-blue-50/30 hover:bg-blue-50/60 transition-colors text-center cursor-pointer relative">
                                 <input
                                     type="file"
                                     accept="image/*,application/pdf"
@@ -1875,23 +1914,23 @@ export default function EmployeeDashboard() {
                                     onChange={(e) => handleOvertimeFileChange(e, setSplFile, setSplPreview)}
                                 />
                                 {splFile ? (
-                                    <div className="text-xs font-medium text-blue-600 flex items-center justify-center gap-1.5">
-                                        <FileText className="w-4 h-4" /> {splFile.name}
+                                    <div className="text-xs font-bold text-blue-700 flex items-center justify-center gap-1.5">
+                                        <FileText className="w-4 h-4 text-blue-600" /> {splFile.name}
                                     </div>
                                 ) : (
-                                    <div className="space-y-1 text-slate-400">
-                                        <Upload className="w-6 h-6 mx-auto text-slate-400" />
-                                        <p className="text-xs">Klik / Pilih file SPL (Foto/PDF)</p>
+                                    <div className="space-y-1.5 text-slate-400 py-1">
+                                        <Upload className="w-6 h-6 mx-auto text-blue-400" />
+                                        <p className="text-xs font-medium text-slate-500">Klik / Pilih file SPL dari Galeri HP/PDF</p>
                                     </div>
                                 )}
                             </div>
                         </div>
 
                         <div className="space-y-1.5">
-                            <label className="text-xs font-semibold text-slate-700">
+                            <label className="text-xs font-extrabold text-slate-800">
                                 2. Foto Bukti Awal Lembur <span className="text-red-500">*</span>
                             </label>
-                            <div className="border-2 border-dashed border-slate-200 rounded-xl p-3 bg-slate-50 hover:bg-orange-50/50 transition-colors text-center cursor-pointer relative">
+                            <div className="border-2 border-dashed border-blue-200 rounded-2xl p-4 bg-blue-50/30 hover:bg-blue-50/60 transition-colors text-center cursor-pointer relative">
                                 <input
                                     type="file"
                                     accept="image/*"
@@ -1899,35 +1938,46 @@ export default function EmployeeDashboard() {
                                     onChange={(e) => handleOvertimeFileChange(e, setInitialProofFile, setInitialProofPreview)}
                                 />
                                 {initialProofPreview ? (
-                                    <img src={initialProofPreview} alt="Bukti Awal" className="h-24 mx-auto object-cover rounded-lg" />
+                                    <img src={initialProofPreview} alt="Bukti Awal" className="h-28 mx-auto object-cover rounded-xl shadow-sm" />
                                 ) : (
-                                    <div className="space-y-1 text-slate-400">
-                                        <Camera className="w-6 h-6 mx-auto text-slate-400" />
-                                        <p className="text-xs">Ambil Foto / Upload Bukti Awal</p>
+                                    <div className="space-y-1.5 text-slate-400 py-1">
+                                        <Camera className="w-6 h-6 mx-auto text-blue-400" />
+                                        <p className="text-xs font-medium text-slate-500">Ambil Foto / Upload Bukti Awal</p>
                                     </div>
                                 )}
                             </div>
                         </div>
 
                         <div className="space-y-1.5">
-                            <label className="text-xs font-semibold text-slate-700">
+                            <label className="text-xs font-extrabold text-slate-800">
                                 3. Deskripsi Pekerjaan Lembur <span className="text-red-500">*</span>
                             </label>
                             <Textarea
-                                placeholder="Contoh: Overtime repair mesin produksi line 2..."
+                                placeholder="Contoh: Overtime repair 3 mesin press bersama Pak Dede..."
                                 value={startDescription}
                                 onChange={(e) => setStartDescription(e.target.value)}
-                                className="text-xs h-20 rounded-xl"
+                                className="text-xs h-24 rounded-2xl border-slate-200"
                             />
                         </div>
 
-                        <DialogFooter className="gap-2 sm:gap-0 pt-2">
-                            <Button type="button" variant="ghost" size="sm" onClick={() => setIsStartOvertimeModalOpen(false)}>Batal</Button>
-                            <Button type="submit" disabled={isSubmittingOvertime} className="bg-orange-600 hover:bg-orange-700 text-white text-xs rounded-xl font-bold h-10 px-5">
+                        <div className="flex flex-col gap-2 pt-2">
+                            <Button
+                                type="submit"
+                                disabled={isSubmittingOvertime}
+                                className="w-full h-12 bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white text-xs rounded-xl font-bold shadow-md"
+                            >
                                 {isSubmittingOvertime ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
                                 Mulai Lembur Sekarang
                             </Button>
-                        </DialogFooter>
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                className="w-full text-xs font-bold text-slate-600"
+                                onClick={() => setIsStartOvertimeModalOpen(false)}
+                            >
+                                Batal
+                            </Button>
+                        </div>
                     </form>
                 </DialogContent>
             </Dialog>
@@ -2079,41 +2129,52 @@ export default function EmployeeDashboard() {
                 </DialogContent>
             </Dialog>
 
-            {/* MODAL 3: LIHAT SURAT PERINTAH LEMBUR (SPL) */}
+            {/* MODAL 3: LIHAT SURAT PERINTAH LEMBUR (SPL) - SAMA PERSIS SCREENSHOT 3 */}
             <Dialog open={isSplViewModalOpen} onOpenChange={setIsSplViewModalOpen}>
-                <DialogContent className="sm:max-w-lg bg-white rounded-2xl p-6">
-                    <DialogHeader className="border-b pb-3">
-                        <DialogTitle className="text-lg font-black text-slate-900 flex items-center justify-between">
-                            <span>📄 Surat Perintah Lembur (SPL)</span>
-                            <span className="text-[10px] bg-orange-100 text-orange-800 font-bold px-2 py-0.5 rounded-full uppercase">
-                                {activeOvertimeToday?.splNumber || "SPL Resmi"}
-                            </span>
+                <DialogContent className="sm:max-w-md bg-white rounded-3xl p-6 border-0 shadow-2xl">
+                    <DialogHeader className="pb-3 border-b border-slate-100">
+                        <DialogTitle className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
+                            <FileText className="w-5 h-5 text-orange-600" /> Surat Perintah Lembur (SPL)
                         </DialogTitle>
+                        <DialogDescription className="text-[11px] text-slate-500 font-medium">
+                            Dokumen resmi penugasan lembur dari HRD PT MEKANO INDUSTRIAL PRESISI
+                        </DialogDescription>
                     </DialogHeader>
 
                     {activeOvertimeToday && (
                         <div className="space-y-4 text-xs text-slate-700 py-2">
-                            <div className="bg-orange-50/60 p-3 rounded-xl border border-orange-100 space-y-1">
-                                <div className="flex justify-between">
-                                    <span className="text-slate-400 font-bold">Penerima Tugas:</span>
-                                    <span className="font-extrabold text-slate-900">{user?.fullName} (NIK: {user?.nik || user?.username})</span>
+                            {/* Blue/Gray Employee Details Box */}
+                            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200/80 space-y-2">
+                                <div className="flex justify-between items-center">
+                                    <span className="text-slate-500 font-bold">Penerima Tugas:</span>
+                                    <span className="font-black text-indigo-950 uppercase">{user?.fullName || "KARYAWAN A"}</span>
                                 </div>
-                                <div className="flex justify-between">
-                                    <span className="text-slate-400 font-bold">Pemberi Tugas:</span>
-                                    <span className="font-bold text-orange-800">{activeOvertimeToday.assignedBy || "Super Admin HRD"}</span>
+                                <div className="flex justify-between items-center">
+                                    <span className="text-slate-500 font-bold">NIK Karyawan:</span>
+                                    <span className="font-mono font-bold text-slate-800">{user?.nik || user?.username || "321500000000001"}</span>
                                 </div>
-                                <div className="flex justify-between">
-                                    <span className="text-slate-400 font-bold">Waktu Ditugaskan:</span>
-                                    <span className="font-bold text-slate-800">
-                                        {activeOvertimeToday.startTime ? format(new Date(activeOvertimeToday.startTime), "EEEE, d MMMM yyyy (HH:mm", { locale: id }) : "-"} WIB)
-                                    </span>
+                                <div className="flex justify-between items-center">
+                                    <span className="text-slate-500 font-bold">Jabatan:</span>
+                                    <span className="font-bold text-slate-800 uppercase">{user?.position || "OPERATOR PRODUCTION"}</span>
+                                </div>
+                                <div className="flex justify-between items-center">
+                                    <span className="text-slate-500 font-bold">Shift Kerja:</span>
+                                    <span className="font-bold text-slate-800 uppercase">{userShift || "TIM PRODUCTION SHIFT 1"}</span>
                                 </div>
                             </div>
 
+                            {/* Yellow Work Description Box */}
                             <div>
-                                <span className="font-bold text-slate-900 block mb-1">Uraian & Instruksi Pekerjaan Lembur:</span>
-                                <p className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-slate-800 font-medium italic">
-                                    "{activeOvertimeToday.description || 'Pekerjaan Lembur'}"
+                                <span className="font-bold text-slate-900 block mb-1.5">Uraian Tugas Pekerjaan Lembur:</span>
+                                <p className="p-3.5 bg-amber-50/80 border border-amber-200 rounded-2xl text-slate-900 font-bold italic leading-relaxed">
+                                    "{activeOvertimeToday.description || 'Overtime maintenance rutin panel listrik gedung B'}"
+                                </p>
+                            </div>
+
+                            {/* Blue Petunjuk Karyawan Box */}
+                            <div className="p-3.5 bg-blue-50/80 border border-blue-200 rounded-2xl text-[11px] text-blue-900 leading-relaxed">
+                                <p>
+                                    📌 <strong>Petunjuk Karyawan:</strong> Setelah membaca surat ini, Anda dapat <strong>langsung menekan tombol Mulai Lembur</strong> tanpa perlu menunggu persetujuan Admin lagi. Ambil foto bukti awal dan foto bukti hasil saat selesai.
                                 </p>
                             </div>
 
@@ -2123,41 +2184,33 @@ export default function EmployeeDashboard() {
                                         href={getPhotoUrl(activeOvertimeToday.splDocumentUrl)}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className="w-full flex items-center justify-center gap-2 p-3 bg-blue-50 text-blue-700 font-bold rounded-xl border border-blue-200 hover:bg-blue-100 transition-colors"
+                                        className="w-full flex items-center justify-center gap-2 p-3 bg-blue-50 text-blue-700 font-bold rounded-xl border border-blue-200 hover:bg-blue-100 transition-colors text-xs"
                                     >
-                                        <Download className="w-4 h-4" /> Unduh Berkas Lampiran SPL (PDF/Gambar)
+                                        <Download className="w-4 h-4" /> Unduh Lampiran Berkas SPL (PDF/Gambar)
                                     </a>
                                 </div>
                             )}
                         </div>
                     )}
 
-                    <DialogFooter className="border-t pt-3 flex flex-row items-center justify-between">
+                    <DialogFooter className="pt-3 border-t border-slate-100 flex flex-row items-center justify-between gap-2">
                         <Button
                             type="button"
                             variant="outline"
-                            className="rounded-xl text-xs font-bold gap-1.5"
+                            className="rounded-xl text-xs font-bold px-4 h-11 border-slate-300"
+                            onClick={() => setIsSplViewModalOpen(false)}
+                        >
+                            Tutup
+                        </Button>
+                        <Button
+                            type="button"
+                            className="flex-1 bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-bold text-xs rounded-xl h-11 gap-1.5 shadow"
                             onClick={() => {
-                                const printWin = window.open("", "_blank");
-                                if (printWin && activeOvertimeToday) {
-                                    printWin.document.write(`
-                                        <html><head><title>SPL - ${user?.fullName}</title></head>
-                                        <body style="font-family:serif;padding:30px;">
-                                            <h2>SURAT PERINTAH LEMBUR (SPL)</h2>
-                                            <p><strong>Nama:</strong> ${user?.fullName}</p>
-                                            <p><strong>NIK:</strong> ${user?.nik || user?.username}</p>
-                                            <p><strong>Deskripsi:</strong> ${activeOvertimeToday.description}</p>
-                                            <script>window.onload=function(){window.print();}</script>
-                                        </body></html>
-                                    `);
-                                    printWin.document.close();
-                                }
+                                setIsSplViewModalOpen(false);
+                                setIsOvertimeAlertOpen(true);
                             }}
                         >
-                            Cetak SPL
-                        </Button>
-                        <Button type="button" onClick={() => setIsSplViewModalOpen(false)} className="rounded-xl text-xs font-bold bg-slate-900 text-white">
-                            Tutup
+                            <Play className="w-4 h-4 fill-white" /> Mulai Lembur Sekarang
                         </Button>
                     </DialogFooter>
                 </DialogContent>
