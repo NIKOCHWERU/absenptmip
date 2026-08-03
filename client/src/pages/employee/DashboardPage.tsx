@@ -290,11 +290,12 @@ export default function EmployeeDashboard() {
     const [isSubmittingRejection, setIsSubmittingRejection] = useState(false);
 
     useEffect(() => {
-        if (activeOvertimeToday && activeOvertimeToday.employeeApproval === "pending" && !hasAutoOpenedSplNotice) {
+        // Auto-open SPL notice popup setiap kali ada penugasan pending
+        if (activeOvertimeToday && activeOvertimeToday.employeeApproval === "pending") {
             setIsSplNoticePopupOpen(true);
             setHasAutoOpenedSplNotice(true);
         }
-    }, [activeOvertimeToday, hasAutoOpenedSplNotice]);
+    }, [activeOvertimeToday?.id, activeOvertimeToday?.employeeApproval]);
 
     const overtimeRespondMutation = useMutation({
         mutationFn: async ({ action, rejectionReason }: { action: "approve" | "reject", rejectionReason?: string }) => {
@@ -1361,52 +1362,20 @@ export default function EmployeeDashboard() {
                                             <span className="uppercase tracking-wide">SURAT PERINTAH LEMBUR (SPL) DITERIMA</span>
                                         </div>
                                         <p className="text-xs text-slate-700 font-semibold leading-relaxed">
-                                            Anda ditugaskan lembur oleh Admin: <strong className="text-orange-900">{activeOvertimeToday.startTime && activeOvertimeToday.endTime ? (() => {
-                                                const start = new Date(activeOvertimeToday.startTime);
-                                                const end = new Date(activeOvertimeToday.endTime);
-                                                const isDiff = format(start, "yyyy-MM-dd") !== format(end, "yyyy-MM-dd");
-                                                const rangeStr = isDiff
-                                                    ? `${format(start, "d MMMM yyyy HH:mm", { locale: id })} - ${format(end, "d MMMM yyyy HH:mm", { locale: id })}`
-                                                    : `${format(start, "d MMMM yyyy", { locale: id })} (${format(start, "HH:mm")} - ${format(end, "HH:mm")} WIB)`;
-                                                const mins = Math.round((end.getTime() - start.getTime()) / 60000);
-                                                const hrs = Math.floor(mins / 60);
-                                                const remMins = mins % 60;
-                                                const durStr = hrs > 0 && remMins > 0 ? `${hrs} Jam ${remMins} Menit` : hrs > 0 ? `${hrs} Jam` : `${remMins} Menit`;
-                                                return `${rangeStr} (Estimasi: ${durStr})`;
-                                            })() : (activeOvertimeToday.startTime ? format(new Date(activeOvertimeToday.startTime), "dd MMM yyyy HH:mm WIB") : "Hari Ini")}</strong>.
+                                            Anda menerima penugasan lembur dari Admin. Buka surat SPL untuk melihat detail dan memberikan konfirmasi.
                                         </p>
-                                        <div className="p-2.5 bg-white/90 rounded-xl border border-orange-200 text-xs text-slate-700 font-medium italic">
-                                            "{activeOvertimeToday.description || 'Pekerjaan Lembur'}"
-                                        </div>
-                                        <div className="flex flex-col gap-2 pt-1">
-                                            <Button
-                                                type="button"
-                                                variant="outline"
-                                                className="w-full bg-white border-orange-300 text-orange-800 font-bold rounded-xl text-xs h-10 gap-1.5 shadow-sm hover:bg-orange-50"
-                                                onClick={() => setIsSplViewModalOpen(true)}
-                                            >
-                                                📄 Lihat Surat SPL
-                                            </Button>
-                                            <div className="grid grid-cols-2 gap-2">
-                                                <Button
-                                                    type="button"
-                                                    variant="outline"
-                                                    className="bg-red-50 border-red-200 text-red-700 hover:bg-red-100 font-bold rounded-xl text-xs h-10 gap-1.5"
-                                                    onClick={() => setIsRejectOvertimeModalOpen(true)}
-                                                    disabled={overtimeRespondMutation.isPending}
-                                                >
-                                                    <X className="w-4 h-4" /> Izin
-                                                </Button>
-                                                <Button
-                                                    type="button"
-                                                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs h-10 gap-1.5 shadow"
-                                                    onClick={() => overtimeRespondMutation.mutate({ overtimeId: activeOvertimeToday.id, action: "approve" })}
-                                                    disabled={overtimeRespondMutation.isPending}
-                                                >
-                                                    <Check className="w-4 h-4" /> Terima Tugas
-                                                </Button>
+                                        {activeOvertimeToday.splNumber && (
+                                            <div className="font-mono text-[10px] font-bold text-orange-800 bg-orange-100 border border-orange-200 rounded-lg px-2 py-1 w-fit">
+                                                📄 {activeOvertimeToday.splNumber}
                                             </div>
-                                        </div>
+                                        )}
+                                        <Button
+                                            type="button"
+                                            className="w-full h-11 bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-black rounded-xl text-xs shadow-md flex items-center justify-center gap-2"
+                                            onClick={() => setIsSplNoticePopupOpen(true)}
+                                        >
+                                            📋 Buka Surat Perintah Lembur (SPL)
+                                        </Button>
                                     </div>
                                 )}
 
