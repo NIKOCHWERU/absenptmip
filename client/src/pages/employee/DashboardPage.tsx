@@ -283,6 +283,8 @@ export default function EmployeeDashboard() {
     const [isSplViewModalOpen, setIsSplViewModalOpen] = useState(false);
     const [isSplNoticePopupOpen, setIsSplNoticePopupOpen] = useState(false);
     const [hasAutoOpenedSplNotice, setHasAutoOpenedSplNotice] = useState(false);
+    const [isRejectOvertimeModalOpen, setIsRejectOvertimeModalOpen] = useState(false);
+    const [rejectionReasonInput, setRejectionReasonInput] = useState("");
 
     useEffect(() => {
         if (activeOvertimeToday && activeOvertimeToday.employeeApproval === "pending" && !hasAutoOpenedSplNotice) {
