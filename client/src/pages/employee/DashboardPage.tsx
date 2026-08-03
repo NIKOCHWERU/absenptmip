@@ -1254,44 +1254,7 @@ export default function EmployeeDashboard() {
                     </div>
                 </motion.div>
 
-                {/* BANNER SURAT PERINTAH LEMBUR (SPL) DITERIMA (KHUSUS SUPER ADMIN & NIK 12345) */}
-                {isAllowedOvertime && activeOvertimeToday && activeOvertimeToday.employeeApproval !== "rejected" && activeOvertimeToday.status !== "completed" && (
-                    <motion.div
-                        initial={{ y: 20, opacity: 0 }}
-                        animate={{ y: 0, opacity: 1 }}
-                        className="bg-orange-50/90 border-2 border-orange-200 p-4 rounded-3xl space-y-3 shadow-sm my-3"
-                    >
-                        <div className="flex justify-between items-center">
-                            <div className="flex items-center gap-1.5 font-black text-xs text-orange-950">
-                                <FileText className="w-4 h-4 text-orange-600" />
-                                <span>SURAT PERINTAH LEMBUR (SPL) DITERIMA</span>
-                            </div>
-                            <span className="bg-orange-600 text-white text-[9px] font-black uppercase px-2 py-0.5 rounded-md tracking-wider">
-                                TUGAS DARI ADMIN
-                            </span>
-                        </div>
-                        <p className="text-xs text-slate-800 font-bold uppercase tracking-tight">
-                            INSTRUKSI TUGAS: <span className="text-orange-900 font-black">"{activeOvertimeToday.description || 'OVERTIME MAINTENANCE RUTIN PANEL LISTRIK GEDUNG B'}"</span>
-                        </p>
-                        <div className="grid grid-cols-2 gap-2 pt-1">
-                            <Button
-                                type="button"
-                                variant="outline"
-                                className="h-10 bg-white border-orange-300 text-orange-900 hover:bg-orange-50 font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 shadow-sm"
-                                onClick={() => setIsSplViewModalOpen(true)}
-                            >
-                                <Eye className="w-3.5 h-3.5" /> LIHAT SURAT SPL
-                            </Button>
-                            <Button
-                                type="button"
-                                className="h-10 bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 shadow"
-                                onClick={() => setIsOvertimeAlertOpen(true)}
-                            >
-                                <Play className="w-3.5 h-3.5 fill-white" /> MULAI LEMBUR
-                            </Button>
-                        </div>
-                    </motion.div>
-                )}
+
 
                 {/* Timer */}
                 <motion.div
