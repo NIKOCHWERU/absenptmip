@@ -9,30 +9,37 @@
     <title>Aplikasi Absensi Karyawan</title>
 
     <!-- Self-Healing Cache-Buster: Auto clear stale caches & reload if old script chunk fails on mobile -->
+    <!-- Self-Healing Cache-Buster: Auto clear stale caches & reload if old script chunk fails or throws DOM errors -->
     <script>
       window.addEventListener('error', function(e) {
         var msg = (e && e.message) ? e.message : '';
         var isScriptError = e.target && (e.target.tagName === 'SCRIPT' || e.target.tagName === 'LINK');
-        if (isScriptError || msg.includes('Unexpected token') || msg.includes('is not defined') || msg.includes('Loading chunk') || msg.includes('dynamically imported module')) {
+        if (
+          isScriptError ||
+          msg.includes('Unexpected token') ||
+          msg.includes('is not defined') ||
+          msg.includes('Loading chunk') ||
+          msg.includes('dynamically imported module') ||
+          msg.includes('removeChild') ||
+          msg.includes('NotFoundError') ||
+          msg.includes('Failed to execute')
+        ) {
           console.warn("Outdated bundle script error detected, auto-purging cache and reloading...");
-          if (!sessionStorage.getItem('auto_cache_reloaded')) {
-            sessionStorage.setItem('auto_cache_reloaded', 'true');
-            if ('caches' in window) {
-              caches.keys().then(function(names) {
-                return Promise.all(names.map(function(n) { return caches.delete(n); }));
-              }).then(function() {
-                if ('serviceWorker' in navigator) {
-                  navigator.serviceWorker.getRegistrations().then(function(regs) {
-                    for (var i = 0; i < regs.length; i++) regs[i].unregister();
-                    window.location.reload(true);
-                  });
-                } else {
+          if ('caches' in window) {
+            caches.keys().then(function(names) {
+              return Promise.all(names.map(function(n) { return caches.delete(n); }));
+            }).then(function() {
+              if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.getRegistrations().then(function(regs) {
+                  for (var i = 0; i < regs.length; i++) regs[i].unregister();
                   window.location.reload(true);
-                }
-              });
-            } else {
-              window.location.reload(true);
-            }
+                });
+              } else {
+                window.location.reload(true);
+              }
+            });
+          } else {
+            window.location.reload(true);
           }
         }
       }, true);
