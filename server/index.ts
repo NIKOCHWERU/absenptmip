@@ -287,6 +287,10 @@ async function runAutoMigrations() {
     await checkAndAddColumn("resignations", "status", "ENUM('pending', 'approved', 'rejected') DEFAULT 'pending'");
     await checkAndAddColumn("mutations", "status", "ENUM('pending', 'approved', 'rejected') DEFAULT 'pending'");
     await checkAndAddColumn("overtimes", "rejection_proof_url", "VARCHAR(512) NULL");
+    try {
+      await conn.query("ALTER TABLE overtimes MODIFY COLUMN status ENUM('pending', 'ongoing', 'completed', 'cancelled') DEFAULT 'pending'");
+      await conn.query("ALTER TABLE overtimes MODIFY COLUMN employee_approval ENUM('pending', 'approved', 'rejected') DEFAULT 'pending'");
+    } catch (e) { console.log("Overtimes column modify note:", e); }
 
     // --- Default admin seeding ---
     const [adminCheck]: any = await conn.query(`SELECT id FROM users WHERE role = 'admin' LIMIT 1`);

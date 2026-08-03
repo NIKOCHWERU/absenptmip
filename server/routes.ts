@@ -1647,7 +1647,7 @@ export function registerRoutes(app: Express) {
         endTime: endDateObj,
         description: description || "Surat Perintah Lembur (SPL)",
         splDocumentUrl: splUrl,
-        status: "ongoing",
+        status: "pending",
         employeeApproval: "pending",
         splNumber: splNum,
         assignedBy: req.session.userId!
