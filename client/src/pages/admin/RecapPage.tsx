@@ -338,8 +338,11 @@ export default function RecapPage() {
     const deleteMutation = useMutation({
         mutationFn: async (id: number) => {
             const res = await fetch(`/api/admin/attendance/${id}`, { method: 'DELETE' });
-            if (!res.ok) throw new Error("Gagal menghapus data");
-            return res.json();
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                throw new Error(err.message || "Gagal menghapus data");
+            }
+            return res.status === 204 ? { id } : res.json().catch(() => ({ id }));
         },
         onSuccess: async () => {
             await queryClient.invalidateQueries({ queryKey: ["/api/attendance"] });

@@ -3081,10 +3081,13 @@ export function registerRoutes(app: Express) {
   app.delete('/api/admin/attendance/:id', isAdmin, async (req: Request, res: Response) => {
     const id = parseInt(req.params.id);
     try {
+      // First delete associated overtimes if any
+      await db.delete(overtimes).where(eq(overtimes.attendanceId, id));
+      // Then delete attendance record
       await db.delete(attendance).where(eq(attendance.id, id));
-      res.sendStatus(204);
+      res.json({ message: "Data absensi berhasil dihapus", id });
     } catch (e: any) {
-      res.status(500).json({ message: e.message });
+      res.status(500).json({ message: e.message || "Gagal menghapus data absensi" });
     }
   });
 
