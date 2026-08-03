@@ -16,6 +16,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/hooks/use-auth";
+import { TimePicker24h } from "@/components/TimePicker24h";
 
 const loadHtml2Pdf = () => {
     return new Promise<any>((resolve, reject) => {
@@ -1417,41 +1418,19 @@ export default function RecapPage() {
                                     <p className="text-xs font-extrabold text-orange-900 uppercase tracking-wide">Input Data Lembur Manual</p>
                                     <div className="grid grid-cols-2 gap-3">
                                         <div className="space-y-1">
-                                            <Label className="text-[11px] text-slate-700 font-semibold">Mulai Lembur (HH:MM)</Label>
-                                            <Input
-                                                type="text"
-                                                maxLength={5}
+                                            <Label className="text-[11px] text-slate-700 font-semibold block">Mulai Lembur (24 Jam)</Label>
+                                            <TimePicker24h
                                                 value={manualOvertime.startTime}
-                                                onChange={(e) => {
-                                                    let val = e.target.value.replace(/\D/g, '');
-                                                    if (val.length > 4) val = val.substring(0, 4);
-                                                    let h = val.substring(0, 2); let m = val.substring(2, 4);
-                                                    if (h.length === 2 && parseInt(h) > 23) h = '23';
-                                                    if (m.length === 2 && parseInt(m) > 59) m = '59';
-                                                    let formatted = h; if (val.length >= 2) formatted += (val.length > 2 || e.target.value.includes(':')) ? ':' + m : '';
-                                                    setManualOvertime(prev => ({ ...prev, startTime: formatted }));
-                                                }}
+                                                onChange={(val) => setManualOvertime(prev => ({ ...prev, startTime: val }))}
                                                 placeholder="17:00"
-                                                className="bg-white text-xs h-9 rounded-lg"
                                             />
                                         </div>
                                         <div className="space-y-1">
-                                            <Label className="text-[11px] text-slate-700 font-semibold">Selesai Lembur (HH:MM)</Label>
-                                            <Input
-                                                type="text"
-                                                maxLength={5}
+                                            <Label className="text-[11px] text-slate-700 font-semibold block">Selesai Lembur (24 Jam)</Label>
+                                            <TimePicker24h
                                                 value={manualOvertime.endTime}
-                                                onChange={(e) => {
-                                                    let val = e.target.value.replace(/\D/g, '');
-                                                    if (val.length > 4) val = val.substring(0, 4);
-                                                    let h = val.substring(0, 2); let m = val.substring(2, 4);
-                                                    if (h.length === 2 && parseInt(h) > 23) h = '23';
-                                                    if (m.length === 2 && parseInt(m) > 59) m = '59';
-                                                    let formatted = h; if (val.length >= 2) formatted += (val.length > 2 || e.target.value.includes(':')) ? ':' + m : '';
-                                                    setManualOvertime(prev => ({ ...prev, endTime: formatted }));
-                                                }}
+                                                onChange={(val) => setManualOvertime(prev => ({ ...prev, endTime: val }))}
                                                 placeholder="20:00"
-                                                className="bg-white text-xs h-9 rounded-lg"
                                             />
                                         </div>
                                     </div>

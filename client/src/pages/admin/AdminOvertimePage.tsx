@@ -14,6 +14,7 @@ import {
   Plus, Calendar, Clock, User as UserIcon, Eye, Printer, Trash2, Check, X, FileText, Send, Upload, ArrowLeft, Image as ImageIcon, CheckCircle, ShieldCheck, AlertCircle
 } from "lucide-react";
 import { User } from "@shared/schema";
+import { TimePicker24h } from "@/components/TimePicker24h";
 
 export default function AdminOvertimePage() {
   const [, setLocation] = useLocation();
@@ -489,122 +490,22 @@ export default function AdminOvertimePage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {/* Jam Mulai 24 Jam */}
                 <div className="space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <label className="text-xs font-bold text-gray-700">Jam Mulai (24 Jam)</label>
-                    <span className="text-primary font-mono font-bold text-xs bg-primary/5 px-2 py-0.5 rounded border border-primary/20">{assignStartTime} WIB</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <Select
-                      value={assignStartTime.split(":")[0] || "17"}
-                      onValueChange={(h) => {
-                        const m = assignStartTime.split(":")[1] || "00";
-                        setAssignStartTime(`${h.padStart(2, '0')}:${m}`);
-                      }}
-                    >
-                      <SelectTrigger className="rounded-xl text-xs font-bold h-10 flex-1">
-                        <SelectValue placeholder="Jam" />
-                      </SelectTrigger>
-                      <SelectContent className="max-h-48">
-                        {Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0')).map(h => (
-                          <SelectItem key={h} value={h} className="text-xs font-bold font-mono">Jam {h}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <span className="font-bold text-gray-400">:</span>
-                    <Select
-                      value={assignStartTime.split(":")[1] || "00"}
-                      onValueChange={(m) => {
-                        const h = assignStartTime.split(":")[0] || "17";
-                        setAssignStartTime(`${h}:${m.padStart(2, '0')}`);
-                      }}
-                    >
-                      <SelectTrigger className="rounded-xl text-xs font-bold h-10 flex-1">
-                        <SelectValue placeholder="Menit" />
-                      </SelectTrigger>
-                      <SelectContent className="max-h-48">
-                        {Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0')).map(m => (
-                          <SelectItem key={m} value={m} className="text-xs font-bold font-mono">{m} Min</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Input
-                      type="text"
-                      placeholder="22:02"
-                      maxLength={5}
-                      value={assignStartTime}
-                      onChange={(e) => {
-                        let val = e.target.value.replace(/\D/g, '');
-                        if (val.length > 4) val = val.substring(0, 4);
-                        let h = val.substring(0, 2); let m = val.substring(2, 4);
-                        if (h.length === 2 && parseInt(h) > 23) h = '23';
-                        if (m.length === 2 && parseInt(m) > 59) m = '59';
-                        let formatted = h; if (val.length >= 2) formatted += (val.length > 2 || e.target.value.includes(':')) ? ':' + m : '';
-                        setAssignStartTime(formatted);
-                      }}
-                      className="rounded-xl border-gray-200 h-10 text-xs font-mono font-bold w-16 text-center shrink-0"
-                      title="Ketik langsung contoh: 22:02"
-                    />
-                  </div>
+                  <label className="text-xs font-bold text-gray-700 block">Jam Mulai (24 Jam)</label>
+                  <TimePicker24h
+                    value={assignStartTime}
+                    onChange={(val) => setAssignStartTime(val)}
+                    placeholder="17:00"
+                  />
                 </div>
 
                 {/* Estimasi Selesai 24 Jam */}
                 <div className="space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <label className="text-xs font-bold text-gray-700">Estimasi Selesai (24 Jam)</label>
-                    <span className="text-orange-600 font-mono font-bold text-xs bg-orange-50 px-2 py-0.5 rounded border border-orange-200">{assignEndTime} WIB</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <Select
-                      value={assignEndTime.split(":")[0] || "20"}
-                      onValueChange={(h) => {
-                        const m = assignEndTime.split(":")[1] || "30";
-                        setAssignEndTime(`${h.padStart(2, '0')}:${m}`);
-                      }}
-                    >
-                      <SelectTrigger className="rounded-xl text-xs font-bold h-10 flex-1">
-                        <SelectValue placeholder="Jam" />
-                      </SelectTrigger>
-                      <SelectContent className="max-h-48">
-                        {Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0')).map(h => (
-                          <SelectItem key={h} value={h} className="text-xs font-bold font-mono">Jam {h}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <span className="font-bold text-gray-400">:</span>
-                    <Select
-                      value={assignEndTime.split(":")[1] || "30"}
-                      onValueChange={(m) => {
-                        const h = assignEndTime.split(":")[0] || "20";
-                        setAssignEndTime(`${h}:${m.padStart(2, '0')}`);
-                      }}
-                    >
-                      <SelectTrigger className="rounded-xl text-xs font-bold h-10 flex-1">
-                        <SelectValue placeholder="Menit" />
-                      </SelectTrigger>
-                      <SelectContent className="max-h-48">
-                        {Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0')).map(m => (
-                          <SelectItem key={m} value={m} className="text-xs font-bold font-mono">{m} Min</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Input
-                      type="text"
-                      placeholder="22:02"
-                      maxLength={5}
-                      value={assignEndTime}
-                      onChange={(e) => {
-                        let val = e.target.value.replace(/\D/g, '');
-                        if (val.length > 4) val = val.substring(0, 4);
-                        let h = val.substring(0, 2); let m = val.substring(2, 4);
-                        if (h.length === 2 && parseInt(h) > 23) h = '23';
-                        if (m.length === 2 && parseInt(m) > 59) m = '59';
-                        let formatted = h; if (val.length >= 2) formatted += (val.length > 2 || e.target.value.includes(':')) ? ':' + m : '';
-                        setAssignEndTime(formatted);
-                      }}
-                      className="rounded-xl border-gray-200 h-10 text-xs font-mono font-bold w-16 text-center shrink-0"
-                      title="Ketik langsung contoh: 22:02"
-                    />
-                  </div>
+                  <label className="text-xs font-bold text-gray-700 block">Estimasi Selesai (24 Jam)</label>
+                  <TimePicker24h
+                    value={assignEndTime}
+                    onChange={(val) => setAssignEndTime(val)}
+                    placeholder="20:30"
+                  />
                 </div>
               </div>
             </div>
