@@ -92,6 +92,10 @@ export const overtimes = mysqlTable("overtimes", {
   description: text("description"),
   finalDescription: text("final_description"),
   status: mysqlEnum("status", ["ongoing", "completed", "cancelled"]).default("ongoing"),
+  employeeApproval: mysqlEnum("employee_approval", ["pending", "approved", "rejected"]).default("approved"),
+  rejectionReason: text("rejection_reason"),
+  splNumber: varchar("spl_number", { length: 100 }),
+  assignedBy: int("assigned_by"),
   createdAt: timestamp("created_at").defaultNow(),
 }, (table) => ({
   attendanceIdx: index("idx_overtimes_attendance_id").on(table.attendanceId),
@@ -343,3 +347,4 @@ export type SystemConfig = typeof systemConfigs.$inferSelect;
 export type InsertSystemConfig = z.infer<typeof insertSystemConfigSchema>;
 export type ActivityLog = typeof activityLogs.$inferSelect;
 export type InsertActivityLog = z.infer<typeof insertActivityLogSchema>;
+export type Overtime = typeof overtimes.$inferSelect;

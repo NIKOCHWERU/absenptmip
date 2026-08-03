@@ -539,7 +539,8 @@ export default function RecapPage() {
             if (!row.checkOut) keterangan = row.notes ? row.notes + ' <br><span class="note-warn">(Belum Pulang)</span>' : '<span class="note-warn">Belum Pulang</span>';
             else if (isNoBreak) keterangan = row.notes ? row.notes + ' <br><span class="note-warn">(Tanpa Istirahat)</span>' : '<span class="note-warn">Tanpa Istirahat</span>';
             const lateNote = row.status === 'late' && (row as any).lateReason ? `<br><span class="note-late">[Telat: ${(row as any).lateReason}]</span>` : '';
-            return `<tr>
+            
+            let rowHtml = `<tr>
           <td class="col-no">${isSameDayAndUser ? '<span style="color:#cbd5e1;">↳</span>' : (index + 1)}</td>
           <td class="col-date" style="font-size:9.5px;">${isSameDayAndUser ? '' : format(new Date(row.date), 'EEEE, d MMMM yyyy', { locale: id })}</td>
           <td class="col-name">
@@ -562,11 +563,36 @@ export default function RecapPage() {
           <td class="col-stat"><span class="${statusClass}">${statusLabel}</span></td>
           <td class="col-note">${keterangan}${lateNote}</td>
         </tr>`;
+
+            // Baris Lembur jika Super Admin & ada lembur di record ini
+            if (user?.role === "superadmin") {
+                const ot = allOvertimes?.find(o => o.attendanceId === row.id);
+                if (ot) {
+                    const otStart = ot.startTime ? format(new Date(ot.startTime), "HH:mm") : "-";
+                    const otEnd = ot.endTime ? format(new Date(ot.endTime), "HH:mm") : (ot.status === "ongoing" ? "Berlangsung" : "-");
+                    const otMins = (ot.startTime && ot.endTime) ? Math.round((new Date(ot.endTime).getTime() - new Date(ot.startTime).getTime()) / 60000) : 0;
+                    rowHtml += `<tr style="background-color: #fff7ed;">
+                      <td class="col-no"><span style="color:#ea580c;font-weight:bold;">↳</span></td>
+                      <td class="col-date" style="font-size:9.5px;color:#c2410c;font-weight:bold;">LEMBUR (OVERTIME)</td>
+                      <td class="col-name"><span style="color:#ea580c;font-weight:bold;font-size:10px;">⚡ ${getUserName(row.userId) || '-'}</span></td>
+                      <td class="col-time" style="color:#c2410c;font-weight:bold;">${otStart}</td>
+                      <td class="col-time t-dash">-</td>
+                      <td class="col-time t-dash">-</td>
+                      <td class="col-time" style="color:#c2410c;font-weight:bold;">${otEnd}</td>
+                      <td class="col-work" style="color:#9a3412;font-weight:bold;">${otMins > 0 ? formatDuration(otMins) : 'Berlangsung'}</td>
+                      <td class="col-brk">-</td>
+                      <td class="col-stat"><span style="background:#ffedd5;color:#c2410c;padding:2px 6px;border-radius:4px;font-weight:bold;font-size:9px;">LEMBUR</span></td>
+                      <td class="col-note" style="color:#9a3412;font-style:italic;">${ot.description || 'Pekerjaan Lembur'}</td>
+                    </tr>`;
+                }
+            }
+
+            return rowHtml;
         }).join('')}
     </tbody>
   </table>
   ${(() => {
-                const usersSummary = new Map<number, { name: string, totalMins: number, breakdown: string[] }>();
+                const usersSummary = new Map<number, { name: string, totalMins: number, totalOtMins: number, breakdown: string[] }>();
                 const recordsByUser = new Map<number, typeof processedData>();
                 processedData.forEach(r => {
                     if (!recordsByUser.has(r.userId)) recordsByUser.set(r.userId, []);
@@ -574,7 +600,7 @@ export default function RecapPage() {
                 });
                 recordsByUser.forEach((records, userId) => {
                     const name = getUserName(userId) || '-';
-                    const userSummary = { name, totalMins: 0, breakdown: [] as string[] };
+                    const userSummary = { name, totalMins: 0, totalOtMins: 0, breakdown: [] as string[] };
                     const recordsByDay = new Map<string, typeof processedData>();
                     records.forEach(r => {
                         const d = format(new Date(r.date), "yyyy-MM-dd");
@@ -598,6 +624,18 @@ export default function RecapPage() {
                         } else {
                             userSummary.breakdown.push(`<span style="color:#dc2626;font-weight:600;">${dateStr}</span> : <span style="color:#b91c1c;">Absensi belum lengkap</span>`);
                         }
+
+                        // hitung lembur per hari jika ada
+                        if (user?.role === "superadmin") {
+                            dayRecords.forEach(r => {
+                                const ot = allOvertimes?.find(o => o.attendanceId === r.id);
+                                if (ot && ot.startTime && ot.endTime) {
+                                    const otMins = Math.round((new Date(ot.endTime).getTime() - new Date(ot.startTime).getTime()) / 60000);
+                                    userSummary.totalOtMins += otMins;
+                                    userSummary.breakdown.push(`<span style="color:#c2410c;font-weight:700;">↳ Lembur ( Overtime ) ${dateStr}</span> : ${format(new Date(ot.startTime), "HH.mm")} - ${format(new Date(ot.endTime), "HH.mm")} (${formatDuration(otMins)}) - ${ot.description || 'Pekerjaan Lembur'}`);
+                                }
+                            });
+                        }
                     });
                     usersSummary.set(userId, userSummary);
                 });
@@ -611,17 +649,20 @@ export default function RecapPage() {
                   <tr>
                     <th class="c" style="width:40px;">No</th>
                     <th style="width:180px;">Nama Tenaga Kerja</th>
-                    <th class="c" style="width:100px;">Total Jam Kerja</th>
+                    <th class="c" style="width:120px;">Total Jam Kerja</th>
                     <th>Rincian Harian</th>
                   </tr>
                 </thead>
                 <tbody>`;
                 let sumIdx = 1;
                 usersSummary.forEach((summary) => {
+                    const totalJamStr = summary.totalOtMins > 0 
+                        ? `Reguler: ${formatDuration(summary.totalMins)}<br/><span style="color:#c2410c;">Lembur: ${formatDuration(summary.totalOtMins)}</span>`
+                        : (summary.totalMins > 0 ? formatDuration(summary.totalMins) : "-");
                     sumHtml += `<tr>
                     <td class="col-no">${sumIdx++}</td>
                     <td class="col-name">${summary.name}</td>
-                    <td class="c" style="font-weight:bold;font-size:12px;">${summary.totalMins > 0 ? formatDuration(summary.totalMins) : "-"}</td>
+                    <td class="c" style="font-weight:bold;font-size:11px;line-height:1.4;">${totalJamStr}</td>
                     <td style="font-size:10.5px;line-height:1.6;padding-bottom:12px;padding-top:12px;white-space:normal;">${summary.breakdown.join('<br>')}</td>
                   </tr>`;
                 });
@@ -1109,7 +1150,8 @@ export default function RecapPage() {
                                         const isSameDayAndUser = prevRow && safeFormatDate(prevRow.date, "yyyy-MM-dd") === dateStr && prevRow.userId === row.userId;
 
                                         return (
-                                            <tr key={row.id} className="hover:bg-gray-50/30 transition-colors group">
+                                            <React.Fragment key={row.id}>
+                                                <tr className="hover:bg-gray-50/30 transition-colors group">
                                                 <td className="px-6 py-4 font-bold text-gray-500 text-[10px]">
                                                     {isSameDayAndUser ? <span className="ml-4 text-gray-300">↳</span> : safeFormatDate(row.date, "EEEE, d MMMM yyyy", { locale: id })}
                                                 </td>
@@ -1172,6 +1214,46 @@ export default function RecapPage() {
                                                     </div>
                                                 </td>
                                             </tr>
+
+                                            {/* Sub-baris Lembur jika Super Admin & ada data lembur */}
+                                            {user?.role === "superadmin" && (() => {
+                                                const ot = allOvertimes?.find(o => o.attendanceId === row.id);
+                                                if (!ot) return null;
+                                                const otStart = ot.startTime ? safeFormatDate(ot.startTime, "HH:mm") : "-";
+                                                const otEnd = ot.endTime ? safeFormatDate(ot.endTime, "HH:mm") : (ot.status === "ongoing" ? "Berlangsung" : "-");
+                                                const otDurationMins = (ot.startTime && ot.endTime) 
+                                                    ? Math.round((new Date(ot.endTime).getTime() - new Date(ot.startTime).getTime()) / 60000)
+                                                    : 0;
+
+                                                return (
+                                                    <tr key={`ot-${row.id}`} className="bg-orange-50/50 border-b border-orange-100 hover:bg-orange-50 transition-colors">
+                                                        <td className="px-6 py-3 font-bold text-orange-600 text-xs text-right">↳</td>
+                                                        <td className="px-6 py-3">
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="bg-orange-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider">⚡ LEMBUR</span>
+                                                                <span className="text-xs text-slate-700 font-semibold">{getUserName(row.userId)}</span>
+                                                            </div>
+                                                        </td>
+                                                        <td className="px-6 py-3 text-center font-mono font-bold text-orange-700 text-xs">{otStart}</td>
+                                                        <td className="px-6 py-3 text-center text-xs text-slate-300">-</td>
+                                                        <td className="px-6 py-3 text-center text-xs text-slate-300">-</td>
+                                                        <td className="px-6 py-3 text-center font-mono font-bold text-orange-700 text-xs">{otEnd}</td>
+                                                        <td className="px-6 py-3 font-extrabold text-orange-900 text-xs">
+                                                            {otDurationMins > 0 ? formatDuration(otDurationMins) : "Berlangsung"}
+                                                        </td>
+                                                        <td className="px-6 py-3 text-center text-xs text-slate-300">-</td>
+                                                        <td className="px-6 py-3 text-center">
+                                                            <span className="px-2 py-0.5 rounded text-[10px] font-extrabold uppercase bg-orange-100 text-orange-800 border border-orange-200">
+                                                                {ot.status === "completed" ? "Selesai" : "Berlangsung"}
+                                                            </span>
+                                                        </td>
+                                                        <td className="px-6 py-3 text-xs text-slate-600 italic truncate max-w-[180px]">
+                                                            {ot.description || "Lembur pekerjaan"}
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })()}
+                                            </React.Fragment>
                                         );
                                     })}
                                 </tbody>

@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { useAttendance } from "@/hooks/use-attendance";
 import { CompanyHeader } from "@/components/CompanyHeader";
@@ -279,6 +279,38 @@ export default function EmployeeDashboard() {
     const [isOvertimeAlertOpen, setIsOvertimeAlertOpen] = useState(false);
     const [isStartOvertimeModalOpen, setIsStartOvertimeModalOpen] = useState(false);
     const [isEndOvertimeModalOpen, setIsEndOvertimeModalOpen] = useState(false);
+    const [isSplViewModalOpen, setIsSplViewModalOpen] = useState(false);
+    const [isRejectOvertimeModalOpen, setIsRejectOvertimeModalOpen] = useState(false);
+    const [rejectionReasonInput, setRejectionReasonInput] = useState("");
+
+    const overtimeRespondMutation = useMutation({
+        mutationFn: async ({ action, rejectionReason }: { action: "approve" | "reject", rejectionReason?: string }) => {
+            const res = await fetch("/api/attendance/overtime/respond", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    overtimeId: activeOvertimeToday?.id,
+                    action,
+                    rejectionReason
+                })
+            });
+            if (!res.ok) throw new Error("Gagal menyimpan respon lembur");
+            return res.json();
+        },
+        onSuccess: (_, variables) => {
+            queryClient.invalidateQueries({ queryKey: ["/api/attendance/overtime/today"] });
+            setIsRejectOvertimeModalOpen(false);
+            setRejectionReasonInput("");
+            if (variables.action === "approve") {
+                toast({ title: "Lembur Disetujui!", description: "Anda telah menyetujui lembur. Tombol LEMBUR (OVERTIME) kini aktif." });
+            } else {
+                toast({ title: "Izin Tidak Lembur Terkirim", description: "Permohonan izin tidak lembur telah diteruskan ke Admin." });
+            }
+        },
+        onError: (err: any) => {
+            toast({ title: "Gagal", description: err.message, variant: "destructive" });
+        }
+    });
 
     const [splFile, setSplFile] = useState<File | null>(null);
     const [splPreview, setSplPreview] = useState<string | null>(null);
@@ -1233,6 +1265,59 @@ export default function EmployeeDashboard() {
                                     <span className="flex items-center gap-1.5 uppercase">⚡ LAYANAN LEMBUR (OVERTIME)</span>
                                 </div>
 
+                                {/* BILA KARYAWAN DITUGASKAN LEMBUR (STATUS PENDING APPROVAL) */}
+                                {activeOvertimeToday?.employeeApproval === "pending" && (
+                                    <div className="bg-gradient-to-br from-amber-500/10 via-orange-500/10 to-amber-50 border-2 border-orange-400 p-4 rounded-2xl space-y-3 shadow-md">
+                                        <div className="flex items-center gap-2 text-orange-900 font-extrabold text-xs">
+                                            <span className="bg-orange-600 text-white p-1 rounded-lg">⚡</span>
+                                            <span className="uppercase tracking-wide">SURAT PERINTAH LEMBUR (SPL) DITERIMA</span>
+                                        </div>
+                                        <p className="text-xs text-slate-700 font-semibold leading-relaxed">
+                                            Anda ditugaskan lembur oleh Admin pada tanggal <strong>{activeOvertimeToday.startTime ? format(new Date(activeOvertimeToday.startTime), "dd MMM yyyy") : "Hari Ini"}</strong> jam <strong>{activeOvertimeToday.startTime ? format(new Date(activeOvertimeToday.startTime), "HH:mm") : "-"} WIB</strong>.
+                                        </p>
+                                        <div className="p-2.5 bg-white/90 rounded-xl border border-orange-200 text-xs text-slate-700 font-medium italic">
+                                            "{activeOvertimeToday.description || 'Pekerjaan Lembur'}"
+                                        </div>
+                                        <div className="flex flex-col gap-2 pt-1">
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                className="w-full bg-white border-orange-300 text-orange-800 font-bold rounded-xl text-xs h-10 gap-1.5 shadow-sm hover:bg-orange-50"
+                                                onClick={() => setIsSplViewModalOpen(true)}
+                                            >
+                                                📄 Lihat Surat SPL
+                                            </Button>
+                                            <div className="flex gap-2">
+                                                <Button
+                                                    type="button"
+                                                    className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs h-10 gap-1.5 shadow"
+                                                    onClick={() => overtimeRespondMutation.mutate({ action: "approve" })}
+                                                    disabled={overtimeRespondMutation.isPending}
+                                                >
+                                                    <Check className="w-4 h-4" /> Setujui Lembur
+                                                </Button>
+                                                <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                    className="flex-1 bg-red-50 border-red-200 text-red-700 hover:bg-red-100 font-bold rounded-xl text-xs h-10 gap-1.5"
+                                                    onClick={() => setIsRejectOvertimeModalOpen(true)}
+                                                    disabled={overtimeRespondMutation.isPending}
+                                                >
+                                                    <X className="w-4 h-4" /> Izin Tidak Lembur
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* BILA BUKAN PENDING (SUDAH DISETUJUI / BEBAS) */}
+                                {activeOvertimeToday?.employeeApproval === "rejected" && (
+                                    <div className="bg-red-50 border border-red-200 p-3 rounded-2xl text-xs text-red-800 space-y-1">
+                                        <span className="font-bold block">Status: Permohonan Izin Tidak Lembur Dikirim</span>
+                                        <p className="italic text-[11px] text-red-600">Alasan: "{activeOvertimeToday.rejectionReason}"</p>
+                                    </div>
+                                )}
+
                                 {(!activeOvertimeToday || activeOvertimeToday.status === "cancelled") && (
                                     <Button
                                         type="button"
@@ -1240,6 +1325,16 @@ export default function EmployeeDashboard() {
                                         onClick={() => setIsOvertimeAlertOpen(true)}
                                     >
                                         <Play className="w-5 h-5 fill-current" /> LEMBUR (OVERTIME)
+                                    </Button>
+                                )}
+
+                                {activeOvertimeToday && activeOvertimeToday.employeeApproval !== "pending" && activeOvertimeToday.employeeApproval !== "rejected" && activeOvertimeToday.status !== "ongoing" && activeOvertimeToday.status !== "completed" && (
+                                    <Button
+                                        type="button"
+                                        className="w-full h-14 bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-black text-sm rounded-xl shadow-lg flex items-center justify-center gap-2 tracking-wide uppercase"
+                                        onClick={() => setIsOvertimeAlertOpen(true)}
+                                    >
+                                        <Play className="w-5 h-5 fill-current" /> MULAI LEMBUR
                                     </Button>
                                 )}
 
@@ -1821,6 +1916,129 @@ export default function EmployeeDashboard() {
                 </DialogContent>
             </Dialog>
 
+            {/* MODAL 3: LIHAT SURAT PERINTAH LEMBUR (SPL) */}
+            <Dialog open={isSplViewModalOpen} onOpenChange={setIsSplViewModalOpen}>
+                <DialogContent className="sm:max-w-lg bg-white rounded-2xl p-6">
+                    <DialogHeader className="border-b pb-3">
+                        <DialogTitle className="text-lg font-black text-slate-900 flex items-center justify-between">
+                            <span>📄 Surat Perintah Lembur (SPL)</span>
+                            <span className="text-[10px] bg-orange-100 text-orange-800 font-bold px-2 py-0.5 rounded-full uppercase">
+                                {activeOvertimeToday?.splNumber || "SPL Resmi"}
+                            </span>
+                        </DialogTitle>
+                    </DialogHeader>
+
+                    {activeOvertimeToday && (
+                        <div className="space-y-4 text-xs text-slate-700 py-2">
+                            <div className="bg-orange-50/60 p-3 rounded-xl border border-orange-100 space-y-1">
+                                <div className="flex justify-between">
+                                    <span className="text-slate-400 font-bold">Penerima Tugas:</span>
+                                    <span className="font-extrabold text-slate-900">{user?.fullName} (NIK: {user?.nik || user?.username})</span>
+                                </div>
+                                <div className="flex justify-between">
+                                    <span className="text-slate-400 font-bold">Pemberi Tugas:</span>
+                                    <span className="font-bold text-orange-800">{activeOvertimeToday.assignedBy || "Super Admin HRD"}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                    <span className="text-slate-400 font-bold">Waktu Ditugaskan:</span>
+                                    <span className="font-bold text-slate-800">
+                                        {activeOvertimeToday.startTime ? format(new Date(activeOvertimeToday.startTime), "EEEE, d MMMM yyyy (HH:mm", { locale: id }) : "-"} WIB)
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div>
+                                <span className="font-bold text-slate-900 block mb-1">Uraian & Instruksi Pekerjaan Lembur:</span>
+                                <p className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-slate-800 font-medium italic">
+                                    "{activeOvertimeToday.description || 'Pekerjaan Lembur'}"
+                                </p>
+                            </div>
+
+                            {activeOvertimeToday.splDocumentUrl && (
+                                <div className="pt-1">
+                                    <a
+                                        href={getPhotoUrl(activeOvertimeToday.splDocumentUrl)}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="w-full flex items-center justify-center gap-2 p-3 bg-blue-50 text-blue-700 font-bold rounded-xl border border-blue-200 hover:bg-blue-100 transition-colors"
+                                    >
+                                        <Download className="w-4 h-4" /> Unduh Berkas Lampiran SPL (PDF/Gambar)
+                                    </a>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    <DialogFooter className="border-t pt-3 flex flex-row items-center justify-between">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            className="rounded-xl text-xs font-bold gap-1.5"
+                            onClick={() => {
+                                const printWin = window.open("", "_blank");
+                                if (printWin && activeOvertimeToday) {
+                                    printWin.document.write(`
+                                        <html><head><title>SPL - ${user?.fullName}</title></head>
+                                        <body style="font-family:serif;padding:30px;">
+                                            <h2>SURAT PERINTAH LEMBUR (SPL)</h2>
+                                            <p><strong>Nama:</strong> ${user?.fullName}</p>
+                                            <p><strong>NIK:</strong> ${user?.nik || user?.username}</p>
+                                            <p><strong>Deskripsi:</strong> ${activeOvertimeToday.description}</p>
+                                            <script>window.onload=function(){window.print();}</script>
+                                        </body></html>
+                                    `);
+                                    printWin.document.close();
+                                }
+                            }}
+                        >
+                            Cetak SPL
+                        </Button>
+                        <Button type="button" onClick={() => setIsSplViewModalOpen(false)} className="rounded-xl text-xs font-bold bg-slate-900 text-white">
+                            Tutup
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* MODAL 4: IZIN TIDAK LEMBUR (ALASAN PENOLAKAN) */}
+            <Dialog open={isRejectOvertimeModalOpen} onOpenChange={setIsRejectOvertimeModalOpen}>
+                <DialogContent className="sm:max-w-md bg-white rounded-2xl p-6">
+                    <DialogHeader>
+                        <DialogTitle className="text-lg font-bold text-red-700 flex items-center gap-2">
+                            <X className="w-5 h-5 text-red-600" /> Permohonan Izin Tidak Lembur
+                        </DialogTitle>
+                        <DialogDescription className="text-xs text-slate-500">
+                            Mohon sampaikan alasan yang jelas kepada Admin / HRD mengapa Anda tidak dapat melaksanakan penugasan lembur ini.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <form onSubmit={(e) => {
+                        e.preventDefault();
+                        if (!rejectionReasonInput.trim()) {
+                            toast({ title: "Alasan Wajib Diisi", description: "Mohon tuliskan alasan izin tidak lembur Anda.", variant: "destructive" });
+                            return;
+                        }
+                        overtimeRespondMutation.mutate({ action: "reject", rejectionReason: rejectionReasonInput });
+                    }} className="space-y-4 py-2">
+                        <div className="space-y-1.5">
+                            <label className="text-xs font-bold text-slate-700">Alasan Tidak Bisa Lembur *</label>
+                            <Textarea
+                                placeholder="Contoh: Ada keperluan keluarga mendadak / Kondisi kesehatan kurang fit..."
+                                value={rejectionReasonInput}
+                                onChange={(e) => setRejectionReasonInput(e.target.value)}
+                                className="text-xs rounded-xl min-h-[90px]"
+                            />
+                        </div>
+
+                        <DialogFooter className="gap-2 sm:gap-0 pt-2 border-t border-slate-100">
+                            <Button type="button" variant="ghost" size="sm" onClick={() => setIsRejectOvertimeModalOpen(false)}>Batal</Button>
+                            <Button type="submit" disabled={overtimeRespondMutation.isPending} className="bg-red-600 hover:bg-red-700 text-white text-xs rounded-xl font-bold h-10 px-5">
+                                {overtimeRespondMutation.isPending ? "Sending..." : "Kirim Alasan ke Admin"}
+                            </Button>
+                        </DialogFooter>
+                    </form>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }

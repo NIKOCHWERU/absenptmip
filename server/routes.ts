@@ -1321,6 +1321,27 @@ export function registerRoutes(app: Express) {
     }
   });
 
+  // Helper untuk mengirim Push Notification ke user spesifik
+  async function sendPushToUser(userId: number, payload: { title: string; body: string; url?: string }) {
+    try {
+      const subs = await db.select().from(pushSubscriptions).where(eq(pushSubscriptions.userId, userId));
+      for (const sub of subs) {
+        const pushSubscription = {
+          endpoint: sub.endpoint,
+          keys: {
+            p256dh: sub.p256dh,
+            auth: sub.auth,
+          },
+        };
+        webpush.sendNotification(pushSubscription, JSON.stringify(payload)).catch((err) => {
+          console.error("WebPush send error:", err);
+        });
+      }
+    } catch (err) {
+      console.error("sendPushToUser error:", err);
+    }
+  }
+
   // 7. Overtime Endpoints (Khusus Super Admin & NIK 12345)
   app.post("/api/attendance/overtime/start", isAuthenticated, upload.fields([{ name: "splPhoto" }, { name: "initialProofPhoto" }]), async (req: Request, res: Response) => {
     try {
@@ -1368,15 +1389,26 @@ export function registerRoutes(app: Express) {
         
         const isoString = `${year}-${String(month + 1).padStart(2, '0')}-${String(dateNum).padStart(2, '0')}T${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}:00+07:00`;
         let checkOutDate = new Date(isoString);
-        
-        // Ensure checkout is not tomorrow unless shift spans midnight (handled simply here)
         await db.update(attendance).set({ checkOut: checkOutDate }).where(eq(attendance.id, activeSession.id));
       }
 
       // Check if overtime already started
       const existingOvertimes = await db.select().from(overtimes).where(and(eq(overtimes.attendanceId, activeSession.id), eq(overtimes.status, "ongoing")));
       if (existingOvertimes.length > 0) {
-        return res.status(400).json({ message: "Lembur sudah berjalan" });
+        // Update existing pending/ongoing overtime
+        const splUrl = files?.splPhoto?.[0] ? await processSingleUpload(files.splPhoto[0], "overtimeSPL", user[0].fullName) : existingOvertimes[0].splDocumentUrl;
+        const initialProofUrl = files?.initialProofPhoto?.[0] ? await processSingleUpload(files.initialProofPhoto[0], "overtimeInitial", user[0].fullName) : existingOvertimes[0].initialProofUrl;
+
+        await db.update(overtimes).set({
+          startTime: new Date(),
+          description: description || existingOvertimes[0].description,
+          splDocumentUrl: splUrl,
+          initialProofUrl: initialProofUrl,
+          status: "ongoing",
+          employeeApproval: "approved"
+        }).where(eq(overtimes.id, existingOvertimes[0].id));
+
+        return res.json({ message: "Lembur berhasil dimulai" });
       }
 
       const splUrl = files?.splPhoto?.[0] ? await processSingleUpload(files.splPhoto[0], "overtimeSPL", user[0].fullName) : null;
@@ -1388,7 +1420,8 @@ export function registerRoutes(app: Express) {
         description: description,
         splDocumentUrl: splUrl,
         initialProofUrl: initialProofUrl,
-        status: "ongoing"
+        status: "ongoing",
+        employeeApproval: "approved"
       });
 
       res.json({ message: "Lembur berhasil dimulai" });
@@ -1467,6 +1500,68 @@ export function registerRoutes(app: Express) {
     }
   });
 
+  // Respon Persetujuan / Izin Tidak Lembur Karyawan
+  app.post("/api/attendance/overtime/respond", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const { overtimeId, action, rejectionReason } = req.body;
+      if (!overtimeId || !action) {
+        return res.status(400).json({ message: "overtimeId dan action wajib diisi" });
+      }
+      const ot = await db.select().from(overtimes).where(eq(overtimes.id, Number(overtimeId))).limit(1);
+      if (ot.length === 0) return res.status(404).json({ message: "Data lembur tidak ditemukan" });
+
+      if (action === "approve") {
+        await db.update(overtimes).set({
+          employeeApproval: "approved",
+          status: "ongoing"
+        }).where(eq(overtimes.id, Number(overtimeId)));
+        return res.json({ message: "Penugasan lembur telah disetujui" });
+      } else if (action === "reject") {
+        await db.update(overtimes).set({
+          employeeApproval: "rejected",
+          rejectionReason: rejectionReason || "Karyawan mengajukan izin tidak lembur",
+          status: "cancelled"
+        }).where(eq(overtimes.id, Number(overtimeId)));
+        return res.json({ message: "Permohonan izin tidak lembur telah dikirim" });
+      }
+      res.status(400).json({ message: "Aksi tidak valid" });
+    } catch (e: any) {
+      console.error("Overtime respond error:", e);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Endpoint untuk mengambil Surat Perintah Lembur (SPL) Karyawan
+  app.get("/api/employee/overtimes/my-spl", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const userId = req.session.userId!;
+      const userSpls = await db.select({
+        id: overtimes.id,
+        attendanceId: overtimes.attendanceId,
+        startTime: overtimes.startTime,
+        endTime: overtimes.endTime,
+        splDocumentUrl: overtimes.splDocumentUrl,
+        description: overtimes.description,
+        status: overtimes.status,
+        employeeApproval: overtimes.employeeApproval,
+        rejectionReason: overtimes.rejectionReason,
+        splNumber: overtimes.splNumber,
+        createdAt: overtimes.createdAt,
+        date: attendance.date
+      })
+      .from(overtimes)
+      .innerJoin(attendance, eq(overtimes.attendanceId, attendance.id))
+      .where(eq(attendance.userId, userId))
+      .orderBy(desc(overtimes.createdAt));
+
+      res.json(userSpls);
+    } catch (e: any) {
+      console.error("Fetch my SPL error:", e);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Endpoint Admin Fetch All Overtimes (Daftar Lembur Real)
   app.get("/api/admin/overtimes", isAuthenticated, isAdmin, async (req: Request, res: Response) => {
     try {
       const allOvertimes = await db.select({
@@ -1480,18 +1575,86 @@ export function registerRoutes(app: Express) {
         description: overtimes.description,
         finalDescription: overtimes.finalDescription,
         status: overtimes.status,
+        employeeApproval: overtimes.employeeApproval,
+        rejectionReason: overtimes.rejectionReason,
+        splNumber: overtimes.splNumber,
+        assignedBy: overtimes.assignedBy,
         createdAt: overtimes.createdAt,
         userId: attendance.userId,
-        date: attendance.date
+        date: attendance.date,
+        fullName: users.fullName,
+        nik: users.nik,
+        position: users.position,
+        branch: users.branch
       })
       .from(overtimes)
       .innerJoin(attendance, eq(overtimes.attendanceId, attendance.id))
+      .innerJoin(users, eq(attendance.userId, users.id))
       .orderBy(desc(overtimes.createdAt));
 
       res.json(allOvertimes);
     } catch (e: any) {
       console.error("Fetch all overtimes error:", e);
       res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Endpoint Admin Penugasan Lembur Baru (SPL)
+  app.post("/api/admin/overtimes/assign", isAuthenticated, isAdmin, upload.single("splFile"), async (req: Request, res: Response) => {
+    try {
+      const { userId, date, startTime, endTime, description } = req.body;
+      if (!userId || !date || !startTime) {
+        return res.status(400).json({ message: "Karyawan, Tanggal, dan Jam Mulai Wajib Diisi" });
+      }
+      const targetUser = await db.select().from(users).where(eq(users.id, Number(userId))).limit(1);
+      if (!targetUser.length) return res.status(404).json({ message: "User tidak ditemukan" });
+
+      let attRecord = await db.select().from(attendance).where(and(eq(attendance.userId, Number(userId)), eq(attendance.date, date))).limit(1);
+      let attendanceId: number;
+      if (attRecord.length === 0) {
+        const [newAtt] = await (db.insert(attendance) as any).values({
+          userId: Number(userId),
+          date: date,
+          status: "present",
+          checkIn: new Date(`${date}T${startTime}:00`),
+          notes: "Penugasan Lembur SPL"
+        });
+        attendanceId = newAtt.insertId;
+      } else {
+        attendanceId = attRecord[0].id;
+      }
+
+      let splUrl = null;
+      if (req.file) {
+        splUrl = await processSingleUpload(req.file, "overtimeSPL", targetUser[0].fullName);
+      }
+
+      const startIso = `${date}T${startTime}:00`;
+      const endIso = endTime ? `${date}T${endTime}:00` : null;
+      const splNum = `SPL/MIP/${date.replace(/-/g, '')}/${Math.floor(1000 + Math.random() * 9000)}`;
+
+      const [newOt] = await (db.insert(overtimes) as any).values({
+        attendanceId: attendanceId,
+        startTime: new Date(startIso),
+        endTime: endIso ? new Date(endIso) : null,
+        description: description || "Surat Perintah Lembur (SPL)",
+        splDocumentUrl: splUrl,
+        status: "ongoing",
+        employeeApproval: "pending",
+        splNumber: splNum,
+        assignedBy: req.session.userId!
+      });
+
+      sendPushToUser(Number(userId), {
+        title: "⚡ SURAT PERINTAH LEMBUR (SPL)",
+        body: `Anda menerima Surat Perintah Lembur (SPL) tanggal ${date} jam ${startTime}. Silakan buka aplikasi untuk menyetujui.`,
+        url: "/dashboard"
+      });
+
+      res.json({ message: "Penugasan Lembur (SPL) berhasil dikirim", id: newOt.insertId });
+    } catch (e: any) {
+      console.error("Assign overtime error:", e);
+      res.status(500).json({ message: e.message || "Internal server error" });
     }
   });
 
@@ -1509,6 +1672,7 @@ export function registerRoutes(app: Express) {
         description: description || "Lembur Manual Admin",
         finalDescription: finalDescription || null,
         status: status || (endTime ? "completed" : "ongoing"),
+        employeeApproval: "approved"
       });
       res.json({ message: "Lembur manual berhasil ditambahkan", id: newOt.insertId });
     } catch (e: any) {

@@ -166,6 +166,10 @@ export default function AttendanceHistoryPage() {
         queryKey: ["/api/admin/users"],
     });
 
+    const { data: allOvertimes } = useQuery<any[]>({
+        queryKey: ["/api/admin/overtimes"],
+    });
+
     const { data: config } = useQuery<any>({
         queryKey: ["/api/config"],
     });
@@ -1156,152 +1160,199 @@ export default function AttendanceHistoryPage() {
                                             const effectiveStatus = isContinuation && record.status === 'late' ? 'present' : record.status;
 
                                             return (
-                                                <tr key={record.id} className="hover:bg-gray-50/50 transition-colors">
-                                                    <td className="px-6 py-4 align-top">
-                                                        <span className="text-xs font-semibold text-gray-500">
-                                                            {isContinuation ? '' : recordDateStr}
-                                                        </span>
-                                                    </td>
-                                                    <td className="px-6 py-4 align-top">
-                                                        {isContinuation ? (
-                                                            <div className="flex items-center gap-3 ml-6 opacity-40">
-                                                                <span className="text-gray-400">↳</span>
-                                                                <span className="text-xs italic text-gray-400">Sesi {record.sessionNumber || 1}</span>
-                                                            </div>
-                                                        ) : (
-                                                            <div className="flex items-center gap-3">
-                                                                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm shrink-0">
-                                                                    {emp?.fullName?.charAt(0) || '?'}
-                                                                </div>
-                                                                <div>
-                                                                    <div className="flex items-center gap-2 leading-tight">
-                                                                        <p className="font-bold text-gray-900">{emp?.fullName || 'Unknown'}</p>
-                                                                        <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded font-medium">Sesi {record.sessionNumber || 1}</span>
-                                                                    </div>
-                                                                    {record.shift && record.shift.toLowerCase().trim() !== '-' && record.shift.toLowerCase().trim() !== 'management' ? (
-                                                                        <p className="text-[10px] font-bold text-primary mt-0.5 uppercase tracking-wide">{record.shift}</p>
-                                                                    ) : (
-                                                                        <p className="text-[10px] italic text-gray-400 mt-0.5 uppercase tracking-wide">Belum Tercatat</p>
-                                                                    )}
-                                                                    <p className="text-[10px] text-gray-400 font-medium leading-tight">NIK: {emp?.nik || emp?.username}</p>
-                                                                </div>
-                                                            </div>
-                                                        )}
-                                                    </td>
-                                                    <td className="px-6 py-4 align-top">
-                                                        <div className="flex flex-col gap-2">
-                                                            <div className="flex flex-col gap-1 text-[11px] font-mono">
-                                                                <div className="flex justify-between w-32">
-                                                                    <span className="text-gray-500">Masuk:</span>
-                                                                    <span className="font-bold text-primary">{record.checkIn ? format(new Date(record.checkIn), 'HH:mm') : '-'}</span>
-                                                                </div>
-                                                                <div className="flex justify-between w-32">
-                                                                    <span className="text-gray-500">Istirahat:</span>
-                                                                    <span className="font-bold text-orange-600">{record.breakStart ? format(new Date(record.breakStart), 'HH:mm') : '-'}</span>
-                                                                </div>
-                                                                <div className="flex justify-between w-32">
-                                                                    <span className="text-gray-500">Selesai:</span>
-                                                                    <span className="font-bold text-blue-600">{record.breakEnd ? format(new Date(record.breakEnd), 'HH:mm') : '-'}</span>
-                                                                </div>
-                                                                <div className="flex justify-between w-32">
-                                                                    <span className="text-gray-500">Pulang:</span>
-                                                                    <span className="font-bold text-red-600">{record.checkOut ? format(new Date(record.checkOut), 'HH:mm') : '-'}</span>
-                                                                </div>
+                                                 <React.Fragment key={record.id}>
+                                                     <tr className="hover:bg-gray-50/50 transition-colors">
+                                                         <td className="px-6 py-4 align-top">
+                                                             <span className="text-xs font-semibold text-gray-500">
+                                                                 {isContinuation ? '' : recordDateStr}
+                                                             </span>
+                                                         </td>
+                                                         <td className="px-6 py-4 align-top">
+                                                             {isContinuation ? (
+                                                                 <div className="flex items-center gap-3 ml-6 opacity-40">
+                                                                     <span className="text-gray-400">↳</span>
+                                                                     <span className="text-xs italic text-gray-400">Sesi {record.sessionNumber || 1}</span>
+                                                                 </div>
+                                                             ) : (
+                                                                 <div className="flex items-center gap-3">
+                                                                     <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm shrink-0">
+                                                                         {emp?.fullName?.charAt(0) || '?'}
+                                                                     </div>
+                                                                     <div>
+                                                                         <div className="flex items-center gap-2 leading-tight">
+                                                                             <p className="font-bold text-gray-900">{emp?.fullName || 'Unknown'}</p>
+                                                                             <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded font-medium">Sesi {record.sessionNumber || 1}</span>
+                                                                         </div>
+                                                                         {record.shift && record.shift.toLowerCase().trim() !== '-' && record.shift.toLowerCase().trim() !== 'management' ? (
+                                                                             <p className="text-[10px] font-bold text-primary mt-0.5 uppercase tracking-wide">{record.shift}</p>
+                                                                         ) : (
+                                                                             <p className="text-[10px] italic text-gray-400 mt-0.5 uppercase tracking-wide">Belum Tercatat</p>
+                                                                         )}
+                                                                         <p className="text-[10px] text-gray-400 font-medium leading-tight">NIK: {emp?.nik || emp?.username}</p>
+                                                                     </div>
+                                                                 </div>
+                                                             )}
+                                                         </td>
+                                                         <td className="px-6 py-4 align-top">
+                                                             <div className="flex flex-col gap-2">
+                                                                 <div className="flex flex-col gap-1 text-[11px] font-mono">
+                                                                     <div className="flex justify-between w-32">
+                                                                         <span className="text-gray-500">Masuk:</span>
+                                                                         <span className="font-bold text-primary">{record.checkIn ? format(new Date(record.checkIn), 'HH:mm') : '-'}</span>
+                                                                     </div>
+                                                                     <div className="flex justify-between w-32">
+                                                                         <span className="text-gray-500">Istirahat:</span>
+                                                                         <span className="font-bold text-orange-600">{record.breakStart ? format(new Date(record.breakStart), 'HH:mm') : '-'}</span>
+                                                                     </div>
+                                                                     <div className="flex justify-between w-32">
+                                                                         <span className="text-gray-500">Selesai:</span>
+                                                                         <span className="font-bold text-blue-600">{record.breakEnd ? format(new Date(record.breakEnd), 'HH:mm') : '-'}</span>
+                                                                     </div>
+                                                                     <div className="flex justify-between w-32">
+                                                                         <span className="text-gray-500">Pulang:</span>
+                                                                         <span className="font-bold text-red-600">{record.checkOut ? format(new Date(record.checkOut), 'HH:mm') : '-'}</span>
+                                                                     </div>
 
-                                                                {(() => {
-                                                                    const { duration } = parsePermitInfo(record.notes);
-                                                                    return duration > 0 && (
-                                                                        <div className="flex justify-between w-32 pt-1 border-t border-gray-100 mt-1">
-                                                                            <span className="text-gray-500 font-bold">Izin:</span>
-                                                                            <span className="font-bold text-purple-600">{duration} Jam</span>
-                                                                        </div>
-                                                                    );
-                                                                })()}
+                                                                     {(() => {
+                                                                         const { duration } = parsePermitInfo(record.notes);
+                                                                         return duration > 0 && (
+                                                                             <div className="flex justify-between w-32 pt-1 border-t border-gray-100 mt-1">
+                                                                                 <span className="text-gray-500 font-bold">Izin:</span>
+                                                                                 <span className="font-bold text-purple-600">{duration} Jam</span>
+                                                                             </div>
+                                                                         );
+                                                                     })()}
 
-                                                                <div className="mt-2 border-t border-gray-100 pt-1">
-                                                                    <p className="text-[10px] font-bold text-gray-900">
-                                                                        {(() => {
-                                                                            const { netWorkMins } = calculateDailyTotal([record]);
-                                                                            return netWorkMins > 0 ? `Total Kerja: ${formatDuration(netWorkMins)}` : "Absensi belum lengkap";
-                                                                        })()}
-                                                                    </p>
-                                                                </div>
-                                                            </div>
+                                                                     <div className="mt-2 border-t border-gray-100 pt-1">
+                                                                         <p className="text-[10px] font-bold text-gray-900">
+                                                                             {(() => {
+                                                                                 const { netWorkMins } = calculateDailyTotal([record]);
+                                                                                 return netWorkMins > 0 ? `Total Kerja: ${formatDuration(netWorkMins)}` : "Absensi belum lengkap";
+                                                                             })()}
+                                                                         </p>
+                                                                     </div>
+                                                                 </div>
 
-                                                            {record.checkInLocation && (
-                                                                <div className="flex items-start gap-1.5 p-2 bg-gray-50 rounded-lg border border-gray-100 max-w-[160px]">
-                                                                    <MapPin className="h-3 w-3 text-gray-400 mt-0.5 shrink-0" />
-                                                                    <p className="text-[10px] text-gray-500 leading-relaxed break-words line-clamp-3" title={record.checkInLocation}>
-                                                                        {record.checkInLocation}
-                                                                    </p>
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                    </td>
-                                                    <td className="px-6 py-4 align-top">
-                                                        <div className="flex gap-2">
-                                                            <PhotoThumbnail url={record.checkInPhoto} label="Masuk" location={record.checkInLocation} />
-                                                            <PhotoThumbnail url={record.breakStartPhoto} label="Mulai Ist" location={record.breakStartLocation} />
-                                                            <PhotoThumbnail url={record.breakEndPhoto} label="Slsai Ist" location={record.breakEndLocation} />
-                                                            <PhotoThumbnail url={record.checkOutPhoto} label="Pulang" location={record.checkOutLocation} />
-                                                            <PhotoThumbnail url={record.lateReasonPhoto} label="Bukti Telat" />
+                                                                 {record.checkInLocation && (
+                                                                     <div className="flex items-start gap-1.5 p-2 bg-gray-50 rounded-lg border border-gray-100 max-w-[160px]">
+                                                                         <MapPin className="h-3 w-3 text-gray-400 mt-0.5 shrink-0" />
+                                                                         <p className="text-[10px] text-gray-500 leading-relaxed break-words line-clamp-3" title={record.checkInLocation}>
+                                                                             {record.checkInLocation}
+                                                                         </p>
+                                                                     </div>
+                                                                 )}
+                                                             </div>
+                                                         </td>
+                                                         <td className="px-6 py-4 align-top">
+                                                             <div className="flex gap-2">
+                                                                 <PhotoThumbnail url={record.checkInPhoto} label="Masuk" location={record.checkInLocation} />
+                                                                 <PhotoThumbnail url={record.breakStartPhoto} label="Mulai Ist" location={record.breakStartLocation} />
+                                                                 <PhotoThumbnail url={record.breakEndPhoto} label="Slsai Ist" location={record.breakEndLocation} />
+                                                                 <PhotoThumbnail url={record.checkOutPhoto} label="Pulang" location={record.checkOutLocation} />
+                                                                 <PhotoThumbnail url={record.lateReasonPhoto} label="Bukti Telat" />
 
-                                                            {!record.checkInPhoto && !record.checkOutPhoto && !record.breakStartPhoto && !record.breakEndPhoto && !record.lateReasonPhoto && (
-                                                                <div className="flex items-center justify-center p-4 border border-dashed border-gray-200 rounded-lg bg-gray-50 w-full min-w-[120px]">
-                                                                    <span className="text-xs text-gray-400 italic">Tidak ada foto</span>
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                    </td>
-                                                    <td className="px-6 py-4 align-top">
-                                                        <div className="flex flex-col gap-2 items-start max-w-[200px]">
-                                                            <span className={`px-2 py-1 rounded-md text-[10px] font-bold uppercase
-                                                                ${effectiveStatus === 'present' ? 'bg-primary/10 text-primary' :
-                                                                    effectiveStatus === 'late' ? 'bg-orange-100 text-orange-700' :
-                                                                        effectiveStatus === 'sick' ? 'bg-blue-100 text-blue-700' :
-                                                                            effectiveStatus === 'permission' ? 'bg-purple-100 text-purple-700' :
-                                                                                effectiveStatus === 'cuti' ? 'bg-teal-100 text-teal-700' :
-                                                                                    'bg-gray-100 text-gray-700'
-                                                                }`}>
-                                                                {effectiveStatus === 'present' ? 'Hadir' :
-                                                                    effectiveStatus === 'late' ? 'Telat' :
-                                                                        effectiveStatus === 'sick' ? 'Sakit' :
-                                                                            effectiveStatus === 'permission' ? 'Izin' :
-                                                                                effectiveStatus === 'cuti' ? 'Cuti' :
-                                                                                    effectiveStatus === 'absent' ? 'Alpha' : effectiveStatus}
-                                                            </span>
+                                                                 {!record.checkInPhoto && !record.checkOutPhoto && !record.breakStartPhoto && !record.breakEndPhoto && !record.lateReasonPhoto && (
+                                                                     <div className="flex items-center justify-center p-4 border border-dashed border-gray-200 rounded-lg bg-gray-50 w-full min-w-[120px]">
+                                                                         <span className="text-xs text-gray-400 italic">Tidak ada foto</span>
+                                                                     </div>
+                                                                 )}
+                                                             </div>
+                                                         </td>
+                                                         <td className="px-6 py-4 align-top">
+                                                             <div className="flex flex-col gap-2 items-start max-w-[200px]">
+                                                                 <span className={`px-2 py-1 rounded-md text-[10px] font-bold uppercase
+                                                                     ${effectiveStatus === 'present' ? 'bg-primary/10 text-primary' :
+                                                                         effectiveStatus === 'late' ? 'bg-orange-100 text-orange-700' :
+                                                                             effectiveStatus === 'sick' ? 'bg-blue-100 text-blue-700' :
+                                                                                 effectiveStatus === 'permission' ? 'bg-purple-100 text-purple-700' :
+                                                                                     effectiveStatus === 'cuti' ? 'bg-teal-100 text-teal-700' :
+                                                                                         'bg-gray-100 text-gray-700'
+                                                                     }`}>
+                                                                     {effectiveStatus === 'present' ? 'Hadir' :
+                                                                         effectiveStatus === 'late' ? 'Telat' :
+                                                                             effectiveStatus === 'sick' ? 'Sakit' :
+                                                                                 effectiveStatus === 'permission' ? 'Izin' :
+                                                                                     effectiveStatus === 'cuti' ? 'Cuti' :
+                                                                                         effectiveStatus === 'absent' ? 'Alpha' : effectiveStatus}
+                                                                 </span>
 
-                                                            {(() => {
-                                                                const { duration, cleanNotes } = parsePermitInfo(record.notes);
-                                                                return cleanNotes && (
-                                                                    <p className="text-xs text-gray-600 whitespace-normal bg-gray-50 p-2 rounded border border-gray-100 w-full" style={{ wordBreak: 'break-word' }}>
-                                                                        <span className="font-semibold block mb-0.5">Catatan:</span>
-                                                                        {cleanNotes}
-                                                                    </p>
-                                                                );
-                                                            })()}
-                                                            {(effectiveStatus === 'late' && (record as any).lateReason) && (
-                                                                <p className="text-xs text-orange-700 whitespace-normal bg-orange-50 p-2 rounded border border-orange-100 w-full" style={{ wordBreak: 'break-word' }}>
-                                                                    <span className="font-semibold block mb-0.5">Alasan Telat:</span>
-                                                                    {(record as any).lateReason}
-                                                                </p>
-                                                            )}
-                                                            {(() => {
-                                                                const meta = parseMetadataForSuspicion((record as any).checkInMetadata);
-                                                                if (!meta.isSuspicious) return null;
-                                                                return (
-                                                                    <div className="flex items-start gap-1.5 bg-orange-50 border border-orange-200 rounded-md p-2 w-full" title={meta.summary}>
-                                                                        <span className="mt-0.5"><AlertTriangle className="w-4 h-4 text-orange-500" /></span>
-                                                                        <div>
-                                                                            <p className="text-[10px] font-bold text-orange-700 uppercase">GPS Mencurigakan</p>
-                                                                            <p className="text-[9px] text-orange-600 mt-0.5">{meta.summary.replace('GPS Mencurigakan: ', '')}</p>
-                                                                        </div>
-                                                                    </div>
-                                                                );
-                                                            })()}
-                                                        </div>
-                                                    </td>
-                                                </tr>
+                                                                 {(() => {
+                                                                     const { duration, cleanNotes } = parsePermitInfo(record.notes);
+                                                                     return cleanNotes && (
+                                                                         <p className="text-xs text-gray-600 whitespace-normal bg-gray-50 p-2 rounded border border-gray-100 w-full" style={{ wordBreak: 'break-word' }}>
+                                                                             <span className="font-semibold block mb-0.5">Catatan:</span>
+                                                                             {cleanNotes}
+                                                                         </p>
+                                                                     );
+                                                                 })()}
+                                                                 {(effectiveStatus === 'late' && (record as any).lateReason) && (
+                                                                     <p className="text-xs text-orange-700 whitespace-normal bg-orange-50 p-2 rounded border border-orange-100 w-full" style={{ wordBreak: 'break-word' }}>
+                                                                         <span className="font-semibold block mb-0.5">Alasan Telat:</span>
+                                                                         {(record as any).lateReason}
+                                                                     </p>
+                                                                 )}
+                                                                 {(() => {
+                                                                     const meta = parseMetadataForSuspicion((record as any).checkInMetadata);
+                                                                     if (!meta.isSuspicious) return null;
+                                                                     return (
+                                                                         <div className="flex items-start gap-1.5 bg-orange-50 border border-orange-200 rounded-md p-2 w-full" title={meta.summary}>
+                                                                             <span className="mt-0.5"><AlertTriangle className="w-4 h-4 text-orange-500" /></span>
+                                                                             <div>
+                                                                                 <p className="text-[10px] font-bold text-orange-700 uppercase">GPS Mencurigakan</p>
+                                                                                 <p className="text-[9px] text-orange-600 mt-0.5">{meta.summary.replace('GPS Mencurigakan: ', '')}</p>
+                                                                             </div>
+                                                                         </div>
+                                                                     );
+                                                                 })()}
+                                                             </div>
+                                                         </td>
+                                                     </tr>
+
+                                                     {/* Sub-baris Foto Lembur jika ada lembur pada tanggal ini */}
+                                                     {(() => {
+                                                         const ot = allOvertimes?.find(o => o.attendanceId === record.id);
+                                                         if (!ot) return null;
+                                                         const otStart = ot.startTime ? format(new Date(ot.startTime), "HH:mm") : "-";
+                                                         const otEnd = ot.endTime ? format(new Date(ot.endTime), "HH:mm") : (ot.status === "ongoing" ? "Berlangsung" : "-");
+
+                                                         return (
+                                                             <tr key={`ot-photo-${record.id}`} className="bg-orange-50/40 border-b border-orange-100">
+                                                                 <td className="px-6 py-4 align-top text-right">
+                                                                     <span className="text-orange-500 font-bold text-xs">↳</span>
+                                                                 </td>
+                                                                 <td className="px-6 py-4 align-top">
+                                                                     <div className="flex items-center gap-2">
+                                                                         <span className="bg-orange-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full uppercase">⚡ LEMBUR</span>
+                                                                         <span className="text-xs font-bold text-gray-800">{emp?.fullName}</span>
+                                                                     </div>
+                                                                 </td>
+                                                                 <td className="px-6 py-4 align-top">
+                                                                     <div className="text-[11px] font-mono">
+                                                                         <div><span className="text-gray-400">Mulai:</span> <strong className="text-orange-700">{otStart}</strong></div>
+                                                                         <div><span className="text-gray-400">Selesai:</span> <strong className="text-orange-700">{otEnd}</strong></div>
+                                                                         <div className="mt-1 text-[10px] text-gray-500 italic max-w-[150px]">"{ot.description || '-'}"</div>
+                                                                     </div>
+                                                                 </td>
+                                                                 <td className="px-6 py-4 align-top">
+                                                                     <div className="flex gap-2">
+                                                                         <PhotoThumbnail url={ot.initialProofUrl} label="Awal Lembur" />
+                                                                         <PhotoThumbnail url={ot.finalProofUrl} label="Hasil Lembur" />
+                                                                         {ot.splDocumentUrl && (
+                                                                             <a href={ot.splDocumentUrl} target="_blank" rel="noreferrer" className="flex flex-col items-center justify-center p-2 border border-orange-200 rounded-lg bg-orange-50 text-orange-700 text-[10px] font-bold hover:bg-orange-100">
+                                                                                 <span>📄 Berkas SPL</span>
+                                                                             </a>
+                                                                         )}
+                                                                     </div>
+                                                                 </td>
+                                                                 <td className="px-6 py-4 align-top">
+                                                                     <span className="px-2 py-1 rounded text-[10px] font-bold uppercase bg-orange-100 text-orange-800 border border-orange-200">
+                                                                         {ot.status === "completed" ? "Selesai & Verified" : "Berlangsung"}
+                                                                     </span>
+                                                                 </td>
+                                                             </tr>
+                                                         );
+                                                     })()}
+                                                 </React.Fragment>
                                             );
                                         })}
                                     </tbody>
