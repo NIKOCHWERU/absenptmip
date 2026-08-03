@@ -285,6 +285,9 @@ export default function EmployeeDashboard() {
     const [hasAutoOpenedSplNotice, setHasAutoOpenedSplNotice] = useState(false);
     const [isRejectOvertimeModalOpen, setIsRejectOvertimeModalOpen] = useState(false);
     const [rejectionReasonInput, setRejectionReasonInput] = useState("");
+    const [rejectionProofFile, setRejectionProofFile] = useState<File | null>(null);
+    const [rejectionProofPreview, setRejectionProofPreview] = useState<string | null>(null);
+    const [isSubmittingRejection, setIsSubmittingRejection] = useState(false);
 
     useEffect(() => {
         if (activeOvertimeToday && activeOvertimeToday.employeeApproval === "pending" && !hasAutoOpenedSplNotice) {
@@ -472,6 +475,46 @@ export default function EmployeeDashboard() {
             });
         } finally {
             setIsSubmittingOvertime(false);
+        }
+    };
+
+    const handleSubmitRejectOvertime = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!rejectionReasonInput.trim()) {
+            toast({ title: "Alasan Wajib Diisi", description: "Mohon tuliskan alasan izin tidak lembur Anda.", variant: "destructive" });
+            return;
+        }
+        if (!rejectionProofFile) {
+            toast({ title: "Foto Bukti Wajib", description: "Mohon upload atau ambil foto bukti alasan izin tidak lembur.", variant: "destructive" });
+            return;
+        }
+
+        try {
+            setIsSubmittingRejection(true);
+            const formData = new FormData();
+            formData.append("photo", rejectionProofFile);
+
+            const uploadRes = await fetch("/api/upload", {
+                method: "POST",
+                body: formData,
+            });
+            if (!uploadRes.ok) throw new Error("Gagal mengunggah foto bukti izin.");
+            const { photoUrl } = await uploadRes.json();
+
+            overtimeRespondMutation.mutate({
+                overtimeId: activeOvertimeToday?.id,
+                action: "reject",
+                rejectionReason: rejectionReasonInput,
+                rejectionProofUrl: photoUrl
+            });
+            setIsRejectOvertimeModalOpen(false);
+            setRejectionReasonInput("");
+            setRejectionProofFile(null);
+            setRejectionProofPreview(null);
+        } catch (err: any) {
+            toast({ title: "Gagal Mengirim Izin", description: err.message, variant: "destructive" });
+        } finally {
+            setIsSubmittingRejection(false);
         }
     };
 
@@ -1394,17 +1437,47 @@ export default function EmployeeDashboard() {
                                                 <Button
                                                     type="button"
                                                     className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs h-10 gap-1.5 shadow"
-                                                    onClick={() => overtimeRespondMutation.mutate({ action: "approve" })}
+                                                    onClick={() => overtimeRespondMutation.mutate({ overtimeId: activeOvertimeToday.id, action: "approve" })}
                                                     disabled={overtimeRespondMutation.isPending}
                                                 >
-                                                    <Check className="w-4 h-4" /> Mulai Lembur
+                                                    <Check className="w-4 h-4" /> Terima Tugas
                                                 </Button>
                                             </div>
                                         </div>
                                     </div>
                                 )}
 
-                                {/* BILA BUKAN PENDING (SUDAH DISETUJUI / BEBAS) */}
+                                {/* BILA PENUGASAN TELAH DITERIMA (EMPLOYEE APPROVAL = APPROVED, STATUS BELUM ONGOING) */}
+                                {activeOvertimeToday?.employeeApproval === "approved" && activeOvertimeToday?.status !== "ongoing" && activeOvertimeToday?.status !== "completed" && (
+                                    <div className="bg-emerald-50/90 border-2 border-emerald-300 p-4 rounded-2xl space-y-3 shadow-md">
+                                        <div className="flex items-center gap-2 text-emerald-900 font-extrabold text-xs">
+                                            <span className="bg-emerald-600 text-white p-1 rounded-lg">✅</span>
+                                            <span className="uppercase tracking-wide">PENUGASAN LEMBUR DISETUJUI (TERIMA TUGAS)</span>
+                                        </div>
+                                        <p className="text-xs text-slate-700 font-semibold leading-relaxed">
+                                            Anda telah menyetujui penugasan lembur: <strong className="text-emerald-950">{activeOvertimeToday.description || 'Pekerjaan Lembur'}</strong>.
+                                        </p>
+                                        <div className="flex flex-col gap-2 pt-1">
+                                            <Button
+                                                type="button"
+                                                className="w-full h-12 bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-black text-xs rounded-xl shadow-md flex items-center justify-center gap-2 tracking-wide"
+                                                onClick={() => setIsOvertimeAlertOpen(true)}
+                                            >
+                                                <Play className="w-4 h-4 fill-white" /> MULAI LEMBUR
+                                            </Button>
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                className="w-full bg-white border-emerald-300 text-emerald-800 font-bold rounded-xl text-xs h-10 gap-1.5 shadow-sm hover:bg-emerald-100"
+                                                onClick={() => setIsSplViewModalOpen(true)}
+                                            >
+                                                📄 Lihat Surat SPL
+                                            </Button>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* BILA BUKAN PENDING & BUKAN APPROVED */}
                                 {activeOvertimeToday?.employeeApproval === "rejected" && (
                                     <div className="bg-red-50 border border-red-200 p-3 rounded-2xl text-xs text-red-800 space-y-1">
                                         <span className="font-bold block">Status: Permohonan Izin Tidak Lembur Dikirim</span>
@@ -1412,7 +1485,7 @@ export default function EmployeeDashboard() {
                                     </div>
                                 )}
 
-                                {(!activeOvertimeToday || activeOvertimeToday.status === "cancelled" || (activeOvertimeToday.employeeApproval !== "pending" && activeOvertimeToday.status !== "ongoing" && activeOvertimeToday.status !== "completed")) && (
+                                {(!activeOvertimeToday || activeOvertimeToday.status === "cancelled") && (
                                     <div className="grid grid-cols-2 gap-2">
                                         <Button
                                             type="button"
@@ -2112,17 +2185,6 @@ export default function EmployeeDashboard() {
                                 <div className="grid grid-cols-2 gap-2">
                                     <Button
                                         type="button"
-                                        className="h-12 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-2xl flex items-center justify-center gap-1.5 shadow"
-                                        onClick={() => {
-                                            setIsSplNoticePopupOpen(false);
-                                            overtimeRespondMutation.mutate({ action: "approve" });
-                                        }}
-                                        disabled={overtimeRespondMutation.isPending}
-                                    >
-                                        <Check className="w-4 h-4" /> Setujui Lembur
-                                    </Button>
-                                    <Button
-                                        type="button"
                                         variant="outline"
                                         className="h-12 bg-red-50 hover:bg-red-100 text-red-700 border-red-200 font-bold text-xs rounded-2xl flex items-center justify-center gap-1.5"
                                         onClick={() => {
@@ -2131,7 +2193,18 @@ export default function EmployeeDashboard() {
                                         }}
                                         disabled={overtimeRespondMutation.isPending}
                                     >
-                                        <X className="w-4 h-4" /> Izin Tidak Lembur
+                                        <X className="w-4 h-4" /> Izin
+                                    </Button>
+                                    <Button
+                                        type="button"
+                                        className="h-12 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-2xl flex items-center justify-center gap-1.5 shadow"
+                                        onClick={() => {
+                                            setIsSplNoticePopupOpen(false);
+                                            overtimeRespondMutation.mutate({ overtimeId: activeOvertimeToday.id, action: "approve" });
+                                        }}
+                                        disabled={overtimeRespondMutation.isPending}
+                                    >
+                                        <Check className="w-4 h-4" /> Terima Tugas
                                     </Button>
                                 </div>
                             </div>
@@ -2188,7 +2261,7 @@ export default function EmployeeDashboard() {
                             {/* Blue Petunjuk Karyawan Box */}
                             <div className="p-3.5 bg-blue-50/80 border border-blue-200 rounded-2xl text-[11px] text-blue-900 leading-relaxed">
                                 <p>
-                                    📌 <strong>Petunjuk Karyawan:</strong> Setelah membaca surat ini, Anda dapat <strong>langsung menekan tombol Mulai Lembur</strong> tanpa perlu menunggu persetujuan Admin lagi. Ambil foto bukti awal dan foto bukti hasil saat selesai.
+                                    📌 <strong>Petunjuk Karyawan:</strong> Klik <strong>Terima Tugas</strong> terlebih dahulu untuk menerima penugasan. Tombol <strong>Mulai Lembur</strong> akan muncul di halaman utama di bawah tombol absen biasa.
                                 </p>
                             </div>
 
@@ -2210,13 +2283,13 @@ export default function EmployeeDashboard() {
                     <div className="pt-3 border-t border-slate-100 flex flex-col gap-2">
                         <Button
                             type="button"
-                            className="w-full bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-bold text-xs rounded-2xl h-12 gap-1.5 shadow"
+                            className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-2xl h-12 gap-1.5 shadow"
                             onClick={() => {
                                 setIsSplViewModalOpen(false);
-                                setIsOvertimeAlertOpen(true);
+                                overtimeRespondMutation.mutate({ overtimeId: activeOvertimeToday.id, action: "approve" });
                             }}
                         >
-                            <Play className="w-4 h-4 fill-white" /> Mulai Lembur Sekarang
+                            <Check className="w-4 h-4" /> Terima Tugas Lembur
                         </Button>
                         <Button
                             type="button"
@@ -2230,7 +2303,7 @@ export default function EmployeeDashboard() {
                 </DialogContent>
             </Dialog>
 
-            {/* MODAL 4: IZIN TIDAK LEMBUR (ALASAN PENOLAKAN) - PERSIS MODAL SP 1 */}
+            {/* MODAL 4: IZIN TIDAK LEMBUR (ALASAN PENOLAKAN + UPLOAD FOTO) - PERSIS MODAL SP 1 */}
             <Dialog open={isRejectOvertimeModalOpen} onOpenChange={setIsRejectOvertimeModalOpen}>
                 <DialogContent className="rounded-3xl max-w-xs md:max-w-md p-6 bg-white border border-slate-100 shadow-2xl space-y-3 max-h-[90vh] overflow-y-auto">
                     <DialogHeader className="text-center">
@@ -2241,31 +2314,53 @@ export default function EmployeeDashboard() {
                             Permohonan Izin Tidak Lembur
                         </DialogTitle>
                         <DialogDescription className="text-center text-xs text-slate-400 mt-0.5">
-                            Mohon sampaikan alasan yang jelas kepada Admin / HRD mengapa Anda tidak dapat melaksanakan penugasan lembur ini.
+                            Mohon sampaikan alasan &amp; foto bukti izin mengapa Anda tidak dapat melaksanakan penugasan lembur ini.
                         </DialogDescription>
                     </DialogHeader>
 
-                    <form onSubmit={(e) => {
-                        e.preventDefault();
-                        if (!rejectionReasonInput.trim()) {
-                            toast({ title: "Alasan Wajib Diisi", description: "Mohon tuliskan alasan izin tidak lembur Anda.", variant: "destructive" });
-                            return;
-                        }
-                        overtimeRespondMutation.mutate({ action: "reject", rejectionReason: rejectionReasonInput });
-                    }} className="space-y-4 py-2">
+                    <form onSubmit={handleSubmitRejectOvertime} className="space-y-4 py-2">
                         <div className="space-y-1.5">
-                            <label className="text-xs font-bold text-slate-700">Alasan Tidak Bisa Lembur *</label>
+                            <label className="text-xs font-bold text-slate-800">
+                                1. Alasan Tidak Bisa Lembur <span className="text-red-500">*</span>
+                            </label>
                             <Textarea
                                 placeholder="Contoh: Ada keperluan keluarga mendadak / Kondisi kesehatan kurang fit..."
                                 value={rejectionReasonInput}
                                 onChange={(e) => setRejectionReasonInput(e.target.value)}
-                                className="text-xs rounded-2xl min-h-[90px]"
+                                className="text-xs rounded-2xl min-h-[80px]"
                             />
                         </div>
 
+                        <div className="space-y-1.5">
+                            <label className="text-xs font-bold text-slate-800">
+                                2. Upload Foto / Ambil Foto Bukti Izin <span className="text-red-500">*</span>
+                            </label>
+                            <div className="border-2 border-dashed border-red-200 rounded-2xl p-4 bg-red-50/30 hover:bg-red-50/60 transition-colors text-center cursor-pointer relative">
+                                <input
+                                    type="file"
+                                    accept="image/*"
+                                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                    onChange={(e) => handleOvertimeFileChange(e, setRejectionProofFile, setRejectionProofPreview)}
+                                />
+                                {rejectionProofPreview ? (
+                                    <img src={rejectionProofPreview} alt="Bukti Izin" className="h-28 mx-auto object-cover rounded-xl shadow-sm" />
+                                ) : (
+                                    <div className="space-y-1.5 text-red-600 py-1">
+                                        <Camera className="w-6 h-6 mx-auto text-red-400" />
+                                        <p className="text-xs font-medium text-red-700">Ambil Kamera / Upload Foto Bukti</p>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
                         <div className="flex flex-col gap-2 pt-2 border-t border-slate-100">
-                            <Button type="submit" disabled={overtimeRespondMutation.isPending} className="w-full bg-red-600 hover:bg-red-700 text-white text-xs rounded-2xl font-bold h-12">
-                                {overtimeRespondMutation.isPending ? "Sending..." : "Kirim Alasan ke Admin"}
+                            <Button
+                                type="submit"
+                                disabled={isSubmittingRejection || overtimeRespondMutation.isPending}
+                                className="w-full bg-red-600 hover:bg-red-700 text-white text-xs rounded-2xl font-bold h-12 flex items-center justify-center gap-2 shadow-md"
+                            >
+                                {(isSubmittingRejection || overtimeRespondMutation.isPending) ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                                Kirim Alasan &amp; Bukti Foto ke Admin
                             </Button>
                             <Button type="button" variant="ghost" size="sm" onClick={() => setIsRejectOvertimeModalOpen(false)} className="w-full h-10 text-xs font-bold text-slate-600 rounded-2xl">Batal</Button>
                         </div>

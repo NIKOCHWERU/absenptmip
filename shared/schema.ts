@@ -94,6 +94,7 @@ export const overtimes = mysqlTable("overtimes", {
   status: mysqlEnum("status", ["ongoing", "completed", "cancelled"]).default("ongoing"),
   employeeApproval: mysqlEnum("employee_approval", ["pending", "approved", "rejected"]).default("approved"),
   rejectionReason: text("rejection_reason"),
+  rejectionProofUrl: varchar("rejection_proof_url", { length: 512 }),
   splNumber: varchar("spl_number", { length: 100 }),
   assignedBy: int("assigned_by"),
   createdAt: timestamp("created_at").defaultNow(),

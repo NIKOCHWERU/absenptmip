@@ -1503,7 +1503,7 @@ export function registerRoutes(app: Express) {
   // Respon Persetujuan / Izin Tidak Lembur Karyawan
   app.post("/api/attendance/overtime/respond", isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const { overtimeId, action, rejectionReason } = req.body;
+      const { overtimeId, action, rejectionReason, rejectionProofUrl } = req.body;
       if (!overtimeId || !action) {
         return res.status(400).json({ message: "overtimeId dan action wajib diisi" });
       }
@@ -1512,14 +1512,14 @@ export function registerRoutes(app: Express) {
 
       if (action === "approve") {
         await db.update(overtimes).set({
-          employeeApproval: "approved",
-          status: "ongoing"
+          employeeApproval: "approved"
         }).where(eq(overtimes.id, Number(overtimeId)));
-        return res.json({ message: "Penugasan lembur telah disetujui" });
+        return res.json({ message: "Penugasan lembur telah disetujui (Terima Tugas). Silakan klik Mulai Lembur saat siap." });
       } else if (action === "reject") {
         await db.update(overtimes).set({
           employeeApproval: "rejected",
           rejectionReason: rejectionReason || "Karyawan mengajukan izin tidak lembur",
+          rejectionProofUrl: rejectionProofUrl || null,
           status: "cancelled"
         }).where(eq(overtimes.id, Number(overtimeId)));
         return res.json({ message: "Permohonan izin tidak lembur telah dikirim" });
