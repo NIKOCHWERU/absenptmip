@@ -1870,7 +1870,7 @@ export default function EmployeeDashboard() {
                         <AlertDialogTitle className="text-base font-extrabold text-slate-900">Konfirmasi Memulai Lembur?</AlertDialogTitle>
                         <AlertDialogDescription className="text-xs text-slate-600 space-y-3 leading-relaxed">
                             <p>
-                                Anda memilih untuk melakukan <strong>Lembur (Overtime)</strong> untuk <strong className="text-slate-900 uppercase">{user?.fullName || "KARYAWAN A"} ({userShift || "TIM PRODUCTION SHIFT 1"})</strong>.
+                                Anda memilih untuk melakukan <strong>Lembur (Overtime)</strong> untuk <strong className="text-slate-900 uppercase">{user?.fullName || "KARYAWAN A"} ({user?.shift || "TIM PRODUCTION SHIFT 1"})</strong>.
                             </p>
                             <div className="text-orange-900 bg-orange-50/90 p-3 rounded-2xl border border-orange-200 text-[11px] font-bold text-left leading-relaxed">
                                 ⚠️ Absen reguler Anda akan otomatis dicatat pulang tepat di jam 17:00 WIB.
@@ -2159,7 +2159,7 @@ export default function EmployeeDashboard() {
                                 </div>
                                 <div className="flex justify-between items-center">
                                     <span className="text-slate-500 font-bold">Shift Kerja:</span>
-                                    <span className="font-bold text-slate-800 uppercase">{userShift || "TIM PRODUCTION SHIFT 1"}</span>
+                                    <span className="font-bold text-slate-800 uppercase">{user?.shift || "TIM PRODUCTION SHIFT 1"}</span>
                                 </div>
                             </div>
 
