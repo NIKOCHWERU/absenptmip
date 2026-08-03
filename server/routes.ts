@@ -2777,6 +2777,68 @@ export function registerRoutes(app: Express) {
     }
   });
 
+  // GET /api/admin/leave-quota — list all employees with leave quota & usage
+  app.get("/api/admin/leave-quota", isAdmin, async (req: Request, res: Response) => {
+    try {
+      const allUsers = await db.select().from(users).where(eq(users.role, "employee"));
+      const allLeaves = await db.select().from(leaveRequests);
+      
+      const year = new Date().getFullYear();
+      
+      const result = allUsers.map(u => {
+        const userLeaves = allLeaves.filter(lr => 
+          lr.userId === u.id && 
+          lr.status === 'approved' &&
+          new Date(lr.createdAt!).getFullYear() === year
+        );
+        
+        let usedDays = 0;
+        userLeaves.forEach(lr => {
+          if (lr.selectedDates) {
+            usedDays += lr.selectedDates.split(',').length;
+          } else {
+            const start = new Date(lr.startDate);
+            const end = new Date(lr.endDate);
+            usedDays += Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+          }
+        });
+        
+        const quota = (u as any).leaveQuota ?? 12;
+        const remaining = Math.max(0, quota - usedDays);
+        
+        return {
+          ...u,
+          leaveQuota: quota,
+          usedDays,
+          remainingDays: remaining,
+        };
+      });
+      
+      res.json(result);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  // PATCH /api/admin/leave-quota/:userId — set custom leave quota for a user
+  app.patch("/api/admin/leave-quota/:userId", isAdmin, async (req: Request, res: Response) => {
+    const targetUserId = Number(req.params.userId);
+    const { leaveQuota } = req.body;
+    
+    if (typeof leaveQuota !== 'number' || leaveQuota < 0 || leaveQuota > 365) {
+      return res.status(400).json({ message: "Nilai jatah cuti tidak valid (0-365)" });
+    }
+    
+    try {
+      await db.update(users).set({ leaveQuota } as any).where(eq(users.id, targetUserId));
+      res.json({ success: true, message: "Jatah cuti berhasil diperbarui" });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+
+
   const updateLeaveStatus = async (req: Request, res: Response) => {
     const targetId = Number(req.params.id);
     const { status } = req.body; // "approved", "rejected", "cancelled"

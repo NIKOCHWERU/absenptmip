@@ -402,7 +402,15 @@ export default function AdminLeavePage() {
                     <p className="text-sm text-gray-500">Verifikasi dan kelola persetujuan cuti sakit, tahunan, dan cuti melahirkan tenaga kerja.</p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
-                                        <Button
+                    <Button
+                        variant="outline"
+                        className="rounded-lg gap-2 cursor-pointer bg-white"
+                        onClick={() => setLocation("/admin/leaves-quota")}
+                    >
+                        <Calendar className="w-4 h-4" />
+                        Kelola Jatah Cuti
+                    </Button>
+                    <Button
                         variant="outline"
                         className="rounded-lg gap-2 cursor-pointer bg-white"
                         onClick={() => setLocation("/admin/leaves-history")}

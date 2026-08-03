@@ -34,6 +34,10 @@ export default function InfoPage() {
     queryKey: ["/api/employee/documents"],
   });
 
+  const { data: mySplList, isLoading: isLoadingSpl } = useQuery<any[]>({
+    queryKey: ["/api/employee/overtimes/my-spl"],
+  });
+
   const announcements = Array.isArray(data) ? data : [];
   const riwayatSurat = [
     ...(employeeDocs?.mutations?.map(m => ({ ...m, category: m.type === 'mutasi' ? 'Mutasi' : m.type === 'promosi' ? 'Promosi' : 'Demosi' })) || []),

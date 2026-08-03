@@ -505,6 +505,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                                 url: "/admin/leaves-history",
                                 icon: History,
                             },
+                            {
+                                title: "Kelola Jatah Cuti",
+                                url: "/admin/leaves-quota",
+                                icon: Calendar,
+                            },
                         ]
                     }
                 ] : []),

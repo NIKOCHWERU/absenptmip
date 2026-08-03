@@ -30,6 +30,7 @@ import AttendanceSummaryPage from "./pages/admin/AttendanceSummaryPage.js";
 import AdminVerificationPage from "./pages/admin/AdminVerificationPage.js";
 import AdminLeavePage from "./pages/admin/AdminLeavePage.js";
 import AdminLeaveHistoryPage from "./pages/admin/AdminLeaveHistoryPage.js";
+import AdminLeaveQuotaPage from "./pages/admin/AdminLeaveQuotaPage.js";
 import MutationManagementPage from "./pages/admin/MutationManagementPage.js";
 import MutationHistoryPage from "./pages/admin/MutationHistoryPage.js";
 import WarningLetterManagementPage from "./pages/admin/WarningLetterManagementPage.js";
@@ -220,6 +221,9 @@ export default function App() {
             </Route>
             <Route path="/admin/leaves-history">
               {() => <AdminLayout><ProtectedRoute component={AdminLeaveHistoryPage} roles={["admin", "superadmin"]} /></AdminLayout>}
+            </Route>
+            <Route path="/admin/leaves-quota">
+              {() => <AdminLayout><ProtectedRoute component={AdminLeaveQuotaPage} roles={["admin", "superadmin"]} /></AdminLayout>}
             </Route>
             <Route path="/admin/mutations">
               {() => <AdminLayout><ProtectedRoute component={MutationManagementPage} roles={["admin", "superadmin"]} /></AdminLayout>}

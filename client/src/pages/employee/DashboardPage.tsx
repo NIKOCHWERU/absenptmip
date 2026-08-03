@@ -262,6 +262,7 @@ export default function EmployeeDashboard() {
     const [permitNote, setPermitNote] = useState("");
     const [permitType, setPermitType] = useState<"sick" | "permission" | "off">("permission");
     const [isCameraOpen, setIsCameraOpen] = useState(false);
+    const permitFileInputRef = useRef<HTMLInputElement>(null);
 
     // Shift Selection State
     const [isShiftModalOpen, setIsShiftModalOpen] = useState(false);
@@ -737,7 +738,7 @@ export default function EmployeeDashboard() {
                 return permit({
                     type: permitType,
                     notes: permitNote,
-                    checkInPhoto: data?.checkInPhoto, // Make optional for off day
+                    checkInPhoto: data?.checkInPhoto,
                     location: data?.location
                 });
             },
@@ -746,7 +747,6 @@ export default function EmployeeDashboard() {
         });
 
         if (permitType === "off") {
-            // Bypass camera
             const offAction = async () => {
                 const { address } = await getCoordinates(false);
                 await permit({
@@ -769,6 +769,40 @@ export default function EmployeeDashboard() {
             setIsCameraOpen(true);
         }
     }
+
+    const handlePermitUploadTrigger = () => {
+        // Trigger file input to pick from gallery
+        permitFileInputRef.current?.click();
+    };
+
+    const handlePermitFileSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        setPermitOpen(false);
+        toast({ title: "Memproses...", description: "Mengupload foto dan mencatat izin..." });
+        try {
+            const { address } = await getCoordinates(false);
+            // Convert file to base64
+            const base64 = await new Promise<string>((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result as string);
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+            await permit({
+                type: permitType,
+                notes: permitNote,
+                checkInPhoto: base64,
+                location: address
+            });
+            toast({ title: "Berhasil", description: `${permitType === 'sick' ? 'Sakit' : 'Izin'} berhasil dicatat dengan foto.`, className: "bg-primary/50 text-white" });
+        } catch (err) {
+            handleError(err);
+        } finally {
+            // Reset file input
+            if (permitFileInputRef.current) permitFileInputRef.current.value = "";
+        }
+    };
 
     const handlePhotoCaptured = async (photoData: string) => {
         if (!activeAction) return;
@@ -1612,13 +1646,32 @@ export default function EmployeeDashboard() {
                             </div>
                         )}
 
-                        <Button
-                            onClick={handlePermitCameraTrigger}
-                            className="w-full h-14 rounded-2xl gap-3 bg-primary hover:bg-primary/90 text-white font-bold shadow-lg shadow-primary/20"
-                        >
-                            <Camera className="w-5 h-5" />
-                            Ambil Foto &amp; Kirim
-                        </Button>
+                        {/* Hidden file input for upload */}
+                        <input
+                            ref={permitFileInputRef}
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={handlePermitFileSelected}
+                        />
+
+                        <div className="grid grid-cols-2 gap-3">
+                            <Button
+                                onClick={handlePermitUploadTrigger}
+                                variant="outline"
+                                className="w-full h-14 rounded-2xl gap-2 border-2 border-primary/30 text-primary font-bold hover:bg-primary/5"
+                            >
+                                <Upload className="w-5 h-5" />
+                                Upload Foto
+                            </Button>
+                            <Button
+                                onClick={handlePermitCameraTrigger}
+                                className="w-full h-14 rounded-2xl gap-2 bg-primary hover:bg-primary/90 text-white font-bold shadow-lg shadow-primary/20"
+                            >
+                                <Camera className="w-5 h-5" />
+                                Kamera Live
+                            </Button>
+                        </div>
 
                         <Button
                             variant="ghost"
