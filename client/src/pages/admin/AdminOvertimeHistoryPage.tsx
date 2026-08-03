@@ -23,6 +23,36 @@ export default function AdminOvertimeHistoryPage() {
         queryKey: ["/api/config"],
     });
 
+    const formatOvertimeRange = (startTime: Date | string | null, endTime: Date | string | null) => {
+        if (!startTime) return { rangeStr: "-", durationStr: "-" };
+        const start = new Date(startTime);
+        const end = endTime ? new Date(endTime) : null;
+
+        let rangeStr = "";
+        let durationStr = "-";
+
+        if (end) {
+            const isDifferentDay = format(start, "yyyy-MM-dd") !== format(end, "yyyy-MM-dd");
+            if (isDifferentDay) {
+                rangeStr = `${format(start, "d MMMM yyyy HH:mm", { locale: id })} - ${format(end, "d MMMM yyyy HH:mm", { locale: id })}`;
+            } else {
+                rangeStr = `${format(start, "d MMMM yyyy", { locale: id })} (${format(start, "HH:mm")} - ${format(end, "HH:mm")} WIB)`;
+            }
+
+            const otMins = Math.round((end.getTime() - start.getTime()) / 60000);
+            const hrs = Math.floor(otMins / 60);
+            const mins = otMins % 60;
+            if (hrs > 0 && mins > 0) durationStr = `${hrs} Jam ${mins} Menit`;
+            else if (hrs > 0) durationStr = `${hrs} Jam`;
+            else if (mins > 0) durationStr = `${mins} Menit`;
+        } else {
+            rangeStr = `${format(start, "d MMMM yyyy HH:mm", { locale: id })} WIB`;
+            durationStr = "Berlangsung";
+        }
+
+        return { rangeStr, durationStr };
+    };
+
     const { data: users } = useQuery<User[]>({
         queryKey: ["/api/admin/users"],
     });
@@ -397,11 +427,7 @@ export default function AdminOvertimeHistoryPage() {
                                             filteredRequests.map((req) => {
                                                 const userName = getUserName(req.userId || req.fullName);
                                                 const userObj = getUserObj(req);
-                                                const dateStr = req.date ? format(new Date(req.date), "d MMM yyyy", { locale: id }) : (req.createdAt ? format(new Date(req.createdAt), "d MMM yyyy", { locale: id }) : "-");
-                                                const startTimeStr = req.startTime ? format(new Date(req.startTime), "HH:mm") : "-";
-                                                const endTimeStr = req.endTime ? format(new Date(req.endTime), "HH:mm") : (req.status === 'ongoing' ? 'Berlangsung' : '-');
-                                                const otMins = (req.startTime && req.endTime) ? Math.round((new Date(req.endTime).getTime() - new Date(req.startTime).getTime()) / 60000) : 0;
-                                                const durationStr = otMins > 0 ? `${Math.floor(otMins / 60)}J ${otMins % 60}M` : (req.status === 'ongoing' ? 'Berlangsung' : '-');
+                                                const { rangeStr, durationStr } = formatOvertimeRange(req.startTime, req.endTime);
 
                                                 return (
                                                     <tr key={req.id} className="hover:bg-gray-50/50 transition-colors">
@@ -418,20 +444,15 @@ export default function AdminOvertimeHistoryPage() {
                                                             </div>
                                                         </td>
 
-                                                        {/* Column 2: Tanggal Lembur */}
-                                                        <td className="px-6 py-4 text-gray-500 font-medium whitespace-nowrap">
-                                                            <div className="font-bold text-gray-900">{dateStr}</div>
-                                                            <div className="text-[10px] text-orange-600 font-mono font-semibold">📄 {req.splNumber || "SPL Resmi"}</div>
+                                                        {/* Column 2: Periode Lembur */}
+                                                        <td className="px-6 py-4 text-gray-500 font-medium">
+                                                            <div className="font-bold text-gray-900 max-w-[200px] leading-snug">{rangeStr}</div>
+                                                            <div className="text-[10px] text-orange-600 font-mono font-semibold mt-0.5">📄 {req.splNumber || "SPL Resmi"}</div>
                                                         </td>
 
-                                                        {/* Column 3: Waktu & Durasi */}
+                                                        {/* Column 3: Durasi */}
                                                         <td className="px-6 py-4">
-                                                            <div className="font-bold text-gray-700 whitespace-nowrap">
-                                                                {startTimeStr} - {endTimeStr}
-                                                            </div>
-                                                            <div className="text-[10px] text-primary font-bold">
-                                                                {durationStr}
-                                                            </div>
+                                                            <span className="text-xs font-black text-primary bg-primary/10 px-2.5 py-1 rounded-md inline-block">{durationStr}</span>
                                                         </td>
 
                                                         {/* Column 4: Status Respon */}

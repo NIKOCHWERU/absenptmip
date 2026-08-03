@@ -1307,7 +1307,19 @@ export default function EmployeeDashboard() {
                                             <span className="uppercase tracking-wide">SURAT PERINTAH LEMBUR (SPL) DITERIMA</span>
                                         </div>
                                         <p className="text-xs text-slate-700 font-semibold leading-relaxed">
-                                            Anda ditugaskan lembur oleh Admin pada tanggal <strong>{activeOvertimeToday.startTime ? format(new Date(activeOvertimeToday.startTime), "dd MMM yyyy") : "Hari Ini"}</strong> jam <strong>{activeOvertimeToday.startTime ? format(new Date(activeOvertimeToday.startTime), "HH:mm") : "-"} WIB</strong>.
+                                            Anda ditugaskan lembur oleh Admin: <strong className="text-orange-900">{activeOvertimeToday.startTime && activeOvertimeToday.endTime ? (() => {
+                                                const start = new Date(activeOvertimeToday.startTime);
+                                                const end = new Date(activeOvertimeToday.endTime);
+                                                const isDiff = format(start, "yyyy-MM-dd") !== format(end, "yyyy-MM-dd");
+                                                const rangeStr = isDiff
+                                                    ? `${format(start, "d MMMM yyyy HH:mm", { locale: id })} - ${format(end, "d MMMM yyyy HH:mm", { locale: id })}`
+                                                    : `${format(start, "d MMMM yyyy", { locale: id })} (${format(start, "HH:mm")} - ${format(end, "HH:mm")} WIB)`;
+                                                const mins = Math.round((end.getTime() - start.getTime()) / 60000);
+                                                const hrs = Math.floor(mins / 60);
+                                                const remMins = mins % 60;
+                                                const durStr = hrs > 0 && remMins > 0 ? `${hrs} Jam ${remMins} Menit` : hrs > 0 ? `${hrs} Jam` : `${remMins} Menit`;
+                                                return `${rangeStr} (Estimasi: ${durStr})`;
+                                            })() : (activeOvertimeToday.startTime ? format(new Date(activeOvertimeToday.startTime), "dd MMM yyyy HH:mm WIB") : "Hari Ini")}</strong>.
                                         </p>
                                         <div className="p-2.5 bg-white/90 rounded-xl border border-orange-200 text-xs text-slate-700 font-medium italic">
                                             "{activeOvertimeToday.description || 'Pekerjaan Lembur'}"

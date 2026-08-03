@@ -11,10 +11,74 @@ import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
 import { 
-  Plus, Calendar, Clock, User as UserIcon, Eye, Printer, Trash2, Check, X, FileText, Send, Upload, ArrowLeft, Image as ImageIcon, CheckCircle, ShieldCheck, AlertCircle
+  Plus, Calendar, Clock, User as UserIcon, Eye, Printer, Trash2, Check, X, FileText, Send, Upload, ArrowLeft, Image as ImageIcon, CheckCircle, ShieldCheck, AlertCircle, Zap
 } from "lucide-react";
 import { User } from "@shared/schema";
 import { TimePicker24h } from "@/components/TimePicker24h";
+
+// Helper: Calculate dynamic overtime range & duration (handles over-midnight e.g. 23:00 to 02:00 = 3 hours)
+function calculateOvertimeEstimatedDuration(dateStr: string, startTimeStr: string, endTimeStr: string) {
+  if (!dateStr || !startTimeStr || !endTimeStr) return { mins: 0, text: "-", displayRange: "-", isNextDay: false };
+  try {
+    const start = new Date(`${dateStr}T${startTimeStr}:00`);
+    let end = new Date(`${dateStr}T${endTimeStr}:00`);
+    if (end < start) {
+      end.setDate(end.getDate() + 1);
+    }
+    const diffMins = Math.round((end.getTime() - start.getTime()) / 60000);
+    const hours = Math.floor(diffMins / 60);
+    const mins = diffMins % 60;
+    
+    let durationText = "";
+    if (hours > 0 && mins > 0) durationText = `${hours} Jam ${mins} Menit`;
+    else if (hours > 0) durationText = `${hours} Jam`;
+    else durationText = `${mins} Menit`;
+
+    const formattedStart = format(start, "d MMMM yyyy HH:mm", { locale: id });
+    const formattedEnd = format(end, "d MMMM yyyy HH:mm", { locale: id });
+
+    return {
+      mins: diffMins,
+      text: durationText,
+      formattedStart,
+      formattedEnd,
+      displayRange: `${formattedStart} - ${formattedEnd}`,
+      isNextDay: end.getDate() !== start.getDate()
+    };
+  } catch (e) {
+    return { mins: 0, text: "-", displayRange: "-", isNextDay: false };
+  }
+}
+
+function formatOvertimeRange(startTime: Date | string | null, endTime: Date | string | null) {
+  if (!startTime) return { rangeStr: "-", durationStr: "-" };
+  const start = new Date(startTime);
+  const end = endTime ? new Date(endTime) : null;
+
+  let rangeStr = "";
+  let durationStr = "-";
+
+  if (end) {
+    const isDifferentDay = format(start, "yyyy-MM-dd") !== format(end, "yyyy-MM-dd");
+    if (isDifferentDay) {
+      rangeStr = `${format(start, "d MMMM yyyy HH:mm", { locale: id })} - ${format(end, "d MMMM yyyy HH:mm", { locale: id })}`;
+    } else {
+      rangeStr = `${format(start, "d MMMM yyyy", { locale: id })} (${format(start, "HH:mm")} - ${format(end, "HH:mm")} WIB)`;
+    }
+
+    const otMins = Math.round((end.getTime() - start.getTime()) / 60000);
+    const hrs = Math.floor(otMins / 60);
+    const mins = otMins % 60;
+    if (hrs > 0 && mins > 0) durationStr = `${hrs} Jam ${mins} Menit`;
+    else if (hrs > 0) durationStr = `${hrs} Jam`;
+    else if (mins > 0) durationStr = `${mins} Menit`;
+  } else {
+    rangeStr = `${format(start, "d MMMM yyyy HH:mm", { locale: id })} WIB`;
+    durationStr = "Berlangsung";
+  }
+
+  return { rangeStr, durationStr };
+}
 
 export default function AdminOvertimePage() {
   const [, setLocation] = useLocation();
@@ -160,9 +224,7 @@ export default function AdminOvertimePage() {
     const empName = item.fullName || "Karyawan";
     const empNik = item.nik || "-";
     const empPos = item.position || "Operator / Staf";
-    const otDateStr = item.date ? format(new Date(item.date), "dd MMMM yyyy", { locale: id }) : "-";
-    const startTimeStr = item.startTime ? format(new Date(item.startTime), "HH:mm") : "-";
-    const endTimeStr = item.endTime ? format(new Date(item.endTime), "HH:mm") : "-";
+    const { rangeStr, durationStr } = formatOvertimeRange(item.startTime, item.endTime);
 
     const htmlContent = `
       <!DOCTYPE html>
@@ -198,10 +260,10 @@ export default function AdminOvertimePage() {
           <tr><td class="label">Nama Karyawan</td><td class="colon">:</td><td><strong>${empName}</strong></td></tr>
           <tr><td class="label">NIK Karyawan</td><td class="colon">:</td><td>${empNik}</td></tr>
           <tr><td class="label">Jabatan / Bagian</td><td class="colon">:</td><td>${empPos}</td></tr>
-          <tr><td class="label">Tanggal Lembur</td><td class="colon">:</td><td>${otDateStr}</td></tr>
-          <tr><td class="label">Waktu Lembur</td><td class="colon">:</td><td>${startTimeStr} s.d ${endTimeStr} WIB</td></tr>
+          <tr><td class="label">Periode Lembur</td><td class="colon">:</td><td><strong>${rangeStr}</strong></td></tr>
+          <tr><td class="label">Estimasi Durasi</td><td class="colon">:</td><td><strong>${durationStr}</strong></td></tr>
           <tr><td class="label">Uraian Pekerjaan</td><td class="colon">:</td><td>${item.description || 'Pekerjaan Lembur'}</td></tr>
-          <tr><td class="label">Status Persetujuan Karyawan</td><td class="colon">:</td><td><strong>${item.employeeApproval === 'approved' ? 'DISETUJUI KARYAWAN' : item.employeeApproval === 'rejected' ? 'DITOLAK / IZIN TIDAK LEMBUR' : 'MENUNGGU KONFIRMASI'}</strong></td></tr>
+          <tr><td class="label">Status Persetujuan</td><td class="colon">:</td><td><strong>${item.employeeApproval === 'approved' ? 'DISETUJUI KARYAWAN' : item.employeeApproval === 'rejected' ? 'DITOLAK / IZIN TIDAK LEMBUR' : 'MENUNGGU KONFIRMASI'}</strong></td></tr>
         </table>
         <p>Demikian Surat Perintah Lembur ini diterbitkan untuk dilaksanakan sebagaimana mestinya dengan penuh tanggung jawab.</p>
         <div class="sig-container">
@@ -303,11 +365,7 @@ export default function AdminOvertimePage() {
                   ) : sortedRequests.map((req) => {
                     const empName = req.fullName || "Karyawan";
                     const empNik = req.nik || "-";
-                    const startTimeStr = req.startTime ? format(new Date(req.startTime), "HH:mm") : "-";
-                    const endTimeStr = req.endTime ? format(new Date(req.endTime), "HH:mm") : (req.status === "ongoing" ? "Berlangsung" : "-");
-                    const dateStr = req.date ? format(new Date(req.date), "dd MMM yyyy", { locale: id }) : "-";
-                    const otMins = (req.startTime && req.endTime) ? Math.round((new Date(req.endTime).getTime() - new Date(req.startTime).getTime()) / 60000) : 0;
-                    const durationStr = otMins > 0 ? `${Math.floor(otMins / 60)} Jam ${otMins % 60} Menit` : (req.status === "ongoing" ? "Berlangsung" : "-");
+                    const { rangeStr, durationStr } = formatOvertimeRange(req.startTime, req.endTime);
 
                     return (
                       <tr key={req.id} className="hover:bg-gray-50/50 transition-colors">
@@ -324,16 +382,15 @@ export default function AdminOvertimePage() {
                           </div>
                         </td>
 
-                        {/* Column 2: Tanggal & SPL */}
-                        <td className="px-6 py-4 text-gray-700 font-medium whitespace-nowrap">
-                          <div className="font-bold text-xs">{dateStr}</div>
-                          <div className="text-[10px] text-orange-600 font-mono font-semibold">📄 {req.splNumber || "SPL Resmi"}</div>
+                        {/* Column 2: Periode & SPL */}
+                        <td className="px-6 py-4 text-gray-700 font-medium">
+                          <div className="font-bold text-xs max-w-[200px] leading-snug">{rangeStr}</div>
+                          <div className="text-[10px] text-orange-600 font-mono font-semibold mt-0.5">📄 {req.splNumber || "SPL Resmi"}</div>
                         </td>
 
-                        {/* Column 3: Jam & Durasi */}
+                        {/* Column 3: Durasi Lembur */}
                         <td className="px-6 py-4">
-                          <div className="font-bold text-gray-800 text-xs whitespace-nowrap">{startTimeStr} - {endTimeStr}</div>
-                          <span className="text-[10px] font-semibold text-primary">{durationStr}</span>
+                          <span className="text-xs font-black text-primary bg-primary/10 px-2.5 py-1 rounded-md inline-block">{durationStr}</span>
                         </td>
 
                         {/* Column 4: Respon Karyawan */}
@@ -508,6 +565,31 @@ export default function AdminOvertimePage() {
                   />
                 </div>
               </div>
+
+              {/* Dynamic Overtime Estimate Banner */}
+              {assignDate && assignStartTime && assignEndTime && (() => {
+                const calc = calculateOvertimeEstimatedDuration(assignDate, assignStartTime, assignEndTime);
+                return (
+                  <div className="p-3.5 bg-orange-50/80 border border-orange-200 rounded-2xl space-y-1 mt-2">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-extrabold text-orange-900 uppercase tracking-wide flex items-center gap-1.5">
+                        <Zap className="w-4 h-4 text-orange-500 fill-orange-500" /> Estimasi Durasi Lembur
+                      </span>
+                      <span className="font-black text-xs text-orange-700 bg-orange-200/80 px-2.5 py-0.5 rounded-full">
+                        ⚡ {calc.text}
+                      </span>
+                    </div>
+                    <p className="text-xs text-orange-900 font-bold pt-1">
+                      Periode: <span className="font-mono text-xs">{calc.displayRange}</span>
+                    </p>
+                    {calc.isNextDay && (
+                      <p className="text-[11px] text-orange-600 font-semibold italic">
+                        * Lembur melewati tengah malam dan berakhir pada hari berikutnya ({calc.formattedEnd}).
+                      </p>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
 
             {/* Field 4: Uraian Tugas */}

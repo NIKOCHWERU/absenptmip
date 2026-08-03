@@ -1629,14 +1629,22 @@ export function registerRoutes(app: Express) {
         splUrl = await processSingleUpload(req.file, "overtimeSPL", targetUser[0].fullName);
       }
 
-      const startIso = `${date}T${startTime}:00`;
-      const endIso = endTime ? `${date}T${endTime}:00` : null;
+      const startDateObj = new Date(`${date}T${startTime}:00`);
+      let endDateObj: Date | null = null;
+      if (endTime) {
+        let tempEnd = new Date(`${date}T${endTime}:00`);
+        if (tempEnd < startDateObj) {
+          // End time is on the next day (e.g. 23:00 to 02:00 next day)
+          tempEnd.setDate(tempEnd.getDate() + 1);
+        }
+        endDateObj = tempEnd;
+      }
       const splNum = `SPL/MIP/${date.replace(/-/g, '')}/${Math.floor(1000 + Math.random() * 9000)}`;
 
       const [newOt] = await (db.insert(overtimes) as any).values({
         attendanceId: attendanceId,
-        startTime: new Date(startIso),
-        endTime: endIso ? new Date(endIso) : null,
+        startTime: startDateObj,
+        endTime: endDateObj,
         description: description || "Surat Perintah Lembur (SPL)",
         splDocumentUrl: splUrl,
         status: "ongoing",
