@@ -1,14 +1,13 @@
-const CACHE_NAME = "ptmip-attendance-v2";
+const CACHE_NAME = "ptmip-attendance-v3-auto-refresh";
 const ASSETS = [
   "/",
-  "/index.html",
   "/manifest.json",
   "/icon-192.png"
 ];
 
 // Install Event - cache core assets and skip waiting immediately
 self.addEventListener("install", (event) => {
-  self.skipWaiting(); // Force the waiting service worker to become the active service worker
+  self.skipWaiting(); // Force the waiting service worker to become active immediately
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
       return cache.addAll(ASSETS);
@@ -16,17 +15,15 @@ self.addEventListener("install", (event) => {
   );
 });
 
-// Activate Event - clean up old caches and claim clients immediately
+// Activate Event - clean up ALL old caches and claim clients immediately
 self.addEventListener("activate", (event) => {
   self.clients.claim(); // Take control of all open pages immediately
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames.map((cache) => {
-          if (cache !== CACHE_NAME) {
-            console.log("🧹 SW: Clearing old cache:", cache);
-            return caches.delete(cache);
-          }
+          console.log("🧹 SW: Purging cache:", cache);
+          return caches.delete(cache);
         })
       );
     })

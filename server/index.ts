@@ -367,11 +367,26 @@ async function startServer() {
   } else {
     // Host production build bundle
     const distPath = path.resolve(process.cwd(), "dist/public");
-    app.use(express.static(distPath));
+    
+    app.use(express.static(distPath, {
+      setHeaders: (res, filePath) => {
+        if (filePath.endsWith("index.html") || filePath.endsWith("sw.js") || filePath.endsWith("manifest.json")) {
+          res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0");
+          res.setHeader("Pragma", "no-cache");
+          res.setHeader("Expires", "0");
+        } else if (filePath.includes("/assets/")) {
+          res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+        }
+      }
+    }));
+
     app.get("*", (req: Request, res: Response) => {
       if (req.path.startsWith('/assets/')) {
         return res.status(404).send("Not found");
       }
+      res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0");
+      res.setHeader("Pragma", "no-cache");
+      res.setHeader("Expires", "0");
       res.sendFile(path.resolve(distPath, "index.html"));
     });
   }
