@@ -467,10 +467,17 @@ export default function AdminOvertimePage() {
               </Select>
             </div>
 
-            {/* Field 2 & 3: Tanggal & Waktu */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {/* Field 2 & 3: Tanggal & Waktu 24 Jam */}
+            <div className="space-y-4">
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-gray-700">Tanggal Lembur</label>
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-gray-700">Tanggal Lembur</label>
+                  {assignDate && (
+                    <span className="text-[11px] font-black text-primary bg-primary/10 px-2 py-0.5 rounded-md">
+                      Format DD/MM/YYYY: {format(new Date(assignDate), "dd/MM/yyyy", { locale: id })}
+                    </span>
+                  )}
+                </div>
                 <Input
                   type="date"
                   value={assignDate}
@@ -478,23 +485,93 @@ export default function AdminOvertimePage() {
                   className="rounded-xl border-gray-200 h-10 text-xs font-medium"
                 />
               </div>
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-gray-700">Jam Mulai</label>
-                <Input
-                  type="time"
-                  value={assignStartTime}
-                  onChange={(e) => setAssignStartTime(e.target.value)}
-                  className="rounded-xl border-gray-200 h-10 text-xs font-medium"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-gray-700">Estimasi Selesai</label>
-                <Input
-                  type="time"
-                  value={assignEndTime}
-                  onChange={(e) => setAssignEndTime(e.target.value)}
-                  className="rounded-xl border-gray-200 h-10 text-xs font-medium"
-                />
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {/* Jam Mulai 24 Jam */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-gray-700">Jam Mulai (24 Jam)</label>
+                    <span className="text-primary font-mono font-bold text-xs bg-primary/5 px-2 py-0.5 rounded border border-primary/20">{assignStartTime} WIB</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Select
+                      value={assignStartTime.split(":")[0] || "17"}
+                      onValueChange={(h) => {
+                        const m = assignStartTime.split(":")[1] || "00";
+                        setAssignStartTime(`${h.padStart(2, '0')}:${m}`);
+                      }}
+                    >
+                      <SelectTrigger className="rounded-xl text-xs font-bold h-10 flex-1">
+                        <SelectValue placeholder="Jam" />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-48">
+                        {Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0')).map(h => (
+                          <SelectItem key={h} value={h} className="text-xs font-bold font-mono">Jam {h}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <span className="font-bold text-gray-400">:</span>
+                    <Select
+                      value={assignStartTime.split(":")[1] || "00"}
+                      onValueChange={(m) => {
+                        const h = assignStartTime.split(":")[0] || "17";
+                        setAssignStartTime(`${h}:${m.padStart(2, '0')}`);
+                      }}
+                    >
+                      <SelectTrigger className="rounded-xl text-xs font-bold h-10 flex-1">
+                        <SelectValue placeholder="Menit" />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-48">
+                        {["00", "05", "10", "15", "20", "25", "30", "35", "40", "45", "50", "55"].map(m => (
+                          <SelectItem key={m} value={m} className="text-xs font-bold font-mono">{m} Min</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                {/* Estimasi Selesai 24 Jam */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-gray-700">Estimasi Selesai (24 Jam)</label>
+                    <span className="text-orange-600 font-mono font-bold text-xs bg-orange-50 px-2 py-0.5 rounded border border-orange-200">{assignEndTime} WIB</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Select
+                      value={assignEndTime.split(":")[0] || "20"}
+                      onValueChange={(h) => {
+                        const m = assignEndTime.split(":")[1] || "30";
+                        setAssignEndTime(`${h.padStart(2, '0')}:${m}`);
+                      }}
+                    >
+                      <SelectTrigger className="rounded-xl text-xs font-bold h-10 flex-1">
+                        <SelectValue placeholder="Jam" />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-48">
+                        {Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0')).map(h => (
+                          <SelectItem key={h} value={h} className="text-xs font-bold font-mono">Jam {h}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <span className="font-bold text-gray-400">:</span>
+                    <Select
+                      value={assignEndTime.split(":")[1] || "30"}
+                      onValueChange={(m) => {
+                        const h = assignEndTime.split(":")[0] || "20";
+                        setAssignEndTime(`${h}:${m.padStart(2, '0')}`);
+                      }}
+                    >
+                      <SelectTrigger className="rounded-xl text-xs font-bold h-10 flex-1">
+                        <SelectValue placeholder="Menit" />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-48">
+                        {["00", "05", "10", "15", "20", "25", "30", "35", "40", "45", "50", "55"].map(m => (
+                          <SelectItem key={m} value={m} className="text-xs font-bold font-mono">{m} Min</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
               </div>
             </div>
 
