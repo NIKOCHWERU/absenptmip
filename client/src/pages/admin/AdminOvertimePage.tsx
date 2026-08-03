@@ -493,7 +493,7 @@ export default function AdminOvertimePage() {
                     <label className="text-xs font-bold text-gray-700">Jam Mulai (24 Jam)</label>
                     <span className="text-primary font-mono font-bold text-xs bg-primary/5 px-2 py-0.5 rounded border border-primary/20">{assignStartTime} WIB</span>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5">
                     <Select
                       value={assignStartTime.split(":")[0] || "17"}
                       onValueChange={(h) => {
@@ -522,11 +522,28 @@ export default function AdminOvertimePage() {
                         <SelectValue placeholder="Menit" />
                       </SelectTrigger>
                       <SelectContent className="max-h-48">
-                        {["00", "05", "10", "15", "20", "25", "30", "35", "40", "45", "50", "55"].map(m => (
+                        {Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0')).map(m => (
                           <SelectItem key={m} value={m} className="text-xs font-bold font-mono">{m} Min</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
+                    <Input
+                      type="text"
+                      placeholder="22:02"
+                      maxLength={5}
+                      value={assignStartTime}
+                      onChange={(e) => {
+                        let val = e.target.value.replace(/\D/g, '');
+                        if (val.length > 4) val = val.substring(0, 4);
+                        let h = val.substring(0, 2); let m = val.substring(2, 4);
+                        if (h.length === 2 && parseInt(h) > 23) h = '23';
+                        if (m.length === 2 && parseInt(m) > 59) m = '59';
+                        let formatted = h; if (val.length >= 2) formatted += (val.length > 2 || e.target.value.includes(':')) ? ':' + m : '';
+                        setAssignStartTime(formatted);
+                      }}
+                      className="rounded-xl border-gray-200 h-10 text-xs font-mono font-bold w-16 text-center shrink-0"
+                      title="Ketik langsung contoh: 22:02"
+                    />
                   </div>
                 </div>
 
@@ -536,7 +553,7 @@ export default function AdminOvertimePage() {
                     <label className="text-xs font-bold text-gray-700">Estimasi Selesai (24 Jam)</label>
                     <span className="text-orange-600 font-mono font-bold text-xs bg-orange-50 px-2 py-0.5 rounded border border-orange-200">{assignEndTime} WIB</span>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5">
                     <Select
                       value={assignEndTime.split(":")[0] || "20"}
                       onValueChange={(h) => {
@@ -565,11 +582,28 @@ export default function AdminOvertimePage() {
                         <SelectValue placeholder="Menit" />
                       </SelectTrigger>
                       <SelectContent className="max-h-48">
-                        {["00", "05", "10", "15", "20", "25", "30", "35", "40", "45", "50", "55"].map(m => (
+                        {Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0')).map(m => (
                           <SelectItem key={m} value={m} className="text-xs font-bold font-mono">{m} Min</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
+                    <Input
+                      type="text"
+                      placeholder="22:02"
+                      maxLength={5}
+                      value={assignEndTime}
+                      onChange={(e) => {
+                        let val = e.target.value.replace(/\D/g, '');
+                        if (val.length > 4) val = val.substring(0, 4);
+                        let h = val.substring(0, 2); let m = val.substring(2, 4);
+                        if (h.length === 2 && parseInt(h) > 23) h = '23';
+                        if (m.length === 2 && parseInt(m) > 59) m = '59';
+                        let formatted = h; if (val.length >= 2) formatted += (val.length > 2 || e.target.value.includes(':')) ? ':' + m : '';
+                        setAssignEndTime(formatted);
+                      }}
+                      className="rounded-xl border-gray-200 h-10 text-xs font-mono font-bold w-16 text-center shrink-0"
+                      title="Ketik langsung contoh: 22:02"
+                    />
                   </div>
                 </div>
               </div>
