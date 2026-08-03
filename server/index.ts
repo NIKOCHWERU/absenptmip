@@ -238,6 +238,27 @@ async function runAutoMigrations() {
     }
 
 
+    // 13. Create overtimes table
+    await conn.query(`
+      CREATE TABLE IF NOT EXISTS overtimes (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        attendance_id INT NOT NULL,
+        start_time TIMESTAMP NOT NULL,
+        end_time TIMESTAMP NULL,
+        spl_document_url VARCHAR(512) NULL,
+        initial_proof_url VARCHAR(512) NULL,
+        final_proof_url VARCHAR(512) NULL,
+        description TEXT NULL,
+        final_description TEXT NULL,
+        status ENUM('ongoing', 'completed', 'cancelled') DEFAULT 'ongoing',
+        employee_approval ENUM('pending', 'approved', 'rejected') DEFAULT 'approved',
+        rejection_reason TEXT NULL,
+        spl_number VARCHAR(100) NULL,
+        assigned_by INT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    `);
+
     // --- Dynamic Column Checks for existing tables (in case columns are missing) ---
     const checkAndAddColumn = async (table: string, column: string, DDL: string) => {
       const [colCheck]: any = await conn.query(`
@@ -251,6 +272,7 @@ async function runAutoMigrations() {
       }
     };
 
+    await checkAndAddColumn("users", "leave_quota", "INT DEFAULT 12");
     await checkAndAddColumn("users", "npwp", "VARCHAR(50) NULL");
     await checkAndAddColumn("users", "bpjs", "VARCHAR(50) NULL");
     await checkAndAddColumn("users", "npwp_photo_url", "VARCHAR(512) NULL");

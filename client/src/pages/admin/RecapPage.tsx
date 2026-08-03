@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { User, Attendance } from "@shared/schema";
 import { format, subMonths, addMonths, isSameMonth, setDate, isAfter, isBefore, isEqual, startOfWeek, endOfWeek, startOfDay, endOfDay, subDays, addDays } from "date-fns";
 import { id } from "date-fns/locale";
-import { useState, useEffect } from "react";
+import React, { useState, useEffect, Fragment } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -1150,7 +1150,7 @@ export default function RecapPage() {
                                         const isSameDayAndUser = prevRow && safeFormatDate(prevRow.date, "yyyy-MM-dd") === dateStr && prevRow.userId === row.userId;
 
                                         return (
-                                            <React.Fragment key={row.id}>
+                                            <Fragment key={row.id}>
                                                 <tr className="hover:bg-gray-50/30 transition-colors group">
                                                 <td className="px-6 py-4 font-bold text-gray-500 text-[10px]">
                                                     {isSameDayAndUser ? <span className="ml-4 text-gray-300">↳</span> : safeFormatDate(row.date, "EEEE, d MMMM yyyy", { locale: id })}
@@ -1253,7 +1253,7 @@ export default function RecapPage() {
                                                     </tr>
                                                 );
                                             })()}
-                                            </React.Fragment>
+                                            </Fragment>
                                         );
                                     })}
                                 </tbody>

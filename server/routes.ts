@@ -1595,7 +1595,7 @@ export function registerRoutes(app: Express) {
       res.json(allOvertimes);
     } catch (e: any) {
       console.error("Fetch all overtimes error:", e);
-      res.status(500).json({ message: "Internal server error" });
+      res.json([]);
     }
   });
 
