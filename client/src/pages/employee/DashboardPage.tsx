@@ -174,7 +174,7 @@ export default function EmployeeDashboard() {
         } catch (_) {}
 
         // Find first undismissed mutation
-        const newMutation = employeeDocs.mutations.find(m => {
+        const newMutation = (employeeDocs?.mutations || []).find(m => {
             const isFuture = new Date(m.createdAt) > cutoff;
             const isDismissed = dismissed.mutations?.includes(m.id);
             return isFuture && !isDismissed;
@@ -193,7 +193,7 @@ export default function EmployeeDashboard() {
         }
 
         // Find first undismissed warning letter (SP)
-        const newSP = employeeDocs.warningLetters.find(sp => {
+        const newSP = (employeeDocs?.warningLetters || []).find(sp => {
             const isFuture = new Date(sp.createdAt) > cutoff;
             const isDismissed = dismissed.warningLetters?.includes(sp.id);
             return isFuture && !isDismissed;
@@ -212,7 +212,7 @@ export default function EmployeeDashboard() {
         }
 
         // Find first undismissed resignation (PHK/layoff)
-        const newResign = employeeDocs.resignations.find(r => {
+        const newResign = (employeeDocs?.resignations || []).find(r => {
             const isFuture = new Date(r.createdAt) > cutoff;
             const isDismissed = dismissed.resignations?.includes(r.id);
             return isFuture && !isDismissed;
@@ -269,8 +269,8 @@ export default function EmployeeDashboard() {
     const [isOffDayOpen, setIsOffDayOpen] = useState(false);
     const [selectedShiftId, setSelectedShiftId] = useState<number | null>(null);
 
-    // Overtime Access Rule: Super Admin or NIK 12345
-    const isAllowedOvertime = user?.role === "superadmin" || user?.nik === "12345" || user?.username === "12345";
+    // Overtime Access Rule: Enabled for all employees
+    const isAllowedOvertime = !!user;
 
     const { data: activeOvertimeToday, refetch: refetchOvertime } = useQuery<any>({
         queryKey: ["/api/attendance/overtime/today"],
