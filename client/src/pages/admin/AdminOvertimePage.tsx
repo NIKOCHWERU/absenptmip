@@ -93,9 +93,8 @@ export default function AdminOvertimePage() {
   const { data: users } = useQuery<User[]>({ queryKey: ["/api/admin/users"] });
   const { data: overtimesList, isLoading } = useQuery<any[]>({ queryKey: ["/api/admin/overtimes"] });
 
-  // Filter Employees (prioritaskan NIK 12345)
+  // Filter Employees
   const employeeUsers = users?.filter(u => u.role === "employee") || [];
-  const targetEmployee12345 = employeeUsers.find(u => u.nik === "12345" || u.username === "12345");
 
   // Modal State for Penugasan Lembur
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
@@ -113,11 +112,9 @@ export default function AdminOvertimePage() {
   const [sortField, setSortField] = useState<string>("createdAt");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
 
-  // Default select NIK 12345 when modal opens if not selected
+  // Default select first employee when modal opens if not selected
   const handleOpenAssignModal = () => {
-    if (targetEmployee12345) {
-      setAssignUserId(String(targetEmployee12345.id));
-    } else if (employeeUsers.length > 0) {
+    if (employeeUsers.length > 0) {
       setAssignUserId(String(employeeUsers[0].id));
     }
     setIsAssignModalOpen(true);
@@ -286,8 +283,8 @@ export default function AdminOvertimePage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-black text-gray-900 tracking-tight">Manajemen Permohonan & Penugasan Lembur</h1>
-          <p className="text-sm text-gray-500">
-            Penugasan lembur (SPL) ke karyawan (NIK <strong className="text-primary font-bold">12345</strong>). Karyawan akan menerima notifikasi untuk menyetujui atau mengajukan izin tidak lembur.
+          <p class="text-sm text-gray-500">
+            Penugasan lembur (SPL) ke seluruh karyawan. Karyawan akan langsung menerima notifikasi pop-up modal di HP untuk menyetujui atau mengajukan izin tidak lembur.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -518,7 +515,7 @@ export default function AdminOvertimePage() {
                 <SelectContent className="rounded-xl">
                   {employeeUsers.map(u => (
                     <SelectItem key={u.id} value={String(u.id)}>
-                      {u.fullName} (NIK: {u.nik || u.username}) {u.nik === '12345' ? '⚡ (Pilihan Utama)' : ''}
+                      {u.fullName} (NIK: {u.nik || u.username})
                     </SelectItem>
                   ))}
                 </SelectContent>

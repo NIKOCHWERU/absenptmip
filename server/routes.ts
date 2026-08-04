@@ -1342,14 +1342,9 @@ export function registerRoutes(app: Express) {
     }
   }
 
-  // 7. Overtime Endpoints (Khusus Super Admin & NIK 12345)
+  // 7. Overtime Endpoints (Untuk Seluruh Karyawan / Super Admin)
   app.post("/api/attendance/overtime/start", isAuthenticated, upload.fields([{ name: "splPhoto" }, { name: "initialProofPhoto" }]), async (req: Request, res: Response) => {
     try {
-      const isAllowedOvertime = (req.user as any)?.role === 'superadmin' || (req.user as any)?.nik === '12345' || (req.user as any)?.username === '12345';
-      if (!isAllowedOvertime) {
-        return res.status(403).json({ message: "Akses lembur hanya diizinkan untuk Super Admin dan NIK 12345" });
-      }
-
       const userId = req.session.userId!;
       const user = await db.select().from(users).where(eq(users.id, userId)).limit(1);
       if (!user.length) return res.status(404).json({ message: "User not found" });
@@ -1433,11 +1428,6 @@ export function registerRoutes(app: Express) {
 
   app.post("/api/attendance/overtime/end", isAuthenticated, upload.fields([{ name: "finalProofPhoto" }]), async (req: Request, res: Response) => {
     try {
-      const isAllowedOvertime = (req.user as any)?.role === 'superadmin' || (req.user as any)?.nik === '12345' || (req.user as any)?.username === '12345';
-      if (!isAllowedOvertime) {
-        return res.status(403).json({ message: "Akses lembur hanya diizinkan untuk Super Admin dan NIK 12345" });
-      }
-
       const userId = req.session.userId!;
       const user = await db.select().from(users).where(eq(users.id, userId)).limit(1);
       if (!user.length) return res.status(404).json({ message: "User not found" });
@@ -1478,11 +1468,6 @@ export function registerRoutes(app: Express) {
 
   app.get("/api/attendance/overtime/today", isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const isAllowedOvertime = (req.user as any)?.role === 'superadmin' || (req.user as any)?.nik === '12345' || (req.user as any)?.username === '12345';
-      if (!isAllowedOvertime) {
-        return res.json(null);
-      }
-
       const userId = req.session.userId!;
       const adminDate = getAdminDate();
       const todaySessions = await db.select().from(attendance).where(and(eq(attendance.userId, userId), eq(attendance.date, adminDate))).orderBy(desc(attendance.sessionNumber));

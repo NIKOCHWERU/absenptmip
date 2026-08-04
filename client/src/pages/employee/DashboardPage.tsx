@@ -269,12 +269,10 @@ export default function EmployeeDashboard() {
     const [isOffDayOpen, setIsOffDayOpen] = useState(false);
     const [selectedShiftId, setSelectedShiftId] = useState<number | null>(null);
 
-    // Overtime Access Rule: Restricted to Super Admin or NIK 12345
-    const isAllowedOvertime = user?.role === "superadmin" || user?.nik === "12345" || user?.username === "12345";
-
+    // Overtime Access: Enabled for all employees with 5s polling so modal pops up instantly when assigned by Admin
     const { data: activeOvertimeToday, refetch: refetchOvertime } = useQuery<any>({
         queryKey: ["/api/attendance/overtime/today"],
-        enabled: !!isAllowedOvertime,
+        refetchInterval: 5000,
     });
 
     const [isOvertimeAlertOpen, setIsOvertimeAlertOpen] = useState(false);
@@ -1347,8 +1345,8 @@ export default function EmployeeDashboard() {
                             </Button>
                         </div>
 
-                        {/* FITUR LEMBUR DIGITAL (KHUSUS SUPER ADMIN & NIK 12345) */}
-                        {isAllowedOvertime && (hasCheckedIn || today?.checkIn) && (
+                        {/* FITUR LEMBUR DIGITAL */}
+                        {(hasCheckedIn || today?.checkIn || !!activeOvertimeToday) && (
                             <div className="pt-3 border-t border-slate-200 space-y-2.5 mt-2">
                                 <div className="flex justify-between items-center text-xs font-bold text-slate-800">
                                     <span className="flex items-center gap-1.5">Lembur ( Overtime )</span>

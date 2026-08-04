@@ -513,7 +513,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                         ]
                     }
                 ] : []),
-                ...(user?.role === 'superadmin' || user?.nik === '12345' || user?.username === '12345' ? [
+                ...(user?.role === 'superadmin' || user?.role === 'admin' ? [
                     {
                         title: "Kelola Lembur",
                         url: "#overtime",
