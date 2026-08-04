@@ -1470,17 +1470,37 @@ export function registerRoutes(app: Express) {
     try {
       const userId = req.session.userId!;
       const adminDate = getAdminDate();
+
+      // Priority 1: Check if there is any pending SPL assigned to this user that needs employee approval
+      const pendingOvertimes = await db.select({
+        overtime: overtimes
+      })
+      .from(overtimes)
+      .innerJoin(attendance, eq(overtimes.attendanceId, attendance.id))
+      .where(and(
+        eq(attendance.userId, userId),
+        eq(overtimes.employeeApproval, "pending")
+      ))
+      .orderBy(desc(overtimes.id))
+      .limit(1);
+
+      if (pendingOvertimes.length > 0) {
+        return res.json(pendingOvertimes[0].overtime);
+      }
+
+      // Priority 2: Check for today's active/ongoing/completed overtime
       const todaySessions = await db.select().from(attendance).where(and(eq(attendance.userId, userId), eq(attendance.date, adminDate))).orderBy(desc(attendance.sessionNumber));
       if (todaySessions.length === 0) return res.json(null);
 
       const activeSession = todaySessions[0];
-      const overtimesList = await db.select().from(overtimes).where(eq(overtimes.attendanceId, activeSession.id));
+      const overtimesList = await db.select().from(overtimes).where(eq(overtimes.attendanceId, activeSession.id)).orderBy(desc(overtimes.id));
       if (overtimesList.length > 0) {
-        res.json(overtimesList[overtimesList.length - 1]);
+        return res.json(overtimesList[0]);
       } else {
-        res.json(null);
+        return res.json(null);
       }
     } catch (e: any) {
+      console.error("Fetch overtime today error:", e);
       res.status(500).json({ message: "Internal server error" });
     }
   });

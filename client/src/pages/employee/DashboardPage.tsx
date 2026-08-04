@@ -273,6 +273,7 @@ export default function EmployeeDashboard() {
     const { data: activeOvertimeToday, refetch: refetchOvertime } = useQuery<any>({
         queryKey: ["/api/attendance/overtime/today"],
         refetchInterval: 5000,
+        staleTime: 0,
     });
 
     const [isOvertimeAlertOpen, setIsOvertimeAlertOpen] = useState(false);
