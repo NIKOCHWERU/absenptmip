@@ -1601,7 +1601,7 @@ export function registerRoutes(app: Express) {
           userId: Number(userId),
           date: date,
           status: "present",
-          checkIn: new Date(`${date}T${startTime}:00`),
+          checkIn: null,
           notes: "Penugasan Lembur SPL"
         });
         attendanceId = newAtt.insertId;

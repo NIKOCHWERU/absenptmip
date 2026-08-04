@@ -1345,8 +1345,8 @@ export default function EmployeeDashboard() {
                             </Button>
                         </div>
 
-                        {/* FITUR LEMBUR DIGITAL */}
-                        {(hasCheckedIn || today?.checkIn || !!activeOvertimeToday) && (
+                        {/* FITUR LEMBUR DIGITAL - TAMPIL HANYA BILA DITUGASKAN SPL RESMI */}
+                        {!!activeOvertimeToday && activeOvertimeToday.status !== "cancelled" && (
                             <div className="pt-3 border-t border-slate-200 space-y-2.5 mt-2">
                                 <div className="flex justify-between items-center text-xs font-bold text-slate-800">
                                     <span className="flex items-center gap-1.5">Lembur ( Overtime )</span>
@@ -1412,26 +1412,6 @@ export default function EmployeeDashboard() {
                                     <div className="bg-red-50 border border-red-200 p-3 rounded-2xl text-xs text-red-800 space-y-1">
                                         <span className="font-bold block">Status: Permohonan Izin Tidak Lembur Dikirim</span>
                                         <p className="italic text-[11px] text-red-600">Alasan: "{activeOvertimeToday.rejectionReason}"</p>
-                                    </div>
-                                )}
-
-                                {(!activeOvertimeToday || activeOvertimeToday.status === "cancelled") && (
-                                    <div className="grid grid-cols-2 gap-2">
-                                        <Button
-                                            type="button"
-                                            variant="outline"
-                                            className="h-12 bg-red-50/80 hover:bg-red-100/80 text-red-700 border border-red-200/80 font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 shadow-sm"
-                                            onClick={() => setIsRejectOvertimeModalOpen(true)}
-                                        >
-                                            <XCircle className="w-4 h-4 text-red-600" /> Izin
-                                        </Button>
-                                        <Button
-                                            type="button"
-                                            className="h-12 bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-black text-xs rounded-xl shadow-md flex items-center justify-center gap-1.5 tracking-wide"
-                                            onClick={() => setIsOvertimeAlertOpen(true)}
-                                        >
-                                            <Play className="w-4 h-4 fill-current" /> Mulai Lembur
-                                        </Button>
                                     </div>
                                 )}
 
