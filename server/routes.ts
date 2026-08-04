@@ -1479,7 +1479,10 @@ export function registerRoutes(app: Express) {
       .innerJoin(attendance, eq(overtimes.attendanceId, attendance.id))
       .where(and(
         eq(attendance.userId, userId),
-        eq(overtimes.employeeApproval, "pending")
+        or(
+          eq(overtimes.employeeApproval, "pending"),
+          eq(overtimes.status, "pending")
+        )
       ))
       .orderBy(desc(overtimes.id))
       .limit(1);

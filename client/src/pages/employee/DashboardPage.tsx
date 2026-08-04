@@ -290,11 +290,11 @@ export default function EmployeeDashboard() {
 
     useEffect(() => {
         // Auto-open SPL notice popup setiap kali ada penugasan pending
-        if (activeOvertimeToday && activeOvertimeToday.employeeApproval === "pending") {
+        if (activeOvertimeToday && (activeOvertimeToday.employeeApproval === "pending" || activeOvertimeToday.status === "pending")) {
             setIsSplNoticePopupOpen(true);
             setHasAutoOpenedSplNotice(true);
         }
-    }, [activeOvertimeToday?.id, activeOvertimeToday?.employeeApproval]);
+    }, [activeOvertimeToday?.id, activeOvertimeToday?.employeeApproval, activeOvertimeToday?.status]);
 
     const overtimeRespondMutation = useMutation({
         mutationFn: async ({ action, rejectionReason }: { action: "approve" | "reject", rejectionReason?: string }) => {
