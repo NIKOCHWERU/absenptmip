@@ -1737,6 +1737,7 @@ export function registerRoutes(app: Express) {
         .where(
           and(
             eq(attendance.userId, userId),
+            isNotNull(attendance.checkIn),
             or(
               sql`DATE(${attendance.date}) = ${adminDate}`,
               isNull(attendance.checkOut)
@@ -1759,7 +1760,7 @@ export function registerRoutes(app: Express) {
       const list = await db
         .select()
         .from(attendance)
-        .where(eq(attendance.userId, userId))
+        .where(and(eq(attendance.userId, userId), isNotNull(attendance.checkIn)))
         .orderBy(desc(attendance.date), desc(attendance.sessionNumber));
 
       res.json(list);
