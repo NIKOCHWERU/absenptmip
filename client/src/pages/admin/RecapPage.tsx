@@ -6,7 +6,7 @@ import React, { useState, useEffect, Fragment } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ChevronLeft, ChevronRight, FileDown, ArrowLeft, Search, ArrowUpDown, MessageSquare, Plus, Edit2, Trash2, Camera, Image as ImageIcon, CheckCircle2, Clock, Zap, AlertTriangle } from "lucide-react";
+import { ChevronLeft, ChevronRight, FileDown, ArrowLeft, Search, ArrowUpDown, MessageSquare, Plus, Edit2, Trash2, Camera, Image as ImageIcon } from "lucide-react";
 import { useLocation } from "wouter";
 import { Input } from "@/components/ui/input";
 import { differenceInMinutes } from "date-fns";
@@ -126,7 +126,7 @@ export default function RecapPage() {
         shift: "-"
     });
 
-    const [reportType, setReportType] = useState<"daily" | "weekly" | "monthly" | "custom" | "twoDays">("monthly");
+    const [reportType, setReportType] = useState<"daily" | "weekly" | "monthly" | "custom">("monthly");
     const [customStartDate, setCustomStartDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
     const [customEndDate, setCustomEndDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
 
@@ -136,9 +136,6 @@ export default function RecapPage() {
     if (reportType === "daily") {
         startDate = startOfDay(targetDate);
         endDate = endOfDay(targetDate);
-    } else if (reportType === "twoDays") {
-        startDate = startOfDay(targetDate);
-        endDate = endOfDay(addDays(targetDate, 1));
     } else if (reportType === "weekly") {
         startDate = startOfWeek(targetDate, { weekStartsOn: 1 });
         endDate = endOfWeek(targetDate, { weekStartsOn: 1 });
@@ -171,13 +168,13 @@ export default function RecapPage() {
     });
 
     const handlePrev = () => {
-        if (reportType === "daily" || reportType === "twoDays") setTargetDate(d => subDays(d, 1));
+        if (reportType === "daily") setTargetDate(d => subDays(d, 1));
         else if (reportType === "weekly") setTargetDate(d => subDays(d, 7));
         else setTargetDate(d => subMonths(d, 1));
     };
 
     const handleNext = () => {
-        if (reportType === "daily" || reportType === "twoDays") setTargetDate(d => addDays(d, 1));
+        if (reportType === "daily") setTargetDate(d => addDays(d, 1));
         else if (reportType === "weekly") setTargetDate(d => addDays(d, 7));
         else setTargetDate(d => addMonths(d, 1));
     };
@@ -411,11 +408,6 @@ export default function RecapPage() {
         let periodStr = '';
         if (reportType === 'daily') {
             periodStr = format(targetDate, "dd MMMM yyyy", { locale: id }).toUpperCase();
-        } else if (reportType === 'twoDays') {
-            const d2 = addDays(targetDate, 1);
-            periodStr = (targetDate.getMonth() === d2.getMonth() && targetDate.getFullYear() === d2.getFullYear())
-                ? `${format(targetDate, "dd")} - ${format(d2, "dd MMM yyyy", { locale: id })}`.toUpperCase()
-                : `${format(targetDate, "dd MMM")} - ${format(d2, "dd MMM yyyy", { locale: id })}`.toUpperCase();
         } else if (reportType === 'weekly') {
             periodStr = `${format(startDate, "dd MMM")} - ${format(endDate, "dd MMM yyyy", { locale: id })}`.toUpperCase();
         } else if (reportType === 'custom') {
@@ -442,79 +434,56 @@ export default function RecapPage() {
             });
         } catch (_) { }
 
-const html = `<!DOCTYPE html>
+        const html = `<!DOCTYPE html>
 <html>
 <head>
   <title>${fileName}</title>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 11px; color: #0f172a; background: white; padding: 24px 32px; line-height: 1.4; }
-    
-    .letterhead { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
-    .logo-img { height: 48px; max-width: 140px; object-fit: contain; }
-    .company-block { text-align: right; }
-    .company-block h1 { font-size: 20px; font-weight: 800; text-transform: uppercase; color: #0f172a; letter-spacing: 0.5px; }
-    .company-block .alamat { font-size: 11px; color: #475569; margin-top: 2px; }
-    
-    .hr-thick { border: none; border-top: 2px solid #0f172a; margin: 8px 0 2px; }
-    .hr-thin  { border: none; border-top: 1px solid #cbd5e1; margin-bottom: 16px; }
-    
-    .report-header { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px 18px; margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
-    .report-header h2 { font-size: 16px; font-weight: 800; color: #0f172a; text-transform: uppercase; letter-spacing: 0.5px; }
-    .report-header .meta-sub { font-size: 11px; color: #475569; margin-top: 3px; font-weight: 600; }
-    
-    /* SUMMARY METRICS FOR ADMIN FINANCE */
-    .summary-grid { display: flex; gap: 12px; margin-bottom: 20px; width: 100%; }
-    .summary-card { flex: 1; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px 14px; text-align: left; }
-    .summary-card .title { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; color: #64748b; }
-    .summary-card .value { font-size: 15px; font-weight: 900; margin-top: 4px; }
-    .val-hadir { color: #16a34a; }
-    .val-reguler { color: #1d4ed8; }
-    .val-lembur { color: #ea580c; }
-    .val-telat { color: #d97706; }
-
-    .section-banner { font-size: 12px; font-weight: 800; text-transform: uppercase; color: #0f172a; border-bottom: 2px solid #0f172a; padding-bottom: 4px; margin-top: 22px; margin-bottom: 12px; letter-spacing: 0.5px; }
-
-    table { width: 100%; border-collapse: collapse; font-size: 10.5px; margin-bottom: 16px; }
-    thead tr { background-color: #0f172a; color: #ffffff; }
-    th { color: #ffffff; font-weight: 700; text-align: left; padding: 8px 10px; font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.5px; border: 1px solid #334155; white-space: nowrap; }
+    * { box-sizing: border-box; margin: 0; padding: 0; text-transform: uppercase !important; }
+    body { font-family: Arial, Helvetica, sans-serif; font-size: 11px; color: #1e293b; background: white; padding: 28px 36px; }
+    .letterhead { display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px; min-height: 50px; }
+    .logo-img { height: 50px; max-width: 140px; object-fit: contain; flex-shrink: 0; }
+    .company-block { text-align: right; flex-grow: 1; margin-left: 20px; }
+    .company-block h1 { font-size: 22px; font-weight: bold; text-transform: uppercase; margin-bottom: 4px; letter-spacing: 0.5px; }
+    .company-block .alamat { font-size: 12px; font-weight: normal; color: #334155; line-height: 1.4; margin-top: 4px; }
+    .hr-thick { border: none; border-top: 2px solid #cbd5e1; margin: 6px 0 2px; }
+    .hr-thin  { border: none; border-top: 1px solid #e2e8f0; margin-bottom: 18px; }
+    .report-meta { text-align: center; margin-bottom: 20px; }
+    .report-meta h2 { font-size: 16px; font-weight: 900; text-transform: uppercase; letter-spacing: 1.5px; color: #1e293b; }
+    .report-meta .sub { font-size: 10.5px; margin-top: 4px; color: #475569; }
+    table { width: 100%; border-collapse: collapse; font-size: 10.5px; }
+    thead tr { background-color: #f8fafc; }
+    th { color: #374151; font-weight: 700; text-align: left; padding: 8px 8px; font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.4px; border-bottom: 2px solid #1e293b; border-right: 1px solid #e2e8f0; white-space: nowrap; }
     th.c { text-align: center; }
-    td { padding: 7px 10px; border: 1px solid #cbd5e1; vertical-align: middle; white-space: nowrap; }
+    td { padding: 7px 8px; border-bottom: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0; vertical-align: middle; white-space: nowrap; }
     tbody tr:nth-child(even) { background-color: #f8fafc; }
-    
-    .col-no   { text-align: center; color: #64748b; font-size: 10px; font-weight: bold; }
-    .col-date { color: #334155; font-weight: 700; }
-    .col-name { color: #0f172a; font-weight: 800; }
-    .col-time { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 11px; text-align: center; font-weight: 700; }
-    
-    .t-in   { color: #15803d; background: #f0fdf4; padding: 2px 6px; border-radius: 4px; border: 1px solid #bbf7d0; }
-    .t-brk  { color: #b45309; background: #fffbeb; padding: 2px 6px; border-radius: 4px; border: 1px solid #fde68a; }
-    .t-out  { color: #b91c1c; background: #fef2f2; padding: 2px 6px; border-radius: 4px; border: 1px solid #fecaca; }
-    .t-dash { color: #cbd5e1; }
-    
-    .col-work { font-size: 11px; font-weight: 800; color: #0f172a; text-align: center; }
-    .col-brk  { text-align: center; font-size: 10.5px; font-weight: 700; color: #d97706; }
-    
-    /* OVERTIME ROW HIGHLIGHT */
-    tr.row-lembur { background-color: #fff7ed !important; }
-    tr.row-lembur td { border-color: #fed7aa; }
-    .badge-lembur { background: #ea580c; color: white; padding: 2px 6px; border-radius: 4px; font-weight: 900; font-size: 9px; letter-spacing: 0.5px; text-transform: uppercase; }
-    
-    .badge-status { padding: 3px 8px; border-radius: 4px; font-weight: 800; font-size: 9.5px; display: inline-block; text-transform: uppercase; }
-    .st-hadir { background: #dcfce7; color: #15803d; border: 1px solid #86efac; }
-    .st-telat { background: #fef3c7; color: #b45309; border: 1px solid #fde047; }
-    .st-sakit { background: #dbeafe; color: #1e40af; border: 1px solid #93c5fd; }
-    .st-izin  { background: #f3e8ff; color: #6b21a8; border: 1px solid #d8b4fe; }
-    .st-cuti  { background: #ccfbf1; color: #115e59; border: 1px solid #5eead4; }
-    .st-alpha { background: #ffe4e6; color: #9f1239; border: 1px solid #fecdd3; }
-    
-    .signature-section { margin-top: 40px; display: flex; justify-content: space-around; padding: 0 20px; page-break-inside: avoid; }
-    .sig-box { text-align: center; width: 180px; }
-    .sig-label { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px; color: #475569; margin-bottom: 56px; }
-    .sig-name { font-size: 11px; font-weight: 800; border-top: 1.5px solid #334155; padding-top: 6px; text-transform: uppercase; color: #0f172a; }
-    .footer { margin-top: 24px; font-size: 9px; color: #94a3b8; border-top: 1px dashed #cbd5e1; padding-top: 8px; text-align: center; }
+    .col-no   { text-align: center; color: #94a3b8; font-size: 10px; }
+    .col-date { color: #374151; font-weight: 600; }
+    .col-name { color: #1d4ed8; font-weight: 600; }
+    .col-time { font-family: ui-monospace, Consolas, monospace; font-size: 11px; text-align: center; }
+    .t-in   { color: #15803d; font-weight: 700; }
+    .t-brk  { color: #b45309; font-weight: 700; }
+    .t-out  { color: #b91c1c; font-weight: 700; }
+    .t-dash { color: #94a3b8; }
+    .col-work { font-size: 11px; font-weight: 700; color: #1e293b; }
+    .col-brk  { text-align: center; font-size: 11px; font-weight: 700; color: #ea580c; }
+    .col-stat { text-align: center; font-weight: 700; font-size: 11px; }
+    .st-hadir { color: #16a34a; }
+    .st-telat { color: #ea580c; }
+    .st-sakit { color: #2563eb; }
+    .st-izin  { color: #7c3aed; }
+    .st-cuti  { color: #0d9488; }
+    .st-alpha { color: #dc2626; }
+    .col-note { font-size: 10.5px; color: #475569; white-space: normal; max-width: 200px; }
+    .note-late { color: #dc2626; font-size: 10px; }
+    .note-warn { color: #ca8a04; font-weight: 600; }
+    .signature-section { margin-top: 48px; display: flex; justify-content: center; gap: 100px; padding: 0; }
+    .sig-box { text-align: center; width: 160px; }
+    .sig-label { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px; color: #374151; margin-bottom: 64px; }
+    .sig-name { font-size: 11px; font-weight: 800; border-top: 1.5px solid #374151; padding-top: 6px; text-transform: uppercase; letter-spacing: 0.5px; color: #1e293b; }
+    .footer { margin-top: 18px; font-size: 8.5px; color: #94a3b8; border-top: 1px dashed #cbd5e1; padding-top: 8px; }
     .btn-wrap { text-align: center; margin-top: 20px; }
-    .download-btn { display: inline-flex; align-items: center; gap: 8px; background: #0f172a; color: #fff; border: none; padding: 10px 28px; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; letter-spacing: 0.5px; text-decoration: none; }
+    .download-btn { display: inline-flex; align-items: center; gap: 8px; background: #1d4ed8; color: #fff; border: none; padding: 10px 28px; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; letter-spacing: 0.5px; text-decoration: none; }
     @media print {
       body { padding: 12px 16px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       .btn-wrap { display: none !important; }
@@ -527,230 +496,105 @@ const html = `<!DOCTYPE html>
     ${logoDataUrl ? `<img src="${logoDataUrl}" class="logo-img" alt="Logo" />` : ''}
     <div class="company-block">
       <h1>${namaPt}</h1>
-      ${alamatPt ? `<p class="alamat">${alamatPt}</p>` : `<p class="alamat">Sistem Manajemen Kehadiran & Payroll Digital</p>`}
+      ${alamatPt ? `<p class="alamat">${alamatPt}</p>` : `<p class="alamat">Sistem Manajemen Kehadiran Digital</p>`}
     </div>
   </div>
   <hr class="hr-thick" />
   <hr class="hr-thin" />
-  
-  <div class="report-header">
-    <div>
-      <h2>Laporan Rekapitulasi Kehadiran & Lembur (Payroll)</h2>
-      <p class="meta-sub">Periode: <b>${periodStr}</b> (${format(startDate, "dd MMM yyyy", { locale: id })} - ${format(endDate, "dd MMM yyyy", { locale: id })})</p>
-    </div>
-    <div style="text-align:right;">
-      <p class="meta-sub">Tipe Periode: <b>${reportType === 'daily' ? 'Harian' : reportType === 'twoDays' ? '2 Hari (Shift Malam)' : reportType === 'weekly' ? 'Mingguan' : reportType === 'custom' ? 'Kustom' : 'Bulanan'}</b></p>
-      <p class="meta-sub">Dicetak Pada: ${format(new Date(), "dd MMMM yyyy, HH:mm", { locale: id })} WIB</p>
-    </div>
+  <div class="report-meta">
+    <h2>Laporan Rekapitulasi Absensi</h2>
+    <p class="sub">Tipe: ${reportType === 'daily' ? 'Harian' : reportType === 'weekly' ? 'Mingguan' : reportType === 'custom' ? 'Kustom' : 'Bulanan'}</p>
+    <p class="sub">Periode: ${format(startDate, "EEEE, d MMMM yyyy", { locale: id })} - ${format(endDate, "EEEE, d MMMM yyyy", { locale: id })}</p>
   </div>
-
-  <!-- SUMMARY CARDS FOR ADMIN FINANCE -->
-  ${(() => {
-        const totalHadirCount = processedData.filter(r => r.status === 'present' || r.status === 'late').length;
-        const totalRegulerMins = Array.from(dailyTotals.values()).reduce((sum, d) => sum + (d.mins || 0), 0);
-        const totalOtMins = user?.role === "superadmin"
-            ? (allOvertimes || []).reduce((sum: number, ot: any) => {
-                if (ot.startTime && ot.endTime) {
-                    return sum + Math.round((new Date(ot.endTime).getTime() - new Date(ot.startTime).getTime()) / 60000);
-                }
-                return sum;
-            }, 0)
-            : 0;
-        const totalTelatCount = processedData.filter(r => r.status === 'late').length;
-
-        return `
-    <div class="summary-grid">
-      <div class="summary-card">
-        <div class="title">Total Kehadiran</div>
-        <div class="value val-hadir">${totalHadirCount} Sesi Hadir</div>
-      </div>
-      <div class="summary-card">
-        <div class="title">Total Jam Kerja Reguler</div>
-        <div class="value val-reguler">${formatDuration(totalRegulerMins)}</div>
-      </div>
-      <div class="summary-card">
-        <div class="title">Total Jam Lembur (Overtime)</div>
-        <div class="value val-lembur">${totalOtMins > 0 ? formatDuration(totalOtMins) : '0 Jam'}</div>
-      </div>
-      <div class="summary-card">
-        <div class="title">Total Terlambat</div>
-        <div class="value val-telat">${totalTelatCount} Karyawan</div>
-      </div>
-    </div>
-    `;
-    })()}
-
-  <!-- RINGKASAN PAYROLL PER KARYAWAN -->
-  <div class="section-banner">1. Rekapitulasi Total Jam Kerja & Lembur Per Tenaga Kerja (Admin Finance Summary)</div>
-  <table>
-    <thead>
-      <tr>
-        <th class="c" style="width:36px;">No</th>
-        <th>Nama Tenaga Kerja</th>
-        <th style="width:120px;">NIK / Username</th>
-        <th class="c" style="width:100px;">Jumlah Sesi Hadir</th>
-        <th class="c" style="width:140px;">Total Jam Reguler</th>
-        <th class="c" style="width:140px;">Total Jam Lembur</th>
-        <th>Catatan / Keterlambatan</th>
-      </tr>
-    </thead>
-    <tbody>
-      ${(() => {
-        const usersSummary = new Map<number, { name: string, nik: string, totalMins: number, totalOtMins: number, countHadir: number, lateCount: number }>();
-        const recordsByUser = new Map<number, typeof processedData>();
-        processedData.forEach(r => {
-            if (!recordsByUser.has(r.userId)) recordsByUser.set(r.userId, []);
-            recordsByUser.get(r.userId)!.push(r);
-        });
-
-        recordsByUser.forEach((records, userId) => {
-            const userObj = users?.find(u => u.id === userId);
-            const name = userObj?.fullName || '-';
-            const nik = userObj?.nik || userObj?.username || '-';
-            let totalMins = 0;
-            let totalOtMins = 0;
-            let countHadir = 0;
-            let lateCount = 0;
-
-            const recordsByDay = new Map<string, typeof processedData>();
-            records.forEach(r => {
-                const d = format(new Date(r.date), "yyyy-MM-dd");
-                if (!recordsByDay.has(d)) recordsByDay.set(d, []);
-                recordsByDay.get(d)!.push(r);
-                if (r.status === 'present' || r.status === 'late') countHadir++;
-                if (r.status === 'late') lateCount++;
-            });
-
-            recordsByDay.forEach((dayRecords) => {
-                const hasIn = dayRecords.some(r => r.checkIn);
-                const hasOut = dayRecords.some(r => r.checkOut);
-                if (hasIn && hasOut) {
-                    const { netWorkMins } = calculateDailyTotal(dayRecords);
-                    totalMins += netWorkMins;
-                }
-                if (user?.role === "superadmin") {
-                    dayRecords.forEach(r => {
-                        const ot = allOvertimes?.find(o => o.attendanceId === r.id);
-                        if (ot && ot.startTime && ot.endTime) {
-                            const otMins = Math.round((new Date(ot.endTime).getTime() - new Date(ot.startTime).getTime()) / 60000);
-                            totalOtMins += otMins;
-                        }
-                    });
-                }
-            });
-
-            usersSummary.set(userId, { name, nik, totalMins, totalOtMins, countHadir, lateCount });
-        });
-
-        let idx = 1;
-        return Array.from(usersSummary.values()).map(s => `
-          <tr>
-            <td class="col-no">${idx++}</td>
-            <td class="col-name">${s.name}</td>
-            <td style="font-size:10px;color:#475569;font-weight:600;">${s.nik}</td>
-            <td class="c" style="font-weight:bold;">${s.countHadir} Sesi</td>
-            <td class="c" style="font-weight:bold;color:#1d4ed8;">${s.totalMins > 0 ? formatDuration(s.totalMins) : '-'}</td>
-            <td class="c" style="font-weight:900;color:#ea580c;background:#fff7ed;">${s.totalOtMins > 0 ? formatDuration(s.totalOtMins) : '-'}</td>
-            <td style="font-size:10px;color:#475569;">${s.lateCount > 0 ? `<span style="color:#d97706;font-weight:bold;">Terlambat: ${s.lateCount}x</span>` : 'Tepat Waktu'}</td>
-          </tr>
-        `).join('');
-    })()}
-    </tbody>
-  </table>
-
-  <!-- DETAIL TABEL ABSENSI HARIAN -->
-  <div class="section-banner">2. Rincian Absensi & Lembur Harian Tenaga Kerja</div>
   <table>
     <thead>
       <tr>
         <th class="c" style="width:28px;">No</th>
-        <th style="width:110px;">Hari & Tanggal</th>
+        <th style="width:130px;">Hari & Tanggal</th>
         <th style="width:130px;">Nama Tenaga Kerja</th>
         <th class="c" style="width:62px;">Masuk</th>
         <th class="c" style="width:62px;">Istirahat</th>
         <th class="c" style="width:62px;">Selesai</th>
         <th class="c" style="width:62px;">Pulang</th>
-        <th style="width:75px;" class="c">Jam Kerja</th>
-        <th style="width:75px;" class="c">Istirahat</th>
-        <th style="width:65px;" class="c">Status</th>
-        <th>Keterangan / Uraian Lembur</th>
+        <th style="width:80px;">Jam Kerja</th>
+        <th class="c" style="width:80px;">Total Istirahat</th>
+        <th class="c" style="width:62px;">Status</th>
+        <th>Keterangan</th>
       </tr>
     </thead>
     <tbody>
       ${processedData.map((row, index) => {
-        const dateStr = format(new Date(row.date), "yyyy-MM-dd");
-        const breakMins = calculateDuration(row.breakStart, row.breakEnd);
-        const key = `${dateStr}-${row.userId}`;
-        const dailyEntry = dailyTotals.get(key);
-        const dailyTotalMins = dailyEntry?.mins ?? 0;
-        const prevRow = index > 0 ? processedData[index - 1] : null;
-        const isSameDayAndUser = !!(prevRow && format(new Date(prevRow.date), "yyyy-MM-dd") === dateStr && prevRow.userId === row.userId);
-        const statusLabel = row.status === 'present' ? 'Hadir' : row.status === 'late' ? 'Telat' : row.status === 'sick' ? 'Sakit' : row.status === 'permission' ? 'Izin' : row.status === 'cuti' ? 'Cuti' : row.status === 'absent' ? 'Alpha' : (row.status || '-');
-        const statusClass = row.status === 'present' ? 'st-hadir' : row.status === 'late' ? 'st-telat' : row.status === 'sick' ? 'st-sakit' : row.status === 'permission' ? 'st-izin' : row.status === 'cuti' ? 'st-cuti' : row.status === 'absent' ? 'st-alpha' : '';
-        const inTime = row.checkIn ? format(new Date(row.checkIn), 'HH:mm') : '-';
-        const brkTime = row.breakStart ? format(new Date(row.breakStart), 'HH:mm') : '-';
-        const brkEnd = row.breakEnd ? format(new Date(row.breakEnd), 'HH:mm') : '-';
-        const outTime = row.checkOut ? format(new Date(row.checkOut), 'HH:mm') : '-';
-        const isNoBreak = (inTime !== '-' && outTime !== '-' && brkTime === '-' && brkEnd === '-');
-        const jamKerja = !isSameDayAndUser ? (dailyTotalMins > 0 ? formatDuration(dailyTotalMins) : '-') : '';
-        let keterangan = row.notes ? row.notes : '-';
-        if (!row.checkOut) keterangan = row.notes ? row.notes + ' <br><span style="color:#d97706;font-weight:bold;">(Belum Pulang)</span>' : '<span style="color:#d97706;font-weight:bold;">Belum Pulang</span>';
-        else if (isNoBreak) keterangan = row.notes ? row.notes + ' <br><span style="color:#d97706;font-weight:bold;">(Tanpa Istirahat)</span>' : '<span style="color:#d97706;font-weight:bold;">Tanpa Istirahat</span>';
-        const lateNote = row.status === 'late' && (row as any).lateReason ? `<br><span style="color:#dc2626;font-size:9.5px;">[Telat: ${(row as any).lateReason}]</span>` : '';
-        
-        let rowHtml = `<tr>
-      <td class="col-no">${isSameDayAndUser ? '↳' : (index + 1)}</td>
-      <td class="col-date" style="font-size:9.5px;">${isSameDayAndUser ? '' : format(new Date(row.date), 'EEEE, d MMM yyyy', { locale: id })}</td>
-      <td class="col-name">
-          ${isSameDayAndUser ? '' : `
-               <div style="line-height:1.2;">
-                  <b style="color:#0f172a;font-size:11px;">${getUserName(row.userId) || '-'}</b><br/>
-                  ${(row.shift && row.shift.toLowerCase().trim() !== '-' && row.shift.toLowerCase().trim() !== 'management') 
-                      ? `<span style="color:#16a34a;font-size:8.5px;font-weight:bold;text-transform:uppercase;background:#f0fdf4;padding:1px 4px;border-radius:3px;">${row.shift}</span><br/>` 
-                      : ''}
-                  <span style="color:#64748b;font-size:8.5px;">NIK: ${users?.find(u => u.id === row.userId)?.nik || users?.find(u => u.id === row.userId)?.username || '-'}</span>
-              </div>
-          `}
-      </td>
-      <td class="col-time">${inTime !== '-' ? `<span class="t-in">${inTime}</span>` : '<span class="t-dash">-</span>'}</td>
-      <td class="col-time">${brkTime !== '-' ? `<span class="t-brk">${brkTime}</span>` : '<span class="t-dash">-</span>'}</td>
-      <td class="col-time">${brkEnd !== '-' ? `<span class="t-brk">${brkEnd}</span>` : '<span class="t-dash">-</span>'}</td>
-      <td class="col-time">${outTime !== '-' ? `<span class="t-out">${outTime}</span>` : '<span class="t-dash">-</span>'}</td>
-      <td class="col-work">${jamKerja}</td>
-      <td class="col-brk">${breakMins > 0 ? formatDuration(breakMins) : '-'}</td>
-      <td class="col-stat"><span class="badge-status ${statusClass}">${statusLabel}</span></td>
-      <td style="font-size:10px;color:#334155;white-space:normal;max-width:200px;">${keterangan}${lateNote}</td>
-    </tr>`;
+            const dateStr = format(new Date(row.date), "yyyy-MM-dd");
+            const breakMins = calculateDuration(row.breakStart, row.breakEnd);
+            const key = `${dateStr}-${row.userId}`;
+            const dailyEntry = dailyTotals.get(key);
+            const dailyTotalMins = dailyEntry?.mins ?? 0;
+            const prevRow = index > 0 ? processedData[index - 1] : null;
+            const isSameDayAndUser = !!(prevRow && format(new Date(prevRow.date), "yyyy-MM-dd") === dateStr && prevRow.userId === row.userId);
+            const statusLabel = row.status === 'present' ? 'Hadir' : row.status === 'late' ? 'Telat' : row.status === 'sick' ? 'Sakit' : row.status === 'permission' ? 'Izin' : row.status === 'cuti' ? 'Cuti' : row.status === 'absent' ? 'Alpha' : (row.status || '-');
+            const statusClass = row.status === 'present' ? 'st-hadir' : row.status === 'late' ? 'st-telat' : row.status === 'sick' ? 'st-sakit' : row.status === 'permission' ? 'st-izin' : row.status === 'cuti' ? 'st-cuti' : row.status === 'absent' ? 'st-alpha' : '';
+            const inTime = row.checkIn ? format(new Date(row.checkIn), 'HH:mm') : '-';
+            const brkTime = row.breakStart ? format(new Date(row.breakStart), 'HH:mm') : '-';
+            const brkEnd = row.breakEnd ? format(new Date(row.breakEnd), 'HH:mm') : '-';
+            const outTime = row.checkOut ? format(new Date(row.checkOut), 'HH:mm') : '-';
+            const isNoBreak = (inTime !== '-' && outTime !== '-' && brkTime === '-' && brkEnd === '-');
+            const jamKerja = !isSameDayAndUser ? (dailyTotalMins > 0 ? formatDuration(dailyTotalMins) : '-') : '';
+            let keterangan = row.notes ? row.notes : '-';
+            if (!row.checkOut) keterangan = row.notes ? row.notes + ' <br><span class="note-warn">(Belum Pulang)</span>' : '<span class="note-warn">Belum Pulang</span>';
+            else if (isNoBreak) keterangan = row.notes ? row.notes + ' <br><span class="note-warn">(Tanpa Istirahat)</span>' : '<span class="note-warn">Tanpa Istirahat</span>';
+            const lateNote = row.status === 'late' && (row as any).lateReason ? `<br><span class="note-late">[Telat: ${(row as any).lateReason}]</span>` : '';
+            
+            let rowHtml = `<tr>
+          <td class="col-no">${isSameDayAndUser ? '<span style="color:#cbd5e1;">↳</span>' : (index + 1)}</td>
+          <td class="col-date" style="font-size:9.5px;">${isSameDayAndUser ? '' : format(new Date(row.date), 'EEEE, d MMMM yyyy', { locale: id })}</td>
+          <td class="col-name">
+              ${isSameDayAndUser ? '' : `
+                   <div style="line-height:1.2;">
+                      <b style="color:#1d4ed8;font-size:11.5px;">${getUserName(row.userId) || '-'}</b><br/>
+                      ${(row.shift && row.shift.toLowerCase().trim() !== '-' && row.shift.toLowerCase().trim() !== 'management') 
+                          ? `<span style="color:#16a34a;font-size:9px;font-weight:bold;text-transform:uppercase;">${row.shift}</span><br/>` 
+                          : '<span style="color:#94a3b8;font-size:9px;font-style:italic;">Belum Tercatat</span><br/>'}
+                      <span style="color:#64748b;font-size:9px;">NIK: ${users?.find(u => u.id === row.userId)?.nik || users?.find(u => u.id === row.userId)?.username || '-'}</span>
+                  </div>
+              `}
+          </td>
+          <td class="col-time ${inTime === '-' ? 't-dash' : 't-in'}">${inTime}</td>
+          <td class="col-time ${brkTime === '-' ? 't-dash' : 't-brk'}">${brkTime}</td>
+          <td class="col-time ${brkEnd === '-' ? 't-dash' : 't-brk'}">${brkEnd}</td>
+          <td class="col-time ${outTime === '-' ? 't-dash' : 't-out'}">${outTime}</td>
+          <td class="col-work">${jamKerja}</td>
+          <td class="col-brk">${breakMins > 0 ? formatDuration(breakMins) : '-'}</td>
+          <td class="col-stat"><span class="${statusClass}">${statusLabel}</span></td>
+          <td class="col-note">${keterangan}${lateNote}</td>
+        </tr>`;
 
-        // Baris Lembur jika Super Admin & ada lembur di record ini
-        if (user?.role === "superadmin") {
-            const ot = allOvertimes?.find(o => o.attendanceId === row.id);
-            if (ot) {
-                const otStart = ot.startTime ? format(new Date(ot.startTime), "HH:mm") : "-";
-                const otEnd = ot.endTime ? format(new Date(ot.endTime), "HH:mm") : (ot.status === "ongoing" ? "Berlangsung" : "-");
-                const otMins = (ot.startTime && ot.endTime) ? Math.round((new Date(ot.endTime).getTime() - new Date(ot.startTime).getTime()) / 60000) : 0;
-                rowHtml += `<tr class="row-lembur">
-                  <td class="col-no"><span style="color:#ea580c;font-weight:bold;">↳</span></td>
-                  <td class="col-date" style="font-size:9.5px;color:#c2410c;font-weight:bold;">LEMBUR (OVERTIME)</td>
-                  <td class="col-name"><span class="badge-lembur">⚡ LEMBUR</span> <b style="color:#0f172a;font-size:10.5px;margin-left:4px;">${getUserName(row.userId) || '-'}</b></td>
-                  <td class="col-time" style="color:#c2410c;font-weight:bold;background:#fff7ed;padding:2px 6px;border-radius:4px;border:1px solid #fed7aa;">${otStart}</td>
-                  <td class="col-time t-dash">-</td>
-                  <td class="col-time t-dash">-</td>
-                  <td class="col-time" style="color:#c2410c;font-weight:bold;background:#fff7ed;padding:2px 6px;border-radius:4px;border:1px solid #fed7aa;">${otEnd}</td>
-                  <td class="col-work" style="color:#ea580c;font-weight:900;">${otMins > 0 ? formatDuration(otMins) : 'Berlangsung'}</td>
-                  <td class="col-brk">-</td>
-                  <td class="col-stat"><span style="background:#ea580c;color:white;padding:2px 6px;border-radius:4px;font-weight:bold;font-size:8.5px;">LEMBUR</span></td>
-                  <td style="color:#ea580c;font-weight:600;font-style:italic;font-size:10px;">${ot.description || 'Pekerjaan Lembur'}</td>
-                </tr>`;
+            // Baris Lembur jika Super Admin & ada lembur di record ini
+            if (user?.role === "superadmin") {
+                const ot = allOvertimes?.find(o => o.attendanceId === row.id);
+                if (ot) {
+                    const otStart = ot.startTime ? format(new Date(ot.startTime), "HH:mm") : "-";
+                    const otEnd = ot.endTime ? format(new Date(ot.endTime), "HH:mm") : (ot.status === "ongoing" ? "Berlangsung" : "-");
+                    const otMins = (ot.startTime && ot.endTime) ? Math.round((new Date(ot.endTime).getTime() - new Date(ot.startTime).getTime()) / 60000) : 0;
+                    rowHtml += `<tr style="background-color: #fff7ed;">
+                      <td class="col-no"><span style="color:#ea580c;font-weight:bold;">↳</span></td>
+                      <td class="col-date" style="font-size:9.5px;color:#c2410c;font-weight:bold;">LEMBUR (OVERTIME)</td>
+                      <td class="col-name"><span style="color:#ea580c;font-weight:bold;font-size:10px;">⚡ ${getUserName(row.userId) || '-'}</span></td>
+                      <td class="col-time" style="color:#c2410c;font-weight:bold;">${otStart}</td>
+                      <td class="col-time t-dash">-</td>
+                      <td class="col-time t-dash">-</td>
+                      <td class="col-time" style="color:#c2410c;font-weight:bold;">${otEnd}</td>
+                      <td class="col-work" style="color:#9a3412;font-weight:bold;">${otMins > 0 ? formatDuration(otMins) : 'Berlangsung'}</td>
+                      <td class="col-brk">-</td>
+                      <td class="col-stat"><span style="background:#ffedd5;color:#c2410c;padding:2px 6px;border-radius:4px;font-weight:bold;font-size:9px;">LEMBUR</span></td>
+                      <td class="col-note" style="color:#9a3412;font-style:italic;">${ot.description || 'Pekerjaan Lembur'}</td>
+                    </tr>`;
+                }
             }
-        }
 
-        return rowHtml;
-    }).join('')}
+            return rowHtml;
+        }).join('')}
     </tbody>
   </table>
-
-  <!-- RINGKASAN TOTAL JAM KERJA -->
   ${(() => {
                 const usersSummary = new Map<number, { name: string, totalMins: number, totalOtMins: number, breakdown: string[] }>();
                 const recordsByUser = new Map<number, typeof processedData>();
@@ -758,32 +602,26 @@ const html = `<!DOCTYPE html>
                     if (!recordsByUser.has(r.userId)) recordsByUser.set(r.userId, []);
                     recordsByUser.get(r.userId)!.push(r);
                 });
-
                 recordsByUser.forEach((records, userId) => {
-                    const userObj = users?.find(u => u.id === userId);
-                    const userSummary = {
-                        name: userObj?.fullName || '-',
-                        totalMins: 0,
-                        totalOtMins: 0,
-                        breakdown: [] as string[]
-                    };
-
+                    const name = getUserName(userId) || '-';
+                    const userSummary = { name, totalMins: 0, totalOtMins: 0, breakdown: [] as string[] };
                     const recordsByDay = new Map<string, typeof processedData>();
                     records.forEach(r => {
                         const d = format(new Date(r.date), "yyyy-MM-dd");
                         if (!recordsByDay.has(d)) recordsByDay.set(d, []);
                         recordsByDay.get(d)!.push(r);
                     });
-
-                    recordsByDay.forEach((dayRecords, dateStr) => {
+                    const days = Array.from(recordsByDay.keys()).sort();
+                    days.forEach(day => {
+                        const dayRecords = recordsByDay.get(day)!;
                         const hasIn = dayRecords.some(r => r.checkIn);
                         const hasOut = dayRecords.some(r => r.checkOut);
-                        const firstIn = dayRecords.find(r => r.checkIn)?.checkIn;
-                        const lastOut = dayRecords.find(r => r.checkOut)?.checkOut;
-
+                        const dateStr = format(new Date(day), "EEEE, d MMMM yyyy", { locale: id });
                         if (hasIn && hasOut) {
                             const { netWorkMins } = calculateDailyTotal(dayRecords);
                             userSummary.totalMins += netWorkMins;
+                            const firstIn = dayRecords.map(r => r.checkIn).filter(Boolean).sort()[0];
+                            const lastOut = dayRecords.map(r => r.checkOut).filter(Boolean).sort().reverse()[0];
                             const totalBreakMins = dayRecords.reduce((sum, r) => sum + (r.breakStart && r.breakEnd ? calculateDuration(r.breakStart, r.breakEnd) : 0), 0);
                             const brkStr = totalBreakMins > 0 ? formatDuration(totalBreakMins) : `0 jam (Tanpa Istirahat)`;
                             userSummary.breakdown.push(`<span style="color:#1e293b;font-weight:600;">${dateStr}</span> : Kerja jam ${format(new Date(firstIn!), "HH.mm")} - ${format(new Date(lastOut!), "HH.mm")} istirahat ${brkStr} (Total: ${formatDuration(netWorkMins)})`);
@@ -836,13 +674,11 @@ const html = `<!DOCTYPE html>
                 return sumHtml;
             })()}
   <div class="signature-section">
-    <div class="sig-box"><p class="sig-label">Dibuat Oleh (Payroll Admin)</p><div class="sig-name">NIKO</div></div>
-    <div class="sig-box"><p class="sig-label">Diperiksa Oleh (HRD / Supervisor)</p><div class="sig-name">CLAVERINA</div></div>
-    <div class="sig-box"><p class="sig-label">Disetujui Oleh (Management)</p><div class="sig-name">DIREKTUR</div></div>
+    <div class="sig-box"><p class="sig-label">Checked By</p><div class="sig-name">NIKO</div></div>
+    <div class="sig-box"><p class="sig-label">Approved By</p><div class="sig-name">CLAVERINA</div></div>
   </div>
-  
-  <div class="footer">Laporan ini dibuat otomatis oleh Sistem Absensi & Payroll ${namaPt.toUpperCase()} &mdash; Hak Cipta dilindungi Undang-Undang.</div>
-  <div class="btn-wrap"><a id="dl-btn" class="download-btn" href="#">&#11015;&nbsp; Download File HTML Laporan Payroll</a></div>
+  <div class="footer">Dokumen ini dicetak secara otomatis oleh Sistem Absensi ${namaPt.toUpperCase()} &mdash; ${format(new Date(), "d MMMM yyyy, HH:mm", { locale: id })} WIB</div>
+  <div class="btn-wrap"><a id="dl-btn" class="download-btn" href="#">&#11015;&nbsp; Download File</a></div>
   <script>
     var _fn = "${fileName}";
     document.title = _fn;
@@ -874,11 +710,6 @@ const html = `<!DOCTYPE html>
         let periodStr = '';
         if (reportType === 'daily') {
             periodStr = format(targetDate, "dd MMMM yyyy", { locale: id }).toUpperCase();
-        } else if (reportType === 'twoDays') {
-            const d2 = addDays(targetDate, 1);
-            periodStr = (targetDate.getMonth() === d2.getMonth() && targetDate.getFullYear() === d2.getFullYear())
-                ? `${format(targetDate, "dd")} - ${format(d2, "dd MMM yyyy", { locale: id })}`.toUpperCase()
-                : `${format(targetDate, "dd MMM")} - ${format(d2, "dd MMM yyyy", { locale: id })}`.toUpperCase();
         } else if (reportType === 'weekly') {
             periodStr = `${format(startDate, "dd MMM")} - ${format(endDate, "dd MMM yyyy", { locale: id })}`.toUpperCase();
         } else if (reportType === 'custom') {
@@ -912,72 +743,49 @@ const html = `<!DOCTYPE html>
 <html>
 <head>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 11px; color: #0f172a; background: white; padding: 20px 24px; line-height: 1.4; }
-    
-    .letterhead { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
-    .logo-img { height: 48px; max-width: 140px; object-fit: contain; }
-    .company-block { text-align: right; }
-    .company-block h1 { font-size: 20px; font-weight: 800; text-transform: uppercase; color: #0f172a; letter-spacing: 0.5px; }
-    .company-block .alamat { font-size: 11px; color: #475569; margin-top: 2px; }
-    
-    .hr-thick { border: none; border-top: 2px solid #0f172a; margin: 8px 0 2px; }
-    .hr-thin  { border: none; border-top: 1px solid #cbd5e1; margin-bottom: 16px; }
-    
-    .report-header { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px 18px; margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
-    .report-header h2 { font-size: 16px; font-weight: 800; color: #0f172a; text-transform: uppercase; letter-spacing: 0.5px; }
-    .report-header .meta-sub { font-size: 11px; color: #475569; margin-top: 3px; font-weight: 600; }
-    
-    /* SUMMARY METRICS FOR ADMIN FINANCE */
-    .summary-grid { display: flex; gap: 12px; margin-bottom: 20px; width: 100%; }
-    .summary-card { flex: 1; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px 14px; text-align: left; }
-    .summary-card .title { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; color: #64748b; }
-    .summary-card .value { font-size: 15px; font-weight: 900; margin-top: 4px; }
-    .val-hadir { color: #16a34a; }
-    .val-reguler { color: #1d4ed8; }
-    .val-lembur { color: #ea580c; }
-    .val-telat { color: #d97706; }
-
-    .section-banner { font-size: 12px; font-weight: 800; text-transform: uppercase; color: #0f172a; border-bottom: 2px solid #0f172a; padding-bottom: 4px; margin-top: 22px; margin-bottom: 12px; letter-spacing: 0.5px; }
-
-    table { width: 100%; border-collapse: collapse; font-size: 10.5px; margin-bottom: 16px; }
-    thead tr { background-color: #0f172a; color: #ffffff; }
-    th { color: #ffffff; font-weight: 700; text-align: left; padding: 8px 10px; font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.5px; border: 1px solid #334155; white-space: nowrap; }
+    * { box-sizing: border-box; margin: 0; padding: 0; text-transform: uppercase !important; }
+    body { font-family: Arial, Helvetica, sans-serif; font-size: 11px; color: #1e293b; background: white; padding: 20px 24px; }
+    .letterhead { display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px; min-height: 50px; }
+    .logo-img { height: 50px; max-width: 140px; object-fit: contain; flex-shrink: 0; }
+    .company-block { text-align: right; flex-grow: 1; margin-left: 20px; }
+    .company-block h1 { font-size: 22px; font-weight: bold; text-transform: uppercase; margin-bottom: 4px; letter-spacing: 0.5px; }
+    .company-block .alamat { font-size: 12px; font-weight: normal; color: #334155; line-height: 1.4; margin-top: 4px; }
+    .hr-thick { border: none; border-top: 2px solid #cbd5e1; margin: 6px 0 2px; }
+    .hr-thin  { border: none; border-top: 1px solid #e2e8f0; margin-bottom: 18px; }
+    .report-meta { text-align: center; margin-bottom: 20px; }
+    .report-meta h2 { font-size: 16px; font-weight: 900; text-transform: uppercase; letter-spacing: 1.5px; color: #1e293b; }
+    .report-meta .sub { font-size: 10.5px; margin-top: 4px; color: #475569; }
+    table { width: 100%; border-collapse: collapse; font-size: 10.5px; }
+    thead tr { background-color: #f8fafc; }
+    th { color: #374151; font-weight: 700; text-align: left; padding: 8px 8px; font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.4px; border-bottom: 2px solid #1e293b; border-right: 1px solid #e2e8f0; white-space: nowrap; }
     th.c { text-align: center; }
-    td { padding: 7px 10px; border: 1px solid #cbd5e1; vertical-align: middle; white-space: nowrap; }
+    td { padding: 7px 8px; border-bottom: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0; vertical-align: middle; white-space: nowrap; }
     tbody tr:nth-child(even) { background-color: #f8fafc; }
-    
-    .col-no   { text-align: center; color: #64748b; font-size: 10px; font-weight: bold; }
-    .col-date { color: #334155; font-weight: 700; }
-    .col-name { color: #0f172a; font-weight: 800; }
-    .col-time { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 11px; text-align: center; font-weight: 700; }
-    
-    .t-in   { color: #15803d; background: #f0fdf4; padding: 2px 6px; border-radius: 4px; border: 1px solid #bbf7d0; }
-    .t-brk  { color: #b45309; background: #fffbeb; padding: 2px 6px; border-radius: 4px; border: 1px solid #fde68a; }
-    .t-out  { color: #b91c1c; background: #fef2f2; padding: 2px 6px; border-radius: 4px; border: 1px solid #fecaca; }
-    .t-dash { color: #cbd5e1; }
-    
-    .col-work { font-size: 11px; font-weight: 800; color: #0f172a; text-align: center; }
-    .col-brk  { text-align: center; font-size: 10.5px; font-weight: 700; color: #d97706; }
-    
-    /* OVERTIME ROW HIGHLIGHT */
-    tr.row-lembur { background-color: #fff7ed !important; }
-    tr.row-lembur td { border-color: #fed7aa; }
-    .badge-lembur { background: #ea580c; color: white; padding: 2px 6px; border-radius: 4px; font-weight: 900; font-size: 9px; letter-spacing: 0.5px; text-transform: uppercase; }
-    
-    .badge-status { padding: 3px 8px; border-radius: 4px; font-weight: 800; font-size: 9.5px; display: inline-block; text-transform: uppercase; }
-    .st-hadir { background: #dcfce7; color: #15803d; border: 1px solid #86efac; }
-    .st-telat { background: #fef3c7; color: #b45309; border: 1px solid #fde047; }
-    .st-sakit { background: #dbeafe; color: #1e40af; border: 1px solid #93c5fd; }
-    .st-izin  { background: #f3e8ff; color: #6b21a8; border: 1px solid #d8b4fe; }
-    .st-cuti  { background: #ccfbf1; color: #115e59; border: 1px solid #5eead4; }
-    .st-alpha { background: #ffe4e6; color: #9f1239; border: 1px solid #fecdd3; }
-    
-    .signature-section { margin-top: 40px; display: flex; justify-content: space-around; padding: 0 20px; page-break-inside: avoid; }
-    .sig-box { text-align: center; width: 180px; }
-    .sig-label { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px; color: #475569; margin-bottom: 56px; }
-    .sig-name { font-size: 11px; font-weight: 800; border-top: 1.5px solid #334155; padding-top: 6px; text-transform: uppercase; color: #0f172a; }
-    .footer { margin-top: 24px; font-size: 9px; color: #94a3b8; border-top: 1px dashed #cbd5e1; padding-top: 8px; text-align: center; }
+    .col-no   { text-align: center; color: #94a3b8; font-size: 10px; }
+    .col-date { color: #374151; font-weight: 600; }
+    .col-name { color: #1d4ed8; font-weight: 600; }
+    .col-time { font-family: ui-monospace, Consolas, monospace; font-size: 11px; text-align: center; }
+    .t-in   { color: #15803d; font-weight: 700; }
+    .t-brk  { color: #b45309; font-weight: 700; }
+    .t-out  { color: #b91c1c; font-weight: 700; }
+    .t-dash { color: #94a3b8; }
+    .col-work { font-size: 11px; font-weight: 700; color: #1e293b; }
+    .col-brk  { text-align: center; font-size: 11px; font-weight: 700; color: #ea580c; }
+    .col-stat { text-align: center; font-weight: 700; font-size: 11px; }
+    .st-hadir { color: #16a34a; }
+    .st-telat { color: #ea580c; }
+    .st-sakit { color: #2563eb; }
+    .st-izin  { color: #7c3aed; }
+    .st-cuti  { color: #0d9488; }
+    .st-alpha { color: #dc2626; }
+    .col-note { font-size: 10.5px; color: #475569; white-space: normal; max-width: 200px; }
+    .note-late { color: #dc2626; font-size: 10px; }
+    .note-warn { color: #ca8a04; font-weight: 600; }
+    .signature-section { margin-top: 48px; display: flex; justify-content: center; gap: 100px; padding: 0; }
+    .sig-box { text-align: center; width: 160px; }
+    .sig-label { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px; color: #374151; margin-bottom: 64px; }
+    .sig-name { font-size: 11px; font-weight: 800; border-top: 1.5px solid #374151; padding-top: 6px; text-transform: uppercase; letter-spacing: 0.5px; color: #1e293b; }
+    .footer { margin-top: 18px; font-size: 8.5px; color: #94a3b8; border-top: 1px dashed #cbd5e1; padding-top: 8px; }
   </style>
 </head>
 <body>
@@ -985,236 +793,186 @@ const html = `<!DOCTYPE html>
     ${logoDataUrl ? `<img src="${logoDataUrl}" class="logo-img" alt="Logo" />` : ''}
     <div class="company-block">
       <h1>${namaPt}</h1>
-      ${alamatPt ? `<p class="alamat">${alamatPt}</p>` : `<p class="alamat">Sistem Manajemen Kehadiran & Payroll Digital</p>`}
+      ${alamatPt ? `<p class="alamat">${alamatPt}</p>` : `<p class="alamat">Sistem Manajemen Kehadiran Digital</p>`}
     </div>
   </div>
   <hr class="hr-thick" />
   <hr class="hr-thin" />
-  
-  <div class="report-header">
-    <div>
-      <h2>Laporan Rekapitulasi Kehadiran & Lembur (Payroll)</h2>
-      <p class="meta-sub">Periode: <b>${periodStr}</b> (${format(startDate, "dd MMM yyyy", { locale: id })} - ${format(endDate, "dd MMM yyyy", { locale: id })})</p>
-    </div>
-    <div style="text-align:right;">
-      <p class="meta-sub">Tipe Periode: <b>${reportType === 'daily' ? 'Harian' : reportType === 'twoDays' ? '2 Hari (Shift Malam)' : reportType === 'weekly' ? 'Mingguan' : reportType === 'custom' ? 'Kustom' : 'Bulanan'}</b></p>
-      <p class="meta-sub">Dicetak Pada: ${format(new Date(), "dd MMMM yyyy, HH:mm", { locale: id })} WIB</p>
-    </div>
+  <div class="report-meta">
+    <h2>Laporan Rekapitulasi Absensi</h2>
+    <p class="sub">Tipe: ${reportType === 'daily' ? 'Harian' : reportType === 'weekly' ? 'Mingguan' : reportType === 'custom' ? 'Kustom' : 'Bulanan'}</p>
+    <p class="sub">Periode: ${format(startDate, "EEEE, d MMMM yyyy", { locale: id })} - ${format(endDate, "EEEE, d MMMM yyyy", { locale: id })}</p>
   </div>
-
-  <!-- SUMMARY CARDS FOR ADMIN FINANCE -->
-  ${(() => {
-        const totalHadirCount = processedData.filter(r => r.status === 'present' || r.status === 'late').length;
-        const totalRegulerMins = Array.from(dailyTotals.values()).reduce((sum, d) => sum + (d.mins || 0), 0);
-        const totalOtMins = user?.role === "superadmin"
-            ? (allOvertimes || []).reduce((sum: number, ot: any) => {
-                if (ot.startTime && ot.endTime) {
-                    return sum + Math.round((new Date(ot.endTime).getTime() - new Date(ot.startTime).getTime()) / 60000);
-                }
-                return sum;
-            }, 0)
-            : 0;
-        const totalTelatCount = processedData.filter(r => r.status === 'late').length;
-
-        return `
-    <div class="summary-grid">
-      <div class="summary-card">
-        <div class="title">Total Kehadiran</div>
-        <div class="value val-hadir">${totalHadirCount} Sesi Hadir</div>
-      </div>
-      <div class="summary-card">
-        <div class="title">Total Jam Kerja Reguler</div>
-        <div class="value val-reguler">${formatDuration(totalRegulerMins)}</div>
-      </div>
-      <div class="summary-card">
-        <div class="title">Total Jam Lembur (Overtime)</div>
-        <div class="value val-lembur">${totalOtMins > 0 ? formatDuration(totalOtMins) : '0 Jam'}</div>
-      </div>
-      <div class="summary-card">
-        <div class="title">Total Terlambat</div>
-        <div class="value val-telat">${totalTelatCount} Karyawan</div>
-      </div>
-    </div>
-    `;
-    })()}
-
-  <!-- RINGKASAN PAYROLL PER KARYAWAN -->
-  <div class="section-banner">1. Rekapitulasi Total Jam Kerja & Lembur Per Tenaga Kerja (Admin Finance Summary)</div>
   <table>
     <thead>
       <tr>
-        <th class="c" style="width:36px;">No</th>
-        <th>Nama Tenaga Kerja</th>
-        <th style="width:120px;">NIK / Username</th>
-        <th class="c" style="width:100px;">Jumlah Sesi Hadir</th>
-        <th class="c" style="width:140px;">Total Jam Reguler</th>
-        <th class="c" style="width:140px;">Total Jam Lembur</th>
-        <th>Catatan / Keterlambatan</th>
+        <th class="c" style="width:28px;">No</th>
+        <th style="width:130px;">Hari & Tanggal</th>
+        <th style="width:130px;">Nama Tenaga Kerja</th>
+        <th class="c" style="width:62px;">Masuk</th>
+        <th class="c" style="width:62px;">Istirahat</th>
+        <th class="c" style="width:62px;">Selesai</th>
+        <th class="c" style="width:62px;">Pulang</th>
+        <th style="width:80px;">Jam Kerja</th>
+        <th class="c" style="width:80px;">Total Istirahat</th>
+        <th class="c" style="width:62px;">Status</th>
+        <th>Keterangan</th>
       </tr>
     </thead>
     <tbody>
-      ${(() => {
-        const usersSummary = new Map<number, { name: string, nik: string, totalMins: number, totalOtMins: number, countHadir: number, lateCount: number }>();
+      ${processedData.map((row, index) => {
+            const dateStr = format(new Date(row.date), "yyyy-MM-dd");
+            const breakMins = calculateDuration(row.breakStart, row.breakEnd);
+            const key = `${dateStr}-${row.userId}`;
+            const dailyEntry = dailyTotals.get(key);
+            const dailyTotalMins = dailyEntry?.mins ?? 0;
+            const prevRow = index > 0 ? processedData[index - 1] : null;
+            const isSameDayAndUser = !!(prevRow && format(new Date(prevRow.date), "yyyy-MM-dd") === dateStr && prevRow.userId === row.userId);
+            const statusLabel = row.status === 'present' ? 'Hadir' : row.status === 'late' ? 'Telat' : row.status === 'sick' ? 'Sakit' : row.status === 'permission' ? 'Izin' : row.status === 'cuti' ? 'Cuti' : row.status === 'absent' ? 'Alpha' : (row.status || '-');
+            const statusClass = row.status === 'present' ? 'st-hadir' : row.status === 'late' ? 'st-telat' : row.status === 'sick' ? 'st-sakit' : row.status === 'permission' ? 'st-izin' : row.status === 'cuti' ? 'st-cuti' : row.status === 'absent' ? 'st-alpha' : '';
+            const inTime = row.checkIn ? format(new Date(row.checkIn), 'HH:mm') : '-';
+            const brkTime = row.breakStart ? format(new Date(row.breakStart), 'HH:mm') : '-';
+            const brkEnd = row.breakEnd ? format(new Date(row.breakEnd), 'HH:mm') : '-';
+            const outTime = row.checkOut ? format(new Date(row.checkOut), 'HH:mm') : '-';
+            const isNoBreak = (inTime !== '-' && outTime !== '-' && brkTime === '-' && brkEnd === '-');
+            const jamKerja = !isSameDayAndUser ? (dailyTotalMins > 0 ? formatDuration(dailyTotalMins) : '-') : '';
+            let keterangan = row.notes ? row.notes : '-';
+            if (!row.checkOut) keterangan = row.notes ? row.notes + ' <br><span class="note-warn">(Belum Pulang)</span>' : '<span class="note-warn">Belum Pulang</span>';
+            else if (isNoBreak) keterangan = row.notes ? row.notes + ' <br><span class="note-warn">(Tanpa Istirahat)</span>' : '<span class="note-warn">Tanpa Istirahat</span>';
+            const lateNote = row.status === 'late' && (row as any).lateReason ? `<br><span class="note-late">[Telat: ${(row as any).lateReason}]</span>` : '';
+            
+            let rowHtml = `<tr>
+          <td class="col-no">${isSameDayAndUser ? '<span style="color:#cbd5e1;">↳</span>' : (index + 1)}</td>
+          <td class="col-date" style="font-size:9.5px;">${isSameDayAndUser ? '' : format(new Date(row.date), 'EEEE, d MMMM yyyy', { locale: id })}</td>
+          <td class="col-name">
+              ${isSameDayAndUser ? '' : `
+                   <div style="line-height:1.2;">
+                      <b style="color:#1d4ed8;font-size:11.5px;">${getUserName(row.userId) || '-'}</b><br/>
+                      ${(row.shift && row.shift.toLowerCase().trim() !== '-' && row.shift.toLowerCase().trim() !== 'management') 
+                          ? `<span style="color:#16a34a;font-size:9px;font-weight:bold;text-transform:uppercase;">${row.shift}</span><br/>` 
+                          : '<span style="color:#94a3b8;font-size:9px;font-style:italic;">Belum Tercatat</span><br/>'}
+                      <span style="color:#64748b;font-size:9px;">NIK: ${users?.find(u => u.id === row.userId)?.nik || users?.find(u => u.id === row.userId)?.username || '-'}</span>
+                  </div>
+              `}
+          </td>
+          <td class="col-time ${inTime === '-' ? 't-dash' : 't-in'}">${inTime}</td>
+          <td class="col-time ${brkTime === '-' ? 't-dash' : 't-brk'}">${brkTime}</td>
+          <td class="col-time ${brkEnd === '-' ? 't-dash' : 't-brk'}">${brkEnd}</td>
+          <td class="col-time ${outTime === '-' ? 't-dash' : 't-out'}">${outTime}</td>
+          <td class="col-work">${jamKerja}</td>
+          <td class="col-brk">${breakMins > 0 ? formatDuration(breakMins) : '-'}</td>
+          <td class="col-stat"><span class="${statusClass}">${statusLabel}</span></td>
+          <td class="col-note">${keterangan}${lateNote}</td>
+        </tr>`;
+
+            if (user?.role === "superadmin") {
+                const ot = allOvertimes?.find(o => o.attendanceId === row.id);
+                if (ot) {
+                    const otStart = ot.startTime ? format(new Date(ot.startTime), "HH:mm") : "-";
+                    const otEnd = ot.endTime ? format(new Date(ot.endTime), "HH:mm") : (ot.status === "ongoing" ? "Berlangsung" : "-");
+                    const otMins = (ot.startTime && ot.endTime) ? Math.round((new Date(ot.endTime).getTime() - new Date(ot.startTime).getTime()) / 60000) : 0;
+                    rowHtml += `<tr style="background-color: #fff7ed;">
+                      <td class="col-no"><span style="color:#ea580c;font-weight:bold;">↳</span></td>
+                      <td class="col-date" style="font-size:9.5px;color:#c2410c;font-weight:bold;">LEMBUR (OVERTIME)</td>
+                      <td class="col-name"><span style="color:#ea580c;font-weight:bold;font-size:10px;">⚡ ${getUserName(row.userId) || '-'}</span></td>
+                      <td class="col-time" style="color:#c2410c;font-weight:bold;">${otStart}</td>
+                      <td class="col-time t-dash">-</td>
+                      <td class="col-time t-dash">-</td>
+                      <td class="col-time" style="color:#c2410c;font-weight:bold;">${otEnd}</td>
+                      <td class="col-work" style="color:#9a3412;font-weight:bold;">${otMins > 0 ? formatDuration(otMins) : 'Berlangsung'}</td>
+                      <td class="col-brk">-</td>
+                      <td class="col-stat"><span style="background:#ffedd5;color:#c2410c;padding:2px 6px;border-radius:4px;font-weight:bold;font-size:9px;">LEMBUR</span></td>
+                      <td class="col-note" style="color:#9a3412;font-style:italic;">${ot.description || 'Pekerjaan Lembur'}</td>
+                    </tr>`;
+                }
+            }
+
+            return rowHtml;
+        }).join('')}
+    </tbody>
+  </table>
+  ${(() => {
+        const usersSummary = new Map<number, { name: string, totalMins: number, totalOtMins: number, breakdown: string[] }>();
         const recordsByUser = new Map<number, typeof processedData>();
         processedData.forEach(r => {
             if (!recordsByUser.has(r.userId)) recordsByUser.set(r.userId, []);
             recordsByUser.get(r.userId)!.push(r);
         });
 
-        recordsByUser.forEach((records, userId) => {
-            const userObj = users?.find(u => u.id === userId);
-            const name = userObj?.fullName || '-';
-            const nik = userObj?.nik || userObj?.username || '-';
-            let totalMins = 0;
-            let totalOtMins = 0;
-            let countHadir = 0;
-            let lateCount = 0;
-
-            const recordsByDay = new Map<string, typeof processedData>();
-            records.forEach(r => {
-                const d = format(new Date(r.date), "yyyy-MM-dd");
-                if (!recordsByDay.has(d)) recordsByDay.set(d, []);
-                recordsByDay.get(d)!.push(r);
-                if (r.status === 'present' || r.status === 'late') countHadir++;
-                if (r.status === 'late') lateCount++;
+        recordsByUser.forEach((userRecords, userId) => {
+            const empName = getUserName(userId);
+            const userSummary = { name: empName, totalMins: 0, totalOtMins: 0, breakdown: [] as string[] };
+            const recordsByDate = new Map<string, typeof userRecords>();
+            userRecords.forEach(r => {
+                const dateStr = format(new Date(r.date), "dd/MM/yyyy");
+                if (!recordsByDate.has(dateStr)) recordsByDate.set(dateStr, []);
+                recordsByDate.get(dateStr)!.push(r);
             });
 
-            recordsByDay.forEach((dayRecords) => {
+            recordsByDate.forEach((dayRecords, dateStr) => {
                 const hasIn = dayRecords.some(r => r.checkIn);
                 const hasOut = dayRecords.some(r => r.checkOut);
                 if (hasIn && hasOut) {
                     const { netWorkMins } = calculateDailyTotal(dayRecords);
-                    totalMins += netWorkMins;
+                    userSummary.totalMins += netWorkMins;
+                    const firstIn = dayRecords.map(r => r.checkIn).filter(Boolean).sort()[0];
+                    const lastOut = dayRecords.map(r => r.checkOut).filter(Boolean).sort().reverse()[0];
+                    const totalBreakMins = dayRecords.reduce((sum, r) => sum + (r.breakStart && r.breakEnd ? calculateDuration(r.breakStart, r.breakEnd) : 0), 0);
+                    const brkStr = totalBreakMins > 0 ? formatDuration(totalBreakMins) : `0 jam (Tanpa Istirahat)`;
+                    userSummary.breakdown.push(`<span style="color:#1e293b;font-weight:600;">${dateStr}</span> : Kerja jam ${format(new Date(firstIn!), "HH.mm")} - ${format(new Date(lastOut!), "HH.mm")} istirahat ${brkStr} (Total: ${formatDuration(netWorkMins)})`);
+                } else {
+                    userSummary.breakdown.push(`<span style="color:#dc2626;font-weight:600;">${dateStr}</span> : <span style="color:#b91c1c;">Absensi belum lengkap</span>`);
                 }
+
                 if (user?.role === "superadmin") {
                     dayRecords.forEach(r => {
                         const ot = allOvertimes?.find(o => o.attendanceId === r.id);
                         if (ot && ot.startTime && ot.endTime) {
                             const otMins = Math.round((new Date(ot.endTime).getTime() - new Date(ot.startTime).getTime()) / 60000);
-                            totalOtMins += otMins;
+                            userSummary.totalOtMins += otMins;
+                            userSummary.breakdown.push(`<span style="color:#c2410c;font-weight:700;">↳ Lembur ( Overtime ) ${dateStr}</span> : ${format(new Date(ot.startTime), "HH.mm")} - ${format(new Date(ot.endTime), "HH.mm")} (${formatDuration(otMins)}) - ${ot.description || 'Pekerjaan Lembur'}`);
                         }
                     });
                 }
             });
-
-            usersSummary.set(userId, { name, nik, totalMins, totalOtMins, countHadir, lateCount });
+            usersSummary.set(userId, userSummary);
         });
 
-        let idx = 1;
-        return Array.from(usersSummary.values()).map(s => `
+        let sumHtml = `<div style="page-break-before: always; padding-top: 20px;">
+      <div class="report-meta">
+        <h2>Rekapitulasi Total Jam Kerja</h2>
+        <p class="sub">Periode: ${periodStr}</p>
+      </div>
+      <table>
+        <thead>
           <tr>
-            <td class="col-no">${idx++}</td>
-            <td class="col-name">${s.name}</td>
-            <td style="font-size:10px;color:#475569;font-weight:600;">${s.nik}</td>
-            <td class="c" style="font-weight:bold;">${s.countHadir} Sesi</td>
-            <td class="c" style="font-weight:bold;color:#1d4ed8;">${s.totalMins > 0 ? formatDuration(s.totalMins) : '-'}</td>
-            <td class="c" style="font-weight:900;color:#ea580c;background:#fff7ed;">${s.totalOtMins > 0 ? formatDuration(s.totalOtMins) : '-'}</td>
-            <td style="font-size:10px;color:#475569;">${s.lateCount > 0 ? `<span style="color:#d97706;font-weight:bold;">Terlambat: ${s.lateCount}x</span>` : 'Tepat Waktu'}</td>
+            <th class="c" style="width:40px;">No</th>
+            <th style="width:180px;">Nama Tenaga Kerja</th>
+            <th class="c" style="width:120px;">Total Jam Kerja</th>
+            <th>Rincian Harian</th>
           </tr>
-        `).join('');
+        </thead>
+        <tbody>`;
+        let sumIdx = 1;
+        usersSummary.forEach((summary) => {
+            const totalJamStr = summary.totalOtMins > 0 
+                ? `Reguler: ${formatDuration(summary.totalMins)}<br/><span style="color:#c2410c;">Lembur: ${formatDuration(summary.totalOtMins)}</span>`
+                : (summary.totalMins > 0 ? formatDuration(summary.totalMins) : "-");
+            sumHtml += `<tr>
+            <td class="col-no">${sumIdx++}</td>
+            <td class="col-name">${summary.name}</td>
+            <td class="c" style="font-weight:bold;font-size:11px;line-height:1.4;">${totalJamStr}</td>
+            <td style="font-size:10.5px;line-height:1.6;padding-bottom:12px;padding-top:12px;white-space:normal;">${summary.breakdown.join('<br>')}</td>
+          </tr>`;
+        });
+        sumHtml += `</tbody></table></div>`;
+        return sumHtml;
     })()}
-    </tbody>
-  </table>
-
-  <!-- DETAIL TABEL ABSENSI HARIAN -->
-  <div class="section-banner">2. Rincian Absensi & Lembur Harian Tenaga Kerja</div>
-  <table>
-    <thead>
-      <tr>
-        <th class="c" style="width:28px;">No</th>
-        <th style="width:110px;">Hari & Tanggal</th>
-        <th style="width:130px;">Nama Tenaga Kerja</th>
-        <th class="c" style="width:62px;">Masuk</th>
-        <th class="c" style="width:62px;">Istirahat</th>
-        <th class="c" style="width:62px;">Selesai</th>
-        <th class="c" style="width:62px;">Pulang</th>
-        <th style="width:75px;" class="c">Jam Kerja</th>
-        <th style="width:75px;" class="c">Istirahat</th>
-        <th style="width:65px;" class="c">Status</th>
-        <th>Keterangan / Uraian Lembur</th>
-      </tr>
-    </thead>
-    <tbody>
-      ${processedData.map((row, index) => {
-        const dateStr = format(new Date(row.date), "yyyy-MM-dd");
-        const breakMins = calculateDuration(row.breakStart, row.breakEnd);
-        const key = `${dateStr}-${row.userId}`;
-        const dailyEntry = dailyTotals.get(key);
-        const dailyTotalMins = dailyEntry?.mins ?? 0;
-        const prevRow = index > 0 ? processedData[index - 1] : null;
-        const isSameDayAndUser = !!(prevRow && format(new Date(prevRow.date), "yyyy-MM-dd") === dateStr && prevRow.userId === row.userId);
-        const statusLabel = row.status === 'present' ? 'Hadir' : row.status === 'late' ? 'Telat' : row.status === 'sick' ? 'Sakit' : row.status === 'permission' ? 'Izin' : row.status === 'cuti' ? 'Cuti' : row.status === 'absent' ? 'Alpha' : (row.status || '-');
-        const statusClass = row.status === 'present' ? 'st-hadir' : row.status === 'late' ? 'st-telat' : row.status === 'sick' ? 'st-sakit' : row.status === 'permission' ? 'st-izin' : row.status === 'cuti' ? 'st-cuti' : row.status === 'absent' ? 'st-alpha' : '';
-        const inTime = row.checkIn ? format(new Date(row.checkIn), 'HH:mm') : '-';
-        const brkTime = row.breakStart ? format(new Date(row.breakStart), 'HH:mm') : '-';
-        const brkEnd = row.breakEnd ? format(new Date(row.breakEnd), 'HH:mm') : '-';
-        const outTime = row.checkOut ? format(new Date(row.checkOut), 'HH:mm') : '-';
-        const isNoBreak = (inTime !== '-' && outTime !== '-' && brkTime === '-' && brkEnd === '-');
-        const jamKerja = !isSameDayAndUser ? (dailyTotalMins > 0 ? formatDuration(dailyTotalMins) : '-') : '';
-        let keterangan = row.notes ? row.notes : '-';
-        if (!row.checkOut) keterangan = row.notes ? row.notes + ' <br><span style="color:#d97706;font-weight:bold;">(Belum Pulang)</span>' : '<span style="color:#d97706;font-weight:bold;">Belum Pulang</span>';
-        else if (isNoBreak) keterangan = row.notes ? row.notes + ' <br><span style="color:#d97706;font-weight:bold;">(Tanpa Istirahat)</span>' : '<span style="color:#d97706;font-weight:bold;">Tanpa Istirahat</span>';
-        const lateNote = row.status === 'late' && (row as any).lateReason ? `<br><span style="color:#dc2626;font-size:9.5px;">[Telat: ${(row as any).lateReason}]</span>` : '';
-        
-        let rowHtml = `<tr>
-      <td class="col-no">${isSameDayAndUser ? '↳' : (index + 1)}</td>
-      <td class="col-date" style="font-size:9.5px;">${isSameDayAndUser ? '' : format(new Date(row.date), 'EEEE, d MMM yyyy', { locale: id })}</td>
-      <td class="col-name">
-          ${isSameDayAndUser ? '' : `
-               <div style="line-height:1.2;">
-                  <b style="color:#0f172a;font-size:11px;">${getUserName(row.userId) || '-'}</b><br/>
-                  ${(row.shift && row.shift.toLowerCase().trim() !== '-' && row.shift.toLowerCase().trim() !== 'management') 
-                      ? `<span style="color:#16a34a;font-size:8.5px;font-weight:bold;text-transform:uppercase;background:#f0fdf4;padding:1px 4px;border-radius:3px;">${row.shift}</span><br/>` 
-                      : ''}
-                  <span style="color:#64748b;font-size:8.5px;">NIK: ${users?.find(u => u.id === row.userId)?.nik || users?.find(u => u.id === row.userId)?.username || '-'}</span>
-              </div>
-          `}
-      </td>
-      <td class="col-time">${inTime !== '-' ? `<span class="t-in">${inTime}</span>` : '<span class="t-dash">-</span>'}</td>
-      <td class="col-time">${brkTime !== '-' ? `<span class="t-brk">${brkTime}</span>` : '<span class="t-dash">-</span>'}</td>
-      <td class="col-time">${brkEnd !== '-' ? `<span class="t-brk">${brkEnd}</span>` : '<span class="t-dash">-</span>'}</td>
-      <td class="col-time">${outTime !== '-' ? `<span class="t-out">${outTime}</span>` : '<span class="t-dash">-</span>'}</td>
-      <td class="col-work">${jamKerja}</td>
-      <td class="col-brk">${breakMins > 0 ? formatDuration(breakMins) : '-'}</td>
-      <td class="col-stat"><span class="badge-status ${statusClass}">${statusLabel}</span></td>
-      <td style="font-size:10px;color:#334155;white-space:normal;max-width:200px;">${keterangan}${lateNote}</td>
-    </tr>`;
-
-        // Baris Lembur jika Super Admin & ada lembur di record ini
-        if (user?.role === "superadmin") {
-            const ot = allOvertimes?.find(o => o.attendanceId === row.id);
-            if (ot) {
-                const otStart = ot.startTime ? format(new Date(ot.startTime), "HH:mm") : "-";
-                const otEnd = ot.endTime ? format(new Date(ot.endTime), "HH:mm") : (ot.status === "ongoing" ? "Berlangsung" : "-");
-                const otMins = (ot.startTime && ot.endTime) ? Math.round((new Date(ot.endTime).getTime() - new Date(ot.startTime).getTime()) / 60000) : 0;
-                rowHtml += `<tr class="row-lembur">
-                  <td class="col-no"><span style="color:#ea580c;font-weight:bold;">↳</span></td>
-                  <td class="col-date" style="font-size:9.5px;color:#c2410c;font-weight:bold;">LEMBUR (OVERTIME)</td>
-                  <td class="col-name"><span class="badge-lembur">⚡ LEMBUR</span> <b style="color:#0f172a;font-size:10.5px;margin-left:4px;">${getUserName(row.userId) || '-'}</b></td>
-                  <td class="col-time" style="color:#c2410c;font-weight:bold;background:#fff7ed;padding:2px 6px;border-radius:4px;border:1px solid #fed7aa;">${otStart}</td>
-                  <td class="col-time t-dash">-</td>
-                  <td class="col-time t-dash">-</td>
-                  <td class="col-time" style="color:#c2410c;font-weight:bold;background:#fff7ed;padding:2px 6px;border-radius:4px;border:1px solid #fed7aa;">${otEnd}</td>
-                  <td class="col-work" style="color:#ea580c;font-weight:900;">${otMins > 0 ? formatDuration(otMins) : 'Berlangsung'}</td>
-                  <td class="col-brk">-</td>
-                  <td class="col-stat"><span style="background:#ea580c;color:white;padding:2px 6px;border-radius:4px;font-weight:bold;font-size:8.5px;">LEMBUR</span></td>
-                  <td style="color:#ea580c;font-weight:600;font-style:italic;font-size:10px;">${ot.description || 'Pekerjaan Lembur'}</td>
-                </tr>`;
-            }
-        }
-
-        return rowHtml;
-    }).join('')}
-    </tbody>
-  </table>
-
   <div class="signature-section">
-    <div class="sig-box"><p class="sig-label">Dibuat Oleh (Payroll Admin)</p><div class="sig-name">NIKO</div></div>
-    <div class="sig-box"><p class="sig-label">Diperiksa Oleh (HRD / Supervisor)</p><div class="sig-name">CLAVERINA</div></div>
-    <div class="sig-box"><p class="sig-label">Disetujui Oleh (Management)</p><div class="sig-name">DIREKTUR</div></div>
+    <div class="sig-box"><p class="sig-label">Checked By</p><div class="sig-name">NIKO</div></div>
+    <div class="sig-box"><p class="sig-label">Approved By</p><div class="sig-name">CLAVERINA</div></div>
   </div>
-  
-  <div class="footer">Laporan ini dibuat otomatis oleh Sistem Absensi & Payroll ${namaPt.toUpperCase()} &mdash; Hak Cipta dilindungi Undang-Undang.</div>
+  <div class="footer">Dokumen ini dicetak secara otomatis oleh Sistem Absensi ${namaPt.toUpperCase()} &mdash; ${format(new Date(), "d MMMM yyyy, HH:mm", { locale: id })} WIB</div>
 </body>
 </html>`;
 
@@ -1600,9 +1358,6 @@ const html = `<!DOCTYPE html>
                         </SelectTrigger>
                         <SelectContent>
                             <SelectItem value="daily">Harian</SelectItem>
-                            {user?.role === "superadmin" && (
-                                <SelectItem value="twoDays">2 Hari (Shift Malam)</SelectItem>
-                            )}
                             <SelectItem value="weekly">Mingguan</SelectItem>
                             <SelectItem value="monthly">Bulanan</SelectItem>
                             <SelectItem value="custom">Rentang Khusus</SelectItem>
@@ -1633,15 +1388,8 @@ const html = `<!DOCTYPE html>
                             <div className="text-sm font-bold px-2 min-w-[180px] text-center text-gray-700">
                                 {reportType === 'daily' 
                                     ? format(targetDate, "dd MMM yyyy", { locale: id })
-                                    : reportType === 'twoDays'
-                                    ? (() => {
-                                        const d2 = addDays(targetDate, 1);
-                                        return (targetDate.getMonth() === d2.getMonth() && targetDate.getFullYear() === d2.getFullYear())
-                                            ? `${format(targetDate, "dd")} - ${format(d2, "dd MMM yyyy", { locale: id })}`
-                                            : `${format(targetDate, "dd MMM")} - ${format(d2, "dd MMM yyyy", { locale: id })}`;
-                                    })()
                                     : reportType === 'weekly'
-                                    ? `${format(startOfWeek(targetDate, { weekStartsOn: 1 }), "dd MMM")} - ${format(endOfWeek(targetDate, { weekStartsOn: 1 }), "dd MMM yyyy")}`
+                                    ? `${format(startOfWeek(targetDate, { weekStartsOn: 1 }), "dd MMM")} - ${format(endOfWeek(targetDate, { weekStartsOn: 1 }), "dd MMM")}`
                                     : format(targetDate, "MMM yyyy", { locale: id })
                                 }
                             </div>
@@ -1652,103 +1400,38 @@ const html = `<!DOCTYPE html>
                     )}
                 </div>
             </div>
-            </div>
+
             <div className="space-y-6">
-                {/* Summary Stat Cards */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    {(() => {
-                        const totalHadir = processedData.filter(r => r.status === 'present' || r.status === 'late').length;
-                        const totalTelat = processedData.filter(r => r.status === 'late').length;
-                        const totalIzinSakit = processedData.filter(r => r.status === 'sick' || r.status === 'permission' || r.status === 'cuti').length;
-                        const totalRegulerMins = Array.from(dailyTotals.values()).reduce((sum, d) => sum + (d.mins || 0), 0);
-                        const totalOtMins = user?.role === "superadmin"
-                            ? (allOvertimes || []).reduce((sum: number, ot: any) => {
-                                if (ot.startTime && ot.endTime) {
-                                    return sum + Math.round((new Date(ot.endTime).getTime() - new Date(ot.startTime).getTime()) / 60000);
-                                }
-                                return sum;
-                            }, 0)
-                            : 0;
-
-                        return (
-                            <>
-                                <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-sm flex items-center justify-between">
-                                    <div>
-                                        <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Hadir</p>
-                                        <p className="text-2xl font-black text-emerald-600 mt-1">{totalHadir} <span className="text-xs font-bold text-slate-400">Orang</span></p>
-                                    </div>
-                                    <div className="h-10 w-10 rounded-lg bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600">
-                                        <CheckCircle2 className="h-5 w-5" />
-                                    </div>
-                                </div>
-
-                                <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-sm flex items-center justify-between">
-                                    <div>
-                                        <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Total Jam Kerja</p>
-                                        <p className="text-xl font-black text-indigo-600 mt-1">{formatDuration(totalRegulerMins)}</p>
-                                    </div>
-                                    <div className="h-10 w-10 rounded-lg bg-indigo-50 border border-indigo-200 flex items-center justify-center text-indigo-600">
-                                        <Clock className="h-5 w-5" />
-                                    </div>
-                                </div>
-
-                                <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-sm flex items-center justify-between">
-                                    <div>
-                                        <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Total Lembur</p>
-                                        <p className="text-xl font-black text-amber-600 mt-1">{totalOtMins > 0 ? formatDuration(totalOtMins) : '-'}</p>
-                                    </div>
-                                    <div className="h-10 w-10 rounded-lg bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-600">
-                                        <Zap className="h-5 w-5" />
-                                    </div>
-                                </div>
-
-                                <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-sm flex items-center justify-between">
-                                    <div>
-                                        <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Telat / Izin</p>
-                                        <p className="text-lg font-black text-slate-800 mt-1">
-                                            <span className="text-amber-600">{totalTelat} Telat</span>
-                                            {totalIzinSakit > 0 && <span className="text-purple-600 text-xs font-bold ml-1.5">• {totalIzinSakit} Izin</span>}
-                                        </p>
-                                    </div>
-                                    <div className="h-10 w-10 rounded-lg bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-600">
-                                        <AlertTriangle className="h-5 w-5" />
-                                    </div>
-                                </div>
-                            </>
-                        );
-                    })()}
-                </div>
-
-                <div className="bg-white rounded-xl border border-slate-200/80 shadow-sm overflow-hidden mb-6">
-                    <div className="flex flex-col md:flex-row items-center justify-between gap-4 border-b border-slate-100 bg-slate-50/50 py-4 px-6">
+                <div className="bg-white rounded-xl overflow-hidden mb-6">
+                    <div className="flex flex-col md:flex-row items-center justify-between gap-4 border-b border-gray-100 bg-white py-4 px-6">
                         <div className="space-y-1">
-                            <div className="text-lg font-black text-slate-900">Laporan Kehadiran Tenaga Kerja</div>
-                            <p className="text-xs font-medium text-slate-500">
-                                Periode: <span className="font-bold text-slate-700">{format(startDate, "EEEE, d MMMM yyyy", { locale: id })}</span> s/d <span className="font-bold text-slate-700">{format(endDate, "EEEE, d MMMM yyyy", { locale: id })}</span>
+                            <div className="text-lg font-bold">Laporan Kehadiran</div>
+                            <p className="text-sm text-gray-500">
+                                Periode: {format(startDate, "EEEE, d MMMM yyyy", { locale: id })} - {format(endDate, "EEEE, d MMMM yyyy", { locale: id })}
                             </p>
                         </div>
-                        <div className="flex items-center gap-2.5 w-full md:w-auto flex-wrap">
-                            <div className="relative flex-1 md:w-60">
-                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                                <Input placeholder="Cari nama karyawan..." className="pl-9 h-10 bg-white border-slate-200 text-xs" value={searchName} onChange={(e) => setSearchName(e.target.value)} />
+                        <div className="flex items-center gap-3 w-full md:w-auto">
+                            <div className="relative flex-1 md:w-64">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                                <Input placeholder="Cari nama..." className="pl-9 h-10" value={searchName} onChange={(e) => setSearchName(e.target.value)} />
                             </div>
-                            <Button variant="outline" className="gap-2 bg-primary/5 text-primary border-primary/20 hover:bg-primary/10 h-10 font-bold text-xs" onClick={() => handleOpenManualModal()}>
+                            <Button variant="outline" className="gap-2 bg-primary/5 text-primary border-primary/20 hover:bg-primary/10 h-10 font-bold" onClick={() => handleOpenManualModal()}>
                                 <Plus className="h-4 w-4" /> Input Manual
                             </Button>
                             {reportType === "custom" && user?.role === "superadmin" && (
                                 <Button 
                                     variant="outline" 
-                                    className="gap-2 bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100 h-10 font-bold text-xs shadow-sm" 
+                                    className="gap-2 bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100 h-10 font-bold shadow-sm" 
                                     onClick={handleBulkExport}
                                     disabled={isExporting}
                                 >
-                                    <FileDown className="h-4 w-4" /> {isExporting ? "Mengekspor..." : "Export Massal"}
+                                    <FileDown className="h-4 w-4" /> {isExporting ? "Mengekspor..." : "Export Harian Massal"}
                                 </Button>
                             )}
-                            <Button variant="outline" className="gap-2 h-10 font-bold text-xs shadow-sm bg-slate-50 border-slate-200 hover:bg-slate-100" onClick={handleExport}>
+                            <Button variant="outline" className="gap-2 h-10 font-bold shadow-sm" onClick={handleExport}>
                                 <FileDown className="h-4 w-4" /> Export HTML
                             </Button>
-                            <Button variant="outline" className="gap-2 h-10 font-bold text-xs shadow-sm bg-red-50 text-red-700 border-red-200 hover:bg-red-100" onClick={handleExportPdf} disabled={isExporting}>
+                            <Button variant="outline" className="gap-2 h-10 font-bold shadow-sm bg-red-50 text-red-700 border-red-200 hover:bg-red-100" onClick={handleExportPdf} disabled={isExporting}>
                                 <FileDown className="h-4 w-4" /> Export PDF
                             </Button>
                         </div>
@@ -1756,21 +1439,21 @@ const html = `<!DOCTYPE html>
                     <div className="p-0">
                         <div className="overflow-x-auto">
                             <table className="w-full text-sm text-left whitespace-nowrap">
-                                <thead className="bg-slate-100/80 text-slate-700 font-black uppercase text-[10px] tracking-wider border-b border-slate-200">
+                                <thead className="bg-gray-50/50 text-gray-500 font-bold uppercase text-[10px] tracking-widest border-b">
                                     <tr>
-                                        <th className="px-5 py-3.5 cursor-pointer hover:bg-slate-200/60" onClick={() => toggleSort('date')}>TANGGAL <ArrowUpDown className="h-3 w-3 inline ml-1 text-slate-400" /></th>
-                                        <th className="px-5 py-3.5 cursor-pointer hover:bg-slate-200/60" onClick={() => toggleSort('name')}>NAMA TENAGA KERJA <ArrowUpDown className="h-3 w-3 inline ml-1 text-slate-400" /></th>
-                                        <th className="px-5 py-3.5 text-center">MASUK</th>
-                                        <th className="px-5 py-3.5 text-center">ISTIRAHAT</th>
-                                        <th className="px-5 py-3.5 text-center">SELESAI</th>
-                                        <th className="px-5 py-3.5 text-center">PULANG</th>
-                                        <th className="px-5 py-3.5 text-center">JAM KERJA</th>
-                                        <th className="px-5 py-3.5 text-center">ISTIRAHAT</th>
-                                        <th className="px-5 py-3.5 text-center">STATUS</th>
-                                        <th className="px-5 py-3.5 text-center">AKSI</th>
+                                        <th className="px-6 py-4 cursor-pointer hover:bg-gray-100" onClick={() => toggleSort('date')}>TANGGAL <ArrowUpDown className="h-3 w-3 inline ml-1" /></th>
+                                        <th className="px-6 py-4 cursor-pointer hover:bg-gray-100" onClick={() => toggleSort('name')}>NAMA TENAGA KERJA <ArrowUpDown className="h-3 w-3 inline ml-1" /></th>
+                                        <th className="px-6 py-4 text-center">MASUK</th>
+                                        <th className="px-6 py-4 text-center">ISTIRAHAT</th>
+                                        <th className="px-6 py-4 text-center">SELESAI</th>
+                                        <th className="px-6 py-4 text-center">PULANG</th>
+                                        <th className="px-6 py-4">JAM KERJA</th>
+                                        <th className="px-6 py-4 text-center">DURASI ISTIRAHAT</th>
+                                        <th className="px-6 py-4 text-center">STATUS</th>
+                                        <th className="px-6 py-4">AKSI</th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-slate-100">
+                                <tbody className="divide-y divide-gray-100">
                                     {paginatedData.map((row, relativeIndex) => {
                                         const index = startIndex + relativeIndex;
                                         const { netWorkMins: sessionNetMins } = calculateDailyTotal([row]);
@@ -1781,75 +1464,65 @@ const html = `<!DOCTYPE html>
 
                                         return (
                                             <Fragment key={row.id}>
-                                                <tr className="hover:bg-slate-50/80 transition-colors group">
-                                                <td className="px-5 py-3.5 font-bold text-slate-600 text-xs">
-                                                    {isSameDayAndUser ? <span className="ml-4 text-slate-300">↳</span> : safeFormatDate(row.date, "EEEE, d MMM yyyy", { locale: id })}
+                                                <tr className="hover:bg-gray-50/30 transition-colors group">
+                                                <td className="px-6 py-4 font-bold text-gray-500 text-[10px]">
+                                                    {isSameDayAndUser ? <span className="ml-4 text-gray-300">↳</span> : safeFormatDate(row.date, "EEEE, d MMMM yyyy", { locale: id })}
                                                 </td>
-                                                <td className="px-5 py-3.5">
+                                                <td className="px-6 py-4 font-bold text-gray-900 capitalize">
                                                     {isSameDayAndUser ? "" : (
-                                                        <div className="flex flex-col space-y-0.5">
-                                                            <span className="font-black text-slate-900 text-sm capitalize">{getUserName(row.userId)}</span>
-                                                            <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
-                                                                {row.shift && row.shift.toLowerCase().trim() !== '-' && row.shift.toLowerCase().trim() !== 'management' ? (
-                                                                    <span className="text-[9px] font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-full uppercase">{row.shift}</span>
-                                                                ) : (
-                                                                    <span className="text-[9px] font-medium italic text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">Belum Tercatat</span>
-                                                                )}
-                                                                <span className="text-[10px] text-slate-400 font-semibold">NIK: {users?.find(u => u.id === row.userId)?.nik || users?.find(u => u.id === row.userId)?.username || '-'}</span>
-                                                            </div>
+                                                        <div className="flex flex-col">
+                                                            <span className="font-bold text-gray-900">{getUserName(row.userId)}</span>
+                                                            {row.shift && row.shift.toLowerCase().trim() !== '-' && row.shift.toLowerCase().trim() !== 'management' ? (
+                                                                <span className="text-[10px] font-bold text-primary uppercase tracking-tight">{row.shift}</span>
+                                                            ) : (
+                                                                <span className="text-[10px] italic text-gray-400 font-medium uppercase tracking-tight">Belum Tercatat</span>
+                                                            )}
+                                                            <span className="text-[10px] text-gray-400 font-medium">NIK: {users?.find(u => u.id === row.userId)?.nik || users?.find(u => u.id === row.userId)?.username}</span>
                                                         </div>
                                                     )}
                                                 </td>
-                                                <td className="px-5 py-3.5 text-center">
-                                                    <span className={`font-mono font-extrabold text-xs px-2 py-1 rounded-md ${row.checkIn ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/60' : 'text-slate-300'}`}>
-                                                        {row.checkIn ? safeFormatDate(row.checkIn, "HH:mm") : "-"}
-                                                    </span>
+                                                <td className="px-6 py-4 text-center font-mono font-bold text-emerald-600">
+                                                    {row.checkIn ? safeFormatDate(row.checkIn, "HH:mm") : "-"}
                                                 </td>
-                                                <td className="px-5 py-3.5 text-center">
-                                                    <span className={`font-mono font-extrabold text-xs px-2 py-1 rounded-md ${row.breakStart ? 'bg-amber-50 text-amber-700 border border-amber-200/60' : 'text-slate-300'}`}>
-                                                        {row.breakStart ? safeFormatDate(row.breakStart, "HH:mm") : "-"}
-                                                    </span>
+                                                <td className="px-6 py-4 text-center font-mono font-bold text-amber-600">
+                                                    {row.breakStart ? safeFormatDate(row.breakStart, "HH:mm") : "-"}
                                                 </td>
-                                                <td className="px-5 py-3.5 text-center">
-                                                    <span className={`font-mono font-extrabold text-xs px-2 py-1 rounded-md ${row.breakEnd ? 'bg-blue-50 text-blue-700 border border-blue-200/60' : 'text-slate-300'}`}>
-                                                        {row.breakEnd ? safeFormatDate(row.breakEnd, "HH:mm") : "-"}
-                                                    </span>
+                                                <td className="px-6 py-4 text-center font-mono font-bold text-blue-600">
+                                                    {row.breakEnd ? safeFormatDate(row.breakEnd, "HH:mm") : "-"}
                                                 </td>
-                                                <td className="px-5 py-3.5 text-center">
-                                                    <span className={`font-mono font-extrabold text-xs px-2 py-1 rounded-md ${row.checkOut ? 'bg-rose-50 text-rose-700 border border-rose-200/60' : 'text-slate-300'}`}>
-                                                        {row.checkOut ? safeFormatDate(row.checkOut, "HH:mm") : "-"}
-                                                    </span>
+                                                <td className="px-6 py-4 text-center font-mono font-bold text-rose-600">
+                                                    {row.checkOut ? safeFormatDate(row.checkOut, "HH:mm") : "-"}
                                                 </td>
-                                                <td className="px-5 py-3.5 text-center">
+                                                <td className="px-6 py-4">
                                                     {!isSameDayAndUser && (
-                                                        <div className="font-black text-slate-900 text-xs">
+                                                        <div className="font-black text-gray-800">
                                                             {(dailyTotals.get(key)?.mins ?? 0) > 0 ? formatDuration(dailyTotals.get(key)?.mins ?? 0) : "-"}
                                                         </div>
                                                     )}
-                                                    <div className="text-[9px] text-slate-400 font-semibold mt-0.5">
+                                                    <div className="text-[10px] text-gray-400 mt-0.5">
                                                         Sesi: {formatDuration(sessionNetMins)}
                                                     </div>
                                                 </td>
-                                                <td className="px-5 py-3.5 text-center text-xs font-semibold text-slate-600">
+                                                <td className="px-6 py-4 text-center text-xs font-medium text-gray-500">
                                                     {row.breakStart && row.breakEnd ? formatDurationFull(calculateDurationSeconds(row.breakStart, row.breakEnd)) : "-"}
                                                 </td>
-                                                <td className="px-5 py-3.5 text-center">
-                                                    <span className={`px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wider border shadow-2xs
-                                                        ${row.status === 'present' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
-                                                            row.status === 'late' ? 'bg-amber-50 text-amber-700 border-amber-200' :
-                                                                row.status === 'sick' ? 'bg-blue-50 text-blue-700 border-blue-200' :
-                                                                    row.status === 'permission' ? 'bg-purple-50 text-purple-700 border-purple-200' :
-                                                                        row.status === 'cuti' ? 'bg-teal-50 text-teal-700 border-teal-200' :
-                                                                            'bg-rose-50 text-rose-700 border-rose-200'}`}>
+                                                <td className="px-6 py-4 text-center">
+                                                    <span className={`px-2.5 py-1 rounded text-[10px] font-black uppercase tracking-wider
+                                                        ${row.status === 'present' ? 'text-emerald-700' :
+                                                            row.status === 'late' ? 'text-amber-700' :
+                                                                row.status === 'sick' ? 'text-blue-700' :
+                                                                    row.status === 'permission' ? 'text-purple-700' :
+                                                                        row.status === 'cuti' ? 'text-teal-700' :
+                                                                            'text-gray-600'}`}>
                                                         {row.status === 'present' ? 'Hadir' : row.status === 'late' ? 'Telat' : row.status === 'sick' ? 'Sakit' : row.status === 'permission' ? 'Izin' : row.status === 'cuti' ? 'Cuti' : row.status === 'absent' ? 'Alpha' : row.status}
                                                     </span>
                                                 </td>
-                                                <td className="px-5 py-3.5 text-center">
-                                                    <div className="flex items-center justify-center gap-1">
-                                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-blue-600 hover:bg-blue-50" onClick={() => handleOpenManualModal(row)} title="Edit Absensi"><Edit2 className="h-3.5 w-3.5" /></Button>
-                                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-rose-600 hover:bg-rose-50" onClick={() => setDeleteConfirmId(row.id)} title="Hapus Absensi"><Trash2 className="h-3.5 w-3.5" /></Button>
+                                                <td className="px-6 py-4">
+                                                    <div className="flex items-center gap-1">
+                                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 hover:text-blue-600" onClick={() => handleOpenManualModal(row)}><Edit2 className="h-3.5 w-3.5" /></Button>
+                                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 hover:text-red-600" onClick={() => setDeleteConfirmId(row.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
                                                         {((row as any).checkInPhoto || (row as any).checkOutPhoto || (row as any).lateReasonPhoto) && (
-                                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-600 hover:bg-blue-50" onClick={() => setSelectedPhotoRecord(row)} title="Lihat Foto"><Camera className="h-3.5 w-3.5" /></Button>
+                                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-600" onClick={() => setSelectedPhotoRecord(row)}><Camera className="h-3.5 w-3.5" /></Button>
                                                         )}
                                                     </div>
                                                 </td>
@@ -1866,31 +1539,29 @@ const html = `<!DOCTYPE html>
                                                     : 0;
 
                                                 return (
-                                                    <tr key={`ot-${row.id}`} className="bg-amber-50/70 border-y border-amber-200/80 hover:bg-amber-100/60 transition-colors">
-                                                        <td className="px-5 py-3 font-bold text-amber-600 text-xs text-right">↳</td>
-                                                        <td className="px-5 py-3">
+                                                    <tr key={`ot-${row.id}`} className="bg-orange-50/50 border-b border-orange-100 hover:bg-orange-50 transition-colors">
+                                                        <td className="px-6 py-3 font-bold text-orange-600 text-xs text-right">↳</td>
+                                                        <td className="px-6 py-3">
                                                             <div className="flex items-center gap-2">
-                                                                <span className="bg-amber-500 text-white text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider flex items-center gap-1">
-                                                                    <Zap className="h-3 w-3 fill-current" /> LEMBUR
-                                                                </span>
-                                                                <span className="text-xs text-slate-800 font-black">{getUserName(row.userId)}</span>
+                                                                <span className="bg-orange-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider">⚡ LEMBUR</span>
+                                                                <span className="text-xs text-slate-700 font-semibold">{getUserName(row.userId)}</span>
                                                             </div>
                                                         </td>
-                                                        <td className="px-5 py-3 text-center font-mono font-extrabold text-amber-700 text-xs bg-amber-100/50 rounded">{otStart}</td>
-                                                        <td className="px-5 py-3 text-center text-xs text-slate-300">-</td>
-                                                        <td className="px-5 py-3 text-center text-xs text-slate-300">-</td>
-                                                        <td className="px-5 py-3 text-center font-mono font-extrabold text-amber-700 text-xs bg-amber-100/50 rounded">{otEnd}</td>
-                                                        <td className="px-5 py-3 text-center font-black text-amber-900 text-xs">
+                                                        <td className="px-6 py-3 text-center font-mono font-bold text-orange-700 text-xs">{otStart}</td>
+                                                        <td className="px-6 py-3 text-center text-xs text-slate-300">-</td>
+                                                        <td className="px-6 py-3 text-center text-xs text-slate-300">-</td>
+                                                        <td className="px-6 py-3 text-center font-mono font-bold text-orange-700 text-xs">{otEnd}</td>
+                                                        <td className="px-6 py-3 font-extrabold text-orange-900 text-xs">
                                                             {otDurationMins > 0 ? formatDuration(otDurationMins) : "Berlangsung"}
                                                         </td>
-                                                        <td className="px-5 py-3 text-center text-xs text-slate-300">-</td>
-                                                        <td className="px-5 py-3 text-center">
-                                                            <span className="bg-amber-100 text-amber-800 border border-amber-300 px-2 py-0.5 rounded text-[10px] font-black uppercase">
-                                                                {ot.status === "ongoing" ? "Berlangsung" : "Selesai"}
+                                                        <td className="px-6 py-3 text-center text-xs text-slate-300">-</td>
+                                                        <td className="px-6 py-3 text-center">
+                                                            <span className="px-2 py-0.5 rounded text-[10px] font-extrabold uppercase bg-orange-100 text-orange-800 border border-orange-200">
+                                                                {ot.status === "completed" ? "Selesai" : "Berlangsung"}
                                                             </span>
                                                         </td>
-                                                        <td className="px-5 py-3 text-xs text-amber-900 font-semibold italic truncate max-width-[120px]" title={ot.description || 'Pekerjaan Lembur'}>
-                                                            {ot.description || 'Pekerjaan Lembur'}
+                                                        <td className="px-6 py-3 text-xs text-slate-600 italic truncate max-w-[180px]">
+                                                            {ot.description || "Lembur pekerjaan"}
                                                         </td>
                                                     </tr>
                                                 );
@@ -1900,30 +1571,31 @@ const html = `<!DOCTYPE html>
                                     })}
                                 </tbody>
                             </table>
+                        </div>
                         {/* Pagination Controls */}
                         {totalPages > 1 && (
-                            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-slate-100 bg-slate-50/50 px-6 py-4">
-                                <div className="text-xs text-slate-500 font-medium">
-                                    Menampilkan <span className="font-bold text-slate-800">{startIndex + 1}</span> - <span className="font-bold text-slate-800">{Math.min(startIndex + itemsPerPage, processedData.length)}</span> dari <span className="font-bold text-slate-800">{processedData.length}</span> baris
+                            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-gray-100 bg-white px-6 py-4">
+                                <div className="text-sm text-gray-500 font-medium">
+                                    Menampilkan <span className="font-bold text-gray-800">{startIndex + 1}</span> - <span className="font-bold text-gray-800">{Math.min(startIndex + itemsPerPage, processedData.length)}</span> dari <span className="font-bold text-gray-800">{processedData.length}</span> baris
                                 </div>
                                 <div className="flex items-center gap-2">
                                     <Button
                                         variant="outline"
                                         size="sm"
-                                        className="h-8 px-3 rounded-lg font-bold text-xs"
+                                        className="h-8 px-3 rounded-lg font-bold"
                                         onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                                         disabled={currentPage === 1}
                                     >
                                         <ChevronLeft className="h-4 w-4 mr-1" />
                                         Sebelumnya
                                     </Button>
-                                    <div className="text-xs font-bold px-3 text-slate-700 min-w-[120px] text-center">
+                                    <div className="text-sm font-bold px-3 text-gray-700 min-w-[120px] text-center">
                                         Halaman {currentPage} dari {totalPages}
                                     </div>
                                     <Button
                                         variant="outline"
                                         size="sm"
-                                        className="h-8 px-3 rounded-lg font-bold text-xs"
+                                        className="h-8 px-3 rounded-lg font-bold"
                                         onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                                         disabled={currentPage === totalPages}
                                     >
@@ -1936,6 +1608,7 @@ const html = `<!DOCTYPE html>
                     </div>
                 </div>
             </div>
+        </div>
 
             <Dialog open={!!selectedPhotoRecord} onOpenChange={(open) => !open && setSelectedPhotoRecord(null)}>
                 <DialogContent className="sm:max-w-md bg-white rounded-xl p-6 overflow-y-auto max-h-[90vh]">
@@ -2111,7 +1784,6 @@ const html = `<!DOCTYPE html>
                     </div>
                 </div>
             )}
-        </div>
         </div>
     );
 }
