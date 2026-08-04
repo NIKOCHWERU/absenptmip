@@ -6,7 +6,7 @@ import React, { useState, useEffect, Fragment } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ChevronLeft, ChevronRight, FileDown, ArrowLeft, Search, ArrowUpDown, MessageSquare, Plus, Edit2, Trash2, Camera, Image as ImageIcon } from "lucide-react";
+import { ChevronLeft, ChevronRight, FileDown, ArrowLeft, Search, ArrowUpDown, MessageSquare, Plus, Edit2, Trash2, Camera, Image as ImageIcon, CheckCircle2, Clock, Zap, AlertTriangle } from "lucide-react";
 import { useLocation } from "wouter";
 import { Input } from "@/components/ui/input";
 import { differenceInMinutes } from "date-fns";
@@ -126,7 +126,7 @@ export default function RecapPage() {
         shift: "-"
     });
 
-    const [reportType, setReportType] = useState<"daily" | "weekly" | "monthly" | "custom">("monthly");
+    const [reportType, setReportType] = useState<"daily" | "weekly" | "monthly" | "custom" | "twoDays">("monthly");
     const [customStartDate, setCustomStartDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
     const [customEndDate, setCustomEndDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
 
@@ -136,6 +136,9 @@ export default function RecapPage() {
     if (reportType === "daily") {
         startDate = startOfDay(targetDate);
         endDate = endOfDay(targetDate);
+    } else if (reportType === "twoDays") {
+        startDate = startOfDay(targetDate);
+        endDate = endOfDay(addDays(targetDate, 1));
     } else if (reportType === "weekly") {
         startDate = startOfWeek(targetDate, { weekStartsOn: 1 });
         endDate = endOfWeek(targetDate, { weekStartsOn: 1 });
@@ -168,13 +171,13 @@ export default function RecapPage() {
     });
 
     const handlePrev = () => {
-        if (reportType === "daily") setTargetDate(d => subDays(d, 1));
+        if (reportType === "daily" || reportType === "twoDays") setTargetDate(d => subDays(d, 1));
         else if (reportType === "weekly") setTargetDate(d => subDays(d, 7));
         else setTargetDate(d => subMonths(d, 1));
     };
 
     const handleNext = () => {
-        if (reportType === "daily") setTargetDate(d => addDays(d, 1));
+        if (reportType === "daily" || reportType === "twoDays") setTargetDate(d => addDays(d, 1));
         else if (reportType === "weekly") setTargetDate(d => addDays(d, 7));
         else setTargetDate(d => addMonths(d, 1));
     };
@@ -408,6 +411,11 @@ export default function RecapPage() {
         let periodStr = '';
         if (reportType === 'daily') {
             periodStr = format(targetDate, "dd MMMM yyyy", { locale: id }).toUpperCase();
+        } else if (reportType === 'twoDays') {
+            const d2 = addDays(targetDate, 1);
+            periodStr = (targetDate.getMonth() === d2.getMonth() && targetDate.getFullYear() === d2.getFullYear())
+                ? `${format(targetDate, "dd")} - ${format(d2, "dd MMM yyyy", { locale: id })}`.toUpperCase()
+                : `${format(targetDate, "dd MMM")} - ${format(d2, "dd MMM yyyy", { locale: id })}`.toUpperCase();
         } else if (reportType === 'weekly') {
             periodStr = `${format(startDate, "dd MMM")} - ${format(endDate, "dd MMM yyyy", { locale: id })}`.toUpperCase();
         } else if (reportType === 'custom') {
@@ -710,6 +718,11 @@ export default function RecapPage() {
         let periodStr = '';
         if (reportType === 'daily') {
             periodStr = format(targetDate, "dd MMMM yyyy", { locale: id }).toUpperCase();
+        } else if (reportType === 'twoDays') {
+            const d2 = addDays(targetDate, 1);
+            periodStr = (targetDate.getMonth() === d2.getMonth() && targetDate.getFullYear() === d2.getFullYear())
+                ? `${format(targetDate, "dd")} - ${format(d2, "dd MMM yyyy", { locale: id })}`.toUpperCase()
+                : `${format(targetDate, "dd MMM")} - ${format(d2, "dd MMM yyyy", { locale: id })}`.toUpperCase();
         } else if (reportType === 'weekly') {
             periodStr = `${format(startDate, "dd MMM")} - ${format(endDate, "dd MMM yyyy", { locale: id })}`.toUpperCase();
         } else if (reportType === 'custom') {
@@ -1358,6 +1371,9 @@ export default function RecapPage() {
                         </SelectTrigger>
                         <SelectContent>
                             <SelectItem value="daily">Harian</SelectItem>
+                            {user?.role === "superadmin" && (
+                                <SelectItem value="twoDays">2 Hari (Shift Malam)</SelectItem>
+                            )}
                             <SelectItem value="weekly">Mingguan</SelectItem>
                             <SelectItem value="monthly">Bulanan</SelectItem>
                             <SelectItem value="custom">Rentang Khusus</SelectItem>
@@ -1388,8 +1404,15 @@ export default function RecapPage() {
                             <div className="text-sm font-bold px-2 min-w-[180px] text-center text-gray-700">
                                 {reportType === 'daily' 
                                     ? format(targetDate, "dd MMM yyyy", { locale: id })
+                                    : reportType === 'twoDays'
+                                    ? (() => {
+                                        const d2 = addDays(targetDate, 1);
+                                        return (targetDate.getMonth() === d2.getMonth() && targetDate.getFullYear() === d2.getFullYear())
+                                            ? `${format(targetDate, "dd")} - ${format(d2, "dd MMM yyyy", { locale: id })}`
+                                            : `${format(targetDate, "dd MMM")} - ${format(d2, "dd MMM yyyy", { locale: id })}`;
+                                    })()
                                     : reportType === 'weekly'
-                                    ? `${format(startOfWeek(targetDate, { weekStartsOn: 1 }), "dd MMM")} - ${format(endOfWeek(targetDate, { weekStartsOn: 1 }), "dd MMM")}`
+                                    ? `${format(startOfWeek(targetDate, { weekStartsOn: 1 }), "dd MMM")} - ${format(endOfWeek(targetDate, { weekStartsOn: 1 }), "dd MMM yyyy")}`
                                     : format(targetDate, "MMM yyyy", { locale: id })
                                 }
                             </div>
@@ -1400,38 +1423,103 @@ export default function RecapPage() {
                     )}
                 </div>
             </div>
-
+            </div>
             <div className="space-y-6">
-                <div className="bg-white rounded-xl overflow-hidden mb-6">
-                    <div className="flex flex-col md:flex-row items-center justify-between gap-4 border-b border-gray-100 bg-white py-4 px-6">
+                {/* Summary Stat Cards */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    {(() => {
+                        const totalHadir = processedData.filter(r => r.status === 'present' || r.status === 'late').length;
+                        const totalTelat = processedData.filter(r => r.status === 'late').length;
+                        const totalIzinSakit = processedData.filter(r => r.status === 'sick' || r.status === 'permission' || r.status === 'cuti').length;
+                        const totalRegulerMins = Array.from(dailyTotals.values()).reduce((sum, d) => sum + (d.mins || 0), 0);
+                        const totalOtMins = user?.role === "superadmin"
+                            ? (allOvertimes || []).reduce((sum: number, ot: any) => {
+                                if (ot.startTime && ot.endTime) {
+                                    return sum + Math.round((new Date(ot.endTime).getTime() - new Date(ot.startTime).getTime()) / 60000);
+                                }
+                                return sum;
+                            }, 0)
+                            : 0;
+
+                        return (
+                            <>
+                                <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-sm flex items-center justify-between">
+                                    <div>
+                                        <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Hadir</p>
+                                        <p className="text-2xl font-black text-emerald-600 mt-1">{totalHadir} <span className="text-xs font-bold text-slate-400">Orang</span></p>
+                                    </div>
+                                    <div className="h-10 w-10 rounded-lg bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600">
+                                        <CheckCircle2 className="h-5 w-5" />
+                                    </div>
+                                </div>
+
+                                <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-sm flex items-center justify-between">
+                                    <div>
+                                        <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Total Jam Kerja</p>
+                                        <p className="text-xl font-black text-indigo-600 mt-1">{formatDuration(totalRegulerMins)}</p>
+                                    </div>
+                                    <div className="h-10 w-10 rounded-lg bg-indigo-50 border border-indigo-200 flex items-center justify-center text-indigo-600">
+                                        <Clock className="h-5 w-5" />
+                                    </div>
+                                </div>
+
+                                <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-sm flex items-center justify-between">
+                                    <div>
+                                        <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Total Lembur</p>
+                                        <p className="text-xl font-black text-amber-600 mt-1">{totalOtMins > 0 ? formatDuration(totalOtMins) : '-'}</p>
+                                    </div>
+                                    <div className="h-10 w-10 rounded-lg bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-600">
+                                        <Zap className="h-5 w-5" />
+                                    </div>
+                                </div>
+
+                                <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-sm flex items-center justify-between">
+                                    <div>
+                                        <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Telat / Izin</p>
+                                        <p className="text-lg font-black text-slate-800 mt-1">
+                                            <span className="text-amber-600">{totalTelat} Telat</span>
+                                            {totalIzinSakit > 0 && <span className="text-purple-600 text-xs font-bold ml-1.5">• {totalIzinSakit} Izin</span>}
+                                        </p>
+                                    </div>
+                                    <div className="h-10 w-10 rounded-lg bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-600">
+                                        <AlertTriangle className="h-5 w-5" />
+                                    </div>
+                                </div>
+                            </>
+                        );
+                    })()}
+                </div>
+
+                <div className="bg-white rounded-xl border border-slate-200/80 shadow-sm overflow-hidden mb-6">
+                    <div className="flex flex-col md:flex-row items-center justify-between gap-4 border-b border-slate-100 bg-slate-50/50 py-4 px-6">
                         <div className="space-y-1">
-                            <div className="text-lg font-bold">Laporan Kehadiran</div>
-                            <p className="text-sm text-gray-500">
-                                Periode: {format(startDate, "EEEE, d MMMM yyyy", { locale: id })} - {format(endDate, "EEEE, d MMMM yyyy", { locale: id })}
+                            <div className="text-lg font-black text-slate-900">Laporan Kehadiran Tenaga Kerja</div>
+                            <p className="text-xs font-medium text-slate-500">
+                                Periode: <span className="font-bold text-slate-700">{format(startDate, "EEEE, d MMMM yyyy", { locale: id })}</span> s/d <span className="font-bold text-slate-700">{format(endDate, "EEEE, d MMMM yyyy", { locale: id })}</span>
                             </p>
                         </div>
-                        <div className="flex items-center gap-3 w-full md:w-auto">
-                            <div className="relative flex-1 md:w-64">
-                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                                <Input placeholder="Cari nama..." className="pl-9 h-10" value={searchName} onChange={(e) => setSearchName(e.target.value)} />
+                        <div className="flex items-center gap-2.5 w-full md:w-auto flex-wrap">
+                            <div className="relative flex-1 md:w-60">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                                <Input placeholder="Cari nama karyawan..." className="pl-9 h-10 bg-white border-slate-200 text-xs" value={searchName} onChange={(e) => setSearchName(e.target.value)} />
                             </div>
-                            <Button variant="outline" className="gap-2 bg-primary/5 text-primary border-primary/20 hover:bg-primary/10 h-10 font-bold" onClick={() => handleOpenManualModal()}>
+                            <Button variant="outline" className="gap-2 bg-primary/5 text-primary border-primary/20 hover:bg-primary/10 h-10 font-bold text-xs" onClick={() => handleOpenManualModal()}>
                                 <Plus className="h-4 w-4" /> Input Manual
                             </Button>
                             {reportType === "custom" && user?.role === "superadmin" && (
                                 <Button 
                                     variant="outline" 
-                                    className="gap-2 bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100 h-10 font-bold shadow-sm" 
+                                    className="gap-2 bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100 h-10 font-bold text-xs shadow-sm" 
                                     onClick={handleBulkExport}
                                     disabled={isExporting}
                                 >
-                                    <FileDown className="h-4 w-4" /> {isExporting ? "Mengekspor..." : "Export Harian Massal"}
+                                    <FileDown className="h-4 w-4" /> {isExporting ? "Mengekspor..." : "Export Massal"}
                                 </Button>
                             )}
-                            <Button variant="outline" className="gap-2 h-10 font-bold shadow-sm" onClick={handleExport}>
+                            <Button variant="outline" className="gap-2 h-10 font-bold text-xs shadow-sm bg-slate-50 border-slate-200 hover:bg-slate-100" onClick={handleExport}>
                                 <FileDown className="h-4 w-4" /> Export HTML
                             </Button>
-                            <Button variant="outline" className="gap-2 h-10 font-bold shadow-sm bg-red-50 text-red-700 border-red-200 hover:bg-red-100" onClick={handleExportPdf} disabled={isExporting}>
+                            <Button variant="outline" className="gap-2 h-10 font-bold text-xs shadow-sm bg-red-50 text-red-700 border-red-200 hover:bg-red-100" onClick={handleExportPdf} disabled={isExporting}>
                                 <FileDown className="h-4 w-4" /> Export PDF
                             </Button>
                         </div>
@@ -1439,21 +1527,21 @@ export default function RecapPage() {
                     <div className="p-0">
                         <div className="overflow-x-auto">
                             <table className="w-full text-sm text-left whitespace-nowrap">
-                                <thead className="bg-gray-50/50 text-gray-500 font-bold uppercase text-[10px] tracking-widest border-b">
+                                <thead className="bg-slate-100/80 text-slate-700 font-black uppercase text-[10px] tracking-wider border-b border-slate-200">
                                     <tr>
-                                        <th className="px-6 py-4 cursor-pointer hover:bg-gray-100" onClick={() => toggleSort('date')}>TANGGAL <ArrowUpDown className="h-3 w-3 inline ml-1" /></th>
-                                        <th className="px-6 py-4 cursor-pointer hover:bg-gray-100" onClick={() => toggleSort('name')}>NAMA TENAGA KERJA <ArrowUpDown className="h-3 w-3 inline ml-1" /></th>
-                                        <th className="px-6 py-4 text-center">MASUK</th>
-                                        <th className="px-6 py-4 text-center">ISTIRAHAT</th>
-                                        <th className="px-6 py-4 text-center">SELESAI</th>
-                                        <th className="px-6 py-4 text-center">PULANG</th>
-                                        <th className="px-6 py-4">JAM KERJA</th>
-                                        <th className="px-6 py-4 text-center">DURASI ISTIRAHAT</th>
-                                        <th className="px-6 py-4 text-center">STATUS</th>
-                                        <th className="px-6 py-4">AKSI</th>
+                                        <th className="px-5 py-3.5 cursor-pointer hover:bg-slate-200/60" onClick={() => toggleSort('date')}>TANGGAL <ArrowUpDown className="h-3 w-3 inline ml-1 text-slate-400" /></th>
+                                        <th className="px-5 py-3.5 cursor-pointer hover:bg-slate-200/60" onClick={() => toggleSort('name')}>NAMA TENAGA KERJA <ArrowUpDown className="h-3 w-3 inline ml-1 text-slate-400" /></th>
+                                        <th className="px-5 py-3.5 text-center">MASUK</th>
+                                        <th className="px-5 py-3.5 text-center">ISTIRAHAT</th>
+                                        <th className="px-5 py-3.5 text-center">SELESAI</th>
+                                        <th className="px-5 py-3.5 text-center">PULANG</th>
+                                        <th className="px-5 py-3.5 text-center">JAM KERJA</th>
+                                        <th className="px-5 py-3.5 text-center">ISTIRAHAT</th>
+                                        <th className="px-5 py-3.5 text-center">STATUS</th>
+                                        <th className="px-5 py-3.5 text-center">AKSI</th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-gray-100">
+                                <tbody className="divide-y divide-slate-100">
                                     {paginatedData.map((row, relativeIndex) => {
                                         const index = startIndex + relativeIndex;
                                         const { netWorkMins: sessionNetMins } = calculateDailyTotal([row]);
@@ -1464,65 +1552,75 @@ export default function RecapPage() {
 
                                         return (
                                             <Fragment key={row.id}>
-                                                <tr className="hover:bg-gray-50/30 transition-colors group">
-                                                <td className="px-6 py-4 font-bold text-gray-500 text-[10px]">
-                                                    {isSameDayAndUser ? <span className="ml-4 text-gray-300">↳</span> : safeFormatDate(row.date, "EEEE, d MMMM yyyy", { locale: id })}
+                                                <tr className="hover:bg-slate-50/80 transition-colors group">
+                                                <td className="px-5 py-3.5 font-bold text-slate-600 text-xs">
+                                                    {isSameDayAndUser ? <span className="ml-4 text-slate-300">↳</span> : safeFormatDate(row.date, "EEEE, d MMM yyyy", { locale: id })}
                                                 </td>
-                                                <td className="px-6 py-4 font-bold text-gray-900 capitalize">
+                                                <td className="px-5 py-3.5">
                                                     {isSameDayAndUser ? "" : (
-                                                        <div className="flex flex-col">
-                                                            <span className="font-bold text-gray-900">{getUserName(row.userId)}</span>
-                                                            {row.shift && row.shift.toLowerCase().trim() !== '-' && row.shift.toLowerCase().trim() !== 'management' ? (
-                                                                <span className="text-[10px] font-bold text-primary uppercase tracking-tight">{row.shift}</span>
-                                                            ) : (
-                                                                <span className="text-[10px] italic text-gray-400 font-medium uppercase tracking-tight">Belum Tercatat</span>
-                                                            )}
-                                                            <span className="text-[10px] text-gray-400 font-medium">NIK: {users?.find(u => u.id === row.userId)?.nik || users?.find(u => u.id === row.userId)?.username}</span>
+                                                        <div className="flex flex-col space-y-0.5">
+                                                            <span className="font-black text-slate-900 text-sm capitalize">{getUserName(row.userId)}</span>
+                                                            <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
+                                                                {row.shift && row.shift.toLowerCase().trim() !== '-' && row.shift.toLowerCase().trim() !== 'management' ? (
+                                                                    <span className="text-[9px] font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-full uppercase">{row.shift}</span>
+                                                                ) : (
+                                                                    <span className="text-[9px] font-medium italic text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">Belum Tercatat</span>
+                                                                )}
+                                                                <span className="text-[10px] text-slate-400 font-semibold">NIK: {users?.find(u => u.id === row.userId)?.nik || users?.find(u => u.id === row.userId)?.username || '-'}</span>
+                                                            </div>
                                                         </div>
                                                     )}
                                                 </td>
-                                                <td className="px-6 py-4 text-center font-mono font-bold text-emerald-600">
-                                                    {row.checkIn ? safeFormatDate(row.checkIn, "HH:mm") : "-"}
+                                                <td className="px-5 py-3.5 text-center">
+                                                    <span className={`font-mono font-extrabold text-xs px-2 py-1 rounded-md ${row.checkIn ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/60' : 'text-slate-300'}`}>
+                                                        {row.checkIn ? safeFormatDate(row.checkIn, "HH:mm") : "-"}
+                                                    </span>
                                                 </td>
-                                                <td className="px-6 py-4 text-center font-mono font-bold text-amber-600">
-                                                    {row.breakStart ? safeFormatDate(row.breakStart, "HH:mm") : "-"}
+                                                <td className="px-5 py-3.5 text-center">
+                                                    <span className={`font-mono font-extrabold text-xs px-2 py-1 rounded-md ${row.breakStart ? 'bg-amber-50 text-amber-700 border border-amber-200/60' : 'text-slate-300'}`}>
+                                                        {row.breakStart ? safeFormatDate(row.breakStart, "HH:mm") : "-"}
+                                                    </span>
                                                 </td>
-                                                <td className="px-6 py-4 text-center font-mono font-bold text-blue-600">
-                                                    {row.breakEnd ? safeFormatDate(row.breakEnd, "HH:mm") : "-"}
+                                                <td className="px-5 py-3.5 text-center">
+                                                    <span className={`font-mono font-extrabold text-xs px-2 py-1 rounded-md ${row.breakEnd ? 'bg-blue-50 text-blue-700 border border-blue-200/60' : 'text-slate-300'}`}>
+                                                        {row.breakEnd ? safeFormatDate(row.breakEnd, "HH:mm") : "-"}
+                                                    </span>
                                                 </td>
-                                                <td className="px-6 py-4 text-center font-mono font-bold text-rose-600">
-                                                    {row.checkOut ? safeFormatDate(row.checkOut, "HH:mm") : "-"}
+                                                <td className="px-5 py-3.5 text-center">
+                                                    <span className={`font-mono font-extrabold text-xs px-2 py-1 rounded-md ${row.checkOut ? 'bg-rose-50 text-rose-700 border border-rose-200/60' : 'text-slate-300'}`}>
+                                                        {row.checkOut ? safeFormatDate(row.checkOut, "HH:mm") : "-"}
+                                                    </span>
                                                 </td>
-                                                <td className="px-6 py-4">
+                                                <td className="px-5 py-3.5 text-center">
                                                     {!isSameDayAndUser && (
-                                                        <div className="font-black text-gray-800">
+                                                        <div className="font-black text-slate-900 text-xs">
                                                             {(dailyTotals.get(key)?.mins ?? 0) > 0 ? formatDuration(dailyTotals.get(key)?.mins ?? 0) : "-"}
                                                         </div>
                                                     )}
-                                                    <div className="text-[10px] text-gray-400 mt-0.5">
+                                                    <div className="text-[9px] text-slate-400 font-semibold mt-0.5">
                                                         Sesi: {formatDuration(sessionNetMins)}
                                                     </div>
                                                 </td>
-                                                <td className="px-6 py-4 text-center text-xs font-medium text-gray-500">
+                                                <td className="px-5 py-3.5 text-center text-xs font-semibold text-slate-600">
                                                     {row.breakStart && row.breakEnd ? formatDurationFull(calculateDurationSeconds(row.breakStart, row.breakEnd)) : "-"}
                                                 </td>
-                                                <td className="px-6 py-4 text-center">
-                                                    <span className={`px-2.5 py-1 rounded text-[10px] font-black uppercase tracking-wider
-                                                        ${row.status === 'present' ? 'text-emerald-700' :
-                                                            row.status === 'late' ? 'text-amber-700' :
-                                                                row.status === 'sick' ? 'text-blue-700' :
-                                                                    row.status === 'permission' ? 'text-purple-700' :
-                                                                        row.status === 'cuti' ? 'text-teal-700' :
-                                                                            'text-gray-600'}`}>
+                                                <td className="px-5 py-3.5 text-center">
+                                                    <span className={`px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wider border shadow-2xs
+                                                        ${row.status === 'present' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                                                            row.status === 'late' ? 'bg-amber-50 text-amber-700 border-amber-200' :
+                                                                row.status === 'sick' ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                                                                    row.status === 'permission' ? 'bg-purple-50 text-purple-700 border-purple-200' :
+                                                                        row.status === 'cuti' ? 'bg-teal-50 text-teal-700 border-teal-200' :
+                                                                            'bg-rose-50 text-rose-700 border-rose-200'}`}>
                                                         {row.status === 'present' ? 'Hadir' : row.status === 'late' ? 'Telat' : row.status === 'sick' ? 'Sakit' : row.status === 'permission' ? 'Izin' : row.status === 'cuti' ? 'Cuti' : row.status === 'absent' ? 'Alpha' : row.status}
                                                     </span>
                                                 </td>
-                                                <td className="px-6 py-4">
-                                                    <div className="flex items-center gap-1">
-                                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 hover:text-blue-600" onClick={() => handleOpenManualModal(row)}><Edit2 className="h-3.5 w-3.5" /></Button>
-                                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 hover:text-red-600" onClick={() => setDeleteConfirmId(row.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
+                                                <td className="px-5 py-3.5 text-center">
+                                                    <div className="flex items-center justify-center gap-1">
+                                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-blue-600 hover:bg-blue-50" onClick={() => handleOpenManualModal(row)} title="Edit Absensi"><Edit2 className="h-3.5 w-3.5" /></Button>
+                                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-rose-600 hover:bg-rose-50" onClick={() => setDeleteConfirmId(row.id)} title="Hapus Absensi"><Trash2 className="h-3.5 w-3.5" /></Button>
                                                         {((row as any).checkInPhoto || (row as any).checkOutPhoto || (row as any).lateReasonPhoto) && (
-                                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-600" onClick={() => setSelectedPhotoRecord(row)}><Camera className="h-3.5 w-3.5" /></Button>
+                                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-600 hover:bg-blue-50" onClick={() => setSelectedPhotoRecord(row)} title="Lihat Foto"><Camera className="h-3.5 w-3.5" /></Button>
                                                         )}
                                                     </div>
                                                 </td>
@@ -1539,29 +1637,31 @@ export default function RecapPage() {
                                                     : 0;
 
                                                 return (
-                                                    <tr key={`ot-${row.id}`} className="bg-orange-50/50 border-b border-orange-100 hover:bg-orange-50 transition-colors">
-                                                        <td className="px-6 py-3 font-bold text-orange-600 text-xs text-right">↳</td>
-                                                        <td className="px-6 py-3">
+                                                    <tr key={`ot-${row.id}`} className="bg-amber-50/70 border-y border-amber-200/80 hover:bg-amber-100/60 transition-colors">
+                                                        <td className="px-5 py-3 font-bold text-amber-600 text-xs text-right">↳</td>
+                                                        <td className="px-5 py-3">
                                                             <div className="flex items-center gap-2">
-                                                                <span className="bg-orange-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider">⚡ LEMBUR</span>
-                                                                <span className="text-xs text-slate-700 font-semibold">{getUserName(row.userId)}</span>
+                                                                <span className="bg-amber-500 text-white text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider flex items-center gap-1">
+                                                                    <Zap className="h-3 w-3 fill-current" /> LEMBUR
+                                                                </span>
+                                                                <span className="text-xs text-slate-800 font-black">{getUserName(row.userId)}</span>
                                                             </div>
                                                         </td>
-                                                        <td className="px-6 py-3 text-center font-mono font-bold text-orange-700 text-xs">{otStart}</td>
-                                                        <td className="px-6 py-3 text-center text-xs text-slate-300">-</td>
-                                                        <td className="px-6 py-3 text-center text-xs text-slate-300">-</td>
-                                                        <td className="px-6 py-3 text-center font-mono font-bold text-orange-700 text-xs">{otEnd}</td>
-                                                        <td className="px-6 py-3 font-extrabold text-orange-900 text-xs">
+                                                        <td className="px-5 py-3 text-center font-mono font-extrabold text-amber-700 text-xs bg-amber-100/50 rounded">{otStart}</td>
+                                                        <td className="px-5 py-3 text-center text-xs text-slate-300">-</td>
+                                                        <td className="px-5 py-3 text-center text-xs text-slate-300">-</td>
+                                                        <td className="px-5 py-3 text-center font-mono font-extrabold text-amber-700 text-xs bg-amber-100/50 rounded">{otEnd}</td>
+                                                        <td className="px-5 py-3 text-center font-black text-amber-900 text-xs">
                                                             {otDurationMins > 0 ? formatDuration(otDurationMins) : "Berlangsung"}
                                                         </td>
-                                                        <td className="px-6 py-3 text-center text-xs text-slate-300">-</td>
-                                                        <td className="px-6 py-3 text-center">
-                                                            <span className="px-2 py-0.5 rounded text-[10px] font-extrabold uppercase bg-orange-100 text-orange-800 border border-orange-200">
-                                                                {ot.status === "completed" ? "Selesai" : "Berlangsung"}
+                                                        <td className="px-5 py-3 text-center text-xs text-slate-300">-</td>
+                                                        <td className="px-5 py-3 text-center">
+                                                            <span className="bg-amber-100 text-amber-800 border border-amber-300 px-2 py-0.5 rounded text-[10px] font-black uppercase">
+                                                                {ot.status === "ongoing" ? "Berlangsung" : "Selesai"}
                                                             </span>
                                                         </td>
-                                                        <td className="px-6 py-3 text-xs text-slate-600 italic truncate max-w-[180px]">
-                                                            {ot.description || "Lembur pekerjaan"}
+                                                        <td className="px-5 py-3 text-xs text-amber-900 font-semibold italic truncate max-width-[120px]" title={ot.description || 'Pekerjaan Lembur'}>
+                                                            {ot.description || 'Pekerjaan Lembur'}
                                                         </td>
                                                     </tr>
                                                 );
@@ -1571,31 +1671,30 @@ export default function RecapPage() {
                                     })}
                                 </tbody>
                             </table>
-                        </div>
                         {/* Pagination Controls */}
                         {totalPages > 1 && (
-                            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-gray-100 bg-white px-6 py-4">
-                                <div className="text-sm text-gray-500 font-medium">
-                                    Menampilkan <span className="font-bold text-gray-800">{startIndex + 1}</span> - <span className="font-bold text-gray-800">{Math.min(startIndex + itemsPerPage, processedData.length)}</span> dari <span className="font-bold text-gray-800">{processedData.length}</span> baris
+                            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-slate-100 bg-slate-50/50 px-6 py-4">
+                                <div className="text-xs text-slate-500 font-medium">
+                                    Menampilkan <span className="font-bold text-slate-800">{startIndex + 1}</span> - <span className="font-bold text-slate-800">{Math.min(startIndex + itemsPerPage, processedData.length)}</span> dari <span className="font-bold text-slate-800">{processedData.length}</span> baris
                                 </div>
                                 <div className="flex items-center gap-2">
                                     <Button
                                         variant="outline"
                                         size="sm"
-                                        className="h-8 px-3 rounded-lg font-bold"
+                                        className="h-8 px-3 rounded-lg font-bold text-xs"
                                         onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                                         disabled={currentPage === 1}
                                     >
                                         <ChevronLeft className="h-4 w-4 mr-1" />
                                         Sebelumnya
                                     </Button>
-                                    <div className="text-sm font-bold px-3 text-gray-700 min-w-[120px] text-center">
+                                    <div className="text-xs font-bold px-3 text-slate-700 min-w-[120px] text-center">
                                         Halaman {currentPage} dari {totalPages}
                                     </div>
                                     <Button
                                         variant="outline"
                                         size="sm"
-                                        className="h-8 px-3 rounded-lg font-bold"
+                                        className="h-8 px-3 rounded-lg font-bold text-xs"
                                         onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                                         disabled={currentPage === totalPages}
                                     >
@@ -1608,7 +1707,6 @@ export default function RecapPage() {
                     </div>
                 </div>
             </div>
-        </div>
 
             <Dialog open={!!selectedPhotoRecord} onOpenChange={(open) => !open && setSelectedPhotoRecord(null)}>
                 <DialogContent className="sm:max-w-md bg-white rounded-xl p-6 overflow-y-auto max-h-[90vh]">
@@ -1784,6 +1882,7 @@ export default function RecapPage() {
                     </div>
                 </div>
             )}
+        </div>
         </div>
     );
 }

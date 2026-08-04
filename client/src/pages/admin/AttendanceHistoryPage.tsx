@@ -293,6 +293,11 @@ export default function AttendanceHistoryPage() {
         let periodStr = '';
         if (reportType === 'daily') {
             periodStr = format(targetDate, "dd MMMM yyyy", { locale: id }).toUpperCase();
+        } else if (reportType === 'twoDays') {
+            const d2 = addDays(targetDate, 1);
+            periodStr = (targetDate.getMonth() === d2.getMonth() && targetDate.getFullYear() === d2.getFullYear())
+                ? `${format(targetDate, "dd")} - ${format(d2, "dd MMM yyyy", { locale: id })}`.toUpperCase()
+                : `${format(targetDate, "dd MMM")} - ${format(d2, "dd MMM yyyy", { locale: id })}`.toUpperCase();
         } else if (reportType === 'weekly') {
             periodStr = `${format(startDate, "dd MMM")} - ${format(endDate, "dd MMM yyyy", { locale: id })}`.toUpperCase();
         } else if (reportType === 'custom') {
@@ -608,7 +613,10 @@ export default function AttendanceHistoryPage() {
         if (reportType === 'daily') {
             periodStr = format(targetDate, "dd MMMM yyyy", { locale: id }).toUpperCase();
         } else if (reportType === 'twoDays') {
-            periodStr = `${format(targetDate, "dd")} - ${format(addDays(targetDate, 1), "dd MMMM yyyy", { locale: id })}`.toUpperCase();
+            const d2 = addDays(targetDate, 1);
+            periodStr = (targetDate.getMonth() === d2.getMonth() && targetDate.getFullYear() === d2.getFullYear())
+                ? `${format(targetDate, "dd")} - ${format(d2, "dd MMM yyyy", { locale: id })}`.toUpperCase()
+                : `${format(targetDate, "dd MMM")} - ${format(d2, "dd MMM yyyy", { locale: id })}`.toUpperCase();
         } else if (reportType === 'weekly') {
             periodStr = `${format(startDate, "dd MMM")} - ${format(endDate, "dd MMM yyyy", { locale: id })}`.toUpperCase();
         } else if (reportType === 'custom') {
@@ -1356,11 +1364,16 @@ export default function AttendanceHistoryPage() {
                             <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-gray-100" onClick={handlePrev}>
                                 <ChevronLeft className="h-4 w-4" />
                             </Button>
-                            <div className="text-sm font-bold px-2 min-w-[140px] text-center text-gray-700">
+                            <div className="text-sm font-bold px-2 min-w-[160px] text-center text-gray-700">
                                 {reportType === 'daily'
                                     ? format(targetDate, "dd MMM yyyy", { locale: id })
                                     : reportType === 'twoDays'
-                                    ? `${format(targetDate, "dd")} - ${format(addDays(targetDate, 1), "dd MMM yyyy", { locale: id })}`
+                                    ? (() => {
+                                        const d2 = addDays(targetDate, 1);
+                                        return (targetDate.getMonth() === d2.getMonth() && targetDate.getFullYear() === d2.getFullYear())
+                                            ? `${format(targetDate, "dd")} - ${format(d2, "dd MMM yyyy", { locale: id })}`
+                                            : `${format(targetDate, "dd MMM")} - ${format(d2, "dd MMM yyyy", { locale: id })}`;
+                                    })()
                                     : reportType === 'weekly'
                                     ? `${format(startOfWeek(targetDate, { weekStartsOn: 1 }), "dd MMM")} - ${format(endOfWeek(targetDate, { weekStartsOn: 1 }), "dd MMM")}`
                                     : format(targetDate, "MMM yyyy", { locale: id })
