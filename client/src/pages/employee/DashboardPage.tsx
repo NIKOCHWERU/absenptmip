@@ -1254,89 +1254,59 @@ export default function EmployeeDashboard() {
                     </div>
                 </motion.div>
 
-                {/* KARTU PEMBERITAHUAN PENUGASAN LEMBUR (SPL) - PROMINENT TOP BANNER */}
+                {/* KARTU PEMBERITAHUAN PENUGASAN LEMBUR (SPL) - EXACT MOCKUP MATCH */}
                 {!!activeOvertimeToday && activeOvertimeToday.status !== "cancelled" && (
                     <motion.div
                         initial={{ y: 20, opacity: 0 }}
                         animate={{ y: 0, opacity: 1 }}
-                        className="bg-gradient-to-br from-amber-500 via-orange-600 to-amber-600 text-white rounded-3xl p-5 shadow-2xl space-y-3 relative overflow-hidden border-2 border-amber-300 animate-in fade-in zoom-in duration-300"
+                        className="bg-[#fff8f0] rounded-3xl p-5 shadow-xl shadow-orange-950/5 border-2 border-[#fde6d2] space-y-3.5 relative overflow-hidden"
                     >
-                        <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2 font-black text-xs sm:text-sm uppercase tracking-wide">
-                                <span className="bg-white/20 p-1.5 rounded-xl backdrop-blur-md">⚡</span>
-                                <span>PEMBERITAHUAN LEMBUR (SPL)</span>
-                            </div>
-                            {activeOvertimeToday.splNumber && (
-                                <span className="bg-black/20 text-white font-mono text-[10px] font-extrabold px-2.5 py-1 rounded-full border border-white/20">
-                                    📄 {activeOvertimeToday.splNumber}
+                        <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-2">
+                                <FileText className="w-5 h-5 text-orange-600 flex-shrink-0" />
+                                <span className="font-black text-xs text-[#7c2d12] uppercase tracking-wide">
+                                    SURAT PERINTAH LEMBUR (SPL) DITERIMA
                                 </span>
-                            )}
-                        </div>
-
-                        <div className="bg-white/10 backdrop-blur-md rounded-2xl p-3.5 space-y-1.5 text-xs text-amber-50 border border-white/15">
-                            <p className="font-bold text-white text-xs sm:text-sm">
-                                Uraian Tugas: "{activeOvertimeToday.description || 'Surat Perintah Lembur'}"
-                            </p>
-                            <p className="text-[11px] font-medium text-amber-100">
-                                Waktu Lembur: {activeOvertimeToday.startTime ? format(new Date(activeOvertimeToday.startTime), "d MMM yyyy HH:mm", { locale: id }) : "Hari Ini"} WIB
-                            </p>
-                            <p className="text-[11px] font-semibold text-amber-200">
-                                Status Response: <strong className="uppercase underline">{
-                                    activeOvertimeToday.employeeApproval === "approved" ? "Disetujui (Terima Tugas)" :
-                                    activeOvertimeToday.employeeApproval === "rejected" ? "Izin Tidak Lembur" :
-                                    "MENUNGGU KONFIRMASI ANDA"
-                                }</strong>
-                            </p>
-                        </div>
-
-                        {/* Action Buttons Inside Banner */}
-                        {activeOvertimeToday.employeeApproval === "pending" && (
-                            <div className="grid grid-cols-2 gap-2 pt-1">
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    className="h-11 bg-white/20 hover:bg-white/30 text-white border-white/40 font-bold text-xs rounded-xl backdrop-blur-md cursor-pointer"
-                                    onClick={() => setIsRejectOvertimeModalOpen(true)}
-                                >
-                                    ❌ Izin
-                                </Button>
-                                <Button
-                                    type="button"
-                                    className="h-11 bg-white hover:bg-amber-50 text-orange-900 font-black text-xs rounded-xl shadow-lg flex items-center justify-center gap-1.5 cursor-pointer"
-                                    onClick={() => {
-                                        overtimeRespondMutation.mutate({ overtimeId: activeOvertimeToday.id, action: "approve" });
-                                    }}
-                                    disabled={overtimeRespondMutation.isPending}
-                                >
-                                    <Check className="w-4 h-4 text-emerald-600" /> Terima Tugas
-                                </Button>
                             </div>
-                        )}
+                            <span className="bg-[#ea580c] text-white font-extrabold text-[9px] px-2.5 py-1 rounded-full uppercase tracking-wider flex-shrink-0 shadow-sm">
+                                TUGAS DARI ADMIN
+                            </span>
+                        </div>
 
-                        {activeOvertimeToday.employeeApproval === "approved" && activeOvertimeToday.status !== "ongoing" && activeOvertimeToday.status !== "completed" && (
+                        <div className="text-xs space-y-1">
+                            <p className="text-slate-700 font-bold uppercase text-[11px] tracking-wide">
+                                INSTRUKSI TUGAS: <span className="text-slate-900 font-black">"{activeOvertimeToday.description || 'OVERTIME MAINTENANCE RUTIN'}"</span>
+                            </p>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2.5 pt-1">
                             <Button
                                 type="button"
-                                className="w-full h-12 bg-white hover:bg-amber-50 text-orange-900 font-black text-xs rounded-xl shadow-lg flex items-center justify-center gap-2 uppercase tracking-wider cursor-pointer"
-                                onClick={() => setIsOvertimeAlertOpen(true)}
+                                variant="outline"
+                                className="h-12 bg-white hover:bg-orange-50 text-[#c2410c] border-2 border-orange-200 font-black text-xs rounded-2xl flex items-center justify-center gap-1.5 shadow-sm cursor-pointer"
+                                onClick={() => setIsSplNoticePopupOpen(true)}
                             >
-                                <Play className="w-4 h-4 fill-orange-900" /> MULAI LEMBUR SEKARANG
+                                <Eye className="w-4 h-4 text-orange-600" /> LIHAT SURAT SPL
                             </Button>
-                        )}
-
-                        {activeOvertimeToday.status === "ongoing" && (
-                            <div className="space-y-2">
-                                <div className="text-center font-mono font-black text-2xl tracking-wider text-white">
-                                    {formatOvertimeTimer(overtimeTimerSeconds)}
-                                </div>
+                            
+                            {activeOvertimeToday.status === "ongoing" ? (
                                 <Button
                                     type="button"
-                                    className="w-full h-12 bg-red-600 hover:bg-red-700 text-white font-black text-xs rounded-xl shadow-lg flex items-center justify-center gap-2 uppercase cursor-pointer"
+                                    className="h-12 bg-red-600 hover:bg-red-700 text-white font-black text-xs rounded-2xl shadow-md flex items-center justify-center gap-1.5 cursor-pointer"
                                     onClick={() => setIsEndOvertimeModalOpen(true)}
                                 >
                                     <CheckCircle2 className="w-4 h-4" /> SELESAI LEMBUR
                                 </Button>
-                            </div>
-                        )}
+                            ) : (
+                                <Button
+                                    type="button"
+                                    className="h-12 bg-[#ea580c] hover:bg-orange-700 text-white font-black text-xs rounded-2xl shadow-md flex items-center justify-center gap-1.5 tracking-wide cursor-pointer"
+                                    onClick={() => setIsOvertimeAlertOpen(true)}
+                                >
+                                    <Play className="w-4 h-4 fill-white" /> MULAI LEMBUR
+                                </Button>
+                            )}
+                        </div>
                     </motion.div>
                 )}
 
