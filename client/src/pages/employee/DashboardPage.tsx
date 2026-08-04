@@ -1254,7 +1254,91 @@ export default function EmployeeDashboard() {
                     </div>
                 </motion.div>
 
+                {/* KARTU PEMBERITAHUAN PENUGASAN LEMBUR (SPL) - PROMINENT TOP BANNER */}
+                {!!activeOvertimeToday && activeOvertimeToday.status !== "cancelled" && (
+                    <motion.div
+                        initial={{ y: 20, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        className="bg-gradient-to-br from-amber-500 via-orange-600 to-amber-600 text-white rounded-3xl p-5 shadow-2xl space-y-3 relative overflow-hidden border-2 border-amber-300 animate-in fade-in zoom-in duration-300"
+                    >
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2 font-black text-xs sm:text-sm uppercase tracking-wide">
+                                <span className="bg-white/20 p-1.5 rounded-xl backdrop-blur-md">⚡</span>
+                                <span>PEMBERITAHUAN LEMBUR (SPL)</span>
+                            </div>
+                            {activeOvertimeToday.splNumber && (
+                                <span className="bg-black/20 text-white font-mono text-[10px] font-extrabold px-2.5 py-1 rounded-full border border-white/20">
+                                    📄 {activeOvertimeToday.splNumber}
+                                </span>
+                            )}
+                        </div>
 
+                        <div className="bg-white/10 backdrop-blur-md rounded-2xl p-3.5 space-y-1.5 text-xs text-amber-50 border border-white/15">
+                            <p className="font-bold text-white text-xs sm:text-sm">
+                                Uraian Tugas: "{activeOvertimeToday.description || 'Surat Perintah Lembur'}"
+                            </p>
+                            <p className="text-[11px] font-medium text-amber-100">
+                                Waktu Lembur: {activeOvertimeToday.startTime ? format(new Date(activeOvertimeToday.startTime), "d MMM yyyy HH:mm", { locale: id }) : "Hari Ini"} WIB
+                            </p>
+                            <p className="text-[11px] font-semibold text-amber-200">
+                                Status Response: <strong className="uppercase underline">{
+                                    activeOvertimeToday.employeeApproval === "approved" ? "Disetujui (Terima Tugas)" :
+                                    activeOvertimeToday.employeeApproval === "rejected" ? "Izin Tidak Lembur" :
+                                    "MENUNGGU KONFIRMASI ANDA"
+                                }</strong>
+                            </p>
+                        </div>
+
+                        {/* Action Buttons Inside Banner */}
+                        {activeOvertimeToday.employeeApproval === "pending" && (
+                            <div className="grid grid-cols-2 gap-2 pt-1">
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    className="h-11 bg-white/20 hover:bg-white/30 text-white border-white/40 font-bold text-xs rounded-xl backdrop-blur-md cursor-pointer"
+                                    onClick={() => setIsRejectOvertimeModalOpen(true)}
+                                >
+                                    ❌ Izin
+                                </Button>
+                                <Button
+                                    type="button"
+                                    className="h-11 bg-white hover:bg-amber-50 text-orange-900 font-black text-xs rounded-xl shadow-lg flex items-center justify-center gap-1.5 cursor-pointer"
+                                    onClick={() => {
+                                        overtimeRespondMutation.mutate({ overtimeId: activeOvertimeToday.id, action: "approve" });
+                                    }}
+                                    disabled={overtimeRespondMutation.isPending}
+                                >
+                                    <Check className="w-4 h-4 text-emerald-600" /> Terima Tugas
+                                </Button>
+                            </div>
+                        )}
+
+                        {activeOvertimeToday.employeeApproval === "approved" && activeOvertimeToday.status !== "ongoing" && activeOvertimeToday.status !== "completed" && (
+                            <Button
+                                type="button"
+                                className="w-full h-12 bg-white hover:bg-amber-50 text-orange-900 font-black text-xs rounded-xl shadow-lg flex items-center justify-center gap-2 uppercase tracking-wider cursor-pointer"
+                                onClick={() => setIsOvertimeAlertOpen(true)}
+                            >
+                                <Play className="w-4 h-4 fill-orange-900" /> MULAI LEMBUR SEKARANG
+                            </Button>
+                        )}
+
+                        {activeOvertimeToday.status === "ongoing" && (
+                            <div className="space-y-2">
+                                <div className="text-center font-mono font-black text-2xl tracking-wider text-white">
+                                    {formatOvertimeTimer(overtimeTimerSeconds)}
+                                </div>
+                                <Button
+                                    type="button"
+                                    className="w-full h-12 bg-red-600 hover:bg-red-700 text-white font-black text-xs rounded-xl shadow-lg flex items-center justify-center gap-2 uppercase cursor-pointer"
+                                    onClick={() => setIsEndOvertimeModalOpen(true)}
+                                >
+                                    <CheckCircle2 className="w-4 h-4" /> SELESAI LEMBUR
+                                </Button>
+                            </div>
+                        )}
+                    </motion.div>
+                )}
 
                 {/* Timer */}
                 <motion.div
@@ -1345,109 +1429,6 @@ export default function EmployeeDashboard() {
                                 </div>
                             </Button>
                         </div>
-
-                        {/* FITUR LEMBUR DIGITAL - TAMPIL HANYA BILA DITUGASKAN SPL RESMI */}
-                        {!!activeOvertimeToday && activeOvertimeToday.status !== "cancelled" && (
-                            <div className="pt-3 border-t border-slate-200 space-y-2.5 mt-2">
-                                <div className="flex justify-between items-center text-xs font-bold text-slate-800">
-                                    <span className="flex items-center gap-1.5">Lembur ( Overtime )</span>
-                                </div>
-
-                                {/* BILA KARYAWAN DITUGASKAN LEMBUR (STATUS PENDING APPROVAL) */}
-                                {activeOvertimeToday?.employeeApproval === "pending" && (
-                                    <div className="bg-gradient-to-br from-amber-500/10 via-orange-500/10 to-amber-50 border-2 border-orange-400 p-4 rounded-2xl space-y-3 shadow-md">
-                                        <div className="flex items-center gap-2 text-orange-900 font-extrabold text-xs">
-                                            <span className="bg-orange-600 text-white p-1 rounded-lg">⚡</span>
-                                            <span className="uppercase tracking-wide">SURAT PERINTAH LEMBUR (SPL) DITERIMA</span>
-                                        </div>
-                                        <p className="text-xs text-slate-700 font-semibold leading-relaxed">
-                                            Anda menerima penugasan lembur dari Admin. Buka surat SPL untuk melihat detail dan memberikan konfirmasi.
-                                        </p>
-                                        {activeOvertimeToday.splNumber && (
-                                            <div className="font-mono text-[10px] font-bold text-orange-800 bg-orange-100 border border-orange-200 rounded-lg px-2 py-1 w-fit">
-                                                📄 {activeOvertimeToday.splNumber}
-                                            </div>
-                                        )}
-                                        <Button
-                                            type="button"
-                                            className="w-full h-11 bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-black rounded-xl text-xs shadow-md flex items-center justify-center gap-2"
-                                            onClick={() => setIsSplNoticePopupOpen(true)}
-                                        >
-                                            📋 Buka Surat Perintah Lembur (SPL)
-                                        </Button>
-                                    </div>
-                                )}
-
-                                {/* BILA PENUGASAN TELAH DITERIMA (EMPLOYEE APPROVAL = APPROVED, STATUS BELUM ONGOING) */}
-                                {activeOvertimeToday?.employeeApproval === "approved" && activeOvertimeToday?.status !== "ongoing" && activeOvertimeToday?.status !== "completed" && (
-                                    <div className="bg-emerald-50/90 border-2 border-emerald-300 p-4 rounded-2xl space-y-3 shadow-md">
-                                        <div className="flex items-center gap-2 text-emerald-900 font-extrabold text-xs">
-                                            <span className="bg-emerald-600 text-white p-1 rounded-lg">✅</span>
-                                            <span className="uppercase tracking-wide">PENUGASAN LEMBUR DISETUJUI (TERIMA TUGAS)</span>
-                                        </div>
-                                        <p className="text-xs text-slate-700 font-semibold leading-relaxed">
-                                            Anda telah menyetujui penugasan lembur: <strong className="text-emerald-950">{activeOvertimeToday.description || 'Pekerjaan Lembur'}</strong>.
-                                        </p>
-                                        <div className="flex flex-col gap-2 pt-1">
-                                            <Button
-                                                type="button"
-                                                className="w-full h-12 bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-black text-xs rounded-xl shadow-md flex items-center justify-center gap-2 tracking-wide"
-                                                onClick={() => setIsOvertimeAlertOpen(true)}
-                                            >
-                                                <Play className="w-4 h-4 fill-white" /> MULAI LEMBUR
-                                            </Button>
-                                            <Button
-                                                type="button"
-                                                variant="outline"
-                                                className="w-full bg-white border-emerald-300 text-emerald-800 font-bold rounded-xl text-xs h-10 gap-1.5 shadow-sm hover:bg-emerald-100"
-                                                onClick={() => setIsSplViewModalOpen(true)}
-                                            >
-                                                📄 Lihat Surat SPL
-                                            </Button>
-                                        </div>
-                                    </div>
-                                )}
-
-                                {/* BILA BUKAN PENDING & BUKAN APPROVED */}
-                                {activeOvertimeToday?.employeeApproval === "rejected" && (
-                                    <div className="bg-red-50 border border-red-200 p-3 rounded-2xl text-xs text-red-800 space-y-1">
-                                        <span className="font-bold block">Status: Permohonan Izin Tidak Lembur Dikirim</span>
-                                        <p className="italic text-[11px] text-red-600">Alasan: "{activeOvertimeToday.rejectionReason}"</p>
-                                    </div>
-                                )}
-
-                                {activeOvertimeToday?.status === "ongoing" && (
-                                    <div className="bg-orange-50 border-2 border-orange-300 p-4 rounded-2xl space-y-3 text-center shadow-sm">
-                                        <div className="inline-flex items-center gap-1.5 bg-orange-500 text-white px-3 py-1 rounded-full text-xs font-black animate-pulse">
-                                            <Clock className="w-3.5 h-3.5" /> LEMBUR SEDANG BERJALAN
-                                        </div>
-                                        <div className="text-3xl font-black font-mono text-orange-700 tracking-wider">
-                                            {formatOvertimeTimer(overtimeTimerSeconds)}
-                                        </div>
-                                        <p className="text-[11px] text-slate-500 font-medium">
-                                            Mulai Lembur: {activeOvertimeToday.startTime ? format(new Date(activeOvertimeToday.startTime), "HH:mm") : "-"} WIB
-                                        </p>
-                                        <Button
-                                            type="button"
-                                            className="w-full h-12 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl shadow text-sm flex items-center justify-center gap-2"
-                                            onClick={() => setIsEndOvertimeModalOpen(true)}
-                                        >
-                                            <CheckCircle2 className="w-4 h-4" /> SELESAI LEMBUR
-                                        </Button>
-                                    </div>
-                                )}
-
-                                {activeOvertimeToday?.status === "completed" && (
-                                    <div className="bg-emerald-50 border border-emerald-200 p-4 rounded-2xl space-y-1.5 text-xs text-emerald-800">
-                                        <div className="flex items-center gap-2 font-bold text-emerald-900 text-sm">
-                                            <CheckCircle2 className="w-5 h-5 text-emerald-600" /> Lembur Hari Ini Selesai
-                                        </div>
-                                        <p>Mulai: <strong>{activeOvertimeToday.startTime ? format(new Date(activeOvertimeToday.startTime), "HH:mm") : "-"} WIB</strong> &bull; Selesai: <strong>{activeOvertimeToday.endTime ? format(new Date(activeOvertimeToday.endTime), "HH:mm") : "-"} WIB</strong></p>
-                                        <p className="text-[10px] text-emerald-600">Dokumen Perintah &amp; Bukti Lembur tersimpan di database.</p>
-                                    </div>
-                                )}
-                            </div>
-                        )}
                     </div>
                 </motion.div>
 
