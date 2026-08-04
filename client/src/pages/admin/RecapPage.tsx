@@ -442,56 +442,79 @@ export default function RecapPage() {
             });
         } catch (_) { }
 
-        const html = `<!DOCTYPE html>
+const html = `<!DOCTYPE html>
 <html>
 <head>
   <title>${fileName}</title>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; text-transform: uppercase !important; }
-    body { font-family: Arial, Helvetica, sans-serif; font-size: 11px; color: #1e293b; background: white; padding: 28px 36px; }
-    .letterhead { display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px; min-height: 50px; }
-    .logo-img { height: 50px; max-width: 140px; object-fit: contain; flex-shrink: 0; }
-    .company-block { text-align: right; flex-grow: 1; margin-left: 20px; }
-    .company-block h1 { font-size: 22px; font-weight: bold; text-transform: uppercase; margin-bottom: 4px; letter-spacing: 0.5px; }
-    .company-block .alamat { font-size: 12px; font-weight: normal; color: #334155; line-height: 1.4; margin-top: 4px; }
-    .hr-thick { border: none; border-top: 2px solid #cbd5e1; margin: 6px 0 2px; }
-    .hr-thin  { border: none; border-top: 1px solid #e2e8f0; margin-bottom: 18px; }
-    .report-meta { text-align: center; margin-bottom: 20px; }
-    .report-meta h2 { font-size: 16px; font-weight: 900; text-transform: uppercase; letter-spacing: 1.5px; color: #1e293b; }
-    .report-meta .sub { font-size: 10.5px; margin-top: 4px; color: #475569; }
-    table { width: 100%; border-collapse: collapse; font-size: 10.5px; }
-    thead tr { background-color: #f8fafc; }
-    th { color: #374151; font-weight: 700; text-align: left; padding: 8px 8px; font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.4px; border-bottom: 2px solid #1e293b; border-right: 1px solid #e2e8f0; white-space: nowrap; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 11px; color: #0f172a; background: white; padding: 24px 32px; line-height: 1.4; }
+    
+    .letterhead { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+    .logo-img { height: 48px; max-width: 140px; object-fit: contain; }
+    .company-block { text-align: right; }
+    .company-block h1 { font-size: 20px; font-weight: 800; text-transform: uppercase; color: #0f172a; letter-spacing: 0.5px; }
+    .company-block .alamat { font-size: 11px; color: #475569; margin-top: 2px; }
+    
+    .hr-thick { border: none; border-top: 2px solid #0f172a; margin: 8px 0 2px; }
+    .hr-thin  { border: none; border-top: 1px solid #cbd5e1; margin-bottom: 16px; }
+    
+    .report-header { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px 18px; margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+    .report-header h2 { font-size: 16px; font-weight: 800; color: #0f172a; text-transform: uppercase; letter-spacing: 0.5px; }
+    .report-header .meta-sub { font-size: 11px; color: #475569; margin-top: 3px; font-weight: 600; }
+    
+    /* SUMMARY METRICS FOR ADMIN FINANCE */
+    .summary-grid { display: flex; gap: 12px; margin-bottom: 20px; width: 100%; }
+    .summary-card { flex: 1; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px 14px; text-align: left; }
+    .summary-card .title { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; color: #64748b; }
+    .summary-card .value { font-size: 15px; font-weight: 900; margin-top: 4px; }
+    .val-hadir { color: #16a34a; }
+    .val-reguler { color: #1d4ed8; }
+    .val-lembur { color: #ea580c; }
+    .val-telat { color: #d97706; }
+
+    .section-banner { font-size: 12px; font-weight: 800; text-transform: uppercase; color: #0f172a; border-bottom: 2px solid #0f172a; padding-bottom: 4px; margin-top: 22px; margin-bottom: 12px; letter-spacing: 0.5px; }
+
+    table { width: 100%; border-collapse: collapse; font-size: 10.5px; margin-bottom: 16px; }
+    thead tr { background-color: #0f172a; color: #ffffff; }
+    th { color: #ffffff; font-weight: 700; text-align: left; padding: 8px 10px; font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.5px; border: 1px solid #334155; white-space: nowrap; }
     th.c { text-align: center; }
-    td { padding: 7px 8px; border-bottom: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0; vertical-align: middle; white-space: nowrap; }
+    td { padding: 7px 10px; border: 1px solid #cbd5e1; vertical-align: middle; white-space: nowrap; }
     tbody tr:nth-child(even) { background-color: #f8fafc; }
-    .col-no   { text-align: center; color: #94a3b8; font-size: 10px; }
-    .col-date { color: #374151; font-weight: 600; }
-    .col-name { color: #1d4ed8; font-weight: 600; }
-    .col-time { font-family: ui-monospace, Consolas, monospace; font-size: 11px; text-align: center; }
-    .t-in   { color: #15803d; font-weight: 700; }
-    .t-brk  { color: #b45309; font-weight: 700; }
-    .t-out  { color: #b91c1c; font-weight: 700; }
-    .t-dash { color: #94a3b8; }
-    .col-work { font-size: 11px; font-weight: 700; color: #1e293b; }
-    .col-brk  { text-align: center; font-size: 11px; font-weight: 700; color: #ea580c; }
-    .col-stat { text-align: center; font-weight: 700; font-size: 11px; }
-    .st-hadir { color: #16a34a; }
-    .st-telat { color: #ea580c; }
-    .st-sakit { color: #2563eb; }
-    .st-izin  { color: #7c3aed; }
-    .st-cuti  { color: #0d9488; }
-    .st-alpha { color: #dc2626; }
-    .col-note { font-size: 10.5px; color: #475569; white-space: normal; max-width: 200px; }
-    .note-late { color: #dc2626; font-size: 10px; }
-    .note-warn { color: #ca8a04; font-weight: 600; }
-    .signature-section { margin-top: 48px; display: flex; justify-content: center; gap: 100px; padding: 0; }
-    .sig-box { text-align: center; width: 160px; }
-    .sig-label { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px; color: #374151; margin-bottom: 64px; }
-    .sig-name { font-size: 11px; font-weight: 800; border-top: 1.5px solid #374151; padding-top: 6px; text-transform: uppercase; letter-spacing: 0.5px; color: #1e293b; }
-    .footer { margin-top: 18px; font-size: 8.5px; color: #94a3b8; border-top: 1px dashed #cbd5e1; padding-top: 8px; }
+    
+    .col-no   { text-align: center; color: #64748b; font-size: 10px; font-weight: bold; }
+    .col-date { color: #334155; font-weight: 700; }
+    .col-name { color: #0f172a; font-weight: 800; }
+    .col-time { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 11px; text-align: center; font-weight: 700; }
+    
+    .t-in   { color: #15803d; background: #f0fdf4; padding: 2px 6px; border-radius: 4px; border: 1px solid #bbf7d0; }
+    .t-brk  { color: #b45309; background: #fffbeb; padding: 2px 6px; border-radius: 4px; border: 1px solid #fde68a; }
+    .t-out  { color: #b91c1c; background: #fef2f2; padding: 2px 6px; border-radius: 4px; border: 1px solid #fecaca; }
+    .t-dash { color: #cbd5e1; }
+    
+    .col-work { font-size: 11px; font-weight: 800; color: #0f172a; text-align: center; }
+    .col-brk  { text-align: center; font-size: 10.5px; font-weight: 700; color: #d97706; }
+    
+    /* OVERTIME ROW HIGHLIGHT */
+    tr.row-lembur { background-color: #fff7ed !important; }
+    tr.row-lembur td { border-color: #fed7aa; }
+    .badge-lembur { background: #ea580c; color: white; padding: 2px 6px; border-radius: 4px; font-weight: 900; font-size: 9px; letter-spacing: 0.5px; text-transform: uppercase; }
+    
+    .badge-status { padding: 3px 8px; border-radius: 4px; font-weight: 800; font-size: 9.5px; display: inline-block; text-transform: uppercase; }
+    .st-hadir { background: #dcfce7; color: #15803d; border: 1px solid #86efac; }
+    .st-telat { background: #fef3c7; color: #b45309; border: 1px solid #fde047; }
+    .st-sakit { background: #dbeafe; color: #1e40af; border: 1px solid #93c5fd; }
+    .st-izin  { background: #f3e8ff; color: #6b21a8; border: 1px solid #d8b4fe; }
+    .st-cuti  { background: #ccfbf1; color: #115e59; border: 1px solid #5eead4; }
+    .st-alpha { background: #ffe4e6; color: #9f1239; border: 1px solid #fecdd3; }
+    
+    .signature-section { margin-top: 40px; display: flex; justify-content: space-around; padding: 0 20px; page-break-inside: avoid; }
+    .sig-box { text-align: center; width: 180px; }
+    .sig-label { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px; color: #475569; margin-bottom: 56px; }
+    .sig-name { font-size: 11px; font-weight: 800; border-top: 1.5px solid #334155; padding-top: 6px; text-transform: uppercase; color: #0f172a; }
+    .footer { margin-top: 24px; font-size: 9px; color: #94a3b8; border-top: 1px dashed #cbd5e1; padding-top: 8px; text-align: center; }
     .btn-wrap { text-align: center; margin-top: 20px; }
-    .download-btn { display: inline-flex; align-items: center; gap: 8px; background: #1d4ed8; color: #fff; border: none; padding: 10px 28px; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; letter-spacing: 0.5px; text-decoration: none; }
+    .download-btn { display: inline-flex; align-items: center; gap: 8px; background: #0f172a; color: #fff; border: none; padding: 10px 28px; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; letter-spacing: 0.5px; text-decoration: none; }
     @media print {
       body { padding: 12px 16px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       .btn-wrap { display: none !important; }
@@ -504,105 +527,230 @@ export default function RecapPage() {
     ${logoDataUrl ? `<img src="${logoDataUrl}" class="logo-img" alt="Logo" />` : ''}
     <div class="company-block">
       <h1>${namaPt}</h1>
-      ${alamatPt ? `<p class="alamat">${alamatPt}</p>` : `<p class="alamat">Sistem Manajemen Kehadiran Digital</p>`}
+      ${alamatPt ? `<p class="alamat">${alamatPt}</p>` : `<p class="alamat">Sistem Manajemen Kehadiran & Payroll Digital</p>`}
     </div>
   </div>
   <hr class="hr-thick" />
   <hr class="hr-thin" />
-  <div class="report-meta">
-    <h2>Laporan Rekapitulasi Absensi</h2>
-    <p class="sub">Tipe: ${reportType === 'daily' ? 'Harian' : reportType === 'weekly' ? 'Mingguan' : reportType === 'custom' ? 'Kustom' : 'Bulanan'}</p>
-    <p class="sub">Periode: ${format(startDate, "EEEE, d MMMM yyyy", { locale: id })} - ${format(endDate, "EEEE, d MMMM yyyy", { locale: id })}</p>
+  
+  <div class="report-header">
+    <div>
+      <h2>Laporan Rekapitulasi Kehadiran & Lembur (Payroll)</h2>
+      <p class="meta-sub">Periode: <b>${periodStr}</b> (${format(startDate, "dd MMM yyyy", { locale: id })} - ${format(endDate, "dd MMM yyyy", { locale: id })})</p>
+    </div>
+    <div style="text-align:right;">
+      <p class="meta-sub">Tipe Periode: <b>${reportType === 'daily' ? 'Harian' : reportType === 'twoDays' ? '2 Hari (Shift Malam)' : reportType === 'weekly' ? 'Mingguan' : reportType === 'custom' ? 'Kustom' : 'Bulanan'}</b></p>
+      <p class="meta-sub">Dicetak Pada: ${format(new Date(), "dd MMMM yyyy, HH:mm", { locale: id })} WIB</p>
+    </div>
   </div>
+
+  <!-- SUMMARY CARDS FOR ADMIN FINANCE -->
+  ${(() => {
+        const totalHadirCount = processedData.filter(r => r.status === 'present' || r.status === 'late').length;
+        const totalRegulerMins = Array.from(dailyTotals.values()).reduce((sum, d) => sum + (d.mins || 0), 0);
+        const totalOtMins = user?.role === "superadmin"
+            ? (allOvertimes || []).reduce((sum: number, ot: any) => {
+                if (ot.startTime && ot.endTime) {
+                    return sum + Math.round((new Date(ot.endTime).getTime() - new Date(ot.startTime).getTime()) / 60000);
+                }
+                return sum;
+            }, 0)
+            : 0;
+        const totalTelatCount = processedData.filter(r => r.status === 'late').length;
+
+        return `
+    <div class="summary-grid">
+      <div class="summary-card">
+        <div class="title">Total Kehadiran</div>
+        <div class="value val-hadir">${totalHadirCount} Sesi Hadir</div>
+      </div>
+      <div class="summary-card">
+        <div class="title">Total Jam Kerja Reguler</div>
+        <div class="value val-reguler">${formatDuration(totalRegulerMins)}</div>
+      </div>
+      <div class="summary-card">
+        <div class="title">Total Jam Lembur (Overtime)</div>
+        <div class="value val-lembur">${totalOtMins > 0 ? formatDuration(totalOtMins) : '0 Jam'}</div>
+      </div>
+      <div class="summary-card">
+        <div class="title">Total Terlambat</div>
+        <div class="value val-telat">${totalTelatCount} Karyawan</div>
+      </div>
+    </div>
+    `;
+    })()}
+
+  <!-- RINGKASAN PAYROLL PER KARYAWAN -->
+  <div class="section-banner">1. Rekapitulasi Total Jam Kerja & Lembur Per Tenaga Kerja (Admin Finance Summary)</div>
+  <table>
+    <thead>
+      <tr>
+        <th class="c" style="width:36px;">No</th>
+        <th>Nama Tenaga Kerja</th>
+        <th style="width:120px;">NIK / Username</th>
+        <th class="c" style="width:100px;">Jumlah Sesi Hadir</th>
+        <th class="c" style="width:140px;">Total Jam Reguler</th>
+        <th class="c" style="width:140px;">Total Jam Lembur</th>
+        <th>Catatan / Keterlambatan</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${(() => {
+        const usersSummary = new Map<number, { name: string, nik: string, totalMins: number, totalOtMins: number, countHadir: number, lateCount: number }>();
+        const recordsByUser = new Map<number, typeof processedData>();
+        processedData.forEach(r => {
+            if (!recordsByUser.has(r.userId)) recordsByUser.set(r.userId, []);
+            recordsByUser.get(r.userId)!.push(r);
+        });
+
+        recordsByUser.forEach((records, userId) => {
+            const userObj = users?.find(u => u.id === userId);
+            const name = userObj?.fullName || '-';
+            const nik = userObj?.nik || userObj?.username || '-';
+            let totalMins = 0;
+            let totalOtMins = 0;
+            let countHadir = 0;
+            let lateCount = 0;
+
+            const recordsByDay = new Map<string, typeof processedData>();
+            records.forEach(r => {
+                const d = format(new Date(r.date), "yyyy-MM-dd");
+                if (!recordsByDay.has(d)) recordsByDay.set(d, []);
+                recordsByDay.get(d)!.push(r);
+                if (r.status === 'present' || r.status === 'late') countHadir++;
+                if (r.status === 'late') lateCount++;
+            });
+
+            recordsByDay.forEach((dayRecords) => {
+                const hasIn = dayRecords.some(r => r.checkIn);
+                const hasOut = dayRecords.some(r => r.checkOut);
+                if (hasIn && hasOut) {
+                    const { netWorkMins } = calculateDailyTotal(dayRecords);
+                    totalMins += netWorkMins;
+                }
+                if (user?.role === "superadmin") {
+                    dayRecords.forEach(r => {
+                        const ot = allOvertimes?.find(o => o.attendanceId === r.id);
+                        if (ot && ot.startTime && ot.endTime) {
+                            const otMins = Math.round((new Date(ot.endTime).getTime() - new Date(ot.startTime).getTime()) / 60000);
+                            totalOtMins += otMins;
+                        }
+                    });
+                }
+            });
+
+            usersSummary.set(userId, { name, nik, totalMins, totalOtMins, countHadir, lateCount });
+        });
+
+        let idx = 1;
+        return Array.from(usersSummary.values()).map(s => `
+          <tr>
+            <td class="col-no">${idx++}</td>
+            <td class="col-name">${s.name}</td>
+            <td style="font-size:10px;color:#475569;font-weight:600;">${s.nik}</td>
+            <td class="c" style="font-weight:bold;">${s.countHadir} Sesi</td>
+            <td class="c" style="font-weight:bold;color:#1d4ed8;">${s.totalMins > 0 ? formatDuration(s.totalMins) : '-'}</td>
+            <td class="c" style="font-weight:900;color:#ea580c;background:#fff7ed;">${s.totalOtMins > 0 ? formatDuration(s.totalOtMins) : '-'}</td>
+            <td style="font-size:10px;color:#475569;">${s.lateCount > 0 ? `<span style="color:#d97706;font-weight:bold;">Terlambat: ${s.lateCount}x</span>` : 'Tepat Waktu'}</td>
+          </tr>
+        `).join('');
+    })()}
+    </tbody>
+  </table>
+
+  <!-- DETAIL TABEL ABSENSI HARIAN -->
+  <div class="section-banner">2. Rincian Absensi & Lembur Harian Tenaga Kerja</div>
   <table>
     <thead>
       <tr>
         <th class="c" style="width:28px;">No</th>
-        <th style="width:130px;">Hari & Tanggal</th>
+        <th style="width:110px;">Hari & Tanggal</th>
         <th style="width:130px;">Nama Tenaga Kerja</th>
         <th class="c" style="width:62px;">Masuk</th>
         <th class="c" style="width:62px;">Istirahat</th>
         <th class="c" style="width:62px;">Selesai</th>
         <th class="c" style="width:62px;">Pulang</th>
-        <th style="width:80px;">Jam Kerja</th>
-        <th class="c" style="width:80px;">Total Istirahat</th>
-        <th class="c" style="width:62px;">Status</th>
-        <th>Keterangan</th>
+        <th style="width:75px;" class="c">Jam Kerja</th>
+        <th style="width:75px;" class="c">Istirahat</th>
+        <th style="width:65px;" class="c">Status</th>
+        <th>Keterangan / Uraian Lembur</th>
       </tr>
     </thead>
     <tbody>
       ${processedData.map((row, index) => {
-            const dateStr = format(new Date(row.date), "yyyy-MM-dd");
-            const breakMins = calculateDuration(row.breakStart, row.breakEnd);
-            const key = `${dateStr}-${row.userId}`;
-            const dailyEntry = dailyTotals.get(key);
-            const dailyTotalMins = dailyEntry?.mins ?? 0;
-            const prevRow = index > 0 ? processedData[index - 1] : null;
-            const isSameDayAndUser = !!(prevRow && format(new Date(prevRow.date), "yyyy-MM-dd") === dateStr && prevRow.userId === row.userId);
-            const statusLabel = row.status === 'present' ? 'Hadir' : row.status === 'late' ? 'Telat' : row.status === 'sick' ? 'Sakit' : row.status === 'permission' ? 'Izin' : row.status === 'cuti' ? 'Cuti' : row.status === 'absent' ? 'Alpha' : (row.status || '-');
-            const statusClass = row.status === 'present' ? 'st-hadir' : row.status === 'late' ? 'st-telat' : row.status === 'sick' ? 'st-sakit' : row.status === 'permission' ? 'st-izin' : row.status === 'cuti' ? 'st-cuti' : row.status === 'absent' ? 'st-alpha' : '';
-            const inTime = row.checkIn ? format(new Date(row.checkIn), 'HH:mm') : '-';
-            const brkTime = row.breakStart ? format(new Date(row.breakStart), 'HH:mm') : '-';
-            const brkEnd = row.breakEnd ? format(new Date(row.breakEnd), 'HH:mm') : '-';
-            const outTime = row.checkOut ? format(new Date(row.checkOut), 'HH:mm') : '-';
-            const isNoBreak = (inTime !== '-' && outTime !== '-' && brkTime === '-' && brkEnd === '-');
-            const jamKerja = !isSameDayAndUser ? (dailyTotalMins > 0 ? formatDuration(dailyTotalMins) : '-') : '';
-            let keterangan = row.notes ? row.notes : '-';
-            if (!row.checkOut) keterangan = row.notes ? row.notes + ' <br><span class="note-warn">(Belum Pulang)</span>' : '<span class="note-warn">Belum Pulang</span>';
-            else if (isNoBreak) keterangan = row.notes ? row.notes + ' <br><span class="note-warn">(Tanpa Istirahat)</span>' : '<span class="note-warn">Tanpa Istirahat</span>';
-            const lateNote = row.status === 'late' && (row as any).lateReason ? `<br><span class="note-late">[Telat: ${(row as any).lateReason}]</span>` : '';
-            
-            let rowHtml = `<tr>
-          <td class="col-no">${isSameDayAndUser ? '<span style="color:#cbd5e1;">↳</span>' : (index + 1)}</td>
-          <td class="col-date" style="font-size:9.5px;">${isSameDayAndUser ? '' : format(new Date(row.date), 'EEEE, d MMMM yyyy', { locale: id })}</td>
-          <td class="col-name">
-              ${isSameDayAndUser ? '' : `
-                   <div style="line-height:1.2;">
-                      <b style="color:#1d4ed8;font-size:11.5px;">${getUserName(row.userId) || '-'}</b><br/>
-                      ${(row.shift && row.shift.toLowerCase().trim() !== '-' && row.shift.toLowerCase().trim() !== 'management') 
-                          ? `<span style="color:#16a34a;font-size:9px;font-weight:bold;text-transform:uppercase;">${row.shift}</span><br/>` 
-                          : '<span style="color:#94a3b8;font-size:9px;font-style:italic;">Belum Tercatat</span><br/>'}
-                      <span style="color:#64748b;font-size:9px;">NIK: ${users?.find(u => u.id === row.userId)?.nik || users?.find(u => u.id === row.userId)?.username || '-'}</span>
-                  </div>
-              `}
-          </td>
-          <td class="col-time ${inTime === '-' ? 't-dash' : 't-in'}">${inTime}</td>
-          <td class="col-time ${brkTime === '-' ? 't-dash' : 't-brk'}">${brkTime}</td>
-          <td class="col-time ${brkEnd === '-' ? 't-dash' : 't-brk'}">${brkEnd}</td>
-          <td class="col-time ${outTime === '-' ? 't-dash' : 't-out'}">${outTime}</td>
-          <td class="col-work">${jamKerja}</td>
-          <td class="col-brk">${breakMins > 0 ? formatDuration(breakMins) : '-'}</td>
-          <td class="col-stat"><span class="${statusClass}">${statusLabel}</span></td>
-          <td class="col-note">${keterangan}${lateNote}</td>
-        </tr>`;
+        const dateStr = format(new Date(row.date), "yyyy-MM-dd");
+        const breakMins = calculateDuration(row.breakStart, row.breakEnd);
+        const key = `${dateStr}-${row.userId}`;
+        const dailyEntry = dailyTotals.get(key);
+        const dailyTotalMins = dailyEntry?.mins ?? 0;
+        const prevRow = index > 0 ? processedData[index - 1] : null;
+        const isSameDayAndUser = !!(prevRow && format(new Date(prevRow.date), "yyyy-MM-dd") === dateStr && prevRow.userId === row.userId);
+        const statusLabel = row.status === 'present' ? 'Hadir' : row.status === 'late' ? 'Telat' : row.status === 'sick' ? 'Sakit' : row.status === 'permission' ? 'Izin' : row.status === 'cuti' ? 'Cuti' : row.status === 'absent' ? 'Alpha' : (row.status || '-');
+        const statusClass = row.status === 'present' ? 'st-hadir' : row.status === 'late' ? 'st-telat' : row.status === 'sick' ? 'st-sakit' : row.status === 'permission' ? 'st-izin' : row.status === 'cuti' ? 'st-cuti' : row.status === 'absent' ? 'st-alpha' : '';
+        const inTime = row.checkIn ? format(new Date(row.checkIn), 'HH:mm') : '-';
+        const brkTime = row.breakStart ? format(new Date(row.breakStart), 'HH:mm') : '-';
+        const brkEnd = row.breakEnd ? format(new Date(row.breakEnd), 'HH:mm') : '-';
+        const outTime = row.checkOut ? format(new Date(row.checkOut), 'HH:mm') : '-';
+        const isNoBreak = (inTime !== '-' && outTime !== '-' && brkTime === '-' && brkEnd === '-');
+        const jamKerja = !isSameDayAndUser ? (dailyTotalMins > 0 ? formatDuration(dailyTotalMins) : '-') : '';
+        let keterangan = row.notes ? row.notes : '-';
+        if (!row.checkOut) keterangan = row.notes ? row.notes + ' <br><span style="color:#d97706;font-weight:bold;">(Belum Pulang)</span>' : '<span style="color:#d97706;font-weight:bold;">Belum Pulang</span>';
+        else if (isNoBreak) keterangan = row.notes ? row.notes + ' <br><span style="color:#d97706;font-weight:bold;">(Tanpa Istirahat)</span>' : '<span style="color:#d97706;font-weight:bold;">Tanpa Istirahat</span>';
+        const lateNote = row.status === 'late' && (row as any).lateReason ? `<br><span style="color:#dc2626;font-size:9.5px;">[Telat: ${(row as any).lateReason}]</span>` : '';
+        
+        let rowHtml = `<tr>
+      <td class="col-no">${isSameDayAndUser ? '↳' : (index + 1)}</td>
+      <td class="col-date" style="font-size:9.5px;">${isSameDayAndUser ? '' : format(new Date(row.date), 'EEEE, d MMM yyyy', { locale: id })}</td>
+      <td class="col-name">
+          ${isSameDayAndUser ? '' : `
+               <div style="line-height:1.2;">
+                  <b style="color:#0f172a;font-size:11px;">${getUserName(row.userId) || '-'}</b><br/>
+                  ${(row.shift && row.shift.toLowerCase().trim() !== '-' && row.shift.toLowerCase().trim() !== 'management') 
+                      ? `<span style="color:#16a34a;font-size:8.5px;font-weight:bold;text-transform:uppercase;background:#f0fdf4;padding:1px 4px;border-radius:3px;">${row.shift}</span><br/>` 
+                      : ''}
+                  <span style="color:#64748b;font-size:8.5px;">NIK: ${users?.find(u => u.id === row.userId)?.nik || users?.find(u => u.id === row.userId)?.username || '-'}</span>
+              </div>
+          `}
+      </td>
+      <td class="col-time">${inTime !== '-' ? `<span class="t-in">${inTime}</span>` : '<span class="t-dash">-</span>'}</td>
+      <td class="col-time">${brkTime !== '-' ? `<span class="t-brk">${brkTime}</span>` : '<span class="t-dash">-</span>'}</td>
+      <td class="col-time">${brkEnd !== '-' ? `<span class="t-brk">${brkEnd}</span>` : '<span class="t-dash">-</span>'}</td>
+      <td class="col-time">${outTime !== '-' ? `<span class="t-out">${outTime}</span>` : '<span class="t-dash">-</span>'}</td>
+      <td class="col-work">${jamKerja}</td>
+      <td class="col-brk">${breakMins > 0 ? formatDuration(breakMins) : '-'}</td>
+      <td class="col-stat"><span class="badge-status ${statusClass}">${statusLabel}</span></td>
+      <td style="font-size:10px;color:#334155;white-space:normal;max-width:200px;">${keterangan}${lateNote}</td>
+    </tr>`;
 
-            // Baris Lembur jika Super Admin & ada lembur di record ini
-            if (user?.role === "superadmin") {
-                const ot = allOvertimes?.find(o => o.attendanceId === row.id);
-                if (ot) {
-                    const otStart = ot.startTime ? format(new Date(ot.startTime), "HH:mm") : "-";
-                    const otEnd = ot.endTime ? format(new Date(ot.endTime), "HH:mm") : (ot.status === "ongoing" ? "Berlangsung" : "-");
-                    const otMins = (ot.startTime && ot.endTime) ? Math.round((new Date(ot.endTime).getTime() - new Date(ot.startTime).getTime()) / 60000) : 0;
-                    rowHtml += `<tr style="background-color: #fff7ed;">
-                      <td class="col-no"><span style="color:#ea580c;font-weight:bold;">↳</span></td>
-                      <td class="col-date" style="font-size:9.5px;color:#c2410c;font-weight:bold;">LEMBUR (OVERTIME)</td>
-                      <td class="col-name"><span style="color:#ea580c;font-weight:bold;font-size:10px;">⚡ ${getUserName(row.userId) || '-'}</span></td>
-                      <td class="col-time" style="color:#c2410c;font-weight:bold;">${otStart}</td>
-                      <td class="col-time t-dash">-</td>
-                      <td class="col-time t-dash">-</td>
-                      <td class="col-time" style="color:#c2410c;font-weight:bold;">${otEnd}</td>
-                      <td class="col-work" style="color:#9a3412;font-weight:bold;">${otMins > 0 ? formatDuration(otMins) : 'Berlangsung'}</td>
-                      <td class="col-brk">-</td>
-                      <td class="col-stat"><span style="background:#ffedd5;color:#c2410c;padding:2px 6px;border-radius:4px;font-weight:bold;font-size:9px;">LEMBUR</span></td>
-                      <td class="col-note" style="color:#9a3412;font-style:italic;">${ot.description || 'Pekerjaan Lembur'}</td>
-                    </tr>`;
-                }
+        // Baris Lembur jika Super Admin & ada lembur di record ini
+        if (user?.role === "superadmin") {
+            const ot = allOvertimes?.find(o => o.attendanceId === row.id);
+            if (ot) {
+                const otStart = ot.startTime ? format(new Date(ot.startTime), "HH:mm") : "-";
+                const otEnd = ot.endTime ? format(new Date(ot.endTime), "HH:mm") : (ot.status === "ongoing" ? "Berlangsung" : "-");
+                const otMins = (ot.startTime && ot.endTime) ? Math.round((new Date(ot.endTime).getTime() - new Date(ot.startTime).getTime()) / 60000) : 0;
+                rowHtml += `<tr class="row-lembur">
+                  <td class="col-no"><span style="color:#ea580c;font-weight:bold;">↳</span></td>
+                  <td class="col-date" style="font-size:9.5px;color:#c2410c;font-weight:bold;">LEMBUR (OVERTIME)</td>
+                  <td class="col-name"><span class="badge-lembur">⚡ LEMBUR</span> <b style="color:#0f172a;font-size:10.5px;margin-left:4px;">${getUserName(row.userId) || '-'}</b></td>
+                  <td class="col-time" style="color:#c2410c;font-weight:bold;background:#fff7ed;padding:2px 6px;border-radius:4px;border:1px solid #fed7aa;">${otStart}</td>
+                  <td class="col-time t-dash">-</td>
+                  <td class="col-time t-dash">-</td>
+                  <td class="col-time" style="color:#c2410c;font-weight:bold;background:#fff7ed;padding:2px 6px;border-radius:4px;border:1px solid #fed7aa;">${otEnd}</td>
+                  <td class="col-work" style="color:#ea580c;font-weight:900;">${otMins > 0 ? formatDuration(otMins) : 'Berlangsung'}</td>
+                  <td class="col-brk">-</td>
+                  <td class="col-stat"><span style="background:#ea580c;color:white;padding:2px 6px;border-radius:4px;font-weight:bold;font-size:8.5px;">LEMBUR</span></td>
+                  <td style="color:#ea580c;font-weight:600;font-style:italic;font-size:10px;">${ot.description || 'Pekerjaan Lembur'}</td>
+                </tr>`;
             }
+        }
 
-            return rowHtml;
-        }).join('')}
+        return rowHtml;
+    }).join('')}
     </tbody>
   </table>
+
+  <!-- RINGKASAN TOTAL JAM KERJA -->
   ${(() => {
                 const usersSummary = new Map<number, { name: string, totalMins: number, totalOtMins: number, breakdown: string[] }>();
                 const recordsByUser = new Map<number, typeof processedData>();
@@ -610,26 +758,32 @@ export default function RecapPage() {
                     if (!recordsByUser.has(r.userId)) recordsByUser.set(r.userId, []);
                     recordsByUser.get(r.userId)!.push(r);
                 });
+
                 recordsByUser.forEach((records, userId) => {
-                    const name = getUserName(userId) || '-';
-                    const userSummary = { name, totalMins: 0, totalOtMins: 0, breakdown: [] as string[] };
+                    const userObj = users?.find(u => u.id === userId);
+                    const userSummary = {
+                        name: userObj?.fullName || '-',
+                        totalMins: 0,
+                        totalOtMins: 0,
+                        breakdown: [] as string[]
+                    };
+
                     const recordsByDay = new Map<string, typeof processedData>();
                     records.forEach(r => {
                         const d = format(new Date(r.date), "yyyy-MM-dd");
                         if (!recordsByDay.has(d)) recordsByDay.set(d, []);
                         recordsByDay.get(d)!.push(r);
                     });
-                    const days = Array.from(recordsByDay.keys()).sort();
-                    days.forEach(day => {
-                        const dayRecords = recordsByDay.get(day)!;
+
+                    recordsByDay.forEach((dayRecords, dateStr) => {
                         const hasIn = dayRecords.some(r => r.checkIn);
                         const hasOut = dayRecords.some(r => r.checkOut);
-                        const dateStr = format(new Date(day), "EEEE, d MMMM yyyy", { locale: id });
+                        const firstIn = dayRecords.find(r => r.checkIn)?.checkIn;
+                        const lastOut = dayRecords.find(r => r.checkOut)?.checkOut;
+
                         if (hasIn && hasOut) {
                             const { netWorkMins } = calculateDailyTotal(dayRecords);
                             userSummary.totalMins += netWorkMins;
-                            const firstIn = dayRecords.map(r => r.checkIn).filter(Boolean).sort()[0];
-                            const lastOut = dayRecords.map(r => r.checkOut).filter(Boolean).sort().reverse()[0];
                             const totalBreakMins = dayRecords.reduce((sum, r) => sum + (r.breakStart && r.breakEnd ? calculateDuration(r.breakStart, r.breakEnd) : 0), 0);
                             const brkStr = totalBreakMins > 0 ? formatDuration(totalBreakMins) : `0 jam (Tanpa Istirahat)`;
                             userSummary.breakdown.push(`<span style="color:#1e293b;font-weight:600;">${dateStr}</span> : Kerja jam ${format(new Date(firstIn!), "HH.mm")} - ${format(new Date(lastOut!), "HH.mm")} istirahat ${brkStr} (Total: ${formatDuration(netWorkMins)})`);
@@ -682,11 +836,13 @@ export default function RecapPage() {
                 return sumHtml;
             })()}
   <div class="signature-section">
-    <div class="sig-box"><p class="sig-label">Checked By</p><div class="sig-name">NIKO</div></div>
-    <div class="sig-box"><p class="sig-label">Approved By</p><div class="sig-name">CLAVERINA</div></div>
+    <div class="sig-box"><p class="sig-label">Dibuat Oleh (Payroll Admin)</p><div class="sig-name">NIKO</div></div>
+    <div class="sig-box"><p class="sig-label">Diperiksa Oleh (HRD / Supervisor)</p><div class="sig-name">CLAVERINA</div></div>
+    <div class="sig-box"><p class="sig-label">Disetujui Oleh (Management)</p><div class="sig-name">DIREKTUR</div></div>
   </div>
-  <div class="footer">Dokumen ini dicetak secara otomatis oleh Sistem Absensi ${namaPt.toUpperCase()} &mdash; ${format(new Date(), "d MMMM yyyy, HH:mm", { locale: id })} WIB</div>
-  <div class="btn-wrap"><a id="dl-btn" class="download-btn" href="#">&#11015;&nbsp; Download File</a></div>
+  
+  <div class="footer">Laporan ini dibuat otomatis oleh Sistem Absensi & Payroll ${namaPt.toUpperCase()} &mdash; Hak Cipta dilindungi Undang-Undang.</div>
+  <div class="btn-wrap"><a id="dl-btn" class="download-btn" href="#">&#11015;&nbsp; Download File HTML Laporan Payroll</a></div>
   <script>
     var _fn = "${fileName}";
     document.title = _fn;
@@ -756,49 +912,72 @@ export default function RecapPage() {
 <html>
 <head>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; text-transform: uppercase !important; }
-    body { font-family: Arial, Helvetica, sans-serif; font-size: 11px; color: #1e293b; background: white; padding: 20px 24px; }
-    .letterhead { display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px; min-height: 50px; }
-    .logo-img { height: 50px; max-width: 140px; object-fit: contain; flex-shrink: 0; }
-    .company-block { text-align: right; flex-grow: 1; margin-left: 20px; }
-    .company-block h1 { font-size: 22px; font-weight: bold; text-transform: uppercase; margin-bottom: 4px; letter-spacing: 0.5px; }
-    .company-block .alamat { font-size: 12px; font-weight: normal; color: #334155; line-height: 1.4; margin-top: 4px; }
-    .hr-thick { border: none; border-top: 2px solid #cbd5e1; margin: 6px 0 2px; }
-    .hr-thin  { border: none; border-top: 1px solid #e2e8f0; margin-bottom: 18px; }
-    .report-meta { text-align: center; margin-bottom: 20px; }
-    .report-meta h2 { font-size: 16px; font-weight: 900; text-transform: uppercase; letter-spacing: 1.5px; color: #1e293b; }
-    .report-meta .sub { font-size: 10.5px; margin-top: 4px; color: #475569; }
-    table { width: 100%; border-collapse: collapse; font-size: 10.5px; }
-    thead tr { background-color: #f8fafc; }
-    th { color: #374151; font-weight: 700; text-align: left; padding: 8px 8px; font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.4px; border-bottom: 2px solid #1e293b; border-right: 1px solid #e2e8f0; white-space: nowrap; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 11px; color: #0f172a; background: white; padding: 20px 24px; line-height: 1.4; }
+    
+    .letterhead { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+    .logo-img { height: 48px; max-width: 140px; object-fit: contain; }
+    .company-block { text-align: right; }
+    .company-block h1 { font-size: 20px; font-weight: 800; text-transform: uppercase; color: #0f172a; letter-spacing: 0.5px; }
+    .company-block .alamat { font-size: 11px; color: #475569; margin-top: 2px; }
+    
+    .hr-thick { border: none; border-top: 2px solid #0f172a; margin: 8px 0 2px; }
+    .hr-thin  { border: none; border-top: 1px solid #cbd5e1; margin-bottom: 16px; }
+    
+    .report-header { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px 18px; margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+    .report-header h2 { font-size: 16px; font-weight: 800; color: #0f172a; text-transform: uppercase; letter-spacing: 0.5px; }
+    .report-header .meta-sub { font-size: 11px; color: #475569; margin-top: 3px; font-weight: 600; }
+    
+    /* SUMMARY METRICS FOR ADMIN FINANCE */
+    .summary-grid { display: flex; gap: 12px; margin-bottom: 20px; width: 100%; }
+    .summary-card { flex: 1; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px 14px; text-align: left; }
+    .summary-card .title { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; color: #64748b; }
+    .summary-card .value { font-size: 15px; font-weight: 900; margin-top: 4px; }
+    .val-hadir { color: #16a34a; }
+    .val-reguler { color: #1d4ed8; }
+    .val-lembur { color: #ea580c; }
+    .val-telat { color: #d97706; }
+
+    .section-banner { font-size: 12px; font-weight: 800; text-transform: uppercase; color: #0f172a; border-bottom: 2px solid #0f172a; padding-bottom: 4px; margin-top: 22px; margin-bottom: 12px; letter-spacing: 0.5px; }
+
+    table { width: 100%; border-collapse: collapse; font-size: 10.5px; margin-bottom: 16px; }
+    thead tr { background-color: #0f172a; color: #ffffff; }
+    th { color: #ffffff; font-weight: 700; text-align: left; padding: 8px 10px; font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.5px; border: 1px solid #334155; white-space: nowrap; }
     th.c { text-align: center; }
-    td { padding: 7px 8px; border-bottom: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0; vertical-align: middle; white-space: nowrap; }
+    td { padding: 7px 10px; border: 1px solid #cbd5e1; vertical-align: middle; white-space: nowrap; }
     tbody tr:nth-child(even) { background-color: #f8fafc; }
-    .col-no   { text-align: center; color: #94a3b8; font-size: 10px; }
-    .col-date { color: #374151; font-weight: 600; }
-    .col-name { color: #1d4ed8; font-weight: 600; }
-    .col-time { font-family: ui-monospace, Consolas, monospace; font-size: 11px; text-align: center; }
-    .t-in   { color: #15803d; font-weight: 700; }
-    .t-brk  { color: #b45309; font-weight: 700; }
-    .t-out  { color: #b91c1c; font-weight: 700; }
-    .t-dash { color: #94a3b8; }
-    .col-work { font-size: 11px; font-weight: 700; color: #1e293b; }
-    .col-brk  { text-align: center; font-size: 11px; font-weight: 700; color: #ea580c; }
-    .col-stat { text-align: center; font-weight: 700; font-size: 11px; }
-    .st-hadir { color: #16a34a; }
-    .st-telat { color: #ea580c; }
-    .st-sakit { color: #2563eb; }
-    .st-izin  { color: #7c3aed; }
-    .st-cuti  { color: #0d9488; }
-    .st-alpha { color: #dc2626; }
-    .col-note { font-size: 10.5px; color: #475569; white-space: normal; max-width: 200px; }
-    .note-late { color: #dc2626; font-size: 10px; }
-    .note-warn { color: #ca8a04; font-weight: 600; }
-    .signature-section { margin-top: 48px; display: flex; justify-content: center; gap: 100px; padding: 0; }
-    .sig-box { text-align: center; width: 160px; }
-    .sig-label { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px; color: #374151; margin-bottom: 64px; }
-    .sig-name { font-size: 11px; font-weight: 800; border-top: 1.5px solid #374151; padding-top: 6px; text-transform: uppercase; letter-spacing: 0.5px; color: #1e293b; }
-    .footer { margin-top: 18px; font-size: 8.5px; color: #94a3b8; border-top: 1px dashed #cbd5e1; padding-top: 8px; }
+    
+    .col-no   { text-align: center; color: #64748b; font-size: 10px; font-weight: bold; }
+    .col-date { color: #334155; font-weight: 700; }
+    .col-name { color: #0f172a; font-weight: 800; }
+    .col-time { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 11px; text-align: center; font-weight: 700; }
+    
+    .t-in   { color: #15803d; background: #f0fdf4; padding: 2px 6px; border-radius: 4px; border: 1px solid #bbf7d0; }
+    .t-brk  { color: #b45309; background: #fffbeb; padding: 2px 6px; border-radius: 4px; border: 1px solid #fde68a; }
+    .t-out  { color: #b91c1c; background: #fef2f2; padding: 2px 6px; border-radius: 4px; border: 1px solid #fecaca; }
+    .t-dash { color: #cbd5e1; }
+    
+    .col-work { font-size: 11px; font-weight: 800; color: #0f172a; text-align: center; }
+    .col-brk  { text-align: center; font-size: 10.5px; font-weight: 700; color: #d97706; }
+    
+    /* OVERTIME ROW HIGHLIGHT */
+    tr.row-lembur { background-color: #fff7ed !important; }
+    tr.row-lembur td { border-color: #fed7aa; }
+    .badge-lembur { background: #ea580c; color: white; padding: 2px 6px; border-radius: 4px; font-weight: 900; font-size: 9px; letter-spacing: 0.5px; text-transform: uppercase; }
+    
+    .badge-status { padding: 3px 8px; border-radius: 4px; font-weight: 800; font-size: 9.5px; display: inline-block; text-transform: uppercase; }
+    .st-hadir { background: #dcfce7; color: #15803d; border: 1px solid #86efac; }
+    .st-telat { background: #fef3c7; color: #b45309; border: 1px solid #fde047; }
+    .st-sakit { background: #dbeafe; color: #1e40af; border: 1px solid #93c5fd; }
+    .st-izin  { background: #f3e8ff; color: #6b21a8; border: 1px solid #d8b4fe; }
+    .st-cuti  { background: #ccfbf1; color: #115e59; border: 1px solid #5eead4; }
+    .st-alpha { background: #ffe4e6; color: #9f1239; border: 1px solid #fecdd3; }
+    
+    .signature-section { margin-top: 40px; display: flex; justify-content: space-around; padding: 0 20px; page-break-inside: avoid; }
+    .sig-box { text-align: center; width: 180px; }
+    .sig-label { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px; color: #475569; margin-bottom: 56px; }
+    .sig-name { font-size: 11px; font-weight: 800; border-top: 1.5px solid #334155; padding-top: 6px; text-transform: uppercase; color: #0f172a; }
+    .footer { margin-top: 24px; font-size: 9px; color: #94a3b8; border-top: 1px dashed #cbd5e1; padding-top: 8px; text-align: center; }
   </style>
 </head>
 <body>
@@ -806,186 +985,236 @@ export default function RecapPage() {
     ${logoDataUrl ? `<img src="${logoDataUrl}" class="logo-img" alt="Logo" />` : ''}
     <div class="company-block">
       <h1>${namaPt}</h1>
-      ${alamatPt ? `<p class="alamat">${alamatPt}</p>` : `<p class="alamat">Sistem Manajemen Kehadiran Digital</p>`}
+      ${alamatPt ? `<p class="alamat">${alamatPt}</p>` : `<p class="alamat">Sistem Manajemen Kehadiran & Payroll Digital</p>`}
     </div>
   </div>
   <hr class="hr-thick" />
   <hr class="hr-thin" />
-  <div class="report-meta">
-    <h2>Laporan Rekapitulasi Absensi</h2>
-    <p class="sub">Tipe: ${reportType === 'daily' ? 'Harian' : reportType === 'weekly' ? 'Mingguan' : reportType === 'custom' ? 'Kustom' : 'Bulanan'}</p>
-    <p class="sub">Periode: ${format(startDate, "EEEE, d MMMM yyyy", { locale: id })} - ${format(endDate, "EEEE, d MMMM yyyy", { locale: id })}</p>
+  
+  <div class="report-header">
+    <div>
+      <h2>Laporan Rekapitulasi Kehadiran & Lembur (Payroll)</h2>
+      <p class="meta-sub">Periode: <b>${periodStr}</b> (${format(startDate, "dd MMM yyyy", { locale: id })} - ${format(endDate, "dd MMM yyyy", { locale: id })})</p>
+    </div>
+    <div style="text-align:right;">
+      <p class="meta-sub">Tipe Periode: <b>${reportType === 'daily' ? 'Harian' : reportType === 'twoDays' ? '2 Hari (Shift Malam)' : reportType === 'weekly' ? 'Mingguan' : reportType === 'custom' ? 'Kustom' : 'Bulanan'}</b></p>
+      <p class="meta-sub">Dicetak Pada: ${format(new Date(), "dd MMMM yyyy, HH:mm", { locale: id })} WIB</p>
+    </div>
   </div>
+
+  <!-- SUMMARY CARDS FOR ADMIN FINANCE -->
+  ${(() => {
+        const totalHadirCount = processedData.filter(r => r.status === 'present' || r.status === 'late').length;
+        const totalRegulerMins = Array.from(dailyTotals.values()).reduce((sum, d) => sum + (d.mins || 0), 0);
+        const totalOtMins = user?.role === "superadmin"
+            ? (allOvertimes || []).reduce((sum: number, ot: any) => {
+                if (ot.startTime && ot.endTime) {
+                    return sum + Math.round((new Date(ot.endTime).getTime() - new Date(ot.startTime).getTime()) / 60000);
+                }
+                return sum;
+            }, 0)
+            : 0;
+        const totalTelatCount = processedData.filter(r => r.status === 'late').length;
+
+        return `
+    <div class="summary-grid">
+      <div class="summary-card">
+        <div class="title">Total Kehadiran</div>
+        <div class="value val-hadir">${totalHadirCount} Sesi Hadir</div>
+      </div>
+      <div class="summary-card">
+        <div class="title">Total Jam Kerja Reguler</div>
+        <div class="value val-reguler">${formatDuration(totalRegulerMins)}</div>
+      </div>
+      <div class="summary-card">
+        <div class="title">Total Jam Lembur (Overtime)</div>
+        <div class="value val-lembur">${totalOtMins > 0 ? formatDuration(totalOtMins) : '0 Jam'}</div>
+      </div>
+      <div class="summary-card">
+        <div class="title">Total Terlambat</div>
+        <div class="value val-telat">${totalTelatCount} Karyawan</div>
+      </div>
+    </div>
+    `;
+    })()}
+
+  <!-- RINGKASAN PAYROLL PER KARYAWAN -->
+  <div class="section-banner">1. Rekapitulasi Total Jam Kerja & Lembur Per Tenaga Kerja (Admin Finance Summary)</div>
   <table>
     <thead>
       <tr>
-        <th class="c" style="width:28px;">No</th>
-        <th style="width:130px;">Hari & Tanggal</th>
-        <th style="width:130px;">Nama Tenaga Kerja</th>
-        <th class="c" style="width:62px;">Masuk</th>
-        <th class="c" style="width:62px;">Istirahat</th>
-        <th class="c" style="width:62px;">Selesai</th>
-        <th class="c" style="width:62px;">Pulang</th>
-        <th style="width:80px;">Jam Kerja</th>
-        <th class="c" style="width:80px;">Total Istirahat</th>
-        <th class="c" style="width:62px;">Status</th>
-        <th>Keterangan</th>
+        <th class="c" style="width:36px;">No</th>
+        <th>Nama Tenaga Kerja</th>
+        <th style="width:120px;">NIK / Username</th>
+        <th class="c" style="width:100px;">Jumlah Sesi Hadir</th>
+        <th class="c" style="width:140px;">Total Jam Reguler</th>
+        <th class="c" style="width:140px;">Total Jam Lembur</th>
+        <th>Catatan / Keterlambatan</th>
       </tr>
     </thead>
     <tbody>
-      ${processedData.map((row, index) => {
-            const dateStr = format(new Date(row.date), "yyyy-MM-dd");
-            const breakMins = calculateDuration(row.breakStart, row.breakEnd);
-            const key = `${dateStr}-${row.userId}`;
-            const dailyEntry = dailyTotals.get(key);
-            const dailyTotalMins = dailyEntry?.mins ?? 0;
-            const prevRow = index > 0 ? processedData[index - 1] : null;
-            const isSameDayAndUser = !!(prevRow && format(new Date(prevRow.date), "yyyy-MM-dd") === dateStr && prevRow.userId === row.userId);
-            const statusLabel = row.status === 'present' ? 'Hadir' : row.status === 'late' ? 'Telat' : row.status === 'sick' ? 'Sakit' : row.status === 'permission' ? 'Izin' : row.status === 'cuti' ? 'Cuti' : row.status === 'absent' ? 'Alpha' : (row.status || '-');
-            const statusClass = row.status === 'present' ? 'st-hadir' : row.status === 'late' ? 'st-telat' : row.status === 'sick' ? 'st-sakit' : row.status === 'permission' ? 'st-izin' : row.status === 'cuti' ? 'st-cuti' : row.status === 'absent' ? 'st-alpha' : '';
-            const inTime = row.checkIn ? format(new Date(row.checkIn), 'HH:mm') : '-';
-            const brkTime = row.breakStart ? format(new Date(row.breakStart), 'HH:mm') : '-';
-            const brkEnd = row.breakEnd ? format(new Date(row.breakEnd), 'HH:mm') : '-';
-            const outTime = row.checkOut ? format(new Date(row.checkOut), 'HH:mm') : '-';
-            const isNoBreak = (inTime !== '-' && outTime !== '-' && brkTime === '-' && brkEnd === '-');
-            const jamKerja = !isSameDayAndUser ? (dailyTotalMins > 0 ? formatDuration(dailyTotalMins) : '-') : '';
-            let keterangan = row.notes ? row.notes : '-';
-            if (!row.checkOut) keterangan = row.notes ? row.notes + ' <br><span class="note-warn">(Belum Pulang)</span>' : '<span class="note-warn">Belum Pulang</span>';
-            else if (isNoBreak) keterangan = row.notes ? row.notes + ' <br><span class="note-warn">(Tanpa Istirahat)</span>' : '<span class="note-warn">Tanpa Istirahat</span>';
-            const lateNote = row.status === 'late' && (row as any).lateReason ? `<br><span class="note-late">[Telat: ${(row as any).lateReason}]</span>` : '';
-            
-            let rowHtml = `<tr>
-          <td class="col-no">${isSameDayAndUser ? '<span style="color:#cbd5e1;">↳</span>' : (index + 1)}</td>
-          <td class="col-date" style="font-size:9.5px;">${isSameDayAndUser ? '' : format(new Date(row.date), 'EEEE, d MMMM yyyy', { locale: id })}</td>
-          <td class="col-name">
-              ${isSameDayAndUser ? '' : `
-                   <div style="line-height:1.2;">
-                      <b style="color:#1d4ed8;font-size:11.5px;">${getUserName(row.userId) || '-'}</b><br/>
-                      ${(row.shift && row.shift.toLowerCase().trim() !== '-' && row.shift.toLowerCase().trim() !== 'management') 
-                          ? `<span style="color:#16a34a;font-size:9px;font-weight:bold;text-transform:uppercase;">${row.shift}</span><br/>` 
-                          : '<span style="color:#94a3b8;font-size:9px;font-style:italic;">Belum Tercatat</span><br/>'}
-                      <span style="color:#64748b;font-size:9px;">NIK: ${users?.find(u => u.id === row.userId)?.nik || users?.find(u => u.id === row.userId)?.username || '-'}</span>
-                  </div>
-              `}
-          </td>
-          <td class="col-time ${inTime === '-' ? 't-dash' : 't-in'}">${inTime}</td>
-          <td class="col-time ${brkTime === '-' ? 't-dash' : 't-brk'}">${brkTime}</td>
-          <td class="col-time ${brkEnd === '-' ? 't-dash' : 't-brk'}">${brkEnd}</td>
-          <td class="col-time ${outTime === '-' ? 't-dash' : 't-out'}">${outTime}</td>
-          <td class="col-work">${jamKerja}</td>
-          <td class="col-brk">${breakMins > 0 ? formatDuration(breakMins) : '-'}</td>
-          <td class="col-stat"><span class="${statusClass}">${statusLabel}</span></td>
-          <td class="col-note">${keterangan}${lateNote}</td>
-        </tr>`;
-
-            if (user?.role === "superadmin") {
-                const ot = allOvertimes?.find(o => o.attendanceId === row.id);
-                if (ot) {
-                    const otStart = ot.startTime ? format(new Date(ot.startTime), "HH:mm") : "-";
-                    const otEnd = ot.endTime ? format(new Date(ot.endTime), "HH:mm") : (ot.status === "ongoing" ? "Berlangsung" : "-");
-                    const otMins = (ot.startTime && ot.endTime) ? Math.round((new Date(ot.endTime).getTime() - new Date(ot.startTime).getTime()) / 60000) : 0;
-                    rowHtml += `<tr style="background-color: #fff7ed;">
-                      <td class="col-no"><span style="color:#ea580c;font-weight:bold;">↳</span></td>
-                      <td class="col-date" style="font-size:9.5px;color:#c2410c;font-weight:bold;">LEMBUR (OVERTIME)</td>
-                      <td class="col-name"><span style="color:#ea580c;font-weight:bold;font-size:10px;">⚡ ${getUserName(row.userId) || '-'}</span></td>
-                      <td class="col-time" style="color:#c2410c;font-weight:bold;">${otStart}</td>
-                      <td class="col-time t-dash">-</td>
-                      <td class="col-time t-dash">-</td>
-                      <td class="col-time" style="color:#c2410c;font-weight:bold;">${otEnd}</td>
-                      <td class="col-work" style="color:#9a3412;font-weight:bold;">${otMins > 0 ? formatDuration(otMins) : 'Berlangsung'}</td>
-                      <td class="col-brk">-</td>
-                      <td class="col-stat"><span style="background:#ffedd5;color:#c2410c;padding:2px 6px;border-radius:4px;font-weight:bold;font-size:9px;">LEMBUR</span></td>
-                      <td class="col-note" style="color:#9a3412;font-style:italic;">${ot.description || 'Pekerjaan Lembur'}</td>
-                    </tr>`;
-                }
-            }
-
-            return rowHtml;
-        }).join('')}
-    </tbody>
-  </table>
-  ${(() => {
-        const usersSummary = new Map<number, { name: string, totalMins: number, totalOtMins: number, breakdown: string[] }>();
+      ${(() => {
+        const usersSummary = new Map<number, { name: string, nik: string, totalMins: number, totalOtMins: number, countHadir: number, lateCount: number }>();
         const recordsByUser = new Map<number, typeof processedData>();
         processedData.forEach(r => {
             if (!recordsByUser.has(r.userId)) recordsByUser.set(r.userId, []);
             recordsByUser.get(r.userId)!.push(r);
         });
 
-        recordsByUser.forEach((userRecords, userId) => {
-            const empName = getUserName(userId);
-            const userSummary = { name: empName, totalMins: 0, totalOtMins: 0, breakdown: [] as string[] };
-            const recordsByDate = new Map<string, typeof userRecords>();
-            userRecords.forEach(r => {
-                const dateStr = format(new Date(r.date), "dd/MM/yyyy");
-                if (!recordsByDate.has(dateStr)) recordsByDate.set(dateStr, []);
-                recordsByDate.get(dateStr)!.push(r);
+        recordsByUser.forEach((records, userId) => {
+            const userObj = users?.find(u => u.id === userId);
+            const name = userObj?.fullName || '-';
+            const nik = userObj?.nik || userObj?.username || '-';
+            let totalMins = 0;
+            let totalOtMins = 0;
+            let countHadir = 0;
+            let lateCount = 0;
+
+            const recordsByDay = new Map<string, typeof processedData>();
+            records.forEach(r => {
+                const d = format(new Date(r.date), "yyyy-MM-dd");
+                if (!recordsByDay.has(d)) recordsByDay.set(d, []);
+                recordsByDay.get(d)!.push(r);
+                if (r.status === 'present' || r.status === 'late') countHadir++;
+                if (r.status === 'late') lateCount++;
             });
 
-            recordsByDate.forEach((dayRecords, dateStr) => {
+            recordsByDay.forEach((dayRecords) => {
                 const hasIn = dayRecords.some(r => r.checkIn);
                 const hasOut = dayRecords.some(r => r.checkOut);
                 if (hasIn && hasOut) {
                     const { netWorkMins } = calculateDailyTotal(dayRecords);
-                    userSummary.totalMins += netWorkMins;
-                    const firstIn = dayRecords.map(r => r.checkIn).filter(Boolean).sort()[0];
-                    const lastOut = dayRecords.map(r => r.checkOut).filter(Boolean).sort().reverse()[0];
-                    const totalBreakMins = dayRecords.reduce((sum, r) => sum + (r.breakStart && r.breakEnd ? calculateDuration(r.breakStart, r.breakEnd) : 0), 0);
-                    const brkStr = totalBreakMins > 0 ? formatDuration(totalBreakMins) : `0 jam (Tanpa Istirahat)`;
-                    userSummary.breakdown.push(`<span style="color:#1e293b;font-weight:600;">${dateStr}</span> : Kerja jam ${format(new Date(firstIn!), "HH.mm")} - ${format(new Date(lastOut!), "HH.mm")} istirahat ${brkStr} (Total: ${formatDuration(netWorkMins)})`);
-                } else {
-                    userSummary.breakdown.push(`<span style="color:#dc2626;font-weight:600;">${dateStr}</span> : <span style="color:#b91c1c;">Absensi belum lengkap</span>`);
+                    totalMins += netWorkMins;
                 }
-
                 if (user?.role === "superadmin") {
                     dayRecords.forEach(r => {
                         const ot = allOvertimes?.find(o => o.attendanceId === r.id);
                         if (ot && ot.startTime && ot.endTime) {
                             const otMins = Math.round((new Date(ot.endTime).getTime() - new Date(ot.startTime).getTime()) / 60000);
-                            userSummary.totalOtMins += otMins;
-                            userSummary.breakdown.push(`<span style="color:#c2410c;font-weight:700;">↳ Lembur ( Overtime ) ${dateStr}</span> : ${format(new Date(ot.startTime), "HH.mm")} - ${format(new Date(ot.endTime), "HH.mm")} (${formatDuration(otMins)}) - ${ot.description || 'Pekerjaan Lembur'}`);
+                            totalOtMins += otMins;
                         }
                     });
                 }
             });
-            usersSummary.set(userId, userSummary);
+
+            usersSummary.set(userId, { name, nik, totalMins, totalOtMins, countHadir, lateCount });
         });
 
-        let sumHtml = `<div style="page-break-before: always; padding-top: 20px;">
-      <div class="report-meta">
-        <h2>Rekapitulasi Total Jam Kerja</h2>
-        <p class="sub">Periode: ${periodStr}</p>
-      </div>
-      <table>
-        <thead>
+        let idx = 1;
+        return Array.from(usersSummary.values()).map(s => `
           <tr>
-            <th class="c" style="width:40px;">No</th>
-            <th style="width:180px;">Nama Tenaga Kerja</th>
-            <th class="c" style="width:120px;">Total Jam Kerja</th>
-            <th>Rincian Harian</th>
+            <td class="col-no">${idx++}</td>
+            <td class="col-name">${s.name}</td>
+            <td style="font-size:10px;color:#475569;font-weight:600;">${s.nik}</td>
+            <td class="c" style="font-weight:bold;">${s.countHadir} Sesi</td>
+            <td class="c" style="font-weight:bold;color:#1d4ed8;">${s.totalMins > 0 ? formatDuration(s.totalMins) : '-'}</td>
+            <td class="c" style="font-weight:900;color:#ea580c;background:#fff7ed;">${s.totalOtMins > 0 ? formatDuration(s.totalOtMins) : '-'}</td>
+            <td style="font-size:10px;color:#475569;">${s.lateCount > 0 ? `<span style="color:#d97706;font-weight:bold;">Terlambat: ${s.lateCount}x</span>` : 'Tepat Waktu'}</td>
           </tr>
-        </thead>
-        <tbody>`;
-        let sumIdx = 1;
-        usersSummary.forEach((summary) => {
-            const totalJamStr = summary.totalOtMins > 0 
-                ? `Reguler: ${formatDuration(summary.totalMins)}<br/><span style="color:#c2410c;">Lembur: ${formatDuration(summary.totalOtMins)}</span>`
-                : (summary.totalMins > 0 ? formatDuration(summary.totalMins) : "-");
-            sumHtml += `<tr>
-            <td class="col-no">${sumIdx++}</td>
-            <td class="col-name">${summary.name}</td>
-            <td class="c" style="font-weight:bold;font-size:11px;line-height:1.4;">${totalJamStr}</td>
-            <td style="font-size:10.5px;line-height:1.6;padding-bottom:12px;padding-top:12px;white-space:normal;">${summary.breakdown.join('<br>')}</td>
-          </tr>`;
-        });
-        sumHtml += `</tbody></table></div>`;
-        return sumHtml;
+        `).join('');
     })()}
+    </tbody>
+  </table>
+
+  <!-- DETAIL TABEL ABSENSI HARIAN -->
+  <div class="section-banner">2. Rincian Absensi & Lembur Harian Tenaga Kerja</div>
+  <table>
+    <thead>
+      <tr>
+        <th class="c" style="width:28px;">No</th>
+        <th style="width:110px;">Hari & Tanggal</th>
+        <th style="width:130px;">Nama Tenaga Kerja</th>
+        <th class="c" style="width:62px;">Masuk</th>
+        <th class="c" style="width:62px;">Istirahat</th>
+        <th class="c" style="width:62px;">Selesai</th>
+        <th class="c" style="width:62px;">Pulang</th>
+        <th style="width:75px;" class="c">Jam Kerja</th>
+        <th style="width:75px;" class="c">Istirahat</th>
+        <th style="width:65px;" class="c">Status</th>
+        <th>Keterangan / Uraian Lembur</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${processedData.map((row, index) => {
+        const dateStr = format(new Date(row.date), "yyyy-MM-dd");
+        const breakMins = calculateDuration(row.breakStart, row.breakEnd);
+        const key = `${dateStr}-${row.userId}`;
+        const dailyEntry = dailyTotals.get(key);
+        const dailyTotalMins = dailyEntry?.mins ?? 0;
+        const prevRow = index > 0 ? processedData[index - 1] : null;
+        const isSameDayAndUser = !!(prevRow && format(new Date(prevRow.date), "yyyy-MM-dd") === dateStr && prevRow.userId === row.userId);
+        const statusLabel = row.status === 'present' ? 'Hadir' : row.status === 'late' ? 'Telat' : row.status === 'sick' ? 'Sakit' : row.status === 'permission' ? 'Izin' : row.status === 'cuti' ? 'Cuti' : row.status === 'absent' ? 'Alpha' : (row.status || '-');
+        const statusClass = row.status === 'present' ? 'st-hadir' : row.status === 'late' ? 'st-telat' : row.status === 'sick' ? 'st-sakit' : row.status === 'permission' ? 'st-izin' : row.status === 'cuti' ? 'st-cuti' : row.status === 'absent' ? 'st-alpha' : '';
+        const inTime = row.checkIn ? format(new Date(row.checkIn), 'HH:mm') : '-';
+        const brkTime = row.breakStart ? format(new Date(row.breakStart), 'HH:mm') : '-';
+        const brkEnd = row.breakEnd ? format(new Date(row.breakEnd), 'HH:mm') : '-';
+        const outTime = row.checkOut ? format(new Date(row.checkOut), 'HH:mm') : '-';
+        const isNoBreak = (inTime !== '-' && outTime !== '-' && brkTime === '-' && brkEnd === '-');
+        const jamKerja = !isSameDayAndUser ? (dailyTotalMins > 0 ? formatDuration(dailyTotalMins) : '-') : '';
+        let keterangan = row.notes ? row.notes : '-';
+        if (!row.checkOut) keterangan = row.notes ? row.notes + ' <br><span style="color:#d97706;font-weight:bold;">(Belum Pulang)</span>' : '<span style="color:#d97706;font-weight:bold;">Belum Pulang</span>';
+        else if (isNoBreak) keterangan = row.notes ? row.notes + ' <br><span style="color:#d97706;font-weight:bold;">(Tanpa Istirahat)</span>' : '<span style="color:#d97706;font-weight:bold;">Tanpa Istirahat</span>';
+        const lateNote = row.status === 'late' && (row as any).lateReason ? `<br><span style="color:#dc2626;font-size:9.5px;">[Telat: ${(row as any).lateReason}]</span>` : '';
+        
+        let rowHtml = `<tr>
+      <td class="col-no">${isSameDayAndUser ? '↳' : (index + 1)}</td>
+      <td class="col-date" style="font-size:9.5px;">${isSameDayAndUser ? '' : format(new Date(row.date), 'EEEE, d MMM yyyy', { locale: id })}</td>
+      <td class="col-name">
+          ${isSameDayAndUser ? '' : `
+               <div style="line-height:1.2;">
+                  <b style="color:#0f172a;font-size:11px;">${getUserName(row.userId) || '-'}</b><br/>
+                  ${(row.shift && row.shift.toLowerCase().trim() !== '-' && row.shift.toLowerCase().trim() !== 'management') 
+                      ? `<span style="color:#16a34a;font-size:8.5px;font-weight:bold;text-transform:uppercase;background:#f0fdf4;padding:1px 4px;border-radius:3px;">${row.shift}</span><br/>` 
+                      : ''}
+                  <span style="color:#64748b;font-size:8.5px;">NIK: ${users?.find(u => u.id === row.userId)?.nik || users?.find(u => u.id === row.userId)?.username || '-'}</span>
+              </div>
+          `}
+      </td>
+      <td class="col-time">${inTime !== '-' ? `<span class="t-in">${inTime}</span>` : '<span class="t-dash">-</span>'}</td>
+      <td class="col-time">${brkTime !== '-' ? `<span class="t-brk">${brkTime}</span>` : '<span class="t-dash">-</span>'}</td>
+      <td class="col-time">${brkEnd !== '-' ? `<span class="t-brk">${brkEnd}</span>` : '<span class="t-dash">-</span>'}</td>
+      <td class="col-time">${outTime !== '-' ? `<span class="t-out">${outTime}</span>` : '<span class="t-dash">-</span>'}</td>
+      <td class="col-work">${jamKerja}</td>
+      <td class="col-brk">${breakMins > 0 ? formatDuration(breakMins) : '-'}</td>
+      <td class="col-stat"><span class="badge-status ${statusClass}">${statusLabel}</span></td>
+      <td style="font-size:10px;color:#334155;white-space:normal;max-width:200px;">${keterangan}${lateNote}</td>
+    </tr>`;
+
+        // Baris Lembur jika Super Admin & ada lembur di record ini
+        if (user?.role === "superadmin") {
+            const ot = allOvertimes?.find(o => o.attendanceId === row.id);
+            if (ot) {
+                const otStart = ot.startTime ? format(new Date(ot.startTime), "HH:mm") : "-";
+                const otEnd = ot.endTime ? format(new Date(ot.endTime), "HH:mm") : (ot.status === "ongoing" ? "Berlangsung" : "-");
+                const otMins = (ot.startTime && ot.endTime) ? Math.round((new Date(ot.endTime).getTime() - new Date(ot.startTime).getTime()) / 60000) : 0;
+                rowHtml += `<tr class="row-lembur">
+                  <td class="col-no"><span style="color:#ea580c;font-weight:bold;">↳</span></td>
+                  <td class="col-date" style="font-size:9.5px;color:#c2410c;font-weight:bold;">LEMBUR (OVERTIME)</td>
+                  <td class="col-name"><span class="badge-lembur">⚡ LEMBUR</span> <b style="color:#0f172a;font-size:10.5px;margin-left:4px;">${getUserName(row.userId) || '-'}</b></td>
+                  <td class="col-time" style="color:#c2410c;font-weight:bold;background:#fff7ed;padding:2px 6px;border-radius:4px;border:1px solid #fed7aa;">${otStart}</td>
+                  <td class="col-time t-dash">-</td>
+                  <td class="col-time t-dash">-</td>
+                  <td class="col-time" style="color:#c2410c;font-weight:bold;background:#fff7ed;padding:2px 6px;border-radius:4px;border:1px solid #fed7aa;">${otEnd}</td>
+                  <td class="col-work" style="color:#ea580c;font-weight:900;">${otMins > 0 ? formatDuration(otMins) : 'Berlangsung'}</td>
+                  <td class="col-brk">-</td>
+                  <td class="col-stat"><span style="background:#ea580c;color:white;padding:2px 6px;border-radius:4px;font-weight:bold;font-size:8.5px;">LEMBUR</span></td>
+                  <td style="color:#ea580c;font-weight:600;font-style:italic;font-size:10px;">${ot.description || 'Pekerjaan Lembur'}</td>
+                </tr>`;
+            }
+        }
+
+        return rowHtml;
+    }).join('')}
+    </tbody>
+  </table>
+
   <div class="signature-section">
-    <div class="sig-box"><p class="sig-label">Checked By</p><div class="sig-name">NIKO</div></div>
-    <div class="sig-box"><p class="sig-label">Approved By</p><div class="sig-name">CLAVERINA</div></div>
+    <div class="sig-box"><p class="sig-label">Dibuat Oleh (Payroll Admin)</p><div class="sig-name">NIKO</div></div>
+    <div class="sig-box"><p class="sig-label">Diperiksa Oleh (HRD / Supervisor)</p><div class="sig-name">CLAVERINA</div></div>
+    <div class="sig-box"><p class="sig-label">Disetujui Oleh (Management)</p><div class="sig-name">DIREKTUR</div></div>
   </div>
-  <div class="footer">Dokumen ini dicetak secara otomatis oleh Sistem Absensi ${namaPt.toUpperCase()} &mdash; ${format(new Date(), "d MMMM yyyy, HH:mm", { locale: id })} WIB</div>
+  
+  <div class="footer">Laporan ini dibuat otomatis oleh Sistem Absensi & Payroll ${namaPt.toUpperCase()} &mdash; Hak Cipta dilindungi Undang-Undang.</div>
 </body>
 </html>`;
 
