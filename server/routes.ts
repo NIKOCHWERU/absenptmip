@@ -1637,10 +1637,10 @@ export function registerRoutes(app: Express) {
         splUrl = await processSingleUpload(req.file, "overtimeSPL", targetUser[0].fullName);
       }
 
-      const startDateObj = new Date(`${date}T${startTime}:00`);
+      const startDateObj = new Date(`${date}T${startTime}:00+07:00`);
       let endDateObj: Date | null = null;
       if (endTime) {
-        let tempEnd = new Date(`${date}T${endTime}:00`);
+        let tempEnd = new Date(`${date}T${endTime}:00+07:00`);
         if (tempEnd < startDateObj) {
           // End time is on the next day (e.g. 23:00 to 02:00 next day)
           tempEnd.setDate(tempEnd.getDate() + 1);

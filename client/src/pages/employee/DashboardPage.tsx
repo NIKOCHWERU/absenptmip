@@ -1297,6 +1297,14 @@ export default function EmployeeDashboard() {
                                 >
                                     <CheckCircle2 className="w-4 h-4" /> SELESAI LEMBUR
                                 </Button>
+                            ) : activeOvertimeToday.employeeApproval === "pending" ? (
+                                <Button
+                                    type="button"
+                                    className="h-12 bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-black text-xs rounded-2xl shadow-md flex items-center justify-center gap-1.5 tracking-wide cursor-pointer animate-pulse"
+                                    onClick={() => setIsSplNoticePopupOpen(true)}
+                                >
+                                    <Check className="w-4 h-4 text-white" /> KONFIRMASI SPL
+                                </Button>
                             ) : (
                                 <Button
                                     type="button"
