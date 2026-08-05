@@ -448,15 +448,19 @@ export default function AdminOvertimePage() {
                                 ? "text-emerald-700 bg-emerald-50 border-emerald-200"
                                 : req.status === "cancelled"
                                 ? "text-gray-500 bg-gray-50 border-gray-200"
-                                : "text-orange-700 bg-orange-50 border-orange-200"
+                                : req.status === "ongoing"
+                                ? "text-orange-700 bg-orange-50 border-orange-200"
+                                : "text-amber-700 bg-amber-50 border-amber-200"
                             }`}
                           >
                             {req.status === "completed" ? (
                               <><ShieldCheck className="w-3 h-3 text-emerald-600" /> Selesai & Verified</>
                             ) : req.status === "cancelled" ? (
                               <><X className="w-3 h-3 text-gray-500" /> Dibatalkan</>
+                            ) : req.status === "ongoing" ? (
+                              <><Zap className="w-3 h-3 text-orange-600" /> Sedang Berlangsung</>
                             ) : (
-                              <><Clock className="w-3 h-3 text-orange-600" /> Sedang Berlangsung</>
+                              <><Clock className="w-3 h-3 text-amber-600" /> Belum Dimulai</>
                             )}
                           </span>
                         </td>
