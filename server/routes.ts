@@ -117,82 +117,17 @@ const storage = multer.diskStorage({
 const upload = multer({ storage });
 
 async function autoCloseExpiredSessions(userId: number) {
-  try {
-    const activeSessions = await db
-      .select({
-         attendance: attendance,
-         shift: shifts
-      })
-      .from(attendance)
-      .leftJoin(shifts, eq(attendance.shiftId, shifts.id))
-      .where(and(
-        eq(attendance.userId, userId),
-        isNotNull(attendance.checkIn),
-        isNull(attendance.checkOut)
-      ));
-
-    if (activeSessions.length === 0) return;
-
-    const now = new Date();
-
-    for (const row of activeSessions) {
-      const session = row.attendance;
-      const shift = row.shift;
-      
-      const checkOutTimeStr = shift?.checkOutTime || "17:00";
-      const [hh, mm] = checkOutTimeStr.split(":").map(Number);
-      
-      let year, month, dateNum;
-      if (typeof session.date === 'string') {
-        const parts = (session.date as string).split("-");
-        year = Number(parts[0]);
-        month = Number(parts[1]) - 1;
-        dateNum = Number(parts[2]);
-      } else {
-        const d = session.date as Date;
-        year = d.getFullYear();
-        month = d.getMonth();
-        dateNum = d.getDate();
-      }
-
-      // Force WIB (+07:00) timezone to prevent VPS server's local timezone from offsetting the clock
-      const isoString = `${year}-${String(month + 1).padStart(2, '0')}-${String(dateNum).padStart(2, '0')}T${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}:00+07:00`;
-      const checkOutDate = new Date(isoString);
-
-      const checkInTimeStr = shift?.checkInTime || "08:00";
-      const [inHh] = checkInTimeStr.split(":").map(Number);
-      if (hh < inHh) {
-         checkOutDate.setDate(checkOutDate.getDate() + 1);
-      }
-
-      // Deadline is + 10 mins
-      const deadlineDate = new Date(checkOutDate.getTime() + 10 * 60 * 1000);
-
-      if (now > deadlineDate) {
-        // If there's an ongoing overtime, skip auto-checkout (or do it but don't mess up overtime)
-        const activeOvertime = await db.select().from(overtimes).where(and(eq(overtimes.attendanceId, session.id), eq(overtimes.status, "ongoing")));
-        if (activeOvertime.length > 0) {
-           continue; // Already handled by overtime
-        }
-
-        const newNotes = session.notes ? `${session.notes} (Otomatis absen pulang oleh sistem)` : "(Otomatis absen pulang oleh sistem)";
-        await db.update(attendance)
-          .set({
-            checkOut: checkOutDate, 
-            notes: newNotes,
-          })
-          .where(eq(attendance.id, session.id));
-      }
-    }
-  } catch (e) {
-    console.error("Auto close expired sessions error:", e);
-  }
+  // Pulang Otomatis dinonaktifkan total (Karyawan wajib absen pulang secara manual)
+  return;
 }
 
 export function getAdminDate(): string {
   const now = new Date();
   const jakartaTime = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Jakarta" }));
-  if (jakartaTime.getHours() < 1) {
+  const hours = jakartaTime.getHours();
+  const minutes = jakartaTime.getMinutes();
+  // Reset sesi harian setelah jam 04.30 Pagi WIB
+  if (hours < 4 || (hours === 4 && minutes < 30)) {
     jakartaTime.setDate(jakartaTime.getDate() - 1);
   }
   const y = jakartaTime.getFullYear();

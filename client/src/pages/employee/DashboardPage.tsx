@@ -289,8 +289,9 @@ export default function EmployeeDashboard() {
     const [isSubmittingRejection, setIsSubmittingRejection] = useState(false);
 
     useEffect(() => {
-        // Auto-open SPL notice popup setiap kali ada penugasan pending
+        // Auto-open formal SPL view modal popup setiap kali ada penugasan pending
         if (activeOvertimeToday && (activeOvertimeToday.employeeApproval === "pending" || activeOvertimeToday.status === "pending")) {
+            setIsSplViewModalOpen(true);
             setIsSplNoticePopupOpen(true);
             setHasAutoOpenedSplNotice(true);
         }
@@ -2234,24 +2235,29 @@ export default function EmployeeDashboard() {
                         </div>
                     )}
 
-                    <div className="pt-3 border-t border-slate-100 flex flex-col gap-2">
+                    <div className="pt-3 border-t border-slate-100 grid grid-cols-2 gap-2">
                         <Button
                             type="button"
-                            className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-2xl h-12 gap-1.5 shadow"
+                            variant="outline"
+                            className="h-12 bg-red-50 hover:bg-red-100 text-red-700 border-red-200 font-bold text-xs rounded-2xl flex items-center justify-center gap-1.5 cursor-pointer"
+                            onClick={() => {
+                                setIsSplViewModalOpen(false);
+                                setIsRejectOvertimeModalOpen(true);
+                            }}
+                            disabled={overtimeRespondMutation.isPending}
+                        >
+                            <X className="w-4 h-4" /> Izin Tidak Lembur
+                        </Button>
+                        <Button
+                            type="button"
+                            className="h-12 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-2xl flex items-center justify-center gap-1.5 shadow cursor-pointer"
                             onClick={() => {
                                 setIsSplViewModalOpen(false);
                                 overtimeRespondMutation.mutate({ overtimeId: activeOvertimeToday.id, action: "approve" });
                             }}
+                            disabled={overtimeRespondMutation.isPending}
                         >
-                            <Check className="w-4 h-4" /> Terima Tugas Lembur
-                        </Button>
-                        <Button
-                            type="button"
-                            variant="outline"
-                            className="w-full rounded-2xl text-xs font-bold px-4 h-11 border-slate-300 text-slate-700"
-                            onClick={() => setIsSplViewModalOpen(false)}
-                        >
-                            Tutup
+                            <Check className="w-4 h-4" /> Terima Tugas
                         </Button>
                     </div>
                 </DialogContent>
