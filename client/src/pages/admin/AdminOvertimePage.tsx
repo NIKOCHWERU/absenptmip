@@ -107,6 +107,7 @@ export default function AdminOvertimePage() {
   const [assignEndTime, setAssignEndTime] = useState<string>("20:30");
   const [assignTask, setAssignTask] = useState<string>("");
   const [assignSplFile, setAssignSplFile] = useState<File | null>(null);
+  const [isAssigningAll, setIsAssigningAll] = useState(false);
 
   // Sorting State
   const [sortField, setSortField] = useState<string>("createdAt");
@@ -120,38 +121,55 @@ export default function AdminOvertimePage() {
     setIsAssignModalOpen(true);
   };
 
-  // Mutation Penugasan Lembur
+  // Mutation Penugasan Lembur (single atau semua karyawan)
   const assignMutation = useMutation({
     mutationFn: async () => {
-      const formData = new FormData();
-      formData.append("userId", assignUserId);
-      formData.append("date", assignDate);
-      formData.append("startTime", assignStartTime);
-      formData.append("endTime", assignEndTime);
-      formData.append("description", assignTask);
-      if (assignSplFile) {
-        formData.append("splFile", assignSplFile);
-      }
+      const targetUserIds = assignUserId === "all"
+        ? employeeUsers.map(u => String(u.id))
+        : [assignUserId];
 
-      const res = await fetch("/api/admin/overtimes/assign", {
-        method: "POST",
-        body: formData,
-      });
+      // Kirim satu per satu ke semua karyawan yang dipilih
+      const results = await Promise.allSettled(
+        targetUserIds.map(async (uid) => {
+          const formData = new FormData();
+          formData.append("userId", uid);
+          formData.append("date", assignDate);
+          formData.append("startTime", assignStartTime);
+          formData.append("endTime", assignEndTime);
+          formData.append("description", assignTask);
+          if (assignSplFile) {
+            formData.append("splFile", assignSplFile);
+          }
+          const res = await fetch("/api/admin/overtimes/assign", {
+            method: "POST",
+            body: formData,
+          });
+          if (!res.ok) {
+            const err = await res.json();
+            throw new Error(err.message || "Gagal mengirim penugasan lembur");
+          }
+          return res.json();
+        })
+      );
 
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.message || "Gagal mengirim penugasan lembur");
+      const failed = results.filter(r => r.status === "rejected");
+      if (failed.length > 0 && failed.length === results.length) {
+        throw new Error("Semua pengiriman penugasan gagal");
       }
-      return res.json();
+      return results;
     },
-    onSuccess: () => {
+    onSuccess: (results: any[]) => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/overtimes"] });
       setIsAssignModalOpen(false);
       setAssignTask("");
       setAssignSplFile(null);
+      const successCount = results.filter((r: any) => r.status === "fulfilled").length;
+      const totalCount = results.length;
       toast({
         title: "Penugasan Lembur Dikirim!",
-        description: "Surat Perintah Lembur (SPL) telah terkirim. Karyawan akan menerima notifikasi untuk menyetujui.",
+        description: successCount === totalCount
+          ? `SPL berhasil dikirim ke ${successCount} karyawan. Mereka akan menerima notifikasi pop-up untuk menyetujui.`
+          : `SPL dikirim ke ${successCount} dari ${totalCount} karyawan.`,
       });
     },
     onError: (err: any) => {
@@ -513,6 +531,11 @@ export default function AdminOvertimePage() {
                   <SelectValue placeholder="Pilih Karyawan" />
                 </SelectTrigger>
                 <SelectContent className="rounded-xl">
+                  {/* Opsi SEMUA KARYAWAN */}
+                  <SelectItem value="all">
+                    <span className="font-black text-orange-700">👥 SEMUA KARYAWAN ({employeeUsers.length} orang)</span>
+                  </SelectItem>
+                  <div className="border-t border-gray-100 my-1" />
                   {employeeUsers.map(u => (
                     <SelectItem key={u.id} value={String(u.id)}>
                       {u.fullName} (NIK: {u.nik || u.username})
