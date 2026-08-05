@@ -1412,7 +1412,9 @@ export function registerRoutes(app: Express) {
         return res.json(null);
       }
 
-      // Priority 1: Pending SPL assignment needing response
+      const adminDate = getAdminDate();
+
+      // Priority 1: Pending SPL assignment needing response for today's date
       const pendingOvertimes = await db
         .select({
           id: overtimes.id,
@@ -1439,6 +1441,7 @@ export function registerRoutes(app: Express) {
         .where(
           and(
             eq(attendance.userId, userId),
+            eq(attendance.date, adminDate),
             ne(overtimes.status, "cancelled"),
             or(
               eq(overtimes.employeeApproval, "pending"),
@@ -1453,7 +1456,7 @@ export function registerRoutes(app: Express) {
       let result: any = pendingOvertimes[0] || null;
 
       if (!result) {
-        // Priority 2: Active overtime (ongoing or approved)
+        // Priority 2: Active overtime (ongoing or approved for today)
         const activeOvertimes = await db
           .select({
             id: overtimes.id,
@@ -1480,6 +1483,10 @@ export function registerRoutes(app: Express) {
           .where(
             and(
               eq(attendance.userId, userId),
+              or(
+                eq(attendance.date, adminDate),
+                eq(overtimes.status, "ongoing")
+              ),
               ne(overtimes.status, "cancelled")
             )
           )

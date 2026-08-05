@@ -269,6 +269,18 @@ export default function EmployeeDashboard() {
     const [isOffDayOpen, setIsOffDayOpen] = useState(false);
     const [selectedShiftId, setSelectedShiftId] = useState<number | null>(null);
 
+    // Safe date formatting helper to prevent uncaught RangeError crash
+    const safeFormatDate = (dateVal: any, formatStr: string, options?: any) => {
+        if (!dateVal) return "-";
+        try {
+            const d = new Date(dateVal);
+            if (isNaN(d.getTime())) return "-";
+            return format(d, formatStr, options);
+        } catch (_) {
+            return "-";
+        }
+    };
+
     // Overtime State & Queries
     const { data: activeOvertimeToday, refetch: refetchOvertimeToday } = useQuery<any>({
         queryKey: ["/api/attendance/overtime/today"],
@@ -289,6 +301,9 @@ export default function EmployeeDashboard() {
     useEffect(() => {
         if (
             activeOvertimeToday &&
+            typeof activeOvertimeToday === "object" &&
+            !Array.isArray(activeOvertimeToday) &&
+            activeOvertimeToday.id &&
             (activeOvertimeToday.employeeApproval === "pending" ||
              activeOvertimeToday.status === "pending" ||
              !activeOvertimeToday.employeeApproval) &&
@@ -1026,7 +1041,7 @@ export default function EmployeeDashboard() {
                         </div>
 
                         <div className="bg-white/80 rounded-2xl p-3 border border-orange-100 text-xs space-y-1 text-gray-700">
-                            <p><span className="text-gray-400 font-bold">Waktu SPL:</span> <strong className="text-gray-900">{activeOvertimeToday.startTime ? format(new Date(activeOvertimeToday.startTime), "HH:mm") : "-"} - {activeOvertimeToday.endTime ? format(new Date(activeOvertimeToday.endTime), "HH:mm") : "Selesai"} WIB</strong></p>
+                            <p><span className="text-gray-400 font-bold">Waktu SPL:</span> <strong className="text-gray-900">{safeFormatDate(activeOvertimeToday.startTime, "HH:mm")} - {activeOvertimeToday.endTime ? safeFormatDate(activeOvertimeToday.endTime, "HH:mm") : "Selesai"} WIB</strong></p>
                             <p><span className="text-gray-400 font-bold">Tugas:</span> <span className="italic">"{activeOvertimeToday.description || '-'}"</span></p>
                         </div>
 
@@ -1631,7 +1646,7 @@ export default function EmployeeDashboard() {
                                 <div className="border-t border-gray-200 pt-2 text-[11px]">
                                     <span className="text-gray-400 font-bold block">Waktu Lembur:</span>
                                     <strong className="text-primary text-xs">
-                                        {activeOvertimeToday.startTime ? format(new Date(activeOvertimeToday.startTime), "d MMMM yyyy (HH:mm", { locale: id }) : "-"} - {activeOvertimeToday.endTime ? format(new Date(activeOvertimeToday.endTime), "HH:mm WIB)", { locale: id }) : "Selesai WIB)"}
+                                        {safeFormatDate(activeOvertimeToday.startTime, "d MMMM yyyy (HH:mm", { locale: id })} - {activeOvertimeToday.endTime ? safeFormatDate(activeOvertimeToday.endTime, "HH:mm WIB)", { locale: id }) : "Selesai WIB)"}
                                     </strong>
                                 </div>
                                 <div className="border-t border-gray-200 pt-2 text-[11px]">
@@ -1756,8 +1771,8 @@ export default function EmployeeDashboard() {
                             <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100 space-y-2">
                                 <p><span className="text-gray-400 font-bold">Nomor SPL:</span> <strong className="text-orange-700">{activeOvertimeToday.splNumber || "SPL Resmi"}</strong></p>
                                 <p><span className="text-gray-400 font-bold">Karyawan:</span> <strong className="text-gray-900">{user?.fullName} ({user?.username})</strong></p>
-                                <p><span className="text-gray-400 font-bold">Waktu Mulai:</span> <strong className="text-gray-900">{activeOvertimeToday.startTime ? format(new Date(activeOvertimeToday.startTime), "d MMMM yyyy HH:mm", { locale: id }) : "-"} WIB</strong></p>
-                                <p><span className="text-gray-400 font-bold">Waktu Selesai:</span> <strong className="text-gray-900">{activeOvertimeToday.endTime ? format(new Date(activeOvertimeToday.endTime), "d MMMM yyyy HH:mm", { locale: id }) : "Selesai"} WIB</strong></p>
+                                <p><span className="text-gray-400 font-bold">Waktu Mulai:</span> <strong className="text-gray-900">{safeFormatDate(activeOvertimeToday.startTime, "d MMMM yyyy HH:mm", { locale: id })} WIB</strong></p>
+                                <p><span className="text-gray-400 font-bold">Waktu Selesai:</span> <strong className="text-gray-900">{activeOvertimeToday.endTime ? safeFormatDate(activeOvertimeToday.endTime, "d MMMM yyyy HH:mm", { locale: id }) : "Selesai"} WIB</strong></p>
                                 <p><span className="text-gray-400 font-bold">Instruksi Task:</span> <span className="italic">"{activeOvertimeToday.description || '-'}"</span></p>
                             </div>
                             <Button variant="outline" onClick={() => setIsViewSplModalOpen(false)} className="w-full h-11 rounded-xl text-xs font-bold">
