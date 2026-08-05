@@ -1414,7 +1414,7 @@ export function registerRoutes(app: Express) {
 
       const adminDate = getAdminDate();
 
-      // Priority 1: Pending SPL assignment needing response for today's date
+      // Priority 1: Pending SPL assignment needing response for this employee (any date)
       const pendingOvertimes = await db
         .select({
           id: overtimes.id,
@@ -1441,8 +1441,9 @@ export function registerRoutes(app: Express) {
         .where(
           and(
             eq(attendance.userId, userId),
-            eq(attendance.date, adminDate),
             ne(overtimes.status, "cancelled"),
+            ne(overtimes.status, "completed"),
+            ne(overtimes.employeeApproval, "rejected"),
             or(
               eq(overtimes.employeeApproval, "pending"),
               eq(overtimes.status, "pending"),
