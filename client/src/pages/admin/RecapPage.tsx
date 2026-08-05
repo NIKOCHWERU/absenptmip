@@ -126,7 +126,7 @@ export default function RecapPage() {
         shift: "-"
     });
 
-    const [reportType, setReportType] = useState<"daily" | "weekly" | "monthly" | "custom">("monthly");
+    const [reportType, setReportType] = useState<"daily" | "weekly" | "monthly" | "custom">("daily");
     const [customStartDate, setCustomStartDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
     const [customEndDate, setCustomEndDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
 

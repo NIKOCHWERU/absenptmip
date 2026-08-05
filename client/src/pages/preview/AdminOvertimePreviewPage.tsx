@@ -11,7 +11,7 @@ import {
 import { Link } from "wouter";
 
 export default function AdminOvertimePreviewPage() {
-  const [reportType, setReportType] = useState<"daily" | "weekly" | "monthly" | "custom">("monthly");
+  const [reportType, setReportType] = useState<"daily" | "weekly" | "monthly" | "custom">("daily");
   const [searchName, setSearchName] = useState("");
   const [selectedOvertime, setSelectedOvertime] = useState<any | null>(null);
   const [isPdfModalOpen, setIsPdfModalOpen] = useState(false);
