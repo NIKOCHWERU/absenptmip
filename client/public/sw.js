@@ -1,4 +1,4 @@
-const CACHE_NAME = "ptmip-attendance-v4-pwa-refresh";
+const CACHE_NAME = "ptmip-attendance-v5-nocache-api";
 const ASSETS = [
   "/",
   "/manifest.json",
@@ -44,7 +44,16 @@ self.addEventListener("fetch", (event) => {
 
   const url = new URL(event.request.url);
 
-  // Network-First for HTML, JS, CSS, and API/Manifest
+  // =========================================================
+  // CRITICAL: Semua request /api/ BYPASS Service Worker 100%
+  // Selalu fetch langsung ke server - TIDAK PERNAH dari cache
+  // Ini memastikan data overtime/attendance selalu segar
+  // =========================================================
+  if (url.pathname.startsWith("/api/")) {
+    return; // Let browser handle it directly - no SW interception
+  }
+
+  // Network-First for HTML, JS, CSS, and Manifest
   if (
     url.pathname === "/" ||
     url.pathname.endsWith(".html") ||
@@ -81,7 +90,7 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Stale-while-revalidate for images & static assets
+  // Stale-while-revalidate ONLY for images & static non-API assets
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
       if (cachedResponse) {
