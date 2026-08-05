@@ -1417,19 +1417,49 @@ export function registerRoutes(app: Express) {
         return res.json(null);
       }
 
-      // 1. Ambil semua ID attendance milik user ini
-      const userAtts = await db
-        .select({ id: attendance.id, date: attendance.date })
-        .from(attendance)
-        .where(eq(attendance.userId, userId));
+      // Prioritas 1: Cari penugasan SPL pending yang belum direspon oleh karyawan login
+      const pendingOvertimes = await db
+        .select({
+          id: overtimes.id,
+          attendanceId: overtimes.attendanceId,
+          startTime: overtimes.startTime,
+          endTime: overtimes.endTime,
+          splDocumentUrl: overtimes.splDocumentUrl,
+          initialProofUrl: overtimes.initialProofUrl,
+          finalProofUrl: overtimes.finalProofUrl,
+          description: overtimes.description,
+          finalDescription: overtimes.finalDescription,
+          status: overtimes.status,
+          employeeApproval: overtimes.employeeApproval,
+          rejectionReason: overtimes.rejectionReason,
+          rejectionProofUrl: overtimes.rejectionProofUrl,
+          splNumber: overtimes.splNumber,
+          assignedBy: overtimes.assignedBy,
+          createdAt: overtimes.createdAt,
+          userId: attendance.userId,
+          overtimeDate: attendance.date,
+        })
+        .from(overtimes)
+        .innerJoin(attendance, eq(overtimes.attendanceId, attendance.id))
+        .where(
+          and(
+            eq(attendance.userId, userId),
+            ne(overtimes.status, "cancelled"),
+            or(
+              eq(overtimes.employeeApproval, "pending"),
+              eq(overtimes.status, "pending"),
+              isNull(overtimes.employeeApproval)
+            )
+          )
+        )
+        .orderBy(desc(overtimes.id))
+        .limit(1);
 
-      const attIds = userAtts.map((a) => a.id);
+      let result: any = pendingOvertimes[0] || null;
 
-      let result: any = null;
-
-      if (attIds.length > 0) {
-        // Prioritas 1: Cari penugasan SPL pending yang belum direspon oleh karyawan
-        const pendingOvertimes = await db
+      if (!result) {
+        // Prioritas 2: Cari lembur aktif (ongoing / approved) paling baru
+        const activeOvertimes = await db
           .select({
             id: overtimes.id,
             attendanceId: overtimes.attendanceId,
@@ -1454,56 +1484,14 @@ export function registerRoutes(app: Express) {
           .innerJoin(attendance, eq(overtimes.attendanceId, attendance.id))
           .where(
             and(
-              inArray(overtimes.attendanceId, attIds),
-              ne(overtimes.status, "cancelled"),
-              or(
-                eq(overtimes.employeeApproval, "pending"),
-                eq(overtimes.status, "pending"),
-                isNull(overtimes.employeeApproval)
-              )
+              eq(attendance.userId, userId),
+              ne(overtimes.status, "cancelled")
             )
           )
           .orderBy(desc(overtimes.id))
           .limit(1);
 
-        result = pendingOvertimes[0] || null;
-
-        if (!result) {
-          // Prioritas 2: Cari lembur aktif (ongoing / approved) paling baru
-          const activeOvertimes = await db
-            .select({
-              id: overtimes.id,
-              attendanceId: overtimes.attendanceId,
-              startTime: overtimes.startTime,
-              endTime: overtimes.endTime,
-              splDocumentUrl: overtimes.splDocumentUrl,
-              initialProofUrl: overtimes.initialProofUrl,
-              finalProofUrl: overtimes.finalProofUrl,
-              description: overtimes.description,
-              finalDescription: overtimes.finalDescription,
-              status: overtimes.status,
-              employeeApproval: overtimes.employeeApproval,
-              rejectionReason: overtimes.rejectionReason,
-              rejectionProofUrl: overtimes.rejectionProofUrl,
-              splNumber: overtimes.splNumber,
-              assignedBy: overtimes.assignedBy,
-              createdAt: overtimes.createdAt,
-              userId: attendance.userId,
-              overtimeDate: attendance.date,
-            })
-            .from(overtimes)
-            .innerJoin(attendance, eq(overtimes.attendanceId, attendance.id))
-            .where(
-              and(
-                inArray(overtimes.attendanceId, attIds),
-                ne(overtimes.status, "cancelled")
-              )
-            )
-            .orderBy(desc(overtimes.id))
-            .limit(1);
-
-          result = activeOvertimes[0] || null;
-        }
+        result = activeOvertimes[0] || null;
       }
 
       console.log("========== OVERTIME DEBUG ==========");
