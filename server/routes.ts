@@ -1465,10 +1465,7 @@ export function registerRoutes(app: Express) {
             eq(attendance.userId, userId),
             ne(overtimes.status, "cancelled"),
             ne(overtimes.status, "completed"),
-            or(
-              ne(overtimes.employeeApproval, "rejected"),
-              isNull(overtimes.employeeApproval)
-            )
+            sql`(${overtimes.employeeApproval} IS NULL OR ${overtimes.employeeApproval} != 'rejected')`
           )
         )
         .orderBy(desc(overtimes.id))
