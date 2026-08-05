@@ -1405,30 +1405,25 @@ export function registerRoutes(app: Express) {
     try {
       const userId = req.session.userId!;
 
-      // Prioritas 1: Cari penugasan lembur SPL berstatus PENDING / belum direspon karyawan milik user ini secara langsung
+      // 1. Ambil semua ID attendance milik user ini
+      const userAtts = await db
+        .select({ id: attendance.id })
+        .from(attendance)
+        .where(eq(attendance.userId, userId));
+
+      if (userAtts.length === 0) {
+        return res.json(null);
+      }
+
+      const attIds = userAtts.map((a) => a.id);
+
+      // Prioritas 1: Cari penugasan SPL pending yang belum direspon oleh karyawan
       const pendingOvertimes = await db
-        .select({
-          id: overtimes.id,
-          attendanceId: overtimes.attendanceId,
-          startTime: overtimes.startTime,
-          endTime: overtimes.endTime,
-          splDocumentUrl: overtimes.splDocumentUrl,
-          initialProofUrl: overtimes.initialProofUrl,
-          finalProofUrl: overtimes.finalProofUrl,
-          description: overtimes.description,
-          finalDescription: overtimes.finalDescription,
-          status: overtimes.status,
-          employeeApproval: overtimes.employeeApproval,
-          rejectionReason: overtimes.rejectionReason,
-          splNumber: overtimes.splNumber,
-          assignedBy: overtimes.assignedBy,
-          createdAt: overtimes.createdAt,
-        })
+        .select()
         .from(overtimes)
-        .innerJoin(attendance, eq(overtimes.attendanceId, attendance.id))
         .where(
           and(
-            eq(attendance.userId, userId),
+            inArray(overtimes.attendanceId, attIds),
             ne(overtimes.status, "cancelled"),
             or(
               eq(overtimes.employeeApproval, "pending"),
@@ -1446,28 +1441,11 @@ export function registerRoutes(app: Express) {
 
       // Prioritas 2: Cari lembur aktif (ongoing / approved) paling baru
       const activeOvertimes = await db
-        .select({
-          id: overtimes.id,
-          attendanceId: overtimes.attendanceId,
-          startTime: overtimes.startTime,
-          endTime: overtimes.endTime,
-          splDocumentUrl: overtimes.splDocumentUrl,
-          initialProofUrl: overtimes.initialProofUrl,
-          finalProofUrl: overtimes.finalProofUrl,
-          description: overtimes.description,
-          finalDescription: overtimes.finalDescription,
-          status: overtimes.status,
-          employeeApproval: overtimes.employeeApproval,
-          rejectionReason: overtimes.rejectionReason,
-          splNumber: overtimes.splNumber,
-          assignedBy: overtimes.assignedBy,
-          createdAt: overtimes.createdAt,
-        })
+        .select()
         .from(overtimes)
-        .innerJoin(attendance, eq(overtimes.attendanceId, attendance.id))
         .where(
           and(
-            eq(attendance.userId, userId),
+            inArray(overtimes.attendanceId, attIds),
             ne(overtimes.status, "cancelled")
           )
         )
