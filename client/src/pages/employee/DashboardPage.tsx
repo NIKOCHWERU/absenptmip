@@ -273,6 +273,7 @@ export default function EmployeeDashboard() {
     const { data: activeOvertimeToday, refetch: refetchOvertime } = useQuery<any>({
         queryKey: ["/api/attendance/overtime/today"],
         refetchInterval: 5000,
+        refetchOnWindowFocus: true,
         staleTime: 0,
     });
 
@@ -289,13 +290,16 @@ export default function EmployeeDashboard() {
     const [isSubmittingRejection, setIsSubmittingRejection] = useState(false);
 
     useEffect(() => {
-        // Auto-open formal SPL view modal popup whenever activeOvertimeToday is pending approval
+        // Auto-open ONLY isSplViewModalOpen (formal SPL modal) when pending — avoid conflict with isSplNoticePopupOpen
         if (activeOvertimeToday) {
             const isPendingApproval = !activeOvertimeToday.employeeApproval || activeOvertimeToday.employeeApproval === "pending";
             const isPendingStatus = activeOvertimeToday.status === "pending";
             if (isPendingApproval || isPendingStatus) {
-                setIsSplViewModalOpen(true);
-                setIsSplNoticePopupOpen(true);
+                // Close notice popup first, then open the formal SPL modal
+                setIsSplNoticePopupOpen(false);
+                setTimeout(() => {
+                    setIsSplViewModalOpen(true);
+                }, 100);
             }
         }
     }, [activeOvertimeToday?.id, activeOvertimeToday?.employeeApproval, activeOvertimeToday?.status]);
