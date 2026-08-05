@@ -1297,7 +1297,7 @@ export default function EmployeeDashboard() {
                                 type="button"
                                 variant="outline"
                                 className="h-12 bg-white hover:bg-orange-50 text-[#c2410c] border-2 border-orange-200 font-black text-xs rounded-2xl flex items-center justify-center gap-1.5 shadow-sm cursor-pointer"
-                                onClick={() => setIsSplNoticePopupOpen(true)}
+                                onClick={() => setIsSplViewModalOpen(true)}
                             >
                                 <Eye className="w-4 h-4 text-orange-600" /> LIHAT SURAT SPL
                             </Button>
