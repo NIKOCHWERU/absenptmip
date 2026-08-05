@@ -289,19 +289,16 @@ export default function EmployeeDashboard() {
     const [isSubmittingRejection, setIsSubmittingRejection] = useState(false);
 
     useEffect(() => {
-        // Auto-open formal SPL view modal popup whenever activeOvertimeToday is loaded and pending approval
-        if (
-            activeOvertimeToday &&
-            activeOvertimeToday.employeeApproval !== "approved" &&
-            activeOvertimeToday.employeeApproval !== "rejected" &&
-            activeOvertimeToday.status !== "ongoing" &&
-            activeOvertimeToday.status !== "completed" &&
-            activeOvertimeToday.status !== "cancelled"
-        ) {
-            setIsSplViewModalOpen(true);
-            setIsSplNoticePopupOpen(true);
+        // Auto-open formal SPL view modal popup whenever activeOvertimeToday is pending approval
+        if (activeOvertimeToday) {
+            const isPendingApproval = !activeOvertimeToday.employeeApproval || activeOvertimeToday.employeeApproval === "pending";
+            const isPendingStatus = activeOvertimeToday.status === "pending";
+            if (isPendingApproval || isPendingStatus) {
+                setIsSplViewModalOpen(true);
+                setIsSplNoticePopupOpen(true);
+            }
         }
-    }, [activeOvertimeToday]);
+    }, [activeOvertimeToday?.id, activeOvertimeToday?.employeeApproval, activeOvertimeToday?.status]);
 
     const overtimeRespondMutation = useMutation({
         mutationFn: async ({ action, rejectionReason }: { action: "approve" | "reject", rejectionReason?: string }) => {

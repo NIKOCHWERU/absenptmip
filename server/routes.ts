@@ -1406,39 +1406,77 @@ export function registerRoutes(app: Express) {
       const userId = req.session.userId!;
       const adminDate = getAdminDate();
 
-      // Priority 1: Check if there is any SPL assigned to this user that has not been approved or rejected yet
-      const pendingOvertimes = await db.select({
-        overtime: overtimes
-      })
-      .from(overtimes)
-      .innerJoin(attendance, eq(overtimes.attendanceId, attendance.id))
-      .where(and(
-        eq(attendance.userId, userId),
-        ne(overtimes.status, "cancelled"),
-        ne(overtimes.employeeApproval, "approved"),
-        ne(overtimes.employeeApproval, "rejected")
-      ))
-      .orderBy(desc(overtimes.id))
-      .limit(1);
+      // Priority 1: Check if there is any pending SPL assigned to this user that needs employee approval
+      try {
+        const pendingOvertimes = await db
+          .select({ overtime: overtimes })
+          .from(overtimes)
+          .innerJoin(attendance, eq(overtimes.attendanceId, attendance.id))
+          .where(
+            and(
+              eq(attendance.userId, userId),
+              or(
+                eq(overtimes.employeeApproval, "pending"),
+                eq(overtimes.status, "pending"),
+                isNull(overtimes.employeeApproval)
+              )
+            )
+          )
+          .orderBy(desc(overtimes.id))
+          .limit(1);
 
-      if (pendingOvertimes.length > 0) {
-        return res.json(pendingOvertimes[0].overtime);
+        if (pendingOvertimes.length > 0) {
+          return res.json(pendingOvertimes[0].overtime);
+        }
+      } catch (errP1) {
+        console.error("Priority 1 pending overtime fetch error:", errP1);
       }
 
       // Priority 2: Check for today's active/ongoing/completed overtime
-      const todaySessions = await db.select().from(attendance).where(and(eq(attendance.userId, userId), eq(attendance.date, adminDate))).orderBy(desc(attendance.sessionNumber));
-      if (todaySessions.length === 0) return res.json(null);
+      try {
+        const todaySessions = await db
+          .select()
+          .from(attendance)
+          .where(and(eq(attendance.userId, userId), eq(attendance.date, adminDate)))
+          .orderBy(desc(attendance.sessionNumber));
 
-      const activeSession = todaySessions[0];
-      const overtimesList = await db.select().from(overtimes).where(eq(overtimes.attendanceId, activeSession.id)).orderBy(desc(overtimes.id));
-      if (overtimesList.length > 0) {
-        return res.json(overtimesList[0]);
-      } else {
-        return res.json(null);
+        if (todaySessions.length > 0) {
+          const activeSession = todaySessions[0];
+          const overtimesList = await db
+            .select()
+            .from(overtimes)
+            .where(eq(overtimes.attendanceId, activeSession.id))
+            .orderBy(desc(overtimes.id));
+
+          if (overtimesList.length > 0) {
+            return res.json(overtimesList[0]);
+          }
+        }
+      } catch (errP2) {
+        console.error("Priority 2 today overtime fetch error:", errP2);
       }
+
+      // Fallback: Check all overtimes for this user where status is ongoing
+      try {
+        const ongoingOvertimes = await db
+          .select({ overtime: overtimes })
+          .from(overtimes)
+          .innerJoin(attendance, eq(overtimes.attendanceId, attendance.id))
+          .where(and(eq(attendance.userId, userId), eq(overtimes.status, "ongoing")))
+          .orderBy(desc(overtimes.id))
+          .limit(1);
+
+        if (ongoingOvertimes.length > 0) {
+          return res.json(ongoingOvertimes[0].overtime);
+        }
+      } catch (errFallback) {
+        console.error("Fallback ongoing overtime fetch error:", errFallback);
+      }
+
+      return res.json(null);
     } catch (e: any) {
       console.error("Fetch overtime today error:", e);
-      res.status(500).json({ message: "Internal server error" });
+      return res.json(null);
     }
   });
 
