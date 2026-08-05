@@ -1,11 +1,13 @@
-const CACHE_NAME = "ptmip-attendance-v7";
+const CACHE_NAME = "ptmip-attendance-v8";
 const PRECACHE_ASSETS = ["/", "/manifest.json", "/icon-192.png"];
 
 // Install: precache minimal assets
 self.addEventListener("install", (event) => {
   self.skipWaiting();
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(PRECACHE_ASSETS))
+    caches.open(CACHE_NAME)
+      .then((cache) => cache.addAll(PRECACHE_ASSETS))
+      .catch((err) => console.warn("Precache failed:", err?.message || err))
   );
 });
 
@@ -22,9 +24,11 @@ self.addEventListener("activate", (event) => {
 // Helper: safely fetch then cache (clone SYNCHRONOUSLY before return)
 function fetchAndCache(request) {
   return fetch(request).then((response) => {
-    if (response && response.ok) {
+    if (response && response.ok && response.type === 'basic') {
       const cloned = response.clone(); // MUST clone sync before body consumed
-      caches.open(CACHE_NAME).then((cache) => cache.put(request, cloned));
+      caches.open(CACHE_NAME)
+        .then((cache) => cache.put(request, cloned))
+        .catch((err) => console.warn("Cache put failed:", err?.message || err));
     }
     return response;
   });
@@ -67,9 +71,11 @@ self.addEventListener("fetch", (event) => {
     fetch(event.request)
       .then((response) => {
         // Cache hanya root "/" untuk offline fallback
-        if (response && response.ok && url.pathname === "/") {
+        if (response && response.ok && response.type === 'basic' && url.pathname === "/") {
           const cloned = response.clone(); // Clone sync!
-          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, cloned));
+          caches.open(CACHE_NAME)
+            .then((cache) => cache.put(event.request, cloned))
+            .catch((err) => console.warn("Cache put root failed:", err?.message || err));
         }
         return response;
       })
