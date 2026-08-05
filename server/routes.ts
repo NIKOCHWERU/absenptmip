@@ -1404,9 +1404,10 @@ export function registerRoutes(app: Express) {
   app.get("/api/attendance/overtime/today", isAuthenticated, async (req: Request, res: Response) => {
     try {
       const employee = req.user;
-      const userId = (req.user as any)?.id || (req.session as any)?.userId;
+      const rawUserId = (req.user as any)?.id || (req.session as any)?.userId;
+      const userId = Number(rawUserId);
 
-      if (!userId) {
+      if (!userId || isNaN(userId)) {
         console.log("========== OVERTIME DEBUG ==========");
         console.log("Login User:", req.user);
         console.log("Employee:", employee);
@@ -1416,49 +1417,19 @@ export function registerRoutes(app: Express) {
         return res.json(null);
       }
 
-      // Prioritas 1: Cari penugasan SPL pending yang belum direspon oleh karyawan
-      const pendingOvertimes = await db
-        .select({
-          id: overtimes.id,
-          attendanceId: overtimes.attendanceId,
-          startTime: overtimes.startTime,
-          endTime: overtimes.endTime,
-          splDocumentUrl: overtimes.splDocumentUrl,
-          initialProofUrl: overtimes.initialProofUrl,
-          finalProofUrl: overtimes.finalProofUrl,
-          description: overtimes.description,
-          finalDescription: overtimes.finalDescription,
-          status: overtimes.status,
-          employeeApproval: overtimes.employeeApproval,
-          rejectionReason: overtimes.rejectionReason,
-          rejectionProofUrl: overtimes.rejectionProofUrl,
-          splNumber: overtimes.splNumber,
-          assignedBy: overtimes.assignedBy,
-          createdAt: overtimes.createdAt,
-          userId: attendance.userId,
-          overtimeDate: attendance.date,
-        })
-        .from(overtimes)
-        .innerJoin(attendance, eq(overtimes.attendanceId, attendance.id))
-        .where(
-          and(
-            eq(attendance.userId, userId),
-            ne(overtimes.status, "cancelled"),
-            or(
-              eq(overtimes.employeeApproval, "pending"),
-              eq(overtimes.status, "pending"),
-              isNull(overtimes.employeeApproval)
-            )
-          )
-        )
-        .orderBy(desc(overtimes.id))
-        .limit(1);
+      // 1. Ambil semua ID attendance milik user ini
+      const userAtts = await db
+        .select({ id: attendance.id, date: attendance.date })
+        .from(attendance)
+        .where(eq(attendance.userId, userId));
 
-      let result: any = pendingOvertimes[0] || null;
+      const attIds = userAtts.map((a) => a.id);
 
-      if (!result) {
-        // Prioritas 2: Cari lembur aktif (ongoing / approved) paling baru
-        const activeOvertimes = await db
+      let result: any = null;
+
+      if (attIds.length > 0) {
+        // Prioritas 1: Cari penugasan SPL pending yang belum direspon oleh karyawan
+        const pendingOvertimes = await db
           .select({
             id: overtimes.id,
             attendanceId: overtimes.attendanceId,
@@ -1483,14 +1454,56 @@ export function registerRoutes(app: Express) {
           .innerJoin(attendance, eq(overtimes.attendanceId, attendance.id))
           .where(
             and(
-              eq(attendance.userId, userId),
-              ne(overtimes.status, "cancelled")
+              inArray(overtimes.attendanceId, attIds),
+              ne(overtimes.status, "cancelled"),
+              or(
+                eq(overtimes.employeeApproval, "pending"),
+                eq(overtimes.status, "pending"),
+                isNull(overtimes.employeeApproval)
+              )
             )
           )
           .orderBy(desc(overtimes.id))
           .limit(1);
 
-        result = activeOvertimes[0] || null;
+        result = pendingOvertimes[0] || null;
+
+        if (!result) {
+          // Prioritas 2: Cari lembur aktif (ongoing / approved) paling baru
+          const activeOvertimes = await db
+            .select({
+              id: overtimes.id,
+              attendanceId: overtimes.attendanceId,
+              startTime: overtimes.startTime,
+              endTime: overtimes.endTime,
+              splDocumentUrl: overtimes.splDocumentUrl,
+              initialProofUrl: overtimes.initialProofUrl,
+              finalProofUrl: overtimes.finalProofUrl,
+              description: overtimes.description,
+              finalDescription: overtimes.finalDescription,
+              status: overtimes.status,
+              employeeApproval: overtimes.employeeApproval,
+              rejectionReason: overtimes.rejectionReason,
+              rejectionProofUrl: overtimes.rejectionProofUrl,
+              splNumber: overtimes.splNumber,
+              assignedBy: overtimes.assignedBy,
+              createdAt: overtimes.createdAt,
+              userId: attendance.userId,
+              overtimeDate: attendance.date,
+            })
+            .from(overtimes)
+            .innerJoin(attendance, eq(overtimes.attendanceId, attendance.id))
+            .where(
+              and(
+                inArray(overtimes.attendanceId, attIds),
+                ne(overtimes.status, "cancelled")
+              )
+            )
+            .orderBy(desc(overtimes.id))
+            .limit(1);
+
+          result = activeOvertimes[0] || null;
+        }
       }
 
       console.log("========== OVERTIME DEBUG ==========");
@@ -1541,7 +1554,7 @@ export function registerRoutes(app: Express) {
   // Endpoint untuk mengambil Surat Perintah Lembur (SPL) Karyawan
   app.get("/api/employee/overtimes/my-spl", isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const userId = (req.user as any)?.id || (req.session as any)?.userId;
+      const userId = Number((req.user as any)?.id || (req.session as any)?.userId);
       const userSpls = await db.select({
         id: overtimes.id,
         attendanceId: overtimes.attendanceId,
@@ -1619,17 +1632,17 @@ export function registerRoutes(app: Express) {
       let attRecord = await db.select().from(attendance).where(and(eq(attendance.userId, Number(userId)), eq(attendance.date, date))).limit(1);
       let attendanceId: number;
       if (attRecord.length === 0) {
-        const [newAtt]: any = await db.insert(attendance).values({
+        const insertRes: any = await db.insert(attendance).values({
           userId: Number(userId),
           date: date,
           status: "present",
           checkIn: null,
           notes: "Penugasan Lembur SPL"
         });
-        attendanceId = newAtt.insertId;
+        attendanceId = insertRes[0]?.insertId || insertRes?.insertId;
         if (!attendanceId) {
           const [createdAtt] = await db.select().from(attendance).where(and(eq(attendance.userId, Number(userId)), eq(attendance.date, date))).limit(1);
-          attendanceId = createdAtt.id;
+          attendanceId = createdAtt?.id;
         }
       } else {
         attendanceId = attRecord[0].id;
