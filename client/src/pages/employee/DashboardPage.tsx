@@ -289,20 +289,18 @@ export default function EmployeeDashboard() {
     const [rejectionProofPreview, setRejectionProofPreview] = useState<string | null>(null);
     const [isSubmittingRejection, setIsSubmittingRejection] = useState(false);
 
+    // === COMPUTED: Modal SPL harus terbuka jika data pending dari API ===
+    // Ini binding langsung ke data — tidak bergantung useState/useEffect
+    const hasPendingSpl = !!activeOvertimeToday &&
+        activeOvertimeToday.status !== "cancelled" &&
+        (activeOvertimeToday.employeeApproval === "pending" || !activeOvertimeToday.employeeApproval);
+
     useEffect(() => {
-        // Auto-open ONLY isSplViewModalOpen (formal SPL modal) when pending — avoid conflict with isSplNoticePopupOpen
-        if (activeOvertimeToday) {
-            const isPendingApproval = !activeOvertimeToday.employeeApproval || activeOvertimeToday.employeeApproval === "pending";
-            const isPendingStatus = activeOvertimeToday.status === "pending";
-            if (isPendingApproval || isPendingStatus) {
-                // Close notice popup first, then open the formal SPL modal
-                setIsSplNoticePopupOpen(false);
-                setTimeout(() => {
-                    setIsSplViewModalOpen(true);
-                }, 100);
-            }
+        // Reset isSplViewModalOpen state when data changes so user can re-close
+        if (!hasPendingSpl) {
+            setIsSplViewModalOpen(false);
         }
-    }, [activeOvertimeToday?.id, activeOvertimeToday?.employeeApproval, activeOvertimeToday?.status]);
+    }, [hasPendingSpl]);
 
     const overtimeRespondMutation = useMutation({
         mutationFn: async ({ action, rejectionReason }: { action: "approve" | "reject", rejectionReason?: string }) => {
@@ -2176,7 +2174,8 @@ export default function EmployeeDashboard() {
             </Dialog>
 
             {/* MODAL 3: LIHAT SURAT PERINTAH LEMBUR (SPL) - PERSIS MODAL SP 1 */}
-            <Dialog open={isSplViewModalOpen} onOpenChange={setIsSplViewModalOpen}>
+            {/* open langsung terikat ke data API — modal PASTI terbuka saat admin menugaskan lembur */}
+            <Dialog open={hasPendingSpl || isSplViewModalOpen} onOpenChange={(open) => { if (!hasPendingSpl) setIsSplViewModalOpen(open); }}>
                 <DialogContent className="rounded-3xl max-w-xs md:max-w-md p-6 bg-white border border-slate-100 shadow-2xl space-y-3 max-h-[90vh] overflow-y-auto">
                     <DialogHeader className="text-center pb-1">
                         <div className="mx-auto w-14 h-14 bg-orange-50 text-orange-600 rounded-full flex items-center justify-center mb-3 border border-orange-100">
