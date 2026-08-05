@@ -107,6 +107,7 @@ export default function AdminOvertimePage() {
   const [assignEndTime, setAssignEndTime] = useState<string>("20:30");
   const [assignTask, setAssignTask] = useState<string>("");
   const [assignSplFile, setAssignSplFile] = useState<File | null>(null);
+  const [isEmployeeDropdownOpen, setIsEmployeeDropdownOpen] = useState(false);
 
   const toggleAssignUser = (uid: string) => {
     setAssignUserIds(prev =>
@@ -532,7 +533,7 @@ export default function AdminOvertimePage() {
           </DialogHeader>
 
           <form onSubmit={(e) => { e.preventDefault(); assignMutation.mutate(); }} className="space-y-4 py-2">
-            {/* Field 1: Pilih Beberapa Karyawan (Multi-select checkbox) */}
+            {/* Field 1: Pilih Beberapa Karyawan (Custom Dropdown Multi-select) */}
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
                 <label className="text-xs font-bold text-gray-700">Tenaga Kerja / Karyawan *</label>
@@ -544,47 +545,69 @@ export default function AdminOvertimePage() {
                   {assignUserIds.length === employeeUsers.length ? "✗ Batal Semua" : "✓ Pilih Semua"}
                 </button>
               </div>
-              {/* Badge summary */}
-              {assignUserIds.length > 0 && (
-                <div className="flex flex-wrap gap-1 pb-1">
-                  {assignUserIds.map(uid => {
-                    const u = employeeUsers.find(e => String(e.id) === uid);
-                    return u ? (
-                      <span key={uid} className="inline-flex items-center gap-1 bg-primary/10 text-primary text-[10px] font-bold px-2 py-0.5 rounded-full">
-                        {u.fullName.split(" ")[0]}
-                        <button type="button" onClick={() => toggleAssignUser(uid)} className="hover:text-red-500">×</button>
-                      </span>
-                    ) : null;
-                  })}
-                </div>
-              )}
-              {/* Scrollable checkbox list */}
-              <div className="border border-gray-200 rounded-xl overflow-y-auto max-h-40 divide-y divide-gray-50">
-                {employeeUsers.map(u => (
-                  <label
-                    key={u.id}
-                    className={`flex items-center gap-3 px-3 py-2.5 cursor-pointer hover:bg-gray-50 transition-colors ${
-                      assignUserIds.includes(String(u.id)) ? "bg-primary/5" : ""
-                    }`}
-                  >
-                    <input
-                      type="checkbox"
-                      className="w-4 h-4 accent-primary rounded"
-                      checked={assignUserIds.includes(String(u.id))}
-                      onChange={() => toggleAssignUser(String(u.id))}
-                    />
-                    <div className="flex items-center gap-2 min-w-0">
-                      <div className="w-7 h-7 rounded-full bg-orange-100 text-orange-700 font-black text-[10px] flex items-center justify-center shrink-0 uppercase">
-                        {u.fullName.charAt(0)}
-                      </div>
-                      <div className="min-w-0">
-                        <span className="block text-xs font-bold text-gray-800 truncate">{u.fullName}</span>
-                        <span className="text-[10px] text-gray-400 font-mono">NIK: {u.nik || u.username}</span>
-                      </div>
+
+              {/* Dropdown trigger button */}
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setIsEmployeeDropdownOpen(prev => !prev)}
+                  className="w-full flex items-center justify-between gap-2 border border-gray-200 rounded-xl h-10 px-3 text-xs font-semibold bg-white hover:bg-gray-50 transition-colors"
+                >
+                  <span className="flex-1 text-left truncate text-gray-700">
+                    {assignUserIds.length === 0
+                      ? "Pilih karyawan..."
+                      : assignUserIds.length === employeeUsers.length
+                      ? `Semua karyawan dipilih (${assignUserIds.length} orang)`
+                      : assignUserIds.length === 1
+                      ? employeeUsers.find(u => String(u.id) === assignUserIds[0])?.fullName || "1 karyawan"
+                      : `${assignUserIds.length} karyawan dipilih`
+                    }
+                  </span>
+                  <svg className={`w-4 h-4 text-gray-400 shrink-0 transition-transform ${isEmployeeDropdownOpen ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                </button>
+
+                {/* Dropdown panel */}
+                {isEmployeeDropdownOpen && (
+                  <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden">
+                    <div className="max-h-52 overflow-y-auto divide-y divide-gray-50">
+                      {employeeUsers.map(u => (
+                        <label
+                          key={u.id}
+                          className={`flex items-center gap-3 px-3 py-2.5 cursor-pointer hover:bg-gray-50 transition-colors ${
+                            assignUserIds.includes(String(u.id)) ? "bg-primary/5" : ""
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            className="w-4 h-4 accent-primary rounded shrink-0"
+                            checked={assignUserIds.includes(String(u.id))}
+                            onChange={() => toggleAssignUser(String(u.id))}
+                          />
+                          <div className="flex items-center gap-2 min-w-0">
+                            <div className="w-7 h-7 rounded-full bg-orange-100 text-orange-700 font-black text-[10px] flex items-center justify-center shrink-0 uppercase">
+                              {u.fullName.charAt(0)}
+                            </div>
+                            <div className="min-w-0">
+                              <span className="block text-xs font-bold text-gray-800">{u.fullName}</span>
+                              <span className="text-[10px] text-gray-400 font-mono">NIK: {u.nik || u.username}</span>
+                            </div>
+                          </div>
+                        </label>
+                      ))}
                     </div>
-                  </label>
-                ))}
+                    <div className="border-t border-gray-100 px-3 py-2 bg-gray-50">
+                      <button
+                        type="button"
+                        onClick={() => setIsEmployeeDropdownOpen(false)}
+                        className="w-full text-xs font-bold text-primary text-center hover:underline"
+                      >
+                        Selesai Pilih ({assignUserIds.length} dipilih)
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
+
               {assignUserIds.length === 0 && (
                 <p className="text-[10px] text-red-500 font-semibold">* Pilih minimal 1 karyawan</p>
               )}
