@@ -1406,7 +1406,7 @@ export function registerRoutes(app: Express) {
       const userId = req.session.userId!;
       const adminDate = getAdminDate();
 
-      // Priority 1: Check if there is any pending SPL assigned to this user that needs employee approval
+      // Priority 1: Check if there is any SPL assigned to this user that has not been approved or rejected yet
       const pendingOvertimes = await db.select({
         overtime: overtimes
       })
@@ -1414,10 +1414,9 @@ export function registerRoutes(app: Express) {
       .innerJoin(attendance, eq(overtimes.attendanceId, attendance.id))
       .where(and(
         eq(attendance.userId, userId),
-        or(
-          eq(overtimes.employeeApproval, "pending"),
-          eq(overtimes.status, "pending")
-        )
+        ne(overtimes.status, "cancelled"),
+        ne(overtimes.employeeApproval, "approved"),
+        ne(overtimes.employeeApproval, "rejected")
       ))
       .orderBy(desc(overtimes.id))
       .limit(1);
