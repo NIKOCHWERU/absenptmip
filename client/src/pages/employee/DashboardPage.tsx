@@ -289,26 +289,30 @@ export default function EmployeeDashboard() {
     const [rejectionProofPreview, setRejectionProofPreview] = useState<string | null>(null);
     const [isSubmittingRejection, setIsSubmittingRejection] = useState(false);
 
-    // === COMPUTED: Modal SPL harus terbuka jika data pending dari API ===
-    // Ini binding langsung ke data — tidak bergantung useState/useEffect
-    const hasPendingSpl = !!activeOvertimeToday &&
+    // === AUTO-OPEN MODAL SPL UNTUK PENUGASAN PENDING ===
+    const isPendingSpl = !!activeOvertimeToday &&
         activeOvertimeToday.status !== "cancelled" &&
         (activeOvertimeToday.employeeApproval === "pending" || !activeOvertimeToday.employeeApproval);
 
     useEffect(() => {
-        // Reset isSplViewModalOpen state when data changes so user can re-close
-        if (!hasPendingSpl) {
+        if (isPendingSpl) {
+            // Hanya buka jika tidak sedang membuka modal izin/alasan penolakan
+            if (!isRejectOvertimeModalOpen) {
+                setIsSplViewModalOpen(true);
+            }
+        } else {
             setIsSplViewModalOpen(false);
         }
-    }, [hasPendingSpl]);
+    }, [isPendingSpl, activeOvertimeToday?.id, isRejectOvertimeModalOpen]);
 
     const overtimeRespondMutation = useMutation({
         mutationFn: async ({ action, rejectionReason }: { action: "approve" | "reject", rejectionReason?: string }) => {
+            if (!activeOvertimeToday?.id) throw new Error("ID Lembur tidak ditemukan");
             const res = await fetch("/api/attendance/overtime/respond", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    overtimeId: activeOvertimeToday?.id,
+                    overtimeId: activeOvertimeToday.id,
                     action,
                     rejectionReason
                 })
@@ -318,10 +322,12 @@ export default function EmployeeDashboard() {
         },
         onSuccess: (_, variables) => {
             queryClient.invalidateQueries({ queryKey: ["/api/attendance/overtime/today"] });
+            queryClient.invalidateQueries({ queryKey: ["/api/employee/overtimes/my-spl"] });
+            setIsSplViewModalOpen(false);
             setIsRejectOvertimeModalOpen(false);
             setRejectionReasonInput("");
             if (variables.action === "approve") {
-                toast({ title: "Lembur Disetujui!", description: "Anda telah menyetujui lembur. Tombol LEMBUR (OVERTIME) kini aktif." });
+                toast({ title: "Lembur Disetujui!", description: "Anda telah menyetujui lembur. Silakan mulai lembur sesuai jadwal." });
             } else {
                 toast({ title: "Izin Tidak Lembur Terkirim", description: "Permohonan izin tidak lembur telah diteruskan ke Admin." });
             }
@@ -2173,9 +2179,8 @@ export default function EmployeeDashboard() {
                 </DialogContent>
             </Dialog>
 
-            {/* MODAL 3: LIHAT SURAT PERINTAH LEMBUR (SPL) - PERSIS MODAL SP 1 */}
-            {/* open langsung terikat ke data API — modal PASTI terbuka saat admin menugaskan lembur */}
-            <Dialog open={hasPendingSpl || isSplViewModalOpen} onOpenChange={(open) => { if (!hasPendingSpl) setIsSplViewModalOpen(open); }}>
+            {/* MODAL 3: LIHAT SURAT PERINTAH LEMBUR (SPL) */}
+            <Dialog open={isSplViewModalOpen} onOpenChange={setIsSplViewModalOpen}>
                 <DialogContent className="rounded-3xl max-w-xs md:max-w-md p-6 bg-white border border-slate-100 shadow-2xl space-y-3 max-h-[90vh] overflow-y-auto">
                     <DialogHeader className="text-center pb-1">
                         <div className="mx-auto w-14 h-14 bg-orange-50 text-orange-600 rounded-full flex items-center justify-center mb-3 border border-orange-100">

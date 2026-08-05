@@ -1,7 +1,7 @@
-const CACHE_NAME = "ptmip-attendance-v6-spa";
+const CACHE_NAME = "ptmip-attendance-v7";
 const PRECACHE_ASSETS = ["/", "/manifest.json", "/icon-192.png"];
 
-// Install: precache assets
+// Install: precache minimal assets
 self.addEventListener("install", (event) => {
   self.skipWaiting();
   event.waitUntil(
@@ -9,124 +9,85 @@ self.addEventListener("install", (event) => {
   );
 });
 
-// Activate: delete ALL old caches, claim clients
+// Activate: delete old caches only, keep current
 self.addEventListener("activate", (event) => {
   self.clients.claim();
   event.waitUntil(
     caches.keys().then((names) =>
-      Promise.all(
-        names
-          .filter((n) => n !== CACHE_NAME)
-          .map((n) => {
-            console.log("🧹 SW v6: Deleting old cache:", n);
-            return caches.delete(n);
-          })
-      )
+      Promise.all(names.filter((n) => n !== CACHE_NAME).map((n) => caches.delete(n)))
     )
   );
 });
 
+// Helper: safely fetch then cache (clone SYNCHRONOUSLY before return)
+function fetchAndCache(request) {
+  return fetch(request).then((response) => {
+    if (response && response.ok) {
+      const cloned = response.clone(); // MUST clone sync before body consumed
+      caches.open(CACHE_NAME).then((cache) => cache.put(request, cloned));
+    }
+    return response;
+  });
+}
+
 self.addEventListener("fetch", (event) => {
-  // Skip non-GET and cross-origin requests
   if (event.request.method !== "GET") return;
   if (!event.request.url.startsWith(self.location.origin)) return;
-
-  // Skip in development
-  const hostname = self.location.hostname;
-  if (hostname === "localhost" || hostname === "127.0.0.1") return;
+  if (self.location.hostname === "localhost" || self.location.hostname === "127.0.0.1") return;
 
   const url = new URL(event.request.url);
 
-  // ============================================================
-  // RULE 1: /api/* — ALWAYS bypass SW, fetch directly from server
-  // Never cache API responses (ensures real-time overtime data)
-  // ============================================================
-  if (url.pathname.startsWith("/api/")) {
-    return; // No event.respondWith = browser handles natively
-  }
-
-  // ============================================================
-  // RULE 2: /uploads/* — bypass SW (user uploaded files)
-  // ============================================================
-  if (url.pathname.startsWith("/uploads/")) {
+  // =============================================================
+  // RULE 1: /api/* dan /uploads/* — BYPASS 100%, jangan disentuh
+  // API harus selalu langsung ke server (tidak boleh dari cache)
+  // =============================================================
+  if (url.pathname.startsWith("/api/") || url.pathname.startsWith("/uploads/")) {
     return;
   }
 
-  // ============================================================
-  // RULE 3: Hashed static assets (/assets/*.js, /assets/*.css)
-  // Cache-first (they have unique hash names so safe to cache)
-  // ============================================================
+  // =============================================================
+  // RULE 2: Hashed assets (/assets/index-xxxx.js, .css)
+  // Cache-first: hash berubah setiap deploy, aman di-cache
+  // =============================================================
   if (url.pathname.startsWith("/assets/")) {
     event.respondWith(
       caches.match(event.request).then((cached) => {
         if (cached) return cached;
-        return fetch(event.request).then((response) => {
-          if (response && response.status === 200) {
-            const clone = response.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
-          }
-          return response;
-        }).catch(() => caches.match("/"));
+        return fetchAndCache(event.request).catch(() => caches.match("/"));
       })
     );
     return;
   }
 
-  // ============================================================
-  // RULE 4: Static files (manifest, icon, sw.js)
-  // Network-first, cache fallback
-  // ============================================================
-  if (
-    url.pathname === "/manifest.json" ||
-    url.pathname === "/icon-192.png" ||
-    url.pathname === "/sw.js"
-  ) {
-    event.respondWith(
-      fetch(event.request)
-        .then((response) => {
-          if (response && response.status === 200) {
-            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, response.clone()));
-          }
-          return response;
-        })
-        .catch(() => caches.match(event.request))
-    );
-    return;
-  }
-
-  // ============================================================
-  // RULE 5: SPA routes (/, /employee, /admin/*, /login, etc.)
-  // Network-first → if fail, serve cached index.html (offline support)
-  // ============================================================
+  // =============================================================
+  // RULE 3: Semua route lainnya (SPA routes + manifest + icon)
+  // Network-first, fallback ke cached index.html jika offline
+  // =============================================================
   event.respondWith(
     fetch(event.request)
       .then((response) => {
-        // Cache the root / for offline fallback
-        if (response && response.status === 200 && url.pathname === "/") {
-          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, response.clone()));
+        // Cache hanya root "/" untuk offline fallback
+        if (response && response.ok && url.pathname === "/") {
+          const cloned = response.clone(); // Clone sync!
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, cloned));
         }
         return response;
       })
       .catch(async () => {
-        // Offline: serve cached root index.html for all SPA routes
+        // Offline fallback: kembalikan cached index.html
         const cached = await caches.match("/");
-        if (cached) return cached;
-        return new Response("<h2>Aplikasi sedang offline. Silakan periksa koneksi internet Anda.</h2>", {
+        return cached || new Response("<h2>Sedang offline. Periksa koneksi internet.</h2>", {
           headers: { "Content-Type": "text/html" },
         });
       })
   );
 });
 
-// Push Notification handler
+// Push Notification
 self.addEventListener("push", (event) => {
   let data = { title: "PT MIP", body: "Ada pengumuman baru!" };
   if (event.data) {
-    try {
-      data = event.data.json();
-    } catch (e) {
-      data = { title: "PT MIP", body: event.data.text() };
-    }
+    try { data = event.data.json(); } catch { data = { title: "PT MIP", body: event.data.text() }; }
   }
   event.waitUntil(
     self.registration.showNotification(data.title, {
@@ -138,16 +99,15 @@ self.addEventListener("push", (event) => {
   );
 });
 
-// Notification click handler
+// Notification click
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
   const targetPath = event.notification.data || "/";
-  const targetUrl =
-    self.registration.scope.replace(/\/$/, "") +
+  const targetUrl = self.registration.scope.replace(/\/$/, "") +
     (targetPath.startsWith("/") ? targetPath : "/" + targetPath);
   event.waitUntil(
-    clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
-      for (const client of clientList) {
+    clients.matchAll({ type: "window", includeUncontrolled: true }).then((list) => {
+      for (const client of list) {
         if (new URL(client.url).origin === new URL(self.registration.scope).origin && "focus" in client) {
           client.focus();
           if ("navigate" in client) return client.navigate(targetUrl);
