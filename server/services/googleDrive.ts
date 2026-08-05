@@ -71,6 +71,8 @@ async function getOrCreateSubfolder(folderName: 'Absensi' | 'Dokumen' | 'Pengadu
     return folderId;
 }
 
+let hasLoggedRefreshTokenError = false;
+
 // Ensure access token is valid before uploading
 async function ensureValidToken(): Promise<void> {
     if (!oauth2Client) return;
@@ -79,8 +81,12 @@ async function ensureValidToken(): Promise<void> {
         if (!tokenInfo.token) {
             throw new Error("Failed to get access token");
         }
+        hasLoggedRefreshTokenError = false;
     } catch (error: any) {
-        console.error("❌ Google OAuth2 token error:", error.message);
+        if (!hasLoggedRefreshTokenError) {
+            console.warn("⚠️ Google OAuth2 token error (invalid_grant): Refresh token expired or revoked. Falling back to local disk storage.");
+            hasLoggedRefreshTokenError = true;
+        }
         throw new Error("Google Drive authentication failed. The refresh token may be expired.");
     }
 }
