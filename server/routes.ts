@@ -1405,25 +1405,30 @@ export function registerRoutes(app: Express) {
     try {
       const userId = req.session.userId!;
 
-      // 1. Ambil semua ID attendance milik user ini
-      const userAttRecords = await db
-        .select({ id: attendance.id })
-        .from(attendance)
-        .where(eq(attendance.userId, userId));
-
-      if (userAttRecords.length === 0) {
-        return res.json(null);
-      }
-
-      const attIds = userAttRecords.map(a => a.id);
-
-      // 2. Prioritas 1: Cari penugasan lembur yang statusnya PENDING / belum direspon karyawan
+      // Prioritas 1: Cari penugasan lembur SPL berstatus PENDING / belum direspon karyawan milik user ini secara langsung
       const pendingOvertimes = await db
-        .select()
+        .select({
+          id: overtimes.id,
+          attendanceId: overtimes.attendanceId,
+          startTime: overtimes.startTime,
+          endTime: overtimes.endTime,
+          splDocumentUrl: overtimes.splDocumentUrl,
+          initialProofUrl: overtimes.initialProofUrl,
+          finalProofUrl: overtimes.finalProofUrl,
+          description: overtimes.description,
+          finalDescription: overtimes.finalDescription,
+          status: overtimes.status,
+          employeeApproval: overtimes.employeeApproval,
+          rejectionReason: overtimes.rejectionReason,
+          splNumber: overtimes.splNumber,
+          assignedBy: overtimes.assignedBy,
+          createdAt: overtimes.createdAt,
+        })
         .from(overtimes)
+        .innerJoin(attendance, eq(overtimes.attendanceId, attendance.id))
         .where(
           and(
-            inArray(overtimes.attendanceId, attIds),
+            eq(attendance.userId, userId),
             ne(overtimes.status, "cancelled"),
             or(
               eq(overtimes.employeeApproval, "pending"),
@@ -1439,13 +1444,30 @@ export function registerRoutes(app: Express) {
         return res.json(pendingOvertimes[0]);
       }
 
-      // 3. Prioritas 2: Cari lembur aktif (ongoing / approved) paling baru
+      // Prioritas 2: Cari lembur aktif (ongoing / approved) paling baru
       const activeOvertimes = await db
-        .select()
+        .select({
+          id: overtimes.id,
+          attendanceId: overtimes.attendanceId,
+          startTime: overtimes.startTime,
+          endTime: overtimes.endTime,
+          splDocumentUrl: overtimes.splDocumentUrl,
+          initialProofUrl: overtimes.initialProofUrl,
+          finalProofUrl: overtimes.finalProofUrl,
+          description: overtimes.description,
+          finalDescription: overtimes.finalDescription,
+          status: overtimes.status,
+          employeeApproval: overtimes.employeeApproval,
+          rejectionReason: overtimes.rejectionReason,
+          splNumber: overtimes.splNumber,
+          assignedBy: overtimes.assignedBy,
+          createdAt: overtimes.createdAt,
+        })
         .from(overtimes)
+        .innerJoin(attendance, eq(overtimes.attendanceId, attendance.id))
         .where(
           and(
-            inArray(overtimes.attendanceId, attIds),
+            eq(attendance.userId, userId),
             ne(overtimes.status, "cancelled")
           )
         )
