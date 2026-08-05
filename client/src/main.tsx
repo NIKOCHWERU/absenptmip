@@ -27,10 +27,50 @@ const injectTheme = () => {
 
 injectTheme();
 
+class GlobalErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean; error: any }> {
+  constructor(props: any) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: any) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: any, errorInfo: any) {
+    console.error("[React Global ErrorBoundary caught error]", error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f8fafc', padding: '20px', fontFamily: 'sans-serif' }}>
+          <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '24px', maxWidth: '400px', width: '100%', textAlign: 'center', boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1)' }}>
+            <h2 style={{ fontSize: '18px', fontWeight: 'bold', color: '#0f172a', marginBottom: '8px' }}>Terjadi Kendala Tampilan</h2>
+            <p style={{ fontSize: '12px', color: '#64748b', marginBottom: '16px' }}>Aplikasi menemukan masalah tak terduga saat memuat data.</p>
+            <div style={{ backgroundColor: '#f1f5f9', borderRadius: '8px', padding: '8px 12px', fontSize: '10px', color: '#dc2626', fontFamily: 'monospace', marginBottom: '16px', textAlign: 'left', overflowX: 'auto', maxHeight: '100px' }}>
+              {this.state.error?.message || String(this.state.error)}
+            </div>
+            <button
+              onClick={() => { window.location.href = "/"; }}
+              style={{ backgroundColor: '#f97316', color: '#ffffff', border: 'none', borderRadius: '10px', padding: '10px 20px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer', width: '100%' }}
+            >
+              Muat Ulang Aplikasi
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <App />
-    </QueryClientProvider>
+    <GlobalErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <App />
+      </QueryClientProvider>
+    </GlobalErrorBoundary>
   </React.StrictMode>
 );

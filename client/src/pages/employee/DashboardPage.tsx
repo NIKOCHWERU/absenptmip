@@ -175,7 +175,7 @@ export default function EmployeeDashboard() {
 
         // Find first undismissed mutation
         const newMutation = (employeeDocs?.mutations || []).find(m => {
-            const isFuture = new Date(m.createdAt) > cutoff;
+            const isFuture = m.createdAt ? new Date(m.createdAt) > cutoff : false;
             const isDismissed = dismissed.mutations?.includes(m.id);
             return isFuture && !isDismissed;
         });
@@ -184,7 +184,7 @@ export default function EmployeeDashboard() {
                 id: newMutation.id,
                 type: newMutation.type,
                 title: newMutation.type === 'promosi' ? 'Promosi Jabatan' : newMutation.type === 'demosi' ? 'Demosi Jabatan' : 'Mutasi Cabang',
-                date: format(new Date(newMutation.createdAt), "d MMMM yyyy", { locale: id }),
+                date: safeFormatDate(newMutation.createdAt, "d MMMM yyyy", { locale: id }),
                 notes: newMutation.notes || "",
                 documentUrl: newMutation.documentUrl,
                 raw: newMutation
@@ -194,7 +194,7 @@ export default function EmployeeDashboard() {
 
         // Find first undismissed warning letter (SP)
         const newSP = (employeeDocs?.warningLetters || []).find(sp => {
-            const isFuture = new Date(sp.createdAt) > cutoff;
+            const isFuture = sp.createdAt ? new Date(sp.createdAt) > cutoff : false;
             const isDismissed = dismissed.warningLetters?.includes(sp.id);
             return isFuture && !isDismissed;
         });
@@ -203,7 +203,7 @@ export default function EmployeeDashboard() {
                 id: newSP.id,
                 type: 'warningLetter',
                 title: `Surat Peringatan (${newSP.type})`,
-                date: format(new Date(newSP.createdAt), "d MMMM yyyy", { locale: id }),
+                date: safeFormatDate(newSP.createdAt, "d MMMM yyyy", { locale: id }),
                 notes: newSP.notes || "",
                 documentUrl: newSP.documentUrl,
                 raw: newSP
@@ -213,7 +213,7 @@ export default function EmployeeDashboard() {
 
         // Find first undismissed resignation (PHK/layoff)
         const newResign = (employeeDocs?.resignations || []).find(r => {
-            const isFuture = new Date(r.createdAt) > cutoff;
+            const isFuture = r.createdAt ? new Date(r.createdAt) > cutoff : false;
             const isDismissed = dismissed.resignations?.includes(r.id);
             return isFuture && !isDismissed;
         });
@@ -222,7 +222,7 @@ export default function EmployeeDashboard() {
                 id: newResign.id,
                 type: 'resignation',
                 title: 'Pemberitahuan Pemutusan Hubungan Kerja (Resign/PHK)',
-                date: format(new Date(newResign.createdAt), "d MMMM yyyy", { locale: id }),
+                date: safeFormatDate(newResign.createdAt, "d MMMM yyyy", { locale: id }),
                 notes: newResign.reason || "",
                 documentUrl: newResign.documentUrl,
                 raw: newResign
@@ -1269,19 +1269,19 @@ export default function EmployeeDashboard() {
                         <div>
                             <p className="text-gray-400 text-xs font-medium">Masuk</p>
                             <p className="font-mono font-bold text-gray-800">
-                                {today?.checkIn ? format(new Date(today.checkIn), "HH:mm") : "--:--"}
+                                {today?.checkIn ? safeFormatDate(today.checkIn, "HH:mm") : "--:--"}
                             </p>
                         </div>
                         <div>
                             <p className="text-gray-400 text-xs font-medium">Pulang</p>
                             <p className="font-mono font-bold text-gray-800">
-                                {today?.checkOut ? format(new Date(today.checkOut), "HH:mm") : "--:--"}
+                                {today?.checkOut ? safeFormatDate(today.checkOut, "HH:mm") : "--:--"}
                             </p>
                         </div>
                         <div>
                             <p className="text-gray-400 text-xs font-medium">Mulai Istirahat</p>
                             <p className="font-mono font-bold text-gray-800">
-                                {today?.breakStart ? format(new Date(today.breakStart), "HH:mm") : "--:--"}
+                                {today?.breakStart ? safeFormatDate(today.breakStart, "HH:mm") : "--:--"}
                             </p>
                         </div>
                         <div>
@@ -1329,9 +1329,9 @@ export default function EmployeeDashboard() {
                                 <div key={s.id} className="flex justify-between items-center text-xs bg-gray-50 rounded-lg px-3 py-2">
                                     <span className="font-semibold text-gray-600">Sesi {s.sessionNumber}</span>
                                     <span className="font-mono text-gray-500">
-                                        {s.checkIn ? format(new Date(s.checkIn), "HH:mm") : "--:--"}
+                                        {s.checkIn ? safeFormatDate(s.checkIn, "HH:mm") : "--:--"}
                                         {" → "}
-                                        {s.checkOut ? format(new Date(s.checkOut), "HH:mm") : "--:--"}
+                                        {s.checkOut ? safeFormatDate(s.checkOut, "HH:mm") : "--:--"}
                                     </span>
                                 </div>
                             ))}
@@ -1519,7 +1519,7 @@ export default function EmployeeDashboard() {
                         <div className="space-y-4 my-2">
                             {currentNotification.type === 'warningLetter' && (
                                 <div className="text-xs bg-slate-50 p-4 rounded-2xl border border-slate-100 text-slate-700 space-y-1.5">
-                                    <p><strong>Masa Berlaku:</strong> {format(new Date(currentNotification.raw.startDate), "d MMM yyyy")} - {format(new Date(currentNotification.raw.endDate), "d MMM yyyy")}</p>
+                                    <p><strong>Masa Berlaku:</strong> {safeFormatDate(currentNotification.raw.startDate, "d MMM yyyy")} - {safeFormatDate(currentNotification.raw.endDate, "d MMM yyyy")}</p>
                                 </div>
                             )}
 
