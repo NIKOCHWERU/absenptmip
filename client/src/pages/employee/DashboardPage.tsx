@@ -307,10 +307,8 @@ export default function EmployeeDashboard() {
             activeOvertimeToday.id &&
             (activeOvertimeToday.employeeApproval === "pending" ||
              activeOvertimeToday.status === "pending" ||
-             !activeOvertimeToday.employeeApproval) &&
-            activeOvertimeToday.id !== lastOpenedOvertimeIdRef.current
+             !activeOvertimeToday.employeeApproval)
         ) {
-            lastOpenedOvertimeIdRef.current = activeOvertimeToday.id;
             setIsSplNoticeModalOpen(true);
         }
     }, [activeOvertimeToday]);
