@@ -290,6 +290,13 @@ export default function EmployeeDashboard() {
     const [isSubmittingRejection, setIsSubmittingRejection] = useState(false);
 
     // === AUTO-OPEN MODAL SPL UNTUK PENUGASAN PENDING ===
+    console.log("API Response", activeOvertimeToday);
+    console.log("Popup Condition", {
+        hasData: !!activeOvertimeToday,
+        status: activeOvertimeToday?.status,
+        approval: activeOvertimeToday?.employeeApproval
+    });
+
     const isPendingSpl = !!activeOvertimeToday &&
         activeOvertimeToday.status !== "cancelled" &&
         (activeOvertimeToday.employeeApproval === "pending" || !activeOvertimeToday.employeeApproval);

@@ -1280,7 +1280,7 @@ export function registerRoutes(app: Express) {
   // 7. Overtime Endpoints (Untuk Seluruh Karyawan / Super Admin)
   app.post("/api/attendance/overtime/start", isAuthenticated, upload.fields([{ name: "splPhoto" }, { name: "initialProofPhoto" }]), async (req: Request, res: Response) => {
     try {
-      const userId = req.session.userId!;
+      const userId = (req.user as any)?.id || (req.session as any)?.userId;
       const user = await db.select().from(users).where(eq(users.id, userId)).limit(1);
       if (!user.length) return res.status(404).json({ message: "User not found" });
 
@@ -1363,7 +1363,7 @@ export function registerRoutes(app: Express) {
 
   app.post("/api/attendance/overtime/end", isAuthenticated, upload.fields([{ name: "finalProofPhoto" }]), async (req: Request, res: Response) => {
     try {
-      const userId = req.session.userId!;
+      const userId = (req.user as any)?.id || (req.session as any)?.userId;
       const user = await db.select().from(users).where(eq(users.id, userId)).limit(1);
       if (!user.length) return res.status(404).json({ message: "User not found" });
 
@@ -1403,27 +1403,46 @@ export function registerRoutes(app: Express) {
 
   app.get("/api/attendance/overtime/today", isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const userId = req.session.userId!;
+      const employee = req.user;
+      const userId = (req.user as any)?.id || (req.session as any)?.userId;
 
-      // 1. Ambil semua ID attendance milik user ini
-      const userAtts = await db
-        .select({ id: attendance.id })
-        .from(attendance)
-        .where(eq(attendance.userId, userId));
-
-      if (userAtts.length === 0) {
+      if (!userId) {
+        console.log("========== OVERTIME DEBUG ==========");
+        console.log("Login User:", req.user);
+        console.log("Employee:", employee);
+        console.log("Today:", new Date());
+        console.log("SQL Result:", null);
+        console.log("====================================");
         return res.json(null);
       }
 
-      const attIds = userAtts.map((a) => a.id);
-
       // Prioritas 1: Cari penugasan SPL pending yang belum direspon oleh karyawan
       const pendingOvertimes = await db
-        .select()
+        .select({
+          id: overtimes.id,
+          attendanceId: overtimes.attendanceId,
+          startTime: overtimes.startTime,
+          endTime: overtimes.endTime,
+          splDocumentUrl: overtimes.splDocumentUrl,
+          initialProofUrl: overtimes.initialProofUrl,
+          finalProofUrl: overtimes.finalProofUrl,
+          description: overtimes.description,
+          finalDescription: overtimes.finalDescription,
+          status: overtimes.status,
+          employeeApproval: overtimes.employeeApproval,
+          rejectionReason: overtimes.rejectionReason,
+          rejectionProofUrl: overtimes.rejectionProofUrl,
+          splNumber: overtimes.splNumber,
+          assignedBy: overtimes.assignedBy,
+          createdAt: overtimes.createdAt,
+          userId: attendance.userId,
+          overtimeDate: attendance.date,
+        })
         .from(overtimes)
+        .innerJoin(attendance, eq(overtimes.attendanceId, attendance.id))
         .where(
           and(
-            inArray(overtimes.attendanceId, attIds),
+            eq(attendance.userId, userId),
             ne(overtimes.status, "cancelled"),
             or(
               eq(overtimes.employeeApproval, "pending"),
@@ -1435,28 +1454,53 @@ export function registerRoutes(app: Express) {
         .orderBy(desc(overtimes.id))
         .limit(1);
 
-      if (pendingOvertimes.length > 0) {
-        return res.json(pendingOvertimes[0]);
-      }
+      let result: any = pendingOvertimes[0] || null;
 
-      // Prioritas 2: Cari lembur aktif (ongoing / approved) paling baru
-      const activeOvertimes = await db
-        .select()
-        .from(overtimes)
-        .where(
-          and(
-            inArray(overtimes.attendanceId, attIds),
-            ne(overtimes.status, "cancelled")
+      if (!result) {
+        // Prioritas 2: Cari lembur aktif (ongoing / approved) paling baru
+        const activeOvertimes = await db
+          .select({
+            id: overtimes.id,
+            attendanceId: overtimes.attendanceId,
+            startTime: overtimes.startTime,
+            endTime: overtimes.endTime,
+            splDocumentUrl: overtimes.splDocumentUrl,
+            initialProofUrl: overtimes.initialProofUrl,
+            finalProofUrl: overtimes.finalProofUrl,
+            description: overtimes.description,
+            finalDescription: overtimes.finalDescription,
+            status: overtimes.status,
+            employeeApproval: overtimes.employeeApproval,
+            rejectionReason: overtimes.rejectionReason,
+            rejectionProofUrl: overtimes.rejectionProofUrl,
+            splNumber: overtimes.splNumber,
+            assignedBy: overtimes.assignedBy,
+            createdAt: overtimes.createdAt,
+            userId: attendance.userId,
+            overtimeDate: attendance.date,
+          })
+          .from(overtimes)
+          .innerJoin(attendance, eq(overtimes.attendanceId, attendance.id))
+          .where(
+            and(
+              eq(attendance.userId, userId),
+              ne(overtimes.status, "cancelled")
+            )
           )
-        )
-        .orderBy(desc(overtimes.id))
-        .limit(1);
+          .orderBy(desc(overtimes.id))
+          .limit(1);
 
-      if (activeOvertimes.length > 0) {
-        return res.json(activeOvertimes[0]);
+        result = activeOvertimes[0] || null;
       }
 
-      return res.json(null);
+      console.log("========== OVERTIME DEBUG ==========");
+      console.log("Login User:", req.user);
+      console.log("Employee:", employee);
+      console.log("Today:", new Date());
+      console.log("SQL Result:", result);
+      console.log("====================================");
+
+      return res.json(result);
     } catch (e: any) {
       console.error("Fetch overtime today error:", e);
       return res.json(null);
@@ -1497,7 +1541,7 @@ export function registerRoutes(app: Express) {
   // Endpoint untuk mengambil Surat Perintah Lembur (SPL) Karyawan
   app.get("/api/employee/overtimes/my-spl", isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const userId = req.session.userId!;
+      const userId = (req.user as any)?.id || (req.session as any)?.userId;
       const userSpls = await db.select({
         id: overtimes.id,
         attendanceId: overtimes.attendanceId,
@@ -1617,7 +1661,7 @@ export function registerRoutes(app: Express) {
         status: "pending",
         employeeApproval: "pending",
         splNumber: splNum,
-        assignedBy: req.session.userId!
+        assignedBy: (req.user as any)?.id || (req.session as any)?.userId
       });
 
       sendPushToUser(Number(userId), {
