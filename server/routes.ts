@@ -1407,7 +1407,23 @@ export function registerRoutes(app: Express) {
 
       // Fetch latest active/pending/approved/ongoing overtime for this user
       const userOvertimes = await db
-        .select({ overtime: overtimes })
+        .select({
+          id: overtimes.id,
+          attendanceId: overtimes.attendanceId,
+          startTime: overtimes.startTime,
+          endTime: overtimes.endTime,
+          splDocumentUrl: overtimes.splDocumentUrl,
+          initialProofUrl: overtimes.initialProofUrl,
+          finalProofUrl: overtimes.finalProofUrl,
+          description: overtimes.description,
+          finalDescription: overtimes.finalDescription,
+          status: overtimes.status,
+          employeeApproval: overtimes.employeeApproval,
+          rejectionReason: overtimes.rejectionReason,
+          splNumber: overtimes.splNumber,
+          assignedBy: overtimes.assignedBy,
+          createdAt: overtimes.createdAt,
+        })
         .from(overtimes)
         .innerJoin(attendance, eq(overtimes.attendanceId, attendance.id))
         .where(
@@ -1420,7 +1436,7 @@ export function registerRoutes(app: Express) {
         .limit(1);
 
       if (userOvertimes.length > 0) {
-        return res.json(userOvertimes[0].overtime);
+        return res.json(userOvertimes[0]);
       }
 
       return res.json(null);
