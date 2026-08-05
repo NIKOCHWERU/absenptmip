@@ -296,14 +296,15 @@ export default function EmployeeDashboard() {
 
     useEffect(() => {
         if (isPendingSpl) {
-            // Hanya buka jika tidak sedang membuka modal izin/alasan penolakan
-            if (!isRejectOvertimeModalOpen) {
-                setIsSplViewModalOpen(true);
+            // Jika ada tugas pending & modal penolakan tidak terbuka, pastikan modal notice SPL langsung terbuka
+            if (!isRejectOvertimeModalOpen && !isSplViewModalOpen) {
+                setIsSplNoticePopupOpen(true);
             }
         } else {
+            setIsSplNoticePopupOpen(false);
             setIsSplViewModalOpen(false);
         }
-    }, [isPendingSpl, activeOvertimeToday?.id, isRejectOvertimeModalOpen]);
+    }, [isPendingSpl, activeOvertimeToday?.id, isRejectOvertimeModalOpen, isSplViewModalOpen]);
 
     const overtimeRespondMutation = useMutation({
         mutationFn: async ({ action, rejectionReason }: { action: "approve" | "reject", rejectionReason?: string }) => {
