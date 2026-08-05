@@ -1558,7 +1558,7 @@ export function registerRoutes(app: Express) {
       let attRecord = await db.select().from(attendance).where(and(eq(attendance.userId, Number(userId)), eq(attendance.date, date))).limit(1);
       let attendanceId: number;
       if (attRecord.length === 0) {
-        const [newAtt] = await (db.insert(attendance) as any).values({
+        const [newAtt]: any = await db.insert(attendance).values({
           userId: Number(userId),
           date: date,
           status: "present",
@@ -1566,6 +1566,10 @@ export function registerRoutes(app: Express) {
           notes: "Penugasan Lembur SPL"
         });
         attendanceId = newAtt.insertId;
+        if (!attendanceId) {
+          const [createdAtt] = await db.select().from(attendance).where(and(eq(attendance.userId, Number(userId)), eq(attendance.date, date))).limit(1);
+          attendanceId = createdAtt.id;
+        }
       } else {
         attendanceId = attRecord[0].id;
       }
