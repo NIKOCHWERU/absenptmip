@@ -1405,8 +1405,46 @@ export function registerRoutes(app: Express) {
     try {
       const userId = req.session.userId!;
 
-      // Fetch latest active/pending/approved/ongoing overtime for this user
-      const userOvertimes = await db
+      // Prioritas 1: Cari penugasan lembur SPL yang berstatus pending / belum direspon oleh karyawan
+      const pendingOvertimes = await db
+        .select({
+          id: overtimes.id,
+          attendanceId: overtimes.attendanceId,
+          startTime: overtimes.startTime,
+          endTime: overtimes.endTime,
+          splDocumentUrl: overtimes.splDocumentUrl,
+          initialProofUrl: overtimes.initialProofUrl,
+          finalProofUrl: overtimes.finalProofUrl,
+          description: overtimes.description,
+          finalDescription: overtimes.finalDescription,
+          status: overtimes.status,
+          employeeApproval: overtimes.employeeApproval,
+          rejectionReason: overtimes.rejectionReason,
+          splNumber: overtimes.splNumber,
+          assignedBy: overtimes.assignedBy,
+          createdAt: overtimes.createdAt,
+        })
+        .from(overtimes)
+        .innerJoin(attendance, eq(overtimes.attendanceId, attendance.id))
+        .where(
+          and(
+            eq(attendance.userId, userId),
+            ne(overtimes.status, "cancelled"),
+            or(
+              eq(overtimes.employeeApproval, "pending"),
+              eq(overtimes.status, "pending")
+            )
+          )
+        )
+        .orderBy(desc(overtimes.id))
+        .limit(1);
+
+      if (pendingOvertimes.length > 0) {
+        return res.json(pendingOvertimes[0]);
+      }
+
+      // Prioritas 2: Cari lembur aktif (ongoing / approved) paling baru
+      const activeOvertimes = await db
         .select({
           id: overtimes.id,
           attendanceId: overtimes.attendanceId,
@@ -1435,8 +1473,8 @@ export function registerRoutes(app: Express) {
         .orderBy(desc(overtimes.id))
         .limit(1);
 
-      if (userOvertimes.length > 0) {
-        return res.json(userOvertimes[0]);
+      if (activeOvertimes.length > 0) {
+        return res.json(activeOvertimes[0]);
       }
 
       return res.json(null);
