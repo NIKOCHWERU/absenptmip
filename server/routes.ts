@@ -1363,46 +1363,137 @@ export function registerRoutes(app: Express) {
 
   app.post("/api/attendance/overtime/end", isAuthenticated, upload.fields([{ name: "finalProofPhoto" }]), async (req: Request, res: Response) => {
     try {
-      const userId = (req.user as any)?.id || (req.session as any)?.userId;
+      const userId = Number((req.user as any)?.id || (req.session as any)?.userId);
       const user = await db.select().from(users).where(eq(users.id, userId)).limit(1);
       if (!user.length) return res.status(404).json({ message: "User not found" });
 
       const files = req.files as { [fieldname: string]: Express.Multer.File[] };
       const finalDescription = req.body.finalDescription;
       
-      const adminDate = getAdminDate();
-      const todaySessions = await db.select()
-        .from(attendance)
-        .where(and(eq(attendance.userId, userId), eq(attendance.date, adminDate)))
-        .orderBy(desc(attendance.sessionNumber));
+      // Find active ongoing overtime for this user
+      const ongoingOvertimes = await db.select({
+        id: overtimes.id,
+        attendanceId: overtimes.attendanceId,
+        startTime: overtimes.startTime
+      })
+      .from(overtimes)
+      .innerJoin(attendance, eq(overtimes.attendanceId, attendance.id))
+      .where(and(eq(attendance.userId, userId), eq(overtimes.status, "ongoing")))
+      .orderBy(desc(overtimes.id))
+      .limit(1);
 
-      if (todaySessions.length === 0) return res.status(400).json({ message: "Sesi tidak ditemukan" });
-
-      const activeSession = todaySessions[0];
-      const activeOvertimes = await db.select().from(overtimes).where(and(eq(overtimes.attendanceId, activeSession.id), eq(overtimes.status, "ongoing"))).limit(1);
-      
-      if (activeOvertimes.length === 0) {
-         return res.status(400).json({ message: "Tidak ada lembur yang sedang berjalan" });
+      if (ongoingOvertimes.length === 0) {
+        return res.status(400).json({ message: "Tidak ada sesi lembur yang sedang berjalan" });
       }
 
+      const activeOt = ongoingOvertimes[0];
       const finalProofUrl = files?.finalProofPhoto?.[0] ? await processSingleUpload(files.finalProofPhoto[0], "overtimeFinal", user[0].fullName) : null;
 
       await db.update(overtimes).set({
         endTime: new Date(),
         finalProofUrl: finalProofUrl,
-        finalDescription: finalDescription,
+        finalDescription: finalDescription || "Selesai Lembur",
         status: "completed"
-      }).where(eq(overtimes.id, activeOvertimes[0].id));
+      }).where(eq(overtimes.id, activeOt.id));
 
       res.json({ message: "Lembur berhasil diakhiri" });
     } catch(e: any) {
       console.error("Overtime end error:", e);
-      res.status(500).json({ message: "Internal server error" });
+      res.status(500).json({ message: e.message || "Internal server error" });
     }
   });
 
   app.get("/api/attendance/overtime/today", isAuthenticated, async (req: Request, res: Response) => {
-    return res.json(null);
+    try {
+      const rawUserId = (req.user as any)?.id || (req.session as any)?.userId;
+      const userId = Number(rawUserId);
+
+      if (!userId || isNaN(userId)) {
+        return res.json(null);
+      }
+
+      // Priority 1: Pending SPL assignment needing response
+      const pendingOvertimes = await db
+        .select({
+          id: overtimes.id,
+          attendanceId: overtimes.attendanceId,
+          startTime: overtimes.startTime,
+          endTime: overtimes.endTime,
+          splDocumentUrl: overtimes.splDocumentUrl,
+          initialProofUrl: overtimes.initialProofUrl,
+          finalProofUrl: overtimes.finalProofUrl,
+          description: overtimes.description,
+          finalDescription: overtimes.finalDescription,
+          status: overtimes.status,
+          employeeApproval: overtimes.employeeApproval,
+          rejectionReason: overtimes.rejectionReason,
+          rejectionProofUrl: overtimes.rejectionProofUrl,
+          splNumber: overtimes.splNumber,
+          assignedBy: overtimes.assignedBy,
+          createdAt: overtimes.createdAt,
+          userId: attendance.userId,
+          overtimeDate: attendance.date,
+        })
+        .from(overtimes)
+        .innerJoin(attendance, eq(overtimes.attendanceId, attendance.id))
+        .where(
+          and(
+            eq(attendance.userId, userId),
+            ne(overtimes.status, "cancelled"),
+            or(
+              eq(overtimes.employeeApproval, "pending"),
+              eq(overtimes.status, "pending"),
+              isNull(overtimes.employeeApproval)
+            )
+          )
+        )
+        .orderBy(desc(overtimes.id))
+        .limit(1);
+
+      let result: any = pendingOvertimes[0] || null;
+
+      if (!result) {
+        // Priority 2: Active overtime (ongoing or approved)
+        const activeOvertimes = await db
+          .select({
+            id: overtimes.id,
+            attendanceId: overtimes.attendanceId,
+            startTime: overtimes.startTime,
+            endTime: overtimes.endTime,
+            splDocumentUrl: overtimes.splDocumentUrl,
+            initialProofUrl: overtimes.initialProofUrl,
+            finalProofUrl: overtimes.finalProofUrl,
+            description: overtimes.description,
+            finalDescription: overtimes.finalDescription,
+            status: overtimes.status,
+            employeeApproval: overtimes.employeeApproval,
+            rejectionReason: overtimes.rejectionReason,
+            rejectionProofUrl: overtimes.rejectionProofUrl,
+            splNumber: overtimes.splNumber,
+            assignedBy: overtimes.assignedBy,
+            createdAt: overtimes.createdAt,
+            userId: attendance.userId,
+            overtimeDate: attendance.date,
+          })
+          .from(overtimes)
+          .innerJoin(attendance, eq(overtimes.attendanceId, attendance.id))
+          .where(
+            and(
+              eq(attendance.userId, userId),
+              ne(overtimes.status, "cancelled")
+            )
+          )
+          .orderBy(desc(overtimes.id))
+          .limit(1);
+
+        result = activeOvertimes[0] || null;
+      }
+
+      return res.json(result);
+    } catch (e: any) {
+      console.error("Fetch overtime today error:", e);
+      return res.json(null);
+    }
   });
 
   // Respon Persetujuan / Izin Tidak Lembur Karyawan
@@ -1504,38 +1595,26 @@ export function registerRoutes(app: Express) {
     }
   });
 
-  // Endpoint Admin Penugasan Lembur Baru (SPL)
+  // Endpoint Admin Penugasan Lembur Baru (SPL) - Support Single atau Multi-Karyawan
   app.post("/api/admin/overtimes/assign", isAuthenticated, isAdmin, upload.single("splFile"), async (req: Request, res: Response) => {
     try {
-      const { userId, date, startTime, endTime, description } = req.body;
-      if (!userId || !date || !startTime) {
-        return res.status(400).json({ message: "Karyawan, Tanggal, dan Jam Mulai Wajib Diisi" });
+      const { userId, userIds, date, startTime, endTime, description } = req.body;
+      let targetUserIds: number[] = [];
+      if (Array.isArray(userIds)) {
+        targetUserIds = userIds.map(Number);
+      } else if (typeof userIds === "string") {
+        try { targetUserIds = JSON.parse(userIds).map(Number); } catch (_) { targetUserIds = userIds.split(",").map(Number); }
+      } else if (userId) {
+        targetUserIds = [Number(userId)];
       }
-      const targetUser = await db.select().from(users).where(eq(users.id, Number(userId))).limit(1);
-      if (!targetUser.length) return res.status(404).json({ message: "User tidak ditemukan" });
 
-      let attRecord = await db.select().from(attendance).where(and(eq(attendance.userId, Number(userId)), eq(attendance.date, date))).limit(1);
-      let attendanceId: number;
-      if (attRecord.length === 0) {
-        const insertRes: any = await db.insert(attendance).values({
-          userId: Number(userId),
-          date: date,
-          status: "present",
-          checkIn: null,
-          notes: "Penugasan Lembur SPL"
-        });
-        attendanceId = insertRes[0]?.insertId || insertRes?.insertId;
-        if (!attendanceId) {
-          const [createdAtt] = await db.select().from(attendance).where(and(eq(attendance.userId, Number(userId)), eq(attendance.date, date))).limit(1);
-          attendanceId = createdAtt?.id;
-        }
-      } else {
-        attendanceId = attRecord[0].id;
+      if (targetUserIds.length === 0 || !date || !startTime) {
+        return res.status(400).json({ message: "Pilih minimal 1 Karyawan, Tanggal, dan Jam Mulai Wajib Diisi" });
       }
 
       let splUrl = null;
       if (req.file) {
-        splUrl = await processSingleUpload(req.file, "overtimeSPL", targetUser[0].fullName);
+        splUrl = await processSingleUpload(req.file, "overtimeSPL", `SPL_${date}`);
       }
 
       const startDateObj = new Date(`${date}T${startTime}:00+07:00`);
@@ -1543,32 +1622,61 @@ export function registerRoutes(app: Express) {
       if (endTime) {
         let tempEnd = new Date(`${date}T${endTime}:00+07:00`);
         if (tempEnd < startDateObj) {
-          // End time is on the next day (e.g. 23:00 to 02:00 next day)
           tempEnd.setDate(tempEnd.getDate() + 1);
         }
         endDateObj = tempEnd;
       }
-      const splNum = `SPL/MIP/${date.replace(/-/g, '')}/${Math.floor(1000 + Math.random() * 9000)}`;
 
-      const [newOt] = await (db.insert(overtimes) as any).values({
-        attendanceId: attendanceId,
-        startTime: startDateObj,
-        endTime: endDateObj,
-        description: description || "Surat Perintah Lembur (SPL)",
-        splDocumentUrl: splUrl,
-        status: "pending",
-        employeeApproval: "pending",
-        splNumber: splNum,
-        assignedBy: (req.user as any)?.id || (req.session as any)?.userId
-      });
+      const createdRecords: number[] = [];
 
-      sendPushToUser(Number(userId), {
-        title: "⚡ SURAT PERINTAH LEMBUR (SPL)",
-        body: `Anda menerima Surat Perintah Lembur (SPL) tanggal ${date} jam ${startTime}. Silakan buka aplikasi untuk menyetujui.`,
-        url: "/dashboard"
-      });
+      for (const targetId of targetUserIds) {
+        const targetUser = await db.select().from(users).where(eq(users.id, targetId)).limit(1);
+        if (!targetUser.length) continue;
 
-      res.json({ message: "Penugasan Lembur (SPL) berhasil dikirim", id: newOt.insertId });
+        let attRecord = await db.select().from(attendance).where(and(eq(attendance.userId, targetId), eq(attendance.date, date))).limit(1);
+        let attendanceId: number;
+        if (attRecord.length === 0) {
+          const insertRes: any = await db.insert(attendance).values({
+            userId: targetId,
+            date: date,
+            status: "present",
+            checkIn: null,
+            notes: "Penugasan Lembur SPL"
+          });
+          attendanceId = insertRes[0]?.insertId || insertRes?.insertId;
+          if (!attendanceId) {
+            const [createdAtt] = await db.select().from(attendance).where(and(eq(attendance.userId, targetId), eq(attendance.date, date))).limit(1);
+            attendanceId = createdAtt?.id;
+          }
+        } else {
+          attendanceId = attRecord[0].id;
+        }
+
+        const splNum = `SPL/MIP/${date.replace(/-/g, '')}/${Math.floor(1000 + Math.random() * 9000)}`;
+
+        const insertOtRes: any = await (db.insert(overtimes) as any).values({
+          attendanceId: attendanceId,
+          startTime: startDateObj,
+          endTime: endDateObj,
+          description: description || "Surat Perintah Lembur (SPL)",
+          splDocumentUrl: splUrl,
+          status: "pending",
+          employeeApproval: "pending",
+          splNumber: splNum,
+          assignedBy: (req.user as any)?.id || (req.session as any)?.userId
+        });
+
+        const newOtId = insertOtRes[0]?.insertId || insertOtRes?.insertId;
+        if (newOtId) createdRecords.push(newOtId);
+
+        sendPushToUser(targetId, {
+          title: "⚡ SURAT PERINTAH LEMBUR (SPL)",
+          body: `Anda menerima Surat Perintah Lembur (SPL) tanggal ${date} jam ${startTime}. Silakan buka aplikasi untuk menyetujui.`,
+          url: "/dashboard"
+        });
+      }
+
+      res.json({ message: `Penugasan Lembur (SPL) berhasil dikirim untuk ${createdRecords.length} karyawan`, count: createdRecords.length });
     } catch (e: any) {
       console.error("Assign overtime error:", e);
       res.status(500).json({ message: e.message || "Internal server error" });
@@ -3271,4 +3379,35 @@ export function registerRoutes(app: Express) {
       res.status(500).json({ message: e.message });
     }
   });
+
+  // Scheduled Daily Session Reset at 03:30 WIB
+  let lastResetDate = "";
+  setInterval(async () => {
+    try {
+      const now = new Date();
+      // WIB is UTC+7
+      const wibHours = (now.getUTCHours() + 7) % 24;
+      const wibMinutes = now.getUTCMinutes();
+      const todayStr = `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}`;
+
+      if (wibHours === 3 && wibMinutes === 30 && lastResetDate !== todayStr) {
+        lastResetDate = todayStr;
+        console.log(`[03:30 WIB RESET] Executing daily session reset for ${todayStr}...`);
+        
+        // Cap any active overtime sessions left open overnight
+        const ongoingOvertimes = await db.select().from(overtimes).where(eq(overtimes.status, "ongoing"));
+        for (const ot of ongoingOvertimes) {
+          await db.update(overtimes).set({
+            endTime: now,
+            status: "completed",
+            finalDescription: (ot.finalDescription || "") + " (Auto-capped by 03:30 system reset)"
+          }).where(eq(overtimes.id, ot.id));
+        }
+
+        console.log(`[03:30 WIB RESET] Completed daily session reset. Capped ${ongoingOvertimes.length} ongoing overtime sessions.`);
+      }
+    } catch (err) {
+      console.error("[03:30 WIB RESET ERROR]", err);
+    }
+  }, 60000);
 }

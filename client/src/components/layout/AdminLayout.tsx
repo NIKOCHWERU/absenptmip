@@ -513,6 +513,25 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                         ]
                     }
                 ] : []),
+                ...(user?.role === 'superadmin' || user?.role === 'admin' ? [
+                    {
+                        title: "Kelola Lembur",
+                        url: "#overtime",
+                        icon: Clock,
+                        items: [
+                            {
+                                title: "Pengajuan Lembur (SPL)",
+                                url: "/admin/overtime-management",
+                                icon: Clock,
+                            },
+                            {
+                                title: "Riwayat Lembur",
+                                url: "/admin/overtime-history",
+                                icon: History,
+                            },
+                        ]
+                    }
+                ] : []),
 
                 {
                     title: "Rekap & Riwayat",

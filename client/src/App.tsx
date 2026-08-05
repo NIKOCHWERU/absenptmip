@@ -17,6 +17,8 @@ import ComplaintPage from "./pages/employee/ComplaintPage.js";
 import ProfilePage from "./pages/employee/ProfilePage.js";
 import InfoPage from "./pages/employee/InfoPage.js";
 import RegistrationPage from "./pages/employee/RegistrationPage.js";
+import AdminOvertimePage from "./pages/admin/AdminOvertimePage.js";
+import AdminOvertimeHistoryPage from "./pages/admin/AdminOvertimeHistoryPage.js";
 import AdminDashboard from "./pages/admin/DashboardPage.js";
 import EmployeeListPage from "./pages/admin/EmployeeListPage.js";
 import AttendanceHistoryPage from "./pages/admin/AttendanceHistoryPage.js";
@@ -196,6 +198,12 @@ export default function App() {
             </Route>
             <Route path="/admin/verification">
               {() => <AdminLayout><ProtectedRoute component={AdminVerificationPage} roles={["admin", "superadmin"]} /></AdminLayout>}
+            </Route>
+            <Route path="/admin/overtime-management">
+              {() => <AdminLayout><ProtectedRoute component={AdminOvertimePage} roles={["admin", "superadmin"]} /></AdminLayout>}
+            </Route>
+            <Route path="/admin/overtime-history">
+              {() => <AdminLayout><ProtectedRoute component={AdminOvertimeHistoryPage} roles={["admin", "superadmin"]} /></AdminLayout>}
             </Route>
             <Route path="/admin/leaves">
               {() => <AdminLayout><ProtectedRoute component={AdminLeavePage} roles={["admin", "superadmin"]} /></AdminLayout>}
