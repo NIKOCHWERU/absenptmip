@@ -100,37 +100,45 @@ export default function AdminOvertimePage() {
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
   const [viewDetail, setViewDetail] = useState<any | null>(null);
 
-  // Form Fields
-  const [assignUserId, setAssignUserId] = useState<string>("");
+  // Form Fields — multi-select karyawan
+  const [assignUserIds, setAssignUserIds] = useState<string[]>([]);
   const [assignDate, setAssignDate] = useState<string>(format(new Date(), "yyyy-MM-dd"));
   const [assignStartTime, setAssignStartTime] = useState<string>("17:00");
   const [assignEndTime, setAssignEndTime] = useState<string>("20:30");
   const [assignTask, setAssignTask] = useState<string>("");
   const [assignSplFile, setAssignSplFile] = useState<File | null>(null);
-  const [isAssigningAll, setIsAssigningAll] = useState(false);
+
+  const toggleAssignUser = (uid: string) => {
+    setAssignUserIds(prev =>
+      prev.includes(uid) ? prev.filter(id => id !== uid) : [...prev, uid]
+    );
+  };
+
+  const toggleSelectAllEmployees = () => {
+    if (assignUserIds.length === employeeUsers.length) {
+      setAssignUserIds([]);
+    } else {
+      setAssignUserIds(employeeUsers.map(u => String(u.id)));
+    }
+  };
 
   // Sorting State
   const [sortField, setSortField] = useState<string>("createdAt");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
 
-  // Default select first employee when modal opens if not selected
+  // Open modal — reset selection
   const handleOpenAssignModal = () => {
-    if (employeeUsers.length > 0) {
-      setAssignUserId(String(employeeUsers[0].id));
-    }
+    setAssignUserIds([]);
     setIsAssignModalOpen(true);
   };
 
-  // Mutation Penugasan Lembur (single atau semua karyawan)
+  // Mutation Penugasan Lembur ke beberapa karyawan sekaligus
   const assignMutation = useMutation({
     mutationFn: async () => {
-      const targetUserIds = assignUserId === "all"
-        ? employeeUsers.map(u => String(u.id))
-        : [assignUserId];
+      if (assignUserIds.length === 0) throw new Error("Pilih minimal 1 karyawan");
 
-      // Kirim satu per satu ke semua karyawan yang dipilih
       const results = await Promise.allSettled(
-        targetUserIds.map(async (uid) => {
+        assignUserIds.map(async (uid) => {
           const formData = new FormData();
           formData.append("userId", uid);
           formData.append("date", assignDate);
@@ -146,7 +154,7 @@ export default function AdminOvertimePage() {
           });
           if (!res.ok) {
             const err = await res.json();
-            throw new Error(err.message || "Gagal mengirim penugasan lembur");
+            throw new Error(err.message || "Gagal");
           }
           return res.json();
         })
@@ -161,6 +169,7 @@ export default function AdminOvertimePage() {
     onSuccess: (results: any[]) => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/overtimes"] });
       setIsAssignModalOpen(false);
+      setAssignUserIds([]);
       setAssignTask("");
       setAssignSplFile(null);
       const successCount = results.filter((r: any) => r.status === "fulfilled").length;
@@ -523,26 +532,62 @@ export default function AdminOvertimePage() {
           </DialogHeader>
 
           <form onSubmit={(e) => { e.preventDefault(); assignMutation.mutate(); }} className="space-y-4 py-2">
-            {/* Field 1: Pilih Karyawan */}
+            {/* Field 1: Pilih Beberapa Karyawan (Multi-select checkbox) */}
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-gray-700">Tenaga Kerja / Karyawan *</label>
-              <Select value={assignUserId} onValueChange={setAssignUserId}>
-                <SelectTrigger className="rounded-xl border-gray-200 h-10 text-xs font-semibold">
-                  <SelectValue placeholder="Pilih Karyawan" />
-                </SelectTrigger>
-                <SelectContent className="rounded-xl">
-                  {/* Opsi SEMUA KARYAWAN */}
-                  <SelectItem value="all">
-                    <span className="font-black text-orange-700">👥 SEMUA KARYAWAN ({employeeUsers.length} orang)</span>
-                  </SelectItem>
-                  <div className="border-t border-gray-100 my-1" />
-                  {employeeUsers.map(u => (
-                    <SelectItem key={u.id} value={String(u.id)}>
-                      {u.fullName} (NIK: {u.nik || u.username})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-gray-700">Tenaga Kerja / Karyawan *</label>
+                <button
+                  type="button"
+                  onClick={toggleSelectAllEmployees}
+                  className="text-[10px] font-bold text-primary hover:underline"
+                >
+                  {assignUserIds.length === employeeUsers.length ? "✗ Batal Semua" : "✓ Pilih Semua"}
+                </button>
+              </div>
+              {/* Badge summary */}
+              {assignUserIds.length > 0 && (
+                <div className="flex flex-wrap gap-1 pb-1">
+                  {assignUserIds.map(uid => {
+                    const u = employeeUsers.find(e => String(e.id) === uid);
+                    return u ? (
+                      <span key={uid} className="inline-flex items-center gap-1 bg-primary/10 text-primary text-[10px] font-bold px-2 py-0.5 rounded-full">
+                        {u.fullName.split(" ")[0]}
+                        <button type="button" onClick={() => toggleAssignUser(uid)} className="hover:text-red-500">×</button>
+                      </span>
+                    ) : null;
+                  })}
+                </div>
+              )}
+              {/* Scrollable checkbox list */}
+              <div className="border border-gray-200 rounded-xl overflow-y-auto max-h-40 divide-y divide-gray-50">
+                {employeeUsers.map(u => (
+                  <label
+                    key={u.id}
+                    className={`flex items-center gap-3 px-3 py-2.5 cursor-pointer hover:bg-gray-50 transition-colors ${
+                      assignUserIds.includes(String(u.id)) ? "bg-primary/5" : ""
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      className="w-4 h-4 accent-primary rounded"
+                      checked={assignUserIds.includes(String(u.id))}
+                      onChange={() => toggleAssignUser(String(u.id))}
+                    />
+                    <div className="flex items-center gap-2 min-w-0">
+                      <div className="w-7 h-7 rounded-full bg-orange-100 text-orange-700 font-black text-[10px] flex items-center justify-center shrink-0 uppercase">
+                        {u.fullName.charAt(0)}
+                      </div>
+                      <div className="min-w-0">
+                        <span className="block text-xs font-bold text-gray-800 truncate">{u.fullName}</span>
+                        <span className="text-[10px] text-gray-400 font-mono">NIK: {u.nik || u.username}</span>
+                      </div>
+                    </div>
+                  </label>
+                ))}
+              </div>
+              {assignUserIds.length === 0 && (
+                <p className="text-[10px] text-red-500 font-semibold">* Pilih minimal 1 karyawan</p>
+              )}
             </div>
 
             {/* Field 2 & 3: Tanggal & Waktu 24 Jam */}
