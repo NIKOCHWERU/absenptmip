@@ -51,13 +51,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         const res = await fetch("/api/user", { credentials: "include" });
         if (res.status === 401) return null;
-        if (!res.ok) throw new Error("Gagal mengambil data user");
+        if (!res.ok) return null;
         return await res.json();
       } catch (err) {
+        // Pada situasi gangguan jaringan sementara (ERR_NETWORK_CHANGED), jangan kembalikan null (terpental logout)
+        // Kembalikan data user sebelumnya dari cache query client jika ada
+        const cachedUser = queryClient.getQueryData<User>(["/api/user"]);
+        if (cachedUser) return cachedUser;
         return null;
       }
     },
-    retry: false,
+    retry: 2,
+    retryDelay: 1000,
     refetchOnWindowFocus: true,
     refetchInterval: 10000,
   });
