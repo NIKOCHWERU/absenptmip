@@ -296,15 +296,15 @@ export default function EmployeeDashboard() {
 
     useEffect(() => {
         if (isPendingSpl) {
-            // Jika ada tugas pending & modal penolakan tidak terbuka, pastikan modal notice SPL langsung terbuka
-            if (!isRejectOvertimeModalOpen && !isSplViewModalOpen) {
+            // Otomatis aktifkan state kedua modal notifikasi jika belum menolak
+            if (!isRejectOvertimeModalOpen) {
                 setIsSplNoticePopupOpen(true);
             }
         } else {
             setIsSplNoticePopupOpen(false);
             setIsSplViewModalOpen(false);
         }
-    }, [isPendingSpl, activeOvertimeToday?.id, isRejectOvertimeModalOpen, isSplViewModalOpen]);
+    }, [isPendingSpl, activeOvertimeToday?.id, isRejectOvertimeModalOpen]);
 
     const overtimeRespondMutation = useMutation({
         mutationFn: async ({ action, rejectionReason }: { action: "approve" | "reject", rejectionReason?: string }) => {
@@ -2092,7 +2092,7 @@ export default function EmployeeDashboard() {
             </Dialog>
 
             {/* MODAL AUTO-POPUP PEMBERITAHUAN PENUGASAN LEMBUR (SPL) - PERSIS MODAL SP 1 */}
-            <Dialog open={isSplNoticePopupOpen} onOpenChange={setIsSplNoticePopupOpen}>
+            <Dialog open={isPendingSpl ? (!isRejectOvertimeModalOpen && !isSplViewModalOpen) : isSplNoticePopupOpen} onOpenChange={setIsSplNoticePopupOpen}>
                 <DialogContent className="rounded-3xl max-w-xs md:max-w-md p-6 bg-white border border-orange-200 shadow-2xl space-y-3 max-h-[90vh] overflow-y-auto">
                     <DialogHeader className="text-center pb-1 border-b border-orange-100">
                         <div className="mx-auto w-14 h-14 bg-gradient-to-tr from-orange-500 to-amber-500 text-white rounded-full flex items-center justify-center mb-3 shadow-lg shadow-orange-500/20">
