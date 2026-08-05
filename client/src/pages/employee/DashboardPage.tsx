@@ -1011,8 +1011,8 @@ export default function EmployeeDashboard() {
                     </motion.div>
                 )}
 
-                {/* Overtime Card */}
-                {activeOvertimeToday && activeOvertimeToday.status !== "cancelled" && activeOvertimeToday.employeeApproval === "approved" && (
+                {/* Overtime Card - Tampil Seketika Saat Admin Menambahkan Penugasan Lembur */}
+                {activeOvertimeToday && typeof activeOvertimeToday === "object" && !Array.isArray(activeOvertimeToday) && activeOvertimeToday.id && activeOvertimeToday.status !== "cancelled" && activeOvertimeToday.employeeApproval !== "rejected" && (
                     <motion.div
                         initial={{ y: 20, opacity: 0 }}
                         animate={{ y: 0, opacity: 1 }}

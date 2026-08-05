@@ -1280,7 +1280,7 @@ export function registerRoutes(app: Express) {
   // 7. Overtime Endpoints (Untuk Seluruh Karyawan / Super Admin)
   app.post("/api/attendance/overtime/start", isAuthenticated, upload.fields([{ name: "splPhoto" }, { name: "initialProofPhoto" }]), async (req: Request, res: Response) => {
     try {
-      const userId = (req.user as any)?.id || (req.session as any)?.userId;
+      const userId = Number((req.user as any)?.id || (req.session as any)?.userId);
       const user = await db.select().from(users).where(eq(users.id, userId)).limit(1);
       if (!user.length) return res.status(404).json({ message: "User not found" });
 
@@ -1288,7 +1288,7 @@ export function registerRoutes(app: Express) {
       const description = req.body.description;
 
       const adminDate = getAdminDate();
-      const todaySessions = await db.select()
+      let todaySessions = await db.select()
         .from(attendance)
         .where(and(
           eq(attendance.userId, userId),
@@ -1297,14 +1297,23 @@ export function registerRoutes(app: Express) {
         .orderBy(desc(attendance.sessionNumber));
 
       if (todaySessions.length === 0) {
-        return res.status(400).json({ message: "Anda belum absen masuk hari ini" });
+        // Auto-create attendance record for today if not present
+        const insertRes: any = await db.insert(attendance).values({
+          userId: userId,
+          date: adminDate,
+          status: "present",
+          checkIn: new Date(),
+          notes: "Auto-absen untuk Sesi Lembur"
+        });
+        const newAttId = insertRes[0]?.insertId || insertRes?.insertId;
+        todaySessions = await db.select().from(attendance).where(eq(attendance.id, newAttId));
       }
 
       const activeSession = todaySessions[0];
       
       // If haven't checked out normally, check them out at shift end time
-      if (!activeSession.checkOut) {
-        const userShift = await db.select().from(shifts).where(eq(shifts.id, activeSession.shiftId!)).limit(1);
+      if (activeSession.checkIn && !activeSession.checkOut) {
+        const userShift = activeSession.shiftId ? await db.select().from(shifts).where(eq(shifts.id, activeSession.shiftId)).limit(1) : [];
         const shiftEndStr = userShift.length > 0 ? userShift[0].checkOutTime : "17:00";
         const [hh, mm] = shiftEndStr.split(":").map(Number);
         
@@ -1322,21 +1331,35 @@ export function registerRoutes(app: Express) {
         await db.update(attendance).set({ checkOut: checkOutDate }).where(eq(attendance.id, activeSession.id));
       }
 
-      // Check if overtime already started
-      const existingOvertimes = await db.select().from(overtimes).where(and(eq(overtimes.attendanceId, activeSession.id), eq(overtimes.status, "ongoing")));
-      if (existingOvertimes.length > 0) {
-        // Update existing pending/ongoing overtime
-        const splUrl = files?.splPhoto?.[0] ? await processSingleUpload(files.splPhoto[0], "overtimeSPL", user[0].fullName) : existingOvertimes[0].splDocumentUrl;
-        const initialProofUrl = files?.initialProofPhoto?.[0] ? await processSingleUpload(files.initialProofPhoto[0], "overtimeInitial", user[0].fullName) : existingOvertimes[0].initialProofUrl;
+      // Check if overtime record exists for this user (pending or assigned)
+      const pendingOt = await db.select({
+        id: overtimes.id,
+        splDocumentUrl: overtimes.splDocumentUrl,
+        initialProofUrl: overtimes.initialProofUrl,
+        description: overtimes.description
+      })
+      .from(overtimes)
+      .innerJoin(attendance, eq(overtimes.attendanceId, attendance.id))
+      .where(and(
+        eq(attendance.userId, userId),
+        ne(overtimes.status, "cancelled"),
+        ne(overtimes.status, "completed")
+      ))
+      .orderBy(desc(overtimes.id))
+      .limit(1);
+
+      if (pendingOt.length > 0) {
+        const splUrl = files?.splPhoto?.[0] ? await processSingleUpload(files.splPhoto[0], "overtimeSPL", user[0].fullName) : pendingOt[0].splDocumentUrl;
+        const initialProofUrl = files?.initialProofPhoto?.[0] ? await processSingleUpload(files.initialProofPhoto[0], "overtimeInitial", user[0].fullName) : pendingOt[0].initialProofUrl;
 
         await db.update(overtimes).set({
           startTime: new Date(),
-          description: description || existingOvertimes[0].description,
+          description: description || pendingOt[0].description || "Lembur",
           splDocumentUrl: splUrl,
           initialProofUrl: initialProofUrl,
           status: "ongoing",
           employeeApproval: "approved"
-        }).where(eq(overtimes.id, existingOvertimes[0].id));
+        }).where(eq(overtimes.id, pendingOt[0].id));
 
         return res.json({ message: "Lembur berhasil dimulai" });
       }
@@ -1347,7 +1370,7 @@ export function registerRoutes(app: Express) {
       await db.insert(overtimes).values({
         attendanceId: activeSession.id,
         startTime: new Date(),
-        description: description,
+        description: description || "Lembur",
         splDocumentUrl: splUrl,
         initialProofUrl: initialProofUrl,
         status: "ongoing",
@@ -1412,10 +1435,9 @@ export function registerRoutes(app: Express) {
         return res.json(null);
       }
 
-      const adminDate = getAdminDate();
-
-      // Priority 1: Pending SPL assignment needing response for this employee (any date)
-      const pendingOvertimes = await db
+      // Query latest active/pending overtime assignment for this employee
+      // Returns any assignment that is NOT cancelled, NOT completed, and NOT rejected
+      const activeOvertimes = await db
         .select({
           id: overtimes.id,
           attendanceId: overtimes.attendanceId,
@@ -1443,10 +1465,8 @@ export function registerRoutes(app: Express) {
             eq(attendance.userId, userId),
             ne(overtimes.status, "cancelled"),
             ne(overtimes.status, "completed"),
-            ne(overtimes.employeeApproval, "rejected"),
             or(
-              eq(overtimes.employeeApproval, "pending"),
-              eq(overtimes.status, "pending"),
+              ne(overtimes.employeeApproval, "rejected"),
               isNull(overtimes.employeeApproval)
             )
           )
@@ -1454,50 +1474,11 @@ export function registerRoutes(app: Express) {
         .orderBy(desc(overtimes.id))
         .limit(1);
 
-      let result: any = pendingOvertimes[0] || null;
-
-      if (!result) {
-        // Priority 2: Active overtime (ongoing or approved for today)
-        const activeOvertimes = await db
-          .select({
-            id: overtimes.id,
-            attendanceId: overtimes.attendanceId,
-            startTime: overtimes.startTime,
-            endTime: overtimes.endTime,
-            splDocumentUrl: overtimes.splDocumentUrl,
-            initialProofUrl: overtimes.initialProofUrl,
-            finalProofUrl: overtimes.finalProofUrl,
-            description: overtimes.description,
-            finalDescription: overtimes.finalDescription,
-            status: overtimes.status,
-            employeeApproval: overtimes.employeeApproval,
-            rejectionReason: overtimes.rejectionReason,
-            rejectionProofUrl: overtimes.rejectionProofUrl,
-            splNumber: overtimes.splNumber,
-            assignedBy: overtimes.assignedBy,
-            createdAt: overtimes.createdAt,
-            userId: attendance.userId,
-            overtimeDate: attendance.date,
-          })
-          .from(overtimes)
-          .innerJoin(attendance, eq(overtimes.attendanceId, attendance.id))
-          .where(
-            and(
-              eq(attendance.userId, userId),
-              or(
-                eq(attendance.date, adminDate),
-                eq(overtimes.status, "ongoing")
-              ),
-              ne(overtimes.status, "cancelled")
-            )
-          )
-          .orderBy(desc(overtimes.id))
-          .limit(1);
-
-        result = activeOvertimes[0] || null;
+      if (activeOvertimes.length > 0) {
+        return res.json(activeOvertimes[0]);
       }
 
-      return res.json(result);
+      return res.json(null);
     } catch (e: any) {
       console.error("Fetch overtime today error:", e);
       return res.json(null);
