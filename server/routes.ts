@@ -6,7 +6,7 @@ import { exec } from "child_process";
 import webpush from "web-push";
 import { db, pool } from "./db.js";
 import { users, shifts, attendance, leaveRequests, complaints, complaintPhotos, resignations, mutations, warningLetters, systemConfigs, activityLogs, announcements, pushSubscriptions, overtimes } from "../shared/schema.js";
-import { eq, and, or, gte, lte, desc, sql, isNotNull, isNull, inArray } from "drizzle-orm";
+import { eq, ne, and, or, gte, lte, desc, sql, isNotNull, isNull, inArray } from "drizzle-orm";
 
 import { isAuthenticated, isAdmin, isSuperAdmin, hashPassword } from "./auth.js";
 
