@@ -1405,34 +1405,30 @@ export function registerRoutes(app: Express) {
     try {
       const userId = req.session.userId!;
 
-      // Prioritas 1: Cari penugasan lembur SPL yang berstatus pending / belum direspon oleh karyawan
+      // 1. Ambil semua ID attendance milik user ini
+      const userAttRecords = await db
+        .select({ id: attendance.id })
+        .from(attendance)
+        .where(eq(attendance.userId, userId));
+
+      if (userAttRecords.length === 0) {
+        return res.json(null);
+      }
+
+      const attIds = userAttRecords.map(a => a.id);
+
+      // 2. Prioritas 1: Cari penugasan lembur yang statusnya PENDING / belum direspon karyawan
       const pendingOvertimes = await db
-        .select({
-          id: overtimes.id,
-          attendanceId: overtimes.attendanceId,
-          startTime: overtimes.startTime,
-          endTime: overtimes.endTime,
-          splDocumentUrl: overtimes.splDocumentUrl,
-          initialProofUrl: overtimes.initialProofUrl,
-          finalProofUrl: overtimes.finalProofUrl,
-          description: overtimes.description,
-          finalDescription: overtimes.finalDescription,
-          status: overtimes.status,
-          employeeApproval: overtimes.employeeApproval,
-          rejectionReason: overtimes.rejectionReason,
-          splNumber: overtimes.splNumber,
-          assignedBy: overtimes.assignedBy,
-          createdAt: overtimes.createdAt,
-        })
+        .select()
         .from(overtimes)
-        .innerJoin(attendance, eq(overtimes.attendanceId, attendance.id))
         .where(
           and(
-            eq(attendance.userId, userId),
+            inArray(overtimes.attendanceId, attIds),
             ne(overtimes.status, "cancelled"),
             or(
               eq(overtimes.employeeApproval, "pending"),
-              eq(overtimes.status, "pending")
+              eq(overtimes.status, "pending"),
+              isNull(overtimes.employeeApproval)
             )
           )
         )
@@ -1443,30 +1439,13 @@ export function registerRoutes(app: Express) {
         return res.json(pendingOvertimes[0]);
       }
 
-      // Prioritas 2: Cari lembur aktif (ongoing / approved) paling baru
+      // 3. Prioritas 2: Cari lembur aktif (ongoing / approved) paling baru
       const activeOvertimes = await db
-        .select({
-          id: overtimes.id,
-          attendanceId: overtimes.attendanceId,
-          startTime: overtimes.startTime,
-          endTime: overtimes.endTime,
-          splDocumentUrl: overtimes.splDocumentUrl,
-          initialProofUrl: overtimes.initialProofUrl,
-          finalProofUrl: overtimes.finalProofUrl,
-          description: overtimes.description,
-          finalDescription: overtimes.finalDescription,
-          status: overtimes.status,
-          employeeApproval: overtimes.employeeApproval,
-          rejectionReason: overtimes.rejectionReason,
-          splNumber: overtimes.splNumber,
-          assignedBy: overtimes.assignedBy,
-          createdAt: overtimes.createdAt,
-        })
+        .select()
         .from(overtimes)
-        .innerJoin(attendance, eq(overtimes.attendanceId, attendance.id))
         .where(
           and(
-            eq(attendance.userId, userId),
+            inArray(overtimes.attendanceId, attIds),
             ne(overtimes.status, "cancelled")
           )
         )
