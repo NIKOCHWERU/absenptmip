@@ -8,6 +8,11 @@ export const toTitleCase = (str: string | null | undefined) => {
   return str.toLowerCase().split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
 };
 
+export const toCapsLock = (str: string | null | undefined) => {
+  if (!str) return "-";
+  return str.toUpperCase();
+};
+
 export const formatAddress = (addr: string | null | undefined) => {
   if (!addr) return "-";
 

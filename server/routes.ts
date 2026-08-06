@@ -34,6 +34,146 @@ if (!fs.existsSync(cacheDir)) {
   fs.mkdirSync(cacheDir, { recursive: true });
 }
 
+function toTitleCase(str: string | null | undefined): string {
+  if (!str) return "-";
+  return str.toLowerCase().split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+}
+
+function generateAndSaveSplDocument(data: {
+  splNumber: string;
+  employeeName: string;
+  employeeNik: string;
+  employeePosition?: string | null;
+  employeeBranch?: string | null;
+  date: string;
+  startTime: string;
+  endTime: string;
+  description: string;
+  assignedBy?: string | null;
+  initialProofUrl?: string | null;
+  finalProofUrl?: string | null;
+  finalDescription?: string | null;
+}): string {
+  const cleanSplNum = data.splNumber.replace(/[^a-zA-Z0-9]/g, '_');
+  const filename = `spl_official_${cleanSplNum}.html`;
+  const filePath = path.join(uploadDir, filename);
+
+  const startHhMm = data.startTime.length === 5 ? data.startTime : safeFormatDate(data.startTime, "HH:mm");
+  const endHhMm = data.endTime.length === 5 ? data.endTime : safeFormatDate(data.endTime, "HH:mm");
+  const formattedDate = safeFormatDate(data.date, "EEEE, d MMMM yyyy", { locale: id });
+
+  const htmlContent = `<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Surat Perintah Lembur - ${data.splNumber}</title>
+  <style>
+    @page { size: A4; margin: 12mm; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #0f172a; background: #f8fafc; margin: 0; padding: 15px; font-size: 13px; line-height: 1.5; }
+    .card { max-width: 700px; margin: 0 auto; background: #ffffff; border: 2px solid #e2e8f0; border-radius: 16px; padding: 24px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.05); }
+    .header { display: flex; align-items: center; border-bottom: 3px double #2563eb; padding-bottom: 12px; margin-bottom: 18px; }
+    .logo { width: 70px; height: 70px; object-fit: contain; border-radius: 8px; }
+    .company-info { flex: 1; text-align: center; margin: 0 10px; }
+    .company-info h1 { margin: 0; font-size: 18px; font-weight: 900; color: #1e3a8a; text-transform: uppercase; letter-spacing: 0.5px; }
+    .company-info p { margin: 2px 0; font-size: 11px; color: #64748b; }
+    .doc-title { text-align: center; margin: 15px 0 20px 0; }
+    .doc-title h2 { margin: 0; font-size: 15px; font-weight: 900; color: #1e40af; text-transform: uppercase; text-decoration: underline; letter-spacing: 0.5px; }
+    .doc-title p { margin: 3px 0 0 0; font-size: 11px; font-weight: bold; color: #ea580c; }
+    .section-title { background: #eff6ff; color: #1e40af; font-weight: 800; padding: 6px 12px; font-size: 11px; text-transform: uppercase; border-left: 4px solid #2563eb; border-radius: 4px; margin: 15px 0 10px 0; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
+    th, td { border: 1px solid #cbd5e1; padding: 7px 10px; font-size: 11.5px; text-align: left; }
+    th { background: #f8fafc; font-weight: 700; color: #334155; width: 32%; }
+    .signatures { display: flex; justify-content: space-between; margin-top: 30px; }
+    .sig-box { text-align: center; width: 45%; }
+    .sig-box p { margin: 0; font-size: 11px; color: #64748b; }
+    .sig-space { height: 55px; display: flex; align-items: center; justify-content: center; margin: 5px 0; }
+    .sig-badge { border: 1px solid #2563eb; color: #2563eb; font-size: 9px; padding: 2px 8px; border-radius: 4px; font-weight: 800; background: #eff6ff; }
+    .sig-name { font-weight: 800; text-decoration: underline; color: #0f172a; text-transform: uppercase; }
+    .proof-grid { display: flex; gap: 12px; margin-top: 10px; }
+    .proof-card { flex: 1; text-align: center; border: 1px solid #cbd5e1; border-radius: 8px; padding: 6px; background: #f8fafc; }
+    .proof-card img { width: 100%; max-height: 160px; object-fit: cover; border-radius: 6px; }
+    .footer { margin-top: 20px; text-align: center; font-size: 9.5px; color: #94a3b8; border-top: 1px solid #f1f5f9; padding-top: 8px; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="header">
+      <img src="/logo_elok_buah.jpg" alt="Logo PT MIP" class="logo" onerror="this.style.display='none'">
+      <div class="company-info">
+        <h1>PT MEKANO INDUSTRIAL PRESISI</h1>
+        <p>Jl. Kertabumi, Kota Karawang, Karawang Barat, Jawa Barat 41311</p>
+        <p>Email: admin@absensikaryawan.com | Telp: (0267) 8450123</p>
+      </div>
+    </div>
+
+    <div class="doc-title">
+      <h2>SURAT PERINTAH LEMBUR (SPL)</h2>
+      <p>NO: ${data.splNumber}</p>
+    </div>
+
+    <div class="section-title">I. IDENTITAS TENAGA KERJA / PENERIMA PERINTAH</div>
+    <table>
+      <tr><th>Nama Karyawan</th><td><strong style="text-transform: uppercase;">${(data.employeeName || '').toUpperCase()}</strong></td></tr>
+      <tr><th>Nomor Induk Karyawan (NIK)</th><td><strong>${data.employeeNik}</strong></td></tr>
+      <tr><th>Jabatan</th><td>${data.employeePosition || '-'}</td></tr>
+      <tr><th>Cabang / Unit Kerja</th><td>${data.employeeBranch || '-'}</td></tr>
+    </table>
+
+    <div class="section-title">II. RINCIAN INSTRUKSI PENUGASAN LEMBUR</div>
+    <table>
+      <tr><th>Hari & Tanggal</th><td><strong>${formattedDate}</strong></td></tr>
+      <tr><th>Waktu Lembur</th><td><strong style="color: #ea580c;">${startHhMm} - ${endHhMm} WIB</strong></td></tr>
+      <tr><th>Uraian Tugas / Instruksi</th><td><em>"${data.description || 'Pelaksanaan Pekerjaan Lembur Operasional'}"</em></td></tr>
+    </table>
+
+    ${data.initialProofUrl || data.finalProofUrl ? `
+    <div class="section-title">III. LAMPIRAN BUKTI DOKUMENTASI FOTO</div>
+    <div class="proof-grid">
+      ${data.initialProofUrl ? `
+        <div class="proof-card">
+          <p style="font-weight:bold; font-size:10px; margin:0 0 4px 0; color:#1e40af;">Foto Bukti Awal Lembur</p>
+          <img src="${data.initialProofUrl}" alt="Bukti Awal">
+        </div>
+      ` : ''}
+      ${data.finalProofUrl ? `
+        <div class="proof-card">
+          <p style="font-weight:bold; font-size:10px; margin:0 0 4px 0; color:#16a34a;">Foto Bukti Selesai Lembur</p>
+          <img src="${data.finalProofUrl}" alt="Bukti Selesai">
+          ${data.finalDescription ? `<p style="font-size:9.5px; color:#475569; margin:4px 0 0 0;"><em>"${data.finalDescription}"</em></p>` : ''}
+        </div>
+      ` : ''}
+    </div>
+    ` : ''}
+
+    <div class="signatures">
+      <div class="sig-box">
+        <p>Pemberi Perintah (Management/HRD),</p>
+        <div class="sig-space">
+          <span class="sig-badge">OFFICIAL ISSUED</span>
+        </div>
+        <p class="sig-name">${data.assignedBy || 'MANAJEMEN PT MIP'}</p>
+      </div>
+      <div class="sig-box">
+        <p>Penerima Perintah (Tenaga Kerja),</p>
+        <div class="sig-space">
+          <span class="sig-badge" style="border-color:#16a34a; color:#16a34a; background:#f0fdf4;">CONFIRMED & ACCEPTED</span>
+        </div>
+        <p class="sig-name">${(data.employeeName || '').toUpperCase()}</p>
+      </div>
+    </div>
+
+    <div class="footer">
+      Dokumen Surat Perintah Lembur ini dibuat secara resmi dan sah melalui Sistem Informasi Absensi PT Mekano Industrial Presisi.
+    </div>
+  </div>
+</body>
+</html>`;
+
+  fs.writeFileSync(filePath, htmlContent, "utf-8");
+  return `/uploads/${filename}`;
+}
+
 import { uploadFile, isDriveConfigured, buildDriveFilename, DriveFolder, downloadFileStream } from "./services/googleDrive.js";
 
 async function processSingleUpload(
@@ -525,19 +665,19 @@ export function registerRoutes(app: Express) {
           username,
           nik,
           password: hashedPassword,
-          fullName,
+          fullName: fullName ? fullName.trim().toUpperCase() : "",
           email,
           phoneNumber,
-          birthPlace,
+          birthPlace: birthPlace ? toTitleCase(birthPlace) : null,
           birthDate: birthDate || null,
           gender,
           religion,
-          address,
+          address: address ? toTitleCase(address) : null,
           npwp,
           bpjs,
           bankAccount,
-          branch,
-          position,
+          branch: branch ? toTitleCase(branch) : null,
+          position: position ? toTitleCase(position) : null,
           employmentStatus,
           joinDate,
           kkNumber,
@@ -1640,12 +1780,28 @@ export function registerRoutes(app: Express) {
 
         const splNum = `SPL/MIP/${date.replace(/-/g, '')}/${Math.floor(1000 + Math.random() * 9000)}`;
 
+        let finalSplUrl = splUrl;
+        if (!finalSplUrl) {
+          finalSplUrl = generateAndSaveSplDocument({
+            splNumber: splNum,
+            employeeName: targetUser[0].fullName || "Karyawan",
+            employeeNik: targetUser[0].username,
+            employeePosition: targetUser[0].position,
+            employeeBranch: targetUser[0].branch,
+            date: date,
+            startTime: startTime,
+            endTime: endTime || "Selesai",
+            description: description || "Surat Perintah Lembur (SPL)",
+            assignedBy: (req.user as any)?.fullName || "Manajemen PT MIP"
+          });
+        }
+
         const insertOtRes: any = await (db.insert(overtimes) as any).values({
           attendanceId: attendanceId,
           startTime: startDateObj,
           endTime: endDateObj,
           description: description || "Surat Perintah Lembur (SPL)",
-          splDocumentUrl: splUrl,
+          splDocumentUrl: finalSplUrl,
           status: "pending",
           employeeApproval: "pending",
           splNumber: splNum,
