@@ -39,6 +39,20 @@ function toTitleCase(str: string | null | undefined): string {
   return str.toLowerCase().split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
 }
 
+import { format } from "date-fns";
+import { id } from "date-fns/locale";
+
+function safeFormatDate(dateVal: any, formatStr: string, opts?: any): string {
+  if (!dateVal) return "-";
+  try {
+    const d = typeof dateVal === 'string' || typeof dateVal === 'number' ? new Date(dateVal) : dateVal;
+    if (isNaN(d.getTime())) return String(dateVal);
+    return format(d, formatStr, opts || { locale: id });
+  } catch (_) {
+    return String(dateVal);
+  }
+}
+
 function generateAndSaveSplDocument(data: {
   splNumber: string;
   employeeName: string;
@@ -50,7 +64,7 @@ function generateAndSaveSplDocument(data: {
   endTime: string;
   description: string;
   assignedBy?: string | null;
-  referenceImageUrl?: string | null;
+  referenceImageUrls?: string[] | null;
   initialProofUrl?: string | null;
   finalProofUrl?: string | null;
   finalDescription?: string | null;
@@ -61,7 +75,9 @@ function generateAndSaveSplDocument(data: {
 
   const startHhMm = data.startTime.length === 5 ? data.startTime : safeFormatDate(data.startTime, "HH:mm");
   const endHhMm = data.endTime.length === 5 ? data.endTime : safeFormatDate(data.endTime, "HH:mm");
-  const formattedDate = safeFormatDate(data.date, "EEEE, d MMMM yyyy", { locale: id });
+  const formattedDate = safeFormatDate(data.date, "EEEE, d MMMM yyyy");
+
+  const refImages = data.referenceImageUrls || [];
 
   const htmlContent = `<!DOCTYPE html>
 <html lang="id">
@@ -70,45 +86,57 @@ function generateAndSaveSplDocument(data: {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Surat Perintah Lembur - ${data.splNumber}</title>
   <style>
-    @page { size: A4; margin: 12mm; }
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #0f172a; background: #f8fafc; margin: 0; padding: 15px; font-size: 13px; line-height: 1.5; }
-    .card { max-width: 700px; margin: 0 auto; background: #ffffff; border: 2px solid #e2e8f0; border-radius: 16px; padding: 24px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.05); }
-    .header { display: flex; align-items: center; border-bottom: 3px double #2563eb; padding-bottom: 12px; margin-bottom: 18px; }
-    .logo { width: 70px; height: 70px; object-fit: contain; border-radius: 8px; }
-    .company-info { flex: 1; text-align: center; margin: 0 10px; }
-    .company-info h1 { margin: 0; font-size: 18px; font-weight: 900; color: #1e3a8a; text-transform: uppercase; letter-spacing: 0.5px; }
-    .company-info p { margin: 2px 0; font-size: 11px; color: #64748b; }
-    .doc-title { text-align: center; margin: 15px 0 20px 0; }
-    .doc-title h2 { margin: 0; font-size: 15px; font-weight: 900; color: #1e40af; text-transform: uppercase; text-decoration: underline; letter-spacing: 0.5px; }
-    .doc-title p { margin: 3px 0 0 0; font-size: 11px; font-weight: bold; color: #ea580c; }
-    .section-title { background: #eff6ff; color: #1e40af; font-weight: 800; padding: 6px 12px; font-size: 11px; text-transform: uppercase; border-left: 4px solid #2563eb; border-radius: 4px; margin: 15px 0 10px 0; }
-    table { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
-    th, td { border: 1px solid #cbd5e1; padding: 7px 10px; font-size: 11.5px; text-align: left; }
-    th { background: #f8fafc; font-weight: 700; color: #334155; width: 32%; }
-    .ref-container { margin-top: 10px; text-align: center; border: 1px solid #e2e8f0; border-radius: 12px; padding: 10px; background: #fff8f1; }
-    .ref-container img { max-width: 100%; max-height: 320px; object-fit: contain; border-radius: 8px; border: 1px solid #fed7aa; }
-    .proof-grid { display: flex; gap: 12px; margin-top: 10px; }
-    .proof-card { flex: 1; text-align: center; border: 1px solid #cbd5e1; border-radius: 8px; padding: 6px; background: #f8fafc; }
-    .proof-card img { width: 100%; max-height: 180px; object-fit: cover; border-radius: 6px; }
-    .footer { margin-top: 20px; text-align: center; font-size: 9.5px; color: #94a3b8; border-top: 1px solid #f1f5f9; padding-top: 8px; }
+    @page { size: A4; margin: 8mm; }
+    * { box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1e293b; background: #ffffff; margin: 0; padding: 12px; font-size: 12px; line-height: 1.4; }
+    .card { max-width: 720px; margin: 0 auto; background: #ffffff; border: 1.5px solid #cbd5e1; border-radius: 12px; padding: 18px 22px; }
+    .letterhead { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+    .logo-img { height: 48px; max-width: 130px; object-fit: contain; flex-shrink: 0; }
+    .company-block { text-align: right; flex-grow: 1; margin-left: 15px; }
+    .company-block h1 { font-size: 18px; font-weight: 900; text-transform: uppercase; margin: 0 0 2px 0; color: #0f172a; letter-spacing: 0.5px; }
+    .company-block .alamat { font-size: 10.5px; font-weight: normal; color: #475569; line-height: 1.3; }
+    .hr-thick { border: none; border-top: 2px solid #0f172a; margin: 6px 0 2px; }
+    .hr-thin  { border: none; border-top: 1px solid #cbd5e1; margin-bottom: 12px; }
+    .doc-title { text-align: center; margin: 10px 0 14px 0; }
+    .doc-title h2 { margin: 0; font-size: 14px; font-weight: 900; color: #1e40af; text-transform: uppercase; text-decoration: underline; letter-spacing: 1px; }
+    .doc-title p { margin: 2px 0 0 0; font-size: 10.5px; font-weight: bold; color: #ea580c; }
+    .section-title { background: #eff6ff; color: #1e40af; font-weight: 800; padding: 4px 10px; font-size: 10.5px; text-transform: uppercase; border-left: 4px solid #2563eb; border-radius: 3px; margin: 12px 0 8px 0; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 8px; font-size: 11px; }
+    th, td { border: 1px solid #cbd5e1; padding: 5px 8px; text-align: left; }
+    th { background: #f8fafc; font-weight: 700; color: #334155; width: 30%; }
+    .ref-grid { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 6px; }
+    .ref-card { border: 1px solid #fed7aa; border-radius: 8px; padding: 4px; background: #fff8f1; text-align: center; flex: 1; min-width: 130px; max-width: 48%; }
+    .ref-card img { max-width: 100%; max-height: 130px; object-fit: contain; border-radius: 6px; }
+    .proof-grid { display: flex; gap: 10px; margin-top: 6px; }
+    .proof-card { flex: 1; text-align: center; border: 1px solid #cbd5e1; border-radius: 8px; padding: 5px; background: #f8fafc; }
+    .proof-card img { width: 100%; max-height: 130px; object-fit: cover; border-radius: 6px; }
+    .footer { margin-top: 14px; text-align: center; font-size: 9px; color: #94a3b8; border-top: 1px solid #f1f5f9; padding-top: 6px; }
+    @media print {
+      body { padding: 0; background: white; }
+      .card { border: none; padding: 0; box-shadow: none; }
+    }
   </style>
 </head>
 <body>
   <div class="card">
-    <div class="header">
-      <img src="/logo_elok_buah.jpg" alt="Logo PT MIP" class="logo" onerror="this.style.display='none'">
-      <div class="company-info">
+    <!-- Kop Surat Resmi Rekap Absen -->
+    <div class="letterhead">
+      <img src="/logo_elok_buah.jpg" class="logo-img" alt="Logo PT MIP" onerror="this.style.display='none'" />
+      <div class="company-block">
         <h1>PT MEKANO INDUSTRIAL PRESISI</h1>
-        <p>Jl. Kertabumi, Kota Karawang, Karawang Barat, Jawa Barat 41311</p>
-        <p>Email: admin@absensikaryawan.com | Telp: (0267) 8450123</p>
+        <div class="alamat">Jl. Kertabumi, Kota Karawang, Karawang Barat, Jawa Barat 41311 | Telp: (0267) 8450123</div>
       </div>
     </div>
+    <hr class="hr-thick" />
+    <hr class="hr-thin" />
 
+    <!-- Judul Dokumen -->
     <div class="doc-title">
       <h2>SURAT PERINTAH LEMBUR (SPL)</h2>
       <p>NO: ${data.splNumber}</p>
     </div>
 
+    <!-- Data Karyawan -->
     <div class="section-title">I. IDENTITAS TENAGA KERJA / PENERIMA PERINTAH</div>
     <table>
       <tr><th>Nama Karyawan</th><td><strong style="text-transform: uppercase;">${(data.employeeName || '').toUpperCase()}</strong></td></tr>
@@ -117,6 +145,7 @@ function generateAndSaveSplDocument(data: {
       <tr><th>Cabang / Unit Kerja</th><td>${data.employeeBranch || '-'}</td></tr>
     </table>
 
+    <!-- Detail Penugasan -->
     <div class="section-title">II. RINCIAN INSTRUKSI PENUGASAN LEMBUR</div>
     <table>
       <tr><th>Hari & Tanggal</th><td><strong>${formattedDate}</strong></td></tr>
@@ -124,35 +153,39 @@ function generateAndSaveSplDocument(data: {
       <tr><th>Uraian Tugas / Instruksi</th><td><em>"${data.description || 'Pelaksanaan Pekerjaan Lembur Operasional'}"</em></td></tr>
     </table>
 
-    ${data.referenceImageUrl ? `
-    <div class="section-title">III. GAMBAR REFERENSI & PANDUAN KERJA ADMIN</div>
-    <div class="ref-container">
-      <p style="font-weight:bold; font-size:10.5px; margin:0 0 6px 0; color:#c2410c;">📷 Lampiran Foto Denah / Referensi Panduan Kerja:</p>
-      <img src="${data.referenceImageUrl}" alt="Gambar Referensi Admin">
+    ${refImages.length > 0 ? `
+    <div class="section-title">III. GAMBAR REFERENSI & PANDUAN KERJA ADMIN (${refImages.length} GAMBAR)</div>
+    <div class="ref-grid">
+      ${refImages.map((imgUrl, idx) => `
+        <div class="ref-card">
+          <p style="font-weight:bold; font-size:9.5px; margin:0 0 3px 0; color:#c2410c;">Panduan #${idx + 1}</p>
+          <img src="${imgUrl}" alt="Gambar Referensi ${idx + 1}">
+        </div>
+      `).join('')}
     </div>
     ` : ''}
 
     ${data.initialProofUrl || data.finalProofUrl ? `
-    <div class="section-title">${data.referenceImageUrl ? 'IV' : 'III'}. LAMPIRAN BUKTI DOKUMENTASI FOTO BUKTI KARYAWAN</div>
+    <div class="section-title">${refImages.length > 0 ? 'IV' : 'III'}. BUKTI DOKUMENTASI FOTO KARYAWAN</div>
     <div class="proof-grid">
       ${data.initialProofUrl ? `
         <div class="proof-card">
-          <p style="font-weight:bold; font-size:10px; margin:0 0 4px 0; color:#1e40af;">Foto Bukti Awal Lembur</p>
+          <p style="font-weight:bold; font-size:9.5px; margin:0 0 3px 0; color:#1e40af;">Bukti Awal Lembur</p>
           <img src="${data.initialProofUrl}" alt="Bukti Awal">
         </div>
       ` : ''}
       ${data.finalProofUrl ? `
         <div class="proof-card">
-          <p style="font-weight:bold; font-size:10px; margin:0 0 4px 0; color:#16a34a;">Foto Bukti Selesai Lembur</p>
+          <p style="font-weight:bold; font-size:9.5px; margin:0 0 3px 0; color:#16a34a;">Bukti Selesai Lembur</p>
           <img src="${data.finalProofUrl}" alt="Bukti Selesai">
-          ${data.finalDescription ? `<p style="font-size:9.5px; color:#475569; margin:4px 0 0 0;"><em>"${data.finalDescription}"</em></p>` : ''}
+          ${data.finalDescription ? `<p style="font-size:9px; color:#475569; margin:2px 0 0 0;"><em>"${data.finalDescription}"</em></p>` : ''}
         </div>
       ` : ''}
     </div>
     ` : ''}
 
     <div class="footer">
-      Dokumen Surat Perintah Lembur ini dibuat secara resmi dan sah melalui Sistem Informasi Absensi PT Mekano Industrial Presisi.
+      Dokumen Surat Perintah Lembur ini secara otomatis dibuat resmi dan sah melalui Sistem Informasi Absensi PT Mekano Industrial Presisi.
     </div>
   </div>
 </body>
@@ -1749,8 +1782,11 @@ export function registerRoutes(app: Express) {
     }
   });
 
-  // Endpoint Admin Penugasan Lembur Baru (SPL) - Support Single atau Multi-Karyawan
-  app.post("/api/admin/overtimes/assign", isAuthenticated, isAdmin, upload.single("splFile"), async (req: Request, res: Response) => {
+  // Endpoint Admin Penugasan Lembur Baru (SPL) - Support Single atau Multi-Karyawan & Multi-Gambar Referensi
+  app.post("/api/admin/overtimes/assign", isAuthenticated, isAdmin, upload.fields([
+    { name: "splFile", maxCount: 1 },
+    { name: "splFiles", maxCount: 10 }
+  ]), async (req: Request, res: Response) => {
     try {
       const { userId, userIds, date, startTime, endTime, description } = req.body;
       let targetUserIds: number[] = [];
@@ -1766,9 +1802,18 @@ export function registerRoutes(app: Express) {
         return res.status(400).json({ message: "Pilih minimal 1 Karyawan, Tanggal, dan Jam Mulai Wajib Diisi" });
       }
 
-      let splUrl = null;
-      if (req.file) {
-        splUrl = await processSingleUpload(req.file, "overtimeSPL", `SPL_${date}`);
+      const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+      const uploadedRefImages: string[] = [];
+
+      if (files?.splFile?.[0]) {
+        const singleUrl = await processSingleUpload(files.splFile[0], "overtimeSPL", `SPL_${date}`);
+        if (singleUrl) uploadedRefImages.push(singleUrl);
+      }
+      if (files?.splFiles && files.splFiles.length > 0) {
+        for (const fileItem of files.splFiles) {
+          const multiUrl = await processSingleUpload(fileItem, "overtimeSPL", `SPL_${date}`);
+          if (multiUrl) uploadedRefImages.push(multiUrl);
+        }
       }
 
       const startDateObj = new Date(`${date}T${startTime}:00+07:00`);
@@ -1819,7 +1864,7 @@ export function registerRoutes(app: Express) {
           endTime: endTime || "Selesai",
           description: description || "Surat Perintah Lembur (SPL)",
           assignedBy: (req.user as any)?.fullName || "Manajemen PT MIP",
-          referenceImageUrl: splUrl || null
+          referenceImageUrls: uploadedRefImages
         });
 
         const insertOtRes: any = await (db.insert(overtimes) as any).values({

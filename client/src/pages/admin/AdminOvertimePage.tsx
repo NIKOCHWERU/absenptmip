@@ -106,7 +106,8 @@ export default function AdminOvertimePage() {
   const [assignStartTime, setAssignStartTime] = useState<string>("17:00");
   const [assignEndTime, setAssignEndTime] = useState<string>("20:30");
   const [assignTask, setAssignTask] = useState<string>("");
-  const [assignSplFile, setAssignSplFile] = useState<File | null>(null);
+  const [assignSplFiles, setAssignSplFiles] = useState<File[]>([]);
+  const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
   const [isEmployeeDropdownOpen, setIsEmployeeDropdownOpen] = useState(false);
 
   const toggleAssignUser = (uid: string) => {
@@ -130,6 +131,7 @@ export default function AdminOvertimePage() {
   // Open modal — reset selection
   const handleOpenAssignModal = () => {
     setAssignUserIds([]);
+    setAssignSplFiles([]);
     setIsAssignModalOpen(true);
   };
 
@@ -146,8 +148,10 @@ export default function AdminOvertimePage() {
           formData.append("startTime", assignStartTime);
           formData.append("endTime", assignEndTime);
           formData.append("description", assignTask);
-          if (assignSplFile) {
-            formData.append("splFile", assignSplFile);
+          if (assignSplFiles.length > 0) {
+            assignSplFiles.forEach((file) => {
+              formData.append("splFiles", file);
+            });
           }
           const res = await fetch("/api/admin/overtimes/assign", {
             method: "POST",
@@ -172,7 +176,7 @@ export default function AdminOvertimePage() {
       setIsAssignModalOpen(false);
       setAssignUserIds([]);
       setAssignTask("");
-      setAssignSplFile(null);
+      setAssignSplFiles([]);
       const successCount = results.filter((r: any) => r.status === "fulfilled").length;
       const totalCount = results.length;
       toast({
@@ -695,36 +699,143 @@ export default function AdminOvertimePage() {
               />
             </div>
 
-            {/* Field 5: Upload Gambar Referensi / Panduan Kerja */}
+            {/* Field 5: Upload Multi Gambar Referensi / Panduan Kerja */}
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-gray-700">Upload Gambar Referensi / Panduan Kerja (Opsional Gambar/Foto)</label>
-              <div className="border-2 border-dashed border-gray-200 rounded-xl p-3 text-center bg-gray-50/50 hover:bg-gray-50 transition-colors cursor-pointer">
+              <label className="text-xs font-bold text-gray-700">Upload Gambar Referensi / Panduan Kerja (Dapat Pilih Lebih Dari 1 Gambar)</label>
+              <div className="border-2 border-dashed border-orange-200 rounded-xl p-3.5 text-center bg-orange-50/30 hover:bg-orange-50/60 transition-colors cursor-pointer relative">
                 <input
                   type="file"
+                  multiple
                   accept="image/*"
-                  onChange={(e) => setAssignSplFile(e.target.files?.[0] || null)}
+                  onChange={(e) => {
+                    const selectedFiles = Array.from(e.target.files || []);
+                    setAssignSplFiles(selectedFiles);
+                  }}
                   className="hidden"
-                  id="spl-upload-modal"
+                  id="spl-multi-upload-modal"
                 />
-                <label htmlFor="spl-upload-modal" className="cursor-pointer block">
-                  <Upload className="w-5 h-5 mx-auto text-orange-500 mb-1" />
-                  <span className="text-xs font-bold text-gray-700 block">
-                    {assignSplFile ? assignSplFile.name : "Klik untuk upload gambar referensi / foto panduan kerja"}
+                <label htmlFor="spl-multi-upload-modal" className="cursor-pointer block">
+                  <Upload className="w-6 h-6 mx-auto text-orange-500 mb-1" />
+                  <span className="text-xs font-bold text-gray-800 block">
+                    {assignSplFiles.length > 0
+                      ? `✓ ${assignSplFiles.length} Gambar Referensi Dipilih`
+                      : "Klik untuk memilih 1 atau lebih Gambar Referensi (Panduan Kerja)"}
                   </span>
-                  <span className="text-[10px] text-gray-400">JPG, PNG, WEBP (Gambar akan disematkan langsung di dalam Surat Lembur Karyawan)</span>
+                  <span className="text-[10px] text-gray-500 block mt-0.5">
+                    {assignSplFiles.length > 0
+                      ? assignSplFiles.map(f => f.name).join(", ")
+                      : "Dapat memilih banyak foto sekaligus (JPG, PNG, WEBP). Gambar akan disematkan di Surat Lembur."}
+                  </span>
                 </label>
               </div>
             </div>
 
-            <DialogFooter className="pt-3 border-t border-gray-100">
-              <Button type="button" variant="outline" onClick={() => setIsAssignModalOpen(false)} className="rounded-xl text-xs font-semibold">
-                Batal
+            <DialogFooter className="pt-3 border-t border-gray-100 flex flex-row items-center justify-between gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsPreviewModalOpen(true)}
+                className="rounded-xl text-xs font-bold border-orange-200 text-orange-700 hover:bg-orange-50 gap-1.5"
+              >
+                <Eye className="w-4 h-4" /> Preview Surat SPL
               </Button>
-              <Button type="submit" disabled={assignMutation.isPending} className="rounded-xl text-xs font-bold bg-primary hover:bg-primary/90 text-white gap-2">
-                <Send className="w-4 h-4" /> {assignMutation.isPending ? "Mengirim..." : "Kirim Penugasan ke HP Karyawan"}
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button type="button" variant="outline" onClick={() => setIsAssignModalOpen(false)} className="rounded-xl text-xs font-semibold">
+                  Batal
+                </Button>
+                <Button type="submit" disabled={assignMutation.isPending} className="rounded-xl text-xs font-bold bg-primary hover:bg-primary/90 text-white gap-2">
+                  <Send className="w-4 h-4" /> {assignMutation.isPending ? "Mengirim..." : "Kirim Penugasan"}
+                </Button>
+              </div>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* MODAL LIVE PREVIEW SURAT LEMBUR (SPL) ADMIN */}
+      <Dialog open={isPreviewModalOpen} onOpenChange={setIsPreviewModalOpen}>
+        <DialogContent className="max-w-3xl rounded-3xl p-6 bg-white shadow-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader className="border-b pb-3 mb-3">
+            <DialogTitle className="text-base font-black text-gray-900 flex items-center justify-between">
+              <span>Preview Live Surat Perintah Lembur (SPL)</span>
+              <span className="text-xs text-orange-600 font-bold bg-orange-50 px-3 py-1 rounded-full border border-orange-200">
+                1 Halaman A4 Formal
+              </span>
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="bg-white border-2 border-gray-200 rounded-2xl p-6 space-y-4 shadow-sm text-xs text-gray-800">
+            {/* Kop Surat Resmi Rekap Absen */}
+            <div className="flex items-center justify-between pb-3 border-b-2 border-gray-900">
+              <div className="flex items-center gap-3">
+                <img src="/logo_elok_buah.jpg" alt="Logo PT MIP" className="h-12 w-auto object-contain" onError={(e) => (e.currentTarget.style.display = 'none')} />
+                <div>
+                  <h1 className="text-base font-black text-gray-900 uppercase tracking-wider">PT MEKANO INDUSTRIAL PRESISI</h1>
+                  <p className="text-[10px] text-gray-600">Jl. Kertabumi, Kota Karawang, Karawang Barat, Jawa Barat 41311 | Telp: (0267) 8450123</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Judul Dokumen */}
+            <div className="text-center space-y-0.5 py-1">
+              <h2 className="text-sm font-black text-blue-900 uppercase underline tracking-wider">SURAT PERINTAH LEMBUR (SPL)</h2>
+              <p className="text-xs font-bold text-orange-600">NO: SPL/MIP/{assignDate.replace(/-/g, '')}/PREVIEW</p>
+            </div>
+
+            {/* Section 1: Identitas */}
+            <div className="space-y-1">
+              <h3 className="bg-blue-50 text-blue-900 font-bold px-3 py-1 rounded-md text-[11px] uppercase border-l-4 border-blue-600">
+                I. IDENTITAS TENAGA KERJA / PENERIMA PERINTAH
+              </h3>
+              <table className="w-full border-collapse text-xs">
+                <tbody>
+                  <tr className="border"><th className="border p-2 bg-gray-50 text-left w-1/3 font-bold text-gray-700">Nama Karyawan</th><td className="border p-2 font-black uppercase text-gray-900">{assignUserIds.length > 0 ? `${assignUserIds.length} Karyawan Dipilih` : 'KARYAWAN DEMO'}</td></tr>
+                  <tr className="border"><th className="border p-2 bg-gray-50 text-left font-bold text-gray-700">Unit Kerja / Cabang</th><td className="border p-2 font-medium">PT MEKANO INDUSTRIAL PRESISI</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            {/* Section 2: Detail Penugasan */}
+            <div className="space-y-1">
+              <h3 className="bg-blue-50 text-blue-900 font-bold px-3 py-1 rounded-md text-[11px] uppercase border-l-4 border-blue-600">
+                II. RINCIAN INSTRUKSI PENUGASAN LEMBUR
+              </h3>
+              <table className="w-full border-collapse text-xs">
+                <tbody>
+                  <tr className="border"><th className="border p-2 bg-gray-50 text-left w-1/3 font-bold text-gray-700">Tanggal Lembur</th><td className="border p-2 font-bold">{formatLongDate(assignDate)}</td></tr>
+                  <tr className="border"><th className="border p-2 bg-gray-50 text-left font-bold text-gray-700">Waktu Lembur</th><td className="border p-2 font-black text-orange-700">{assignStartTime} - {assignEndTime} WIB</td></tr>
+                  <tr className="border"><th className="border p-2 bg-gray-50 text-left font-bold text-gray-700">Uraian Tugas / Instruksi</th><td className="border p-2 italic">"{assignTask || 'Pelaksanaan Pekerjaan Lembur Operasional'}"</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            {/* Section 3: Gambar Referensi */}
+            {assignSplFiles.length > 0 && (
+              <div className="space-y-2">
+                <h3 className="bg-blue-50 text-blue-900 font-bold px-3 py-1 rounded-md text-[11px] uppercase border-l-4 border-blue-600">
+                  III. GAMBAR REFERENSI & PANDUAN KERJA ADMIN ({assignSplFiles.length} GAMBAR)
+                </h3>
+                <div className="grid grid-cols-2 gap-3 p-3 bg-amber-50/50 border border-amber-200 rounded-xl">
+                  {assignSplFiles.map((f, i) => (
+                    <div key={i} className="text-center bg-white p-2 border border-amber-200 rounded-lg">
+                      <p className="text-[10px] font-bold text-orange-800 mb-1">Panduan #{i + 1}: {f.name}</p>
+                      <img src={URL.createObjectURL(f)} alt={`Preview ${i}`} className="max-h-32 mx-auto object-contain rounded border" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="text-center text-[10px] text-gray-400 pt-3 border-t">
+              Dokumen Surat Perintah Lembur ini secara otomatis dibuat resmi dan sah melalui Sistem Informasi Absensi PT Mekano Industrial Presisi.
+            </div>
+          </div>
+
+          <DialogFooter className="pt-2">
+            <Button onClick={() => setIsPreviewModalOpen(false)} className="w-full h-11 rounded-xl bg-gray-900 text-white font-bold text-xs">
+              Tutup Preview
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
