@@ -171,6 +171,43 @@ export function AttendanceReport({ date, records, users }: AttendanceReportProps
                 </tbody>
             </table>
 
+            {/* Table Footer Summary Row */}
+            <div className="mt-4 p-4 bg-gray-50 rounded-xl border border-gray-300 font-sans text-xs grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+                <div className="bg-white p-2.5 rounded-lg border border-gray-200 shadow-sm">
+                    <p className="text-[10px] text-gray-500 font-bold uppercase">Total Catatan Absensi</p>
+                    <p className="text-sm font-black text-gray-900">{records.length} Sesi</p>
+                </div>
+                <div className="bg-white p-2.5 rounded-lg border border-gray-200 shadow-sm">
+                    <p className="text-[10px] text-gray-500 font-bold uppercase">Total Sesi Lengkap</p>
+                    <p className="text-sm font-black text-emerald-600">
+                        {records.filter(r => r.checkIn && r.checkOut).length} Sesi
+                    </p>
+                </div>
+                <div className="bg-white p-2.5 rounded-lg border border-gray-200 shadow-sm">
+                    <p className="text-[10px] text-gray-500 font-bold uppercase">Total Jam Kerja Ditercatat</p>
+                    <p className="text-sm font-black text-blue-600">
+                        {(() => {
+                            let totalMinutes = 0;
+                            records.forEach(r => {
+                                if (r.checkIn && r.checkOut) {
+                                    const diffMs = new Date(r.checkOut).getTime() - new Date(r.checkIn).getTime();
+                                    if (diffMs > 0) totalMinutes += Math.floor(diffMs / 60000);
+                                }
+                            });
+                            const hrs = Math.floor(totalMinutes / 60);
+                            const mins = totalMinutes % 60;
+                            return `${hrs}j ${mins}m`;
+                        })()}
+                    </p>
+                </div>
+                <div className="bg-white p-2.5 rounded-lg border border-gray-200 shadow-sm">
+                    <p className="text-[10px] text-orange-600 font-bold uppercase">Sesi Lembur Terverifikasi</p>
+                    <p className="text-sm font-black text-orange-700">
+                        {records.filter(r => (r as any).notes?.toLowerCase().includes("lembur")).length} Sesi
+                    </p>
+                </div>
+            </div>
+
             <div className="mt-8 flex justify-end">
                 <div className="text-center w-48">
                     <p className="text-[10px] text-gray-500 mb-12">Dicetak pada: {format(new Date(), "d/MM/yyyy HH:mm")}</p>

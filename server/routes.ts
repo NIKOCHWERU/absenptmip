@@ -200,6 +200,10 @@ async function generateAndSaveSplDocument(data: {
       <h2>SURAT PERINTAH LEMBUR (SPL)</h2>
     </div>
 
+    <div style="font-size: 11px; text-align: justify; margin-bottom: 12px; line-height: 1.5; color: #334155; background: #f8fafc; padding: 8px 12px; border-radius: 6px; border-left: 3px solid #0f172a;">
+      Dengan ini Manajemen / Pimpinan <strong>${company.namaPt}</strong> memberikan Perintah Kerja Lembur kepada Tenaga Kerja / Penerima Perintah tersebut di bawah ini untuk melaksanakan tugas/pekerjaan lembur sesuai dengan rincian instruksi berikut:
+    </div>
+
     <!-- Data Karyawan (Formatted Title Case) -->
     <div class="section-title">I. IDENTITAS TENAGA KERJA / PENERIMA PERINTAH</div>
     <table>

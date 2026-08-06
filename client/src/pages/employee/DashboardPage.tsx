@@ -42,6 +42,39 @@ function getPhotoUrl(value: string | null | undefined): string {
     return `/uploads/${value}`;
 }
 
+function LiveOvertimeTimer({ startTime }: { startTime: string | Date }) {
+    const [elapsed, setElapsed] = useState("00:00:00");
+
+    useEffect(() => {
+        const updateTimer = () => {
+            const start = new Date(startTime).getTime();
+            const now = new Date().getTime();
+            const diffMs = Math.max(0, now - start);
+            const hours = Math.floor(diffMs / 3600000);
+            const minutes = Math.floor((diffMs % 3600000) / 60000);
+            const seconds = Math.floor((diffMs % 60000) / 1000);
+            setElapsed(
+                `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+            );
+        };
+        updateTimer();
+        const interval = setInterval(updateTimer, 1000);
+        return () => clearInterval(interval);
+    }, [startTime]);
+
+    return (
+        <div className="bg-gradient-to-r from-orange-900 to-amber-900 text-orange-200 border border-orange-700/50 p-4 rounded-3xl text-center space-y-1 shadow-lg shadow-orange-950/20 my-2">
+            <div className="flex items-center justify-center gap-2 text-[11px] font-bold text-orange-300">
+                <span className="w-2.5 h-2.5 rounded-full bg-orange-400 animate-ping" />
+                Waktu Lembur Sedang Berjalan (Live Timer)
+            </div>
+            <div className="text-3xl font-black tracking-wider font-mono text-white">
+                {elapsed}
+            </div>
+        </div>
+    );
+}
+
 // Helper component for Shift Selection Modal
 function ShiftModal({
     open,
@@ -1184,6 +1217,10 @@ export default function EmployeeDashboard() {
                                             </p>
                                         )}
 
+                                        {spl.status === "ongoing" && spl.startTime && (
+                                            <LiveOvertimeTimer startTime={spl.startTime} />
+                                        )}
+
                                         <div className="grid grid-cols-1 gap-2 mt-2">
                                             {(spl.splDocumentUrl || spl.fileUrl) && (
                                                 <Button
@@ -1201,7 +1238,7 @@ export default function EmployeeDashboard() {
                                                     onClick={() => setIsSplNoticeModalOpen(true)}
                                                     className="w-full h-10 rounded-xl bg-primary hover:bg-primary/90 text-white font-bold text-xs gap-2 shadow-md shadow-primary/20"
                                                 >
-                                                    <FileText className="w-4 h-4" /> Buka Modal Penugasan Lembur
+                                                    <FileText className="w-4 h-4" /> Lihat Form Lembur
                                                 </Button>
                                             )}
                                         </div>
