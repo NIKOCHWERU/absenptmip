@@ -53,7 +53,31 @@ function safeFormatDate(dateVal: any, formatStr: string, opts?: any): string {
   }
 }
 
-function generateAndSaveSplDocument(data: {
+async function getCompanyConfigs() {
+  try {
+    const dbConfigs = await db.select().from(systemConfigs);
+    const configMap = new Map(dbConfigs.map(c => [c.key, c.value]));
+    return {
+      namaPt: configMap.get("namaPt") || "PT MEKANO INDUSTRIAL PRESISI",
+      singkatanPt: configMap.get("singkatanPt") || "PT MIP",
+      logoUrl: configMap.get("logoUrl") || "/logo_elok_buah.jpg",
+      alamatPt: configMap.get("alamatPt") || "Jl. Kertabumi, Kota Karawang, Karawang Barat, Jawa Barat 41311",
+      nomorTelepon: configMap.get("nomorTelepon") || "(0267) 8450123",
+      emailCompany: configMap.get("emailCompany") || "admin@absensikaryawan.com"
+    };
+  } catch (err) {
+    return {
+      namaPt: "PT MEKANO INDUSTRIAL PRESISI",
+      singkatanPt: "PT MIP",
+      logoUrl: "/logo_elok_buah.jpg",
+      alamatPt: "Jl. Kertabumi, Kota Karawang, Karawang Barat, Jawa Barat 41311",
+      nomorTelepon: "(0267) 8450123",
+      emailCompany: "admin@absensikaryawan.com"
+    };
+  }
+}
+
+async function generateAndSaveSplDocument(data: {
   splNumber: string;
   employeeName: string;
   employeeNik: string;
@@ -64,11 +88,19 @@ function generateAndSaveSplDocument(data: {
   endTime: string;
   description: string;
   assignedBy?: string | null;
-  referenceImageUrls?: string[] | null;
+  referenceItems?: { url: string; caption?: string }[] | null;
   initialProofUrl?: string | null;
   finalProofUrl?: string | null;
   finalDescription?: string | null;
-}): string {
+  companyInfo?: {
+    namaPt: string;
+    logoUrl: string;
+    alamatPt: string;
+    nomorTelepon?: string;
+    emailCompany?: string;
+  };
+}): Promise<string> {
+  const company = data.companyInfo || await getCompanyConfigs();
   const cleanSplNum = data.splNumber.replace(/[^a-zA-Z0-9]/g, '_');
   const filename = `spl_official_${cleanSplNum}.html`;
   const filePath = path.join(uploadDir, filename);
@@ -77,14 +109,14 @@ function generateAndSaveSplDocument(data: {
   const endHhMm = data.endTime.length === 5 ? data.endTime : safeFormatDate(data.endTime, "HH:mm");
   const formattedDate = safeFormatDate(data.date, "EEEE, d MMMM yyyy");
 
-  const refImages = data.referenceImageUrls || [];
+  const refItems = data.referenceItems || [];
 
   const htmlContent = `<!DOCTYPE html>
 <html lang="id">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Surat Perintah Lembur - ${data.splNumber}</title>
+  <title>Surat Perintah Lembur - ${company.namaPt}</title>
   <style>
     @page { size: A4; margin: 8mm; }
     * { box-sizing: border-box; }
@@ -98,15 +130,15 @@ function generateAndSaveSplDocument(data: {
     .hr-thick { border: none; border-top: 2px solid #0f172a; margin: 6px 0 2px; }
     .hr-thin  { border: none; border-top: 1px solid #cbd5e1; margin-bottom: 12px; }
     .doc-title { text-align: center; margin: 10px 0 14px 0; }
-    .doc-title h2 { margin: 0; font-size: 14px; font-weight: 900; color: #1e40af; text-transform: uppercase; text-decoration: underline; letter-spacing: 1px; }
-    .doc-title p { margin: 2px 0 0 0; font-size: 10.5px; font-weight: bold; color: #ea580c; }
+    .doc-title h2 { margin: 0; font-size: 15px; font-weight: 900; color: #1e40af; text-transform: uppercase; text-decoration: underline; letter-spacing: 1px; }
     .section-title { background: #eff6ff; color: #1e40af; font-weight: 800; padding: 4px 10px; font-size: 10.5px; text-transform: uppercase; border-left: 4px solid #2563eb; border-radius: 3px; margin: 12px 0 8px 0; }
     table { width: 100%; border-collapse: collapse; margin-bottom: 8px; font-size: 11px; }
     th, td { border: 1px solid #cbd5e1; padding: 5px 8px; text-align: left; }
     th { background: #f8fafc; font-weight: 700; color: #334155; width: 30%; }
     .ref-grid { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 6px; }
-    .ref-card { border: 1px solid #fed7aa; border-radius: 8px; padding: 4px; background: #fff8f1; text-align: center; flex: 1; min-width: 130px; max-width: 48%; }
+    .ref-card { border: 1px solid #fed7aa; border-radius: 8px; padding: 5px; background: #fff8f1; text-align: center; flex: 1; min-width: 140px; max-width: 48%; }
     .ref-card img { max-width: 100%; max-height: 130px; object-fit: contain; border-radius: 6px; }
+    .ref-caption { font-weight: bold; font-size: 10px; margin: 4px 0 2px 0; color: #c2410c; }
     .proof-grid { display: flex; gap: 10px; margin-top: 6px; }
     .proof-card { flex: 1; text-align: center; border: 1px solid #cbd5e1; border-radius: 8px; padding: 5px; background: #f8fafc; }
     .proof-card img { width: 100%; max-height: 130px; object-fit: cover; border-radius: 6px; }
@@ -119,21 +151,20 @@ function generateAndSaveSplDocument(data: {
 </head>
 <body>
   <div class="card">
-    <!-- Kop Surat Resmi Rekap Absen -->
+    <!-- Kop Surat Resmi Dynamic dari Setting App -->
     <div class="letterhead">
-      <img src="/logo_elok_buah.jpg" class="logo-img" alt="Logo PT MIP" onerror="this.style.display='none'" />
+      <img src="${company.logoUrl}" class="logo-img" alt="Logo Perusahaan" onerror="this.src='/logo_elok_buah.jpg'" />
       <div class="company-block">
-        <h1>PT MEKANO INDUSTRIAL PRESISI</h1>
-        <div class="alamat">Jl. Kertabumi, Kota Karawang, Karawang Barat, Jawa Barat 41311 | Telp: (0267) 8450123</div>
+        <h1>${company.namaPt}</h1>
+        <div class="alamat">${company.alamatPt} ${company.nomorTelepon ? '| Telp: ' + company.nomorTelepon : ''}</div>
       </div>
     </div>
     <hr class="hr-thick" />
     <hr class="hr-thin" />
 
-    <!-- Judul Dokumen -->
+    <!-- Judul Dokumen (Nomor Surat Dihapus Sesuai Permintaan) -->
     <div class="doc-title">
       <h2>SURAT PERINTAH LEMBUR (SPL)</h2>
-      <p>NO: ${data.splNumber}</p>
     </div>
 
     <!-- Data Karyawan -->
@@ -153,20 +184,20 @@ function generateAndSaveSplDocument(data: {
       <tr><th>Uraian Tugas / Instruksi</th><td><em>"${data.description || 'Pelaksanaan Pekerjaan Lembur Operasional'}"</em></td></tr>
     </table>
 
-    ${refImages.length > 0 ? `
-    <div class="section-title">III. GAMBAR REFERENSI & PANDUAN KERJA ADMIN (${refImages.length} GAMBAR)</div>
+    ${refItems.length > 0 ? `
+    <div class="section-title">III. GAMBAR REFERENSI & PANDUAN KERJA ADMIN (${refItems.length} GAMBAR)</div>
     <div class="ref-grid">
-      ${refImages.map((imgUrl, idx) => `
+      ${refItems.map((item, idx) => `
         <div class="ref-card">
-          <p style="font-weight:bold; font-size:9.5px; margin:0 0 3px 0; color:#c2410c;">Panduan #${idx + 1}</p>
-          <img src="${imgUrl}" alt="Gambar Referensi ${idx + 1}">
+          <p class="ref-caption">📷 ${item.caption || `Panduan #${idx + 1}`}</p>
+          <img src="${item.url}" alt="Gambar Referensi ${idx + 1}">
         </div>
       `).join('')}
     </div>
     ` : ''}
 
     ${data.initialProofUrl || data.finalProofUrl ? `
-    <div class="section-title">${refImages.length > 0 ? 'IV' : 'III'}. BUKTI DOKUMENTASI FOTO KARYAWAN</div>
+    <div class="section-title">${refItems.length > 0 ? 'IV' : 'III'}. BUKTI DOKUMENTASI FOTO KARYAWAN</div>
     <div class="proof-grid">
       ${data.initialProofUrl ? `
         <div class="proof-card">
@@ -185,7 +216,7 @@ function generateAndSaveSplDocument(data: {
     ` : ''}
 
     <div class="footer">
-      Dokumen Surat Perintah Lembur ini secara otomatis dibuat resmi dan sah melalui Sistem Informasi Absensi PT Mekano Industrial Presisi.
+      Dokumen Surat Perintah Lembur ini secara otomatis dibuat resmi dan sah melalui Sistem Informasi Absensi ${company.namaPt}.
     </div>
   </div>
 </body>
@@ -1802,17 +1833,25 @@ export function registerRoutes(app: Express) {
         return res.status(400).json({ message: "Pilih minimal 1 Karyawan, Tanggal, dan Jam Mulai Wajib Diisi" });
       }
 
+      const referenceCaptionsRaw = req.body.referenceCaptions;
+      let referenceCaptions: string[] = [];
+      if (typeof referenceCaptionsRaw === "string") {
+        try { referenceCaptions = JSON.parse(referenceCaptionsRaw); } catch (_) { referenceCaptions = [referenceCaptionsRaw]; }
+      } else if (Array.isArray(referenceCaptionsRaw)) {
+        referenceCaptions = referenceCaptionsRaw;
+      }
+
       const files = req.files as { [fieldname: string]: Express.Multer.File[] };
-      const uploadedRefImages: string[] = [];
+      const uploadedRefItems: { url: string; caption?: string }[] = [];
 
       if (files?.splFile?.[0]) {
         const singleUrl = await processSingleUpload(files.splFile[0], "overtimeSPL", `SPL_${date}`);
-        if (singleUrl) uploadedRefImages.push(singleUrl);
+        if (singleUrl) uploadedRefItems.push({ url: singleUrl, caption: referenceCaptions[0] || "Gambar Referensi" });
       }
       if (files?.splFiles && files.splFiles.length > 0) {
-        for (const fileItem of files.splFiles) {
-          const multiUrl = await processSingleUpload(fileItem, "overtimeSPL", `SPL_${date}`);
-          if (multiUrl) uploadedRefImages.push(multiUrl);
+        for (let i = 0; i < files.splFiles.length; i++) {
+          const multiUrl = await processSingleUpload(files.splFiles[i], "overtimeSPL", `SPL_${date}`);
+          if (multiUrl) uploadedRefItems.push({ url: multiUrl, caption: referenceCaptions[i] || `Gambar Referensi #${i + 1}` });
         }
       }
 
@@ -1853,7 +1892,7 @@ export function registerRoutes(app: Express) {
 
         const splNum = `SPL/MIP/${date.replace(/-/g, '')}/${Math.floor(1000 + Math.random() * 9000)}`;
 
-        const finalSplUrl = generateAndSaveSplDocument({
+        const finalSplUrl = await generateAndSaveSplDocument({
           splNumber: splNum,
           employeeName: targetUser[0].fullName || "Karyawan",
           employeeNik: targetUser[0].username,
@@ -1864,7 +1903,7 @@ export function registerRoutes(app: Express) {
           endTime: endTime || "Selesai",
           description: description || "Surat Perintah Lembur (SPL)",
           assignedBy: (req.user as any)?.fullName || "Manajemen PT MIP",
-          referenceImageUrls: uploadedRefImages
+          referenceItems: uploadedRefItems
         });
 
         const insertOtRes: any = await (db.insert(overtimes) as any).values({

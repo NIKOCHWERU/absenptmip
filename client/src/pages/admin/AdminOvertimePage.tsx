@@ -101,13 +101,20 @@ export default function AdminOvertimePage() {
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
   const [viewDetail, setViewDetail] = useState<any | null>(null);
 
+  // Dynamic config for company letterhead
+  const { data: config } = useQuery<any>({
+    queryKey: ["/api/config"],
+  });
+
   // Form Fields — multi-select karyawan
   const [assignUserIds, setAssignUserIds] = useState<string[]>([]);
   const [assignDate, setAssignDate] = useState<string>(format(new Date(), "yyyy-MM-dd"));
   const [assignStartTime, setAssignStartTime] = useState<string>("17:00");
   const [assignEndTime, setAssignEndTime] = useState<string>("20:30");
   const [assignTask, setAssignTask] = useState<string>("");
-  const [assignSplFiles, setAssignSplFiles] = useState<File[]>([]);
+  const [assignRefRows, setAssignRefRows] = useState<{ id: string; file: File | null; caption: string }[]>([
+    { id: "1", file: null, caption: "" }
+  ]);
   const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
   const [isEmployeeDropdownOpen, setIsEmployeeDropdownOpen] = useState(false);
 
@@ -132,7 +139,7 @@ export default function AdminOvertimePage() {
   // Open modal — reset selection
   const handleOpenAssignModal = () => {
     setAssignUserIds([]);
-    setAssignSplFiles([]);
+    setAssignRefRows([{ id: "1", file: null, caption: "" }]);
     setIsAssignModalOpen(true);
   };
 
@@ -140,6 +147,9 @@ export default function AdminOvertimePage() {
   const assignMutation = useMutation({
     mutationFn: async () => {
       if (assignUserIds.length === 0) throw new Error("Pilih minimal 1 karyawan");
+
+      const validRows = assignRefRows.filter(r => r.file !== null);
+      const referenceCaptions = validRows.map(r => r.caption || "Gambar Referensi");
 
       const results = await Promise.allSettled(
         assignUserIds.map(async (uid) => {
@@ -149,9 +159,10 @@ export default function AdminOvertimePage() {
           formData.append("startTime", assignStartTime);
           formData.append("endTime", assignEndTime);
           formData.append("description", assignTask);
-          if (assignSplFiles.length > 0) {
-            assignSplFiles.forEach((file) => {
-              formData.append("splFiles", file);
+          if (validRows.length > 0) {
+            formData.append("referenceCaptions", JSON.stringify(referenceCaptions));
+            validRows.forEach((r) => {
+              if (r.file) formData.append("splFiles", r.file);
             });
           }
           const res = await fetch("/api/admin/overtimes/assign", {
@@ -177,7 +188,7 @@ export default function AdminOvertimePage() {
       setIsAssignModalOpen(false);
       setAssignUserIds([]);
       setAssignTask("");
-      setAssignSplFiles([]);
+      setAssignRefRows([{ id: "1", file: null, caption: "" }]);
       const successCount = results.filter((r: any) => r.status === "fulfilled").length;
       const totalCount = results.length;
       toast({
@@ -700,34 +711,93 @@ export default function AdminOvertimePage() {
               />
             </div>
 
-            {/* Field 5: Upload Multi Gambar Referensi / Panduan Kerja */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-gray-700">Upload Gambar Referensi / Panduan Kerja (Dapat Pilih Lebih Dari 1 Gambar)</label>
-              <div className="border-2 border-dashed border-orange-200 rounded-xl p-3.5 text-center bg-orange-50/30 hover:bg-orange-50/60 transition-colors cursor-pointer relative">
-                <input
-                  type="file"
-                  multiple
-                  accept="image/*"
-                  onChange={(e) => {
-                    const selectedFiles = Array.from(e.target.files || []);
-                    setAssignSplFiles(selectedFiles);
-                  }}
-                  className="hidden"
-                  id="spl-multi-upload-modal"
-                />
-                <label htmlFor="spl-multi-upload-modal" className="cursor-pointer block">
-                  <Upload className="w-6 h-6 mx-auto text-orange-500 mb-1" />
-                  <span className="text-xs font-bold text-gray-800 block">
-                    {assignSplFiles.length > 0
-                      ? `✓ ${assignSplFiles.length} Gambar Referensi Dipilih`
-                      : "Klik untuk memilih 1 atau lebih Gambar Referensi (Panduan Kerja)"}
-                  </span>
-                  <span className="text-[10px] text-gray-500 block mt-0.5">
-                    {assignSplFiles.length > 0
-                      ? assignSplFiles.map(f => f.name).join(", ")
-                      : "Dapat memilih banyak foto sekaligus (JPG, PNG, WEBP). Gambar akan disematkan di Surat Lembur."}
-                  </span>
+            {/* Field 5: Tabel Dynamic Upload Gambar Referensi & Keterangan */}
+            <div className="space-y-2 pt-1">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-gray-800">
+                  Upload Gambar Referensi / Panduan Kerja (Opsional)
                 </label>
+                <span className="text-[10px] text-gray-400">Dapat Upload Banyak Foto + Keterangan</span>
+              </div>
+
+              <div className="border border-gray-200 rounded-2xl overflow-hidden bg-white shadow-sm">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead className="bg-orange-50/80 border-b border-orange-100 text-orange-950 font-bold">
+                    <tr>
+                      <th className="p-2.5 w-1/2">Upload Gambar</th>
+                      <th className="p-2.5 w-1/2">Keterangan</th>
+                      <th className="p-2.5 w-10 text-center">Aksi</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {assignRefRows.map((row, idx) => (
+                      <tr key={row.id} className="hover:bg-gray-50/50">
+                        <td className="p-2.5">
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="file"
+                              accept="image/*"
+                              id={`ref-file-${row.id}`}
+                              className="hidden"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0] || null;
+                                setAssignRefRows(prev => prev.map(r => r.id === row.id ? { ...r, file } : r));
+                              }}
+                            />
+                            <label
+                              htmlFor={`ref-file-${row.id}`}
+                              className="cursor-pointer px-3 py-1.5 rounded-xl border border-dashed border-orange-300 bg-orange-50/50 hover:bg-orange-100/50 text-[11px] font-bold text-orange-800 flex items-center gap-1.5 shrink-0"
+                            >
+                              <Upload className="w-3.5 h-3.5 text-orange-600" />
+                              {row.file ? "Ganti File" : "Pilih File"}
+                            </label>
+                            {row.file && (
+                              <span className="text-[10px] font-medium text-gray-600 truncate max-w-[120px]" title={row.file.name}>
+                                {row.file.name}
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="p-2.5">
+                          <Input
+                            type="text"
+                            placeholder={`Contoh: Panduan Pekerjaan #${idx + 1}...`}
+                            value={row.caption}
+                            onChange={(e) => {
+                              const caption = e.target.value;
+                              setAssignRefRows(prev => prev.map(r => r.id === row.id ? { ...r, caption } : r));
+                            }}
+                            className="h-8 rounded-lg text-xs border-gray-200"
+                          />
+                        </td>
+                        <td className="p-2.5 text-center">
+                          {assignRefRows.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => setAssignRefRows(prev => prev.filter(r => r.id !== row.id))}
+                              className="text-red-500 hover:text-red-700 p-1"
+                              title="Hapus Baris"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+
+                <div className="p-2.5 bg-gray-50 border-t border-gray-100">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setAssignRefRows(prev => [...prev, { id: Date.now().toString(), file: null, caption: "" }])}
+                    className="w-full h-8 rounded-xl text-xs font-bold border-orange-200 text-orange-700 hover:bg-orange-100/60 gap-1.5"
+                  >
+                    <Plus className="w-3.5 h-3.5" /> + Tambah Gambar
+                  </Button>
+                </div>
               </div>
             </div>
 
@@ -766,21 +836,20 @@ export default function AdminOvertimePage() {
           </DialogHeader>
 
           <div className="bg-white border-2 border-gray-200 rounded-2xl p-6 space-y-4 shadow-sm text-xs text-gray-800">
-            {/* Kop Surat Resmi Rekap Absen */}
+            {/* Kop Surat Resmi Dynamic dari Setting App */}
             <div className="flex items-center justify-between pb-3 border-b-2 border-gray-900">
               <div className="flex items-center gap-3">
-                <img src="/logo_elok_buah.jpg" alt="Logo PT MIP" className="h-12 w-auto object-contain" onError={(e) => (e.currentTarget.style.display = 'none')} />
+                <img src={config?.logoUrl || "/logo_elok_buah.jpg"} alt="Logo Perusahaan" className="h-12 w-auto object-contain" onError={(e) => (e.currentTarget.style.display = 'none')} />
                 <div>
-                  <h1 className="text-base font-black text-gray-900 uppercase tracking-wider">PT MEKANO INDUSTRIAL PRESISI</h1>
-                  <p className="text-[10px] text-gray-600">Jl. Kertabumi, Kota Karawang, Karawang Barat, Jawa Barat 41311 | Telp: (0267) 8450123</p>
+                  <h1 className="text-base font-black text-gray-900 uppercase tracking-wider">{config?.namaPt || "PT MEKANO INDUSTRIAL PRESISI"}</h1>
+                  <p className="text-[10px] text-gray-600">{config?.alamatPt || "Jl. Kertabumi, Kota Karawang, Karawang Barat, Jawa Barat 41311"} {config?.nomorTelepon ? '| Telp: ' + config.nomorTelepon : ''}</p>
                 </div>
               </div>
             </div>
 
-            {/* Judul Dokumen */}
+            {/* Judul Dokumen (Nomor Surat Dihapus Sesuai Permintaan) */}
             <div className="text-center space-y-0.5 py-1">
               <h2 className="text-sm font-black text-blue-900 uppercase underline tracking-wider">SURAT PERINTAH LEMBUR (SPL)</h2>
-              <p className="text-xs font-bold text-orange-600">NO: SPL/MIP/{assignDate.replace(/-/g, '')}/PREVIEW</p>
             </div>
 
             {/* Section 1: Identitas */}
@@ -791,7 +860,7 @@ export default function AdminOvertimePage() {
               <table className="w-full border-collapse text-xs">
                 <tbody>
                   <tr className="border"><th className="border p-2 bg-gray-50 text-left w-1/3 font-bold text-gray-700">Nama Karyawan</th><td className="border p-2 font-black uppercase text-gray-900">{assignUserIds.length > 0 ? `${assignUserIds.length} Karyawan Dipilih` : 'KARYAWAN DEMO'}</td></tr>
-                  <tr className="border"><th className="border p-2 bg-gray-50 text-left font-bold text-gray-700">Unit Kerja / Cabang</th><td className="border p-2 font-medium">PT MEKANO INDUSTRIAL PRESISI</td></tr>
+                  <tr className="border"><th className="border p-2 bg-gray-50 text-left font-bold text-gray-700">Unit Kerja / Cabang</th><td className="border p-2 font-medium">{config?.namaPt || "PT MEKANO INDUSTRIAL PRESISI"}</td></tr>
                 </tbody>
               </table>
             </div>
@@ -811,16 +880,16 @@ export default function AdminOvertimePage() {
             </div>
 
             {/* Section 3: Gambar Referensi */}
-            {assignSplFiles.length > 0 && (
+            {assignRefRows.some(r => r.file !== null) && (
               <div className="space-y-2">
                 <h3 className="bg-blue-50 text-blue-900 font-bold px-3 py-1 rounded-md text-[11px] uppercase border-l-4 border-blue-600">
-                  III. GAMBAR REFERENSI & PANDUAN KERJA ADMIN ({assignSplFiles.length} GAMBAR)
+                  III. GAMBAR REFERENSI & PANDUAN KERJA ADMIN ({assignRefRows.filter(r => r.file !== null).length} GAMBAR)
                 </h3>
                 <div className="grid grid-cols-2 gap-3 p-3 bg-amber-50/50 border border-amber-200 rounded-xl">
-                  {assignSplFiles.map((f, i) => (
+                  {assignRefRows.filter(r => r.file !== null).map((r, i) => (
                     <div key={i} className="text-center bg-white p-2 border border-amber-200 rounded-lg">
-                      <p className="text-[10px] font-bold text-orange-800 mb-1">Panduan #{i + 1}: {f.name}</p>
-                      <img src={URL.createObjectURL(f)} alt={`Preview ${i}`} className="max-h-32 mx-auto object-contain rounded border" />
+                      <p className="text-[10px] font-bold text-orange-800 mb-1">📷 {r.caption || `Panduan #${i + 1}`}</p>
+                      <img src={URL.createObjectURL(r.file!)} alt={`Preview ${i}`} className="max-h-32 mx-auto object-contain rounded border" />
                     </div>
                   ))}
                 </div>
@@ -828,7 +897,7 @@ export default function AdminOvertimePage() {
             )}
 
             <div className="text-center text-[10px] text-gray-400 pt-3 border-t">
-              Dokumen Surat Perintah Lembur ini secara otomatis dibuat resmi dan sah melalui Sistem Informasi Absensi PT Mekano Industrial Presisi.
+              Dokumen Surat Perintah Lembur ini secara otomatis dibuat resmi dan sah melalui Sistem Informasi Absensi {config?.namaPt || "PT MEKANO INDUSTRIAL PRESISI"}.
             </div>
           </div>
 
