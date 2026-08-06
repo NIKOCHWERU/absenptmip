@@ -146,23 +146,6 @@ function generateAndSaveSplDocument(data: {
     </div>
     ` : ''}
 
-    <div class="signatures">
-      <div class="sig-box">
-        <p>Pemberi Perintah (Management/HRD),</p>
-        <div class="sig-space">
-          <span class="sig-badge">OFFICIAL ISSUED</span>
-        </div>
-        <p class="sig-name">${data.assignedBy || 'MANAJEMEN PT MIP'}</p>
-      </div>
-      <div class="sig-box">
-        <p>Penerima Perintah (Tenaga Kerja),</p>
-        <div class="sig-space">
-          <span class="sig-badge" style="border-color:#16a34a; color:#16a34a; background:#f0fdf4;">CONFIRMED & ACCEPTED</span>
-        </div>
-        <p class="sig-name">${(data.employeeName || '').toUpperCase()}</p>
-      </div>
-    </div>
-
     <div class="footer">
       Dokumen Surat Perintah Lembur ini dibuat secara resmi dan sah melalui Sistem Informasi Absensi PT Mekano Industrial Presisi.
     </div>
