@@ -1184,15 +1184,27 @@ export default function EmployeeDashboard() {
                                             </p>
                                         )}
 
-                                        {(spl.splDocumentUrl || spl.fileUrl) && (
-                                            <Button
-                                                type="button"
-                                                onClick={() => setViewDocumentUrl(spl.splDocumentUrl || spl.fileUrl)}
-                                                className="w-full h-10 rounded-xl bg-orange-600 hover:bg-orange-700 text-white font-bold text-xs gap-2 shadow-md shadow-orange-200 mt-1"
-                                            >
-                                                <Eye className="w-4 h-4" /> Lihat Dokumen
-                                            </Button>
-                                        )}
+                                        <div className="grid grid-cols-1 gap-2 mt-2">
+                                            {(spl.splDocumentUrl || spl.fileUrl) && (
+                                                <Button
+                                                    type="button"
+                                                    onClick={() => setViewDocumentUrl(spl.splDocumentUrl || spl.fileUrl)}
+                                                    className="w-full h-10 rounded-xl bg-orange-600 hover:bg-orange-700 text-white font-bold text-xs gap-2 shadow-md shadow-orange-200"
+                                                >
+                                                    <Eye className="w-4 h-4" /> Lihat Dokumen
+                                                </Button>
+                                            )}
+
+                                            {activeOvertimeToday && activeOvertimeToday.id === spl.id && (
+                                                <Button
+                                                    type="button"
+                                                    onClick={() => setIsSplNoticeModalOpen(true)}
+                                                    className="w-full h-10 rounded-xl bg-primary hover:bg-primary/90 text-white font-bold text-xs gap-2 shadow-md shadow-primary/20"
+                                                >
+                                                    <FileText className="w-4 h-4" /> Buka Modal Penugasan Lembur
+                                                </Button>
+                                            )}
+                                        </div>
                                     </div>
                                 );
                             })}

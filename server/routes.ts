@@ -58,7 +58,7 @@ async function getCompanyConfigs() {
     const dbConfigs = await db.select().from(systemConfigs);
     const configMap = new Map(dbConfigs.map(c => [c.key, c.value]));
     const rawLogo = configMap.get("logoUrl");
-    const logoUrl = (rawLogo && rawLogo !== "/logo_elok_buah.jpg") ? rawLogo : "/icon-192.png";
+    const logoUrl = (rawLogo && rawLogo !== "/logo_elok_buah.jpg") ? rawLogo : "";
     const rawAlamat = configMap.get("alamatPt");
     const alamatPt = rawAlamat ? rawAlamat : (process.env.VITE_ALAMAT_PT || "");
 
@@ -74,7 +74,7 @@ async function getCompanyConfigs() {
     return {
       namaPt: process.env.VITE_NAMA_PT || "PT MEKANO INDUSTRIAL PRESISI",
       singkatanPt: process.env.VITE_SINGKATAN_PT || "PT MIP",
-      logoUrl: "/icon-192.png",
+      logoUrl: "",
       alamatPt: process.env.VITE_ALAMAT_PT || "",
       nomorTelepon: "",
       emailCompany: ""
@@ -146,10 +146,10 @@ async function generateAndSaveSplDocument(data: {
       width: 760px;
       min-width: 760px;
       background: #ffffff;
-      border: 1px solid #cbd5e1;
+      border: none;
       border-radius: 8px;
       padding: 24px 28px;
-      box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.2);
       box-sizing: border-box;
       margin: 0 auto;
     }
@@ -186,7 +186,7 @@ async function generateAndSaveSplDocument(data: {
     <div class="card">
       <!-- Kop Surat Resmi Dynamic dari Setting App -->
       <div class="letterhead">
-        ${company.logoUrl ? `<img src="${company.logoUrl}" class="logo-img" alt="Logo Perusahaan" onerror="this.src='/icon-192.png'" />` : ''}
+        ${company.logoUrl ? `<img src="${company.logoUrl}" class="logo-img" alt="Logo Perusahaan" onerror="this.style.display='none'" />` : ''}
         <div class="company-block">
           <h1>${company.namaPt}</h1>
           ${company.alamatPt ? `<div class="alamat">${company.alamatPt}</div>` : ''}
@@ -600,7 +600,7 @@ export function registerRoutes(app: Express) {
         singkatanPt: configMap["singkatanPt"] ?? process.env.VITE_SINGKATAN_PT ?? "PT ABC",
         deskripsiPwa: configMap["deskripsiPwa"] ?? process.env.VITE_DESKRIPSI_PWA ?? "Aplikasi Absensi Tenaga Kerja",
         alamatPt: configMap["alamatPt"] ?? "",
-        logoUrl: configMap["logoUrl"] ?? process.env.VITE_LOGO_FILE ?? "/logo_elok_buah.jpg",
+        logoUrl: configMap["logoUrl"] ?? process.env.VITE_LOGO_FILE ?? "",
         logoInisial: configMap["logoInisial"] ?? process.env.VITE_LOGO_INISIAL ?? "",
         rekapPrefix: configMap["rekapPrefix"] ?? process.env.VITE_REKAP_FILE_PREFIX ?? "REKAP_ABSENSI",
         themePrimary: configMap["themePrimary"] ?? process.env.VITE_THEME_PRIMARY_HSL ?? "24 95% 53%",
@@ -628,7 +628,7 @@ export function registerRoutes(app: Express) {
         singkatanPt: process.env.VITE_SINGKATAN_PT || "PT ABC",
         deskripsiPwa: process.env.VITE_DESKRIPSI_PWA || "Aplikasi Absensi Tenaga Kerja",
         alamatPt: process.env.VITE_ALAMAT_PT || "",
-        logoUrl: process.env.VITE_LOGO_FILE || "/logo_elok_buah.jpg",
+        logoUrl: process.env.VITE_LOGO_FILE || "",
         logoInisial: process.env.VITE_LOGO_INISIAL || "",
         rekapPrefix: process.env.VITE_REKAP_FILE_PREFIX || "REKAP_ABSENSI",
         features: {
