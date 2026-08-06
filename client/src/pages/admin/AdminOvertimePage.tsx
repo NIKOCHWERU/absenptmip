@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { User } from "@shared/schema";
 import { TimePicker24h } from "@/components/TimePicker24h";
+import { formatLongDate } from "@/lib/utils";
 
 // Helper: Calculate dynamic overtime range & duration (handles over-midnight e.g. 23:00 to 02:00 = 3 hours)
 function calculateOvertimeEstimatedDuration(dateStr: string, startTimeStr: string, endTimeStr: string) {
