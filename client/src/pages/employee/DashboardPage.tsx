@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, User, Camera, MapPin, Coffee, LogOut, X, Check, RefreshCw, SwitchCamera, Zap, ChevronRight, Stethoscope, Umbrella, FileText, Timer, Bell, Info, AlertTriangle, Download, Play, CheckCircle2, Clock, Upload, XCircle, Eye } from "lucide-react";
+import { Loader2, User, Camera, MapPin, Coffee, LogOut, X, Check, RefreshCw, SwitchCamera, Zap, ChevronRight, Stethoscope, Umbrella, FileText, Timer, Bell, Info, AlertTriangle, Download, Play, CheckCircle2, Clock, Upload, XCircle, Eye, ZoomIn, ZoomOut, RotateCcw } from "lucide-react";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
 import { motion } from "framer-motion";
@@ -296,6 +296,7 @@ export default function EmployeeDashboard() {
     const [isRejectSplModalOpen, setIsRejectSplModalOpen] = useState(false);
     const [isViewSplModalOpen, setIsViewSplModalOpen] = useState(false);
     const [viewDocumentUrl, setViewDocumentUrl] = useState<string | null>(null);
+    const [docZoomScale, setDocZoomScale] = useState(100);
     const [isStartOvertimeConfirmOpen, setIsStartOvertimeConfirmOpen] = useState(false);
     const [isStartOvertimeCameraOpen, setIsStartOvertimeCameraOpen] = useState(false);
     const [isEndOvertimeCameraOpen, setIsEndOvertimeCameraOpen] = useState(false);
@@ -1873,32 +1874,98 @@ export default function EmployeeDashboard() {
                 </DialogContent>
             </Dialog>
 
-            {/* EMBED DOCUMENT VIEWER MODAL */}
-            <Dialog open={!!viewDocumentUrl} onOpenChange={(val) => !val && setViewDocumentUrl(null)}>
-                <DialogContent className="rounded-3xl max-w-full h-[90vh] md:max-w-4xl p-4 bg-white shadow-2xl flex flex-col">
-                    <DialogHeader className="flex flex-row items-center justify-between pb-2 border-b border-gray-100">
+            {/* EMBED DOCUMENT VIEWER MODAL WITH MOBILE PRINT PREVIEW & ZOOM CONTROLS */}
+            <Dialog open={!!viewDocumentUrl} onOpenChange={(val) => {
+                if (!val) {
+                    setViewDocumentUrl(null);
+                    setDocZoomScale(100);
+                }
+            }}>
+                <DialogContent className="rounded-3xl max-w-full h-[95vh] md:max-w-5xl p-4 bg-gray-900 text-white shadow-2xl flex flex-col overflow-hidden border border-gray-800">
+                    <DialogHeader className="flex flex-row items-center justify-between pb-3 border-b border-gray-800 shrink-0">
                         <div>
-                            <DialogTitle className="text-base font-black text-gray-900">
-                                Lampiran Dokumen Surat Perintah Lembur (SPL)
+                            <DialogTitle className="text-sm font-black text-white flex items-center gap-2">
+                                <FileText className="w-4 h-4 text-orange-400" />
+                                Print Preview Dokumen SPL (A4)
                             </DialogTitle>
-                            <DialogDescription className="text-xs text-gray-500">
-                                Dokumen resmi penugasan dari Manajemen / HRD
+                            <DialogDescription className="text-[11px] text-gray-400">
+                                Geser & Zoom untuk melihat rincian dokumen A4 tanpa terdistorsi
                             </DialogDescription>
                         </div>
-                        {viewDocumentUrl && (
-                            <a href={viewDocumentUrl} download target="_blank" rel="noopener noreferrer">
-                                <Button size="sm" variant="outline" className="h-8 text-xs font-bold gap-1 rounded-xl border-gray-200">
-                                    <Download className="w-3.5 h-3.5" /> Unduh Dokumen
-                                </Button>
-                            </a>
-                        )}
+
+                        {/* Zoom Controls & Action Bar */}
+                        <div className="flex items-center gap-1 bg-gray-800/90 p-1 rounded-2xl border border-gray-700">
+                            <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => setDocZoomScale(prev => Math.max(50, prev - 25))}
+                                className="h-7 w-7 p-0 text-gray-300 hover:text-white hover:bg-gray-700 rounded-xl"
+                                title="Zoom Out"
+                            >
+                                <ZoomOut className="w-3.5 h-3.5" />
+                            </Button>
+
+                            <span className="text-[10px] font-black text-orange-400 px-1 w-9 text-center select-none">
+                                {docZoomScale}%
+                            </span>
+
+                            <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => setDocZoomScale(prev => Math.min(250, prev + 25))}
+                                className="h-7 w-7 p-0 text-gray-300 hover:text-white hover:bg-gray-700 rounded-xl"
+                                title="Zoom In"
+                            >
+                                <ZoomIn className="w-3.5 h-3.5" />
+                            </Button>
+
+                            <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => setDocZoomScale(100)}
+                                className="h-7 w-7 p-0 text-gray-400 hover:text-white hover:bg-gray-700 rounded-xl"
+                                title="Reset Zoom"
+                            >
+                                <RotateCcw className="w-3 h-3" />
+                            </Button>
+
+                            {viewDocumentUrl && (
+                                <a href={viewDocumentUrl} download target="_blank" rel="noopener noreferrer" className="ml-1">
+                                    <Button size="sm" className="h-7 text-[10px] font-bold bg-orange-600 hover:bg-orange-700 text-white gap-1 rounded-xl px-2.5">
+                                        <Download className="w-3 h-3" /> Unduh
+                                    </Button>
+                                </a>
+                            )}
+                        </div>
                     </DialogHeader>
-                    <div className="flex-1 w-full h-full min-h-[350px] overflow-hidden rounded-2xl bg-gray-50 border border-gray-200 mt-2 flex items-center justify-center relative">
-                        {viewDocumentUrl?.toLowerCase().includes(".pdf") || viewDocumentUrl?.toLowerCase().includes(".html") || viewDocumentUrl?.includes("drive.google.com") || viewDocumentUrl?.includes("/uploads/") ? (
-                            <iframe src={viewDocumentUrl} className="w-full h-full border-none rounded-2xl" title="Dokumen SPL" />
-                        ) : (
-                            <img src={viewDocumentUrl || ""} alt="Dokumen SPL" className="max-w-full max-h-full object-contain p-2 rounded-2xl" />
-                        )}
+
+                    {/* Canvas Scrollable Container for PDF A4 Print Preview */}
+                    <div className="flex-1 w-full h-full overflow-auto bg-[#525659] rounded-2xl border border-gray-800 mt-2 p-2 flex justify-center items-start relative select-none">
+                        <div
+                            style={{
+                                transform: `scale(${docZoomScale / 100})`,
+                                transformOrigin: "top center",
+                                transition: "transform 0.2s cubic-bezier(0.16, 1, 0.3, 1)",
+                                minWidth: "100%",
+                                display: "flex",
+                                justifyContent: "center"
+                            }}
+                            className="min-h-full"
+                        >
+                            {viewDocumentUrl?.toLowerCase().includes(".pdf") || viewDocumentUrl?.toLowerCase().includes(".html") || viewDocumentUrl?.includes("drive.google.com") || viewDocumentUrl?.includes("/uploads/") ? (
+                                <iframe
+                                    src={viewDocumentUrl}
+                                    className="w-[794px] h-[1050px] border-none rounded-xl bg-white shadow-2xl"
+                                    title="Dokumen SPL Print Preview"
+                                />
+                            ) : (
+                                <img
+                                    src={viewDocumentUrl || ""}
+                                    alt="Dokumen SPL"
+                                    className="max-w-full max-h-full object-contain p-2 rounded-2xl bg-white shadow-2xl"
+                                />
+                            )}
+                        </div>
                     </div>
                 </DialogContent>
             </Dialog>

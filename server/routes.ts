@@ -120,52 +120,80 @@ async function generateAndSaveSplDocument(data: {
 <html lang="id">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=794, initial-scale=0.45, maximum-scale=5.0, user-scalable=yes">
   <title>Surat Perintah Lembur - ${company.namaPt}</title>
   <style>
     @page { size: A4; margin: 8mm; }
     * { box-sizing: border-box; }
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1e293b; background: #ffffff; margin: 0; padding: 12px; font-size: 12px; line-height: 1.4; }
-    .card { max-width: 720px; margin: 0 auto; background: #ffffff; border: 1.5px solid #cbd5e1; border-radius: 12px; padding: 18px 22px; }
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: #525659;
+      min-height: 100vh;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      color: #1e293b;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+    }
+    .page-wrapper {
+      padding: 16px;
+      width: 100%;
+      display: flex;
+      justify-content: center;
+    }
+    .card {
+      width: 760px;
+      min-width: 760px;
+      background: #ffffff;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      padding: 24px 28px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+      box-sizing: border-box;
+      margin: 0 auto;
+    }
     .letterhead { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
-    .logo-img { height: 48px; max-width: 130px; object-fit: contain; flex-shrink: 0; }
+    .logo-img { height: 50px; max-width: 140px; object-fit: contain; flex-shrink: 0; }
     .company-block { text-align: right; flex-grow: 1; margin-left: 15px; }
-    .company-block h1 { font-size: 18px; font-weight: 900; text-transform: uppercase; margin: 0 0 2px 0; color: #0f172a; letter-spacing: 0.5px; }
-    .company-block .alamat { font-size: 10.5px; font-weight: normal; color: #475569; line-height: 1.3; }
-    .hr-thick { border: none; border-top: 2px solid #0f172a; margin: 6px 0 2px; }
-    .hr-thin  { border: none; border-top: 1px solid #cbd5e1; margin-bottom: 12px; }
-    .doc-title { text-align: center; margin: 10px 0 14px 0; }
-    .doc-title h2 { margin: 0; font-size: 15px; font-weight: 900; color: #1e40af; text-transform: uppercase; text-decoration: underline; letter-spacing: 1px; }
-    .section-title { background: #eff6ff; color: #1e40af; font-weight: 800; padding: 4px 10px; font-size: 10.5px; text-transform: uppercase; border-left: 4px solid #2563eb; border-radius: 3px; margin: 12px 0 8px 0; }
-    table { width: 100%; border-collapse: collapse; margin-bottom: 8px; font-size: 11px; }
-    th, td { border: 1px solid #cbd5e1; padding: 5px 8px; text-align: left; }
+    .company-block h1 { font-size: 19px; font-weight: 900; text-transform: uppercase; margin: 0 0 2px 0; color: #0f172a; letter-spacing: 0.5px; }
+    .company-block .alamat { font-size: 11px; font-weight: normal; color: #475569; line-height: 1.3; }
+    .hr-thick { border: none; border-top: 2.5px solid #0f172a; margin: 6px 0 2px; }
+    .hr-thin  { border: none; border-top: 1px solid #cbd5e1; margin-bottom: 14px; }
+    .doc-title { text-align: center; margin: 12px 0 16px 0; }
+    .doc-title h2 { margin: 0; font-size: 16px; font-weight: 900; color: #1e40af; text-transform: uppercase; text-decoration: underline; letter-spacing: 1px; }
+    .section-title { background: #eff6ff; color: #1e40af; font-weight: 800; padding: 5px 12px; font-size: 11px; text-transform: uppercase; border-left: 4px solid #2563eb; border-radius: 3px; margin: 14px 0 10px 0; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 10px; font-size: 11.5px; }
+    th, td { border: 1px solid #cbd5e1; padding: 6px 10px; text-align: left; }
     th { background: #f8fafc; font-weight: 700; color: #334155; width: 30%; }
-    .ref-grid { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 6px; }
-    .ref-card { border: 1px solid #fed7aa; border-radius: 8px; padding: 5px; background: #fff8f1; text-align: center; flex: 1; min-width: 140px; max-width: 48%; }
-    .ref-card img { max-width: 100%; max-height: 130px; object-fit: contain; border-radius: 6px; }
-    .ref-caption { font-weight: bold; font-size: 10px; margin: 4px 0 2px 0; color: #c2410c; }
-    .proof-grid { display: flex; gap: 10px; margin-top: 6px; }
-    .proof-card { flex: 1; text-align: center; border: 1px solid #cbd5e1; border-radius: 8px; padding: 5px; background: #f8fafc; }
-    .proof-card img { width: 100%; max-height: 130px; object-fit: cover; border-radius: 6px; }
-    .footer { margin-top: 14px; text-align: center; font-size: 9px; color: #94a3b8; border-top: 1px solid #f1f5f9; padding-top: 6px; }
+    .ref-grid { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 8px; }
+    .ref-card { border: 1px solid #fed7aa; border-radius: 8px; padding: 6px; background: #fff8f1; text-align: center; flex: 1; min-width: 150px; max-width: 48%; }
+    .ref-card img { max-width: 100%; max-height: 140px; object-fit: contain; border-radius: 6px; }
+    .ref-caption { font-weight: bold; font-size: 10.5px; margin: 4px 0 2px 0; color: #c2410c; }
+    .proof-grid { display: flex; gap: 12px; margin-top: 8px; }
+    .proof-card { flex: 1; text-align: center; border: 1px solid #cbd5e1; border-radius: 8px; padding: 6px; background: #f8fafc; }
+    .proof-card img { width: 100%; max-height: 140px; object-fit: cover; border-radius: 6px; }
+    .footer { margin-top: 16px; text-align: center; font-size: 9.5px; color: #94a3b8; border-top: 1px solid #e2e8f0; padding-top: 8px; }
     @media print {
-      body { padding: 0; background: white; }
-      .card { border: none; padding: 0; box-shadow: none; }
+      html, body { background: white; }
+      .page-wrapper { padding: 0; }
+      .card { border: none; padding: 0; box-shadow: none; width: 100%; }
     }
   </style>
 </head>
 <body>
-  <div class="card">
-    <!-- Kop Surat Resmi Dynamic dari Setting App -->
-    <div class="letterhead">
-      ${company.logoUrl ? `<img src="${company.logoUrl}" class="logo-img" alt="Logo Perusahaan" onerror="this.src='/icon-192.png'" />` : ''}
-      <div class="company-block">
-        <h1>${company.namaPt}</h1>
-        ${company.alamatPt ? `<div class="alamat">${company.alamatPt}</div>` : ''}
+  <div class="page-wrapper">
+    <div class="card">
+      <!-- Kop Surat Resmi Dynamic dari Setting App -->
+      <div class="letterhead">
+        ${company.logoUrl ? `<img src="${company.logoUrl}" class="logo-img" alt="Logo Perusahaan" onerror="this.src='/icon-192.png'" />` : ''}
+        <div class="company-block">
+          <h1>${company.namaPt}</h1>
+          ${company.alamatPt ? `<div class="alamat">${company.alamatPt}</div>` : ''}
+        </div>
       </div>
-    </div>
-    <hr class="hr-thick" />
-    <hr class="hr-thin" />
+      <hr class="hr-thick" />
+      <hr class="hr-thin" />
 
     <!-- Judul Dokumen (Nomor Surat Dihapus Sesuai Permintaan) -->
     <div class="doc-title">
@@ -224,6 +252,7 @@ async function generateAndSaveSplDocument(data: {
       Dokumen Surat Perintah Lembur ini secara otomatis dibuat resmi dan sah melalui Sistem Informasi Absensi ${company.namaPt}.
     </div>
   </div>
+ </div>
 </body>
 </html>`;
 
