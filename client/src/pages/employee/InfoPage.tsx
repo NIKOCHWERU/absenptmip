@@ -173,65 +173,7 @@ export default function InfoPage() {
           </div>
         )}
         
-        {/* Section Surat Perintah Lembur (SPL) */}
-        <div className="mt-8 mb-4">
-            <h2 className="text-lg font-black text-gray-900 mb-3 flex items-center gap-2">
-                <FileText className="w-5 h-5 text-orange-500" />
-                Surat Perintah Lembur (SPL)
-            </h2>
-            {isLoadingSpl ? (
-                <div className="flex justify-center py-6">
-                    <Loader2 className="w-5 h-5 animate-spin text-orange-400" />
-                </div>
-            ) : (!mySplList || mySplList.length === 0) ? (
-                <div className="bg-white rounded-xl p-6 text-center border border-gray-100 shadow-sm">
-                    <FileText className="w-8 h-8 text-orange-200 mx-auto mb-2" />
-                    <p className="text-xs text-gray-400">Belum ada Surat Perintah Lembur (SPL) yang diterbitkan.</p>
-                </div>
-            ) : (
-                <div className="space-y-3">
-                    {mySplList.map((spl: any) => {
-                        const dateStr = safeFormat(spl.date, "dd MMMM yyyy");
-                        const startTimeStr = spl.startTime ? safeFormat(spl.startTime, "HH:mm") : "-";
-                        const endTimeStr = spl.endTime ? safeFormat(spl.endTime, "HH:mm") : "-";
 
-                        return (
-                            <div key={spl.id} className="bg-white rounded-2xl p-4 border border-orange-100 shadow-sm space-y-2">
-                                <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-2">
-                                        <span className="bg-orange-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full uppercase">SPL</span>
-                                        <span className="font-bold text-xs text-gray-900">{spl.splNumber || "SPL Resmi"}</span>
-                                    </div>
-                                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
-                                        spl.employeeApproval === 'approved' ? 'bg-emerald-100 text-emerald-800' :
-                                        spl.employeeApproval === 'rejected' ? 'bg-red-100 text-red-800' :
-                                        'bg-amber-100 text-amber-800'
-                                    }`}>
-                                        {spl.employeeApproval === 'approved' ? 'Disetujui' : spl.employeeApproval === 'rejected' ? 'Ditolak' : 'Menunggu'}
-                                    </span>
-                                </div>
-                                <div className="text-xs text-gray-600">
-                                    <p className="font-semibold text-gray-800">{dateStr} ({startTimeStr} - {endTimeStr} WIB)</p>
-                                    <p className="italic text-[11px] text-gray-500 mt-1 bg-orange-50/50 p-2 rounded-lg border border-orange-100">
-                                        "{spl.description || 'Pekerjaan Lembur'}"
-                                    </p>
-                                </div>
-                                {spl.splDocumentUrl && (
-                                    <a 
-                                        href={resolveFileUrl(spl.splDocumentUrl)} 
-                                        target="_blank" 
-                                        rel="noopener noreferrer" 
-                                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-orange-50 text-orange-700 rounded-lg text-xs font-bold hover:bg-orange-100 transition-colors mt-1"
-                                    >
-                                        <Download className="w-3.5 h-3.5" /> Unduh Dokumen SPL
-                                    </a>
-                                )}
-                            </div>
-                        );
-                    })}
-                </div>
-            )}
-        </div>
 
         {/* Riwayat Surat Section */}
         <div className="mt-8 mb-4">

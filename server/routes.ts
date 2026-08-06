@@ -42,6 +42,15 @@ function toTitleCase(str: string | null | undefined): string {
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
 
+function toTitleCase(str?: string | null): string {
+  if (!str) return "-";
+  return str
+    .toLowerCase()
+    .split(' ')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+}
+
 function safeFormatDate(dateVal: any, formatStr: string, opts?: any): string {
   if (!dateVal) return "-";
   try {
@@ -151,12 +160,12 @@ async function generateAndSaveSplDocument(data: {
 </head>
 <body>
   <div class="card">
-    <!-- Kop Surat Resmi Dynamic dari Setting App -->
+    <!-- Kop Surat Resmi Dynamic dari Setting App (Tanpa Nomor Telepon) -->
     <div class="letterhead">
       <img src="${company.logoUrl}" class="logo-img" alt="Logo Perusahaan" onerror="this.src='/logo_elok_buah.jpg'" />
       <div class="company-block">
         <h1>${company.namaPt}</h1>
-        <div class="alamat">${company.alamatPt} ${company.nomorTelepon ? '| Telp: ' + company.nomorTelepon : ''}</div>
+        <div class="alamat">${company.alamatPt}</div>
       </div>
     </div>
     <hr class="hr-thick" />
@@ -167,13 +176,13 @@ async function generateAndSaveSplDocument(data: {
       <h2>SURAT PERINTAH LEMBUR (SPL)</h2>
     </div>
 
-    <!-- Data Karyawan -->
+    <!-- Data Karyawan (Formatted Title Case) -->
     <div class="section-title">I. IDENTITAS TENAGA KERJA / PENERIMA PERINTAH</div>
     <table>
-      <tr><th>Nama Karyawan</th><td><strong style="text-transform: uppercase;">${(data.employeeName || '').toUpperCase()}</strong></td></tr>
+      <tr><th>Nama Karyawan</th><td><strong style="font-size: 12px; color: #0f172a;">${toTitleCase(data.employeeName)}</strong></td></tr>
       <tr><th>Nomor Induk Karyawan (NIK)</th><td><strong>${data.employeeNik}</strong></td></tr>
-      <tr><th>Jabatan</th><td>${data.employeePosition || '-'}</td></tr>
-      <tr><th>Cabang / Unit Kerja</th><td>${data.employeeBranch || '-'}</td></tr>
+      <tr><th>Jabatan</th><td>${toTitleCase(data.employeePosition)}</td></tr>
+      <tr><th>Cabang / Unit Kerja</th><td>${toTitleCase(data.employeeBranch)}</td></tr>
     </table>
 
     <!-- Detail Penugasan -->

@@ -288,6 +288,10 @@ export default function EmployeeDashboard() {
         refetchInterval: 5000,
     });
 
+    const { data: mySplList } = useQuery<any[]>({
+        queryKey: ["/api/employee/overtimes/my-spl"],
+    });
+
     const [isSplNoticeModalOpen, setIsSplNoticeModalOpen] = useState(false);
     const [isRejectSplModalOpen, setIsRejectSplModalOpen] = useState(false);
     const [isViewSplModalOpen, setIsViewSplModalOpen] = useState(false);
@@ -1133,6 +1137,68 @@ export default function EmployeeDashboard() {
                     </div>
                 </motion.div>
 
+                {/* Section Surat Perintah Lembur (SPL) Di Bawah Data Nama Karyawan */}
+                {mySplList && mySplList.length > 0 && (
+                    <motion.div
+                        initial={{ y: 20, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        className="bg-white rounded-3xl p-5 shadow-xl shadow-orange-500/5 border border-orange-200/80 space-y-3"
+                    >
+                        <div className="flex items-center justify-between border-b border-orange-100 pb-2">
+                            <h3 className="text-sm font-black text-gray-900 flex items-center gap-2">
+                                <FileText className="w-4 h-4 text-orange-600" />
+                                Surat Perintah Lembur (SPL)
+                            </h3>
+                            <span className="text-[10px] font-bold text-orange-700 bg-orange-50 px-2.5 py-0.5 rounded-full border border-orange-200">
+                                {mySplList.length} Penugasan
+                            </span>
+                        </div>
+
+                        <div className="space-y-3">
+                            {mySplList.map((spl: any) => {
+                                const dateStr = safeFormatDate(spl.date, "EEEE, dd MMMM yyyy");
+                                const startTimeStr = spl.startTime ? (spl.startTime.length === 5 ? spl.startTime : safeFormatDate(spl.startTime, "HH:mm")) : "-";
+                                const endTimeStr = spl.endTime ? (spl.endTime.length === 5 ? spl.endTime : safeFormatDate(spl.endTime, "HH:mm")) : "-";
+
+                                return (
+                                    <div key={spl.id} className="bg-orange-50/40 rounded-2xl p-4 border border-orange-100 space-y-2">
+                                        <div className="flex items-center justify-between">
+                                            <span className="font-extrabold text-xs text-orange-950">{toTitleCase(dateStr)}</span>
+                                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                                                spl.employeeApproval === 'approved' ? 'bg-emerald-100 text-emerald-800' :
+                                                spl.employeeApproval === 'rejected' ? 'bg-red-100 text-red-800' :
+                                                'bg-amber-100 text-amber-800'
+                                            }`}>
+                                                {spl.employeeApproval === 'approved' ? 'Disetujui' : spl.employeeApproval === 'rejected' ? 'Ditolak' : 'Menunggu'}
+                                            </span>
+                                        </div>
+
+                                        <p className="text-xs font-bold text-gray-800">
+                                            Waktu Lembur: <span className="text-orange-700 font-black">{startTimeStr} – {endTimeStr} WIB</span>
+                                        </p>
+
+                                        {spl.description && (
+                                            <p className="text-[11px] text-gray-700 italic bg-white p-2.5 rounded-xl border border-orange-100">
+                                                "{spl.description}"
+                                            </p>
+                                        )}
+
+                                        {(spl.splDocumentUrl || spl.fileUrl) && (
+                                            <Button
+                                                type="button"
+                                                onClick={() => setViewDocumentUrl(spl.splDocumentUrl || spl.fileUrl)}
+                                                className="w-full h-10 rounded-xl bg-orange-600 hover:bg-orange-700 text-white font-bold text-xs gap-2 shadow-md shadow-orange-200 mt-1"
+                                            >
+                                                <Eye className="w-4 h-4" /> Lihat Dokumen
+                                            </Button>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </motion.div>
+                )}
+
 
 
                 {/* Timer */}
@@ -1828,7 +1894,7 @@ export default function EmployeeDashboard() {
                         )}
                     </DialogHeader>
                     <div className="flex-1 w-full h-full min-h-[350px] overflow-hidden rounded-2xl bg-gray-50 border border-gray-200 mt-2 flex items-center justify-center relative">
-                        {viewDocumentUrl?.toLowerCase().includes(".pdf") || viewDocumentUrl?.includes("drive.google.com") ? (
+                        {viewDocumentUrl?.toLowerCase().includes(".pdf") || viewDocumentUrl?.toLowerCase().includes(".html") || viewDocumentUrl?.includes("drive.google.com") || viewDocumentUrl?.includes("/uploads/") ? (
                             <iframe src={viewDocumentUrl} className="w-full h-full border-none rounded-2xl" title="Dokumen SPL" />
                         ) : (
                             <img src={viewDocumentUrl || ""} alt="Dokumen SPL" className="max-w-full max-h-full object-contain p-2 rounded-2xl" />
