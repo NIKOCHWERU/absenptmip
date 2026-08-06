@@ -101,11 +101,6 @@ export default function AdminOvertimePage() {
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
   const [viewDetail, setViewDetail] = useState<any | null>(null);
 
-  // Dynamic config for company letterhead
-  const { data: config } = useQuery<any>({
-    queryKey: ["/api/config"],
-  });
-
   // Form Fields — multi-select karyawan
   const [assignUserIds, setAssignUserIds] = useState<string[]>([]);
   const [assignDate, setAssignDate] = useState<string>(format(new Date(), "yyyy-MM-dd"));
