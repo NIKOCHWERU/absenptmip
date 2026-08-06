@@ -57,22 +57,27 @@ async function getCompanyConfigs() {
   try {
     const dbConfigs = await db.select().from(systemConfigs);
     const configMap = new Map(dbConfigs.map(c => [c.key, c.value]));
+    const rawLogo = configMap.get("logoUrl");
+    const logoUrl = (rawLogo && rawLogo !== "/logo_elok_buah.jpg") ? rawLogo : "/icon-192.png";
+    const rawAlamat = configMap.get("alamatPt");
+    const alamatPt = rawAlamat ? rawAlamat : (process.env.VITE_ALAMAT_PT || "");
+
     return {
-      namaPt: configMap.get("namaPt") || "PT MEKANO INDUSTRIAL PRESISI",
-      singkatanPt: configMap.get("singkatanPt") || "PT MIP",
-      logoUrl: configMap.get("logoUrl") || "/logo_elok_buah.jpg",
-      alamatPt: configMap.get("alamatPt") || "Jl. Kertabumi, Kota Karawang, Karawang Barat, Jawa Barat 41311",
-      nomorTelepon: configMap.get("nomorTelepon") || "(0267) 8450123",
-      emailCompany: configMap.get("emailCompany") || "admin@absensikaryawan.com"
+      namaPt: configMap.get("namaPt") || process.env.VITE_NAMA_PT || "PT MEKANO INDUSTRIAL PRESISI",
+      singkatanPt: configMap.get("singkatanPt") || process.env.VITE_SINGKATAN_PT || "PT MIP",
+      logoUrl,
+      alamatPt,
+      nomorTelepon: configMap.get("nomorTelepon") || "",
+      emailCompany: configMap.get("emailCompany") || ""
     };
   } catch (err) {
     return {
-      namaPt: "PT MEKANO INDUSTRIAL PRESISI",
-      singkatanPt: "PT MIP",
-      logoUrl: "/logo_elok_buah.jpg",
-      alamatPt: "Jl. Kertabumi, Kota Karawang, Karawang Barat, Jawa Barat 41311",
-      nomorTelepon: "(0267) 8450123",
-      emailCompany: "admin@absensikaryawan.com"
+      namaPt: process.env.VITE_NAMA_PT || "PT MEKANO INDUSTRIAL PRESISI",
+      singkatanPt: process.env.VITE_SINGKATAN_PT || "PT MIP",
+      logoUrl: "/icon-192.png",
+      alamatPt: process.env.VITE_ALAMAT_PT || "",
+      nomorTelepon: "",
+      emailCompany: ""
     };
   }
 }
@@ -151,12 +156,12 @@ async function generateAndSaveSplDocument(data: {
 </head>
 <body>
   <div class="card">
-    <!-- Kop Surat Resmi Dynamic dari Setting App (Tanpa Nomor Telepon) -->
+    <!-- Kop Surat Resmi Dynamic dari Setting App -->
     <div class="letterhead">
-      <img src="${company.logoUrl}" class="logo-img" alt="Logo Perusahaan" onerror="this.src='/logo_elok_buah.jpg'" />
+      ${company.logoUrl ? `<img src="${company.logoUrl}" class="logo-img" alt="Logo Perusahaan" onerror="this.src='/icon-192.png'" />` : ''}
       <div class="company-block">
         <h1>${company.namaPt}</h1>
-        <div class="alamat">${company.alamatPt}</div>
+        ${company.alamatPt ? `<div class="alamat">${company.alamatPt}</div>` : ''}
       </div>
     </div>
     <hr class="hr-thick" />

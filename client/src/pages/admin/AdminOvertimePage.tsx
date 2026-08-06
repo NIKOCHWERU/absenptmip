@@ -834,10 +834,10 @@ export default function AdminOvertimePage() {
             {/* Kop Surat Resmi Dynamic dari Setting App */}
             <div className="flex items-center justify-between pb-3 border-b-2 border-gray-900">
               <div className="flex items-center gap-3">
-                <img src={config?.logoUrl || "/logo_elok_buah.jpg"} alt="Logo Perusahaan" className="h-12 w-auto object-contain" onError={(e) => (e.currentTarget.style.display = 'none')} />
+                <img src={(config?.logoUrl && config.logoUrl !== "/logo_elok_buah.jpg") ? config.logoUrl : "/icon-192.png"} alt="Logo Perusahaan" className="h-12 w-auto object-contain" onError={(e) => (e.currentTarget.src = '/icon-192.png')} />
                 <div>
                   <h1 className="text-base font-black text-gray-900 uppercase tracking-wider">{config?.namaPt || "PT MEKANO INDUSTRIAL PRESISI"}</h1>
-                  <p className="text-[10px] text-gray-600">{config?.alamatPt || "Jl. Kertabumi, Kota Karawang, Karawang Barat, Jawa Barat 41311"}</p>
+                  {config?.alamatPt && <p className="text-[10px] text-gray-600">{config.alamatPt}</p>}
                 </div>
               </div>
             </div>
