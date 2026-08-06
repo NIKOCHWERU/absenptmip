@@ -42,15 +42,6 @@ function toTitleCase(str: string | null | undefined): string {
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
 
-function toTitleCase(str?: string | null): string {
-  if (!str) return "-";
-  return str
-    .toLowerCase()
-    .split(' ')
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ');
-}
-
 function safeFormatDate(dateVal: any, formatStr: string, opts?: any): string {
   if (!dateVal) return "-";
   try {
