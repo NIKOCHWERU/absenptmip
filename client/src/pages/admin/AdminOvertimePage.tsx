@@ -695,23 +695,23 @@ export default function AdminOvertimePage() {
               />
             </div>
 
-            {/* Field 5: Upload Dokumen SPL */}
+            {/* Field 5: Upload Gambar Referensi / Panduan Kerja */}
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-gray-700">Upload Lampiran Berkas SPL (Opsional PDF/Gambar)</label>
+              <label className="text-xs font-bold text-gray-700">Upload Gambar Referensi / Panduan Kerja (Opsional Gambar/Foto)</label>
               <div className="border-2 border-dashed border-gray-200 rounded-xl p-3 text-center bg-gray-50/50 hover:bg-gray-50 transition-colors cursor-pointer">
                 <input
                   type="file"
-                  accept="application/pdf,image/*"
+                  accept="image/*"
                   onChange={(e) => setAssignSplFile(e.target.files?.[0] || null)}
                   className="hidden"
                   id="spl-upload-modal"
                 />
                 <label htmlFor="spl-upload-modal" className="cursor-pointer block">
-                  <Upload className="w-5 h-5 mx-auto text-gray-400 mb-1" />
-                  <span className="text-xs font-semibold text-gray-600 block">
-                    {assignSplFile ? assignSplFile.name : "Klik untuk upload lampiran SPL"}
+                  <Upload className="w-5 h-5 mx-auto text-orange-500 mb-1" />
+                  <span className="text-xs font-bold text-gray-700 block">
+                    {assignSplFile ? assignSplFile.name : "Klik untuk upload gambar referensi / foto panduan kerja"}
                   </span>
-                  <span className="text-[10px] text-gray-400">PDF, JPG, PNG (Maks 5MB)</span>
+                  <span className="text-[10px] text-gray-400">JPG, PNG, WEBP (Gambar akan disematkan langsung di dalam Surat Lembur Karyawan)</span>
                 </label>
               </div>
             </div>

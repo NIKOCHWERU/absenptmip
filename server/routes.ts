@@ -50,6 +50,7 @@ function generateAndSaveSplDocument(data: {
   endTime: string;
   description: string;
   assignedBy?: string | null;
+  referenceImageUrl?: string | null;
   initialProofUrl?: string | null;
   finalProofUrl?: string | null;
   finalDescription?: string | null;
@@ -84,15 +85,11 @@ function generateAndSaveSplDocument(data: {
     table { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
     th, td { border: 1px solid #cbd5e1; padding: 7px 10px; font-size: 11.5px; text-align: left; }
     th { background: #f8fafc; font-weight: 700; color: #334155; width: 32%; }
-    .signatures { display: flex; justify-content: space-between; margin-top: 30px; }
-    .sig-box { text-align: center; width: 45%; }
-    .sig-box p { margin: 0; font-size: 11px; color: #64748b; }
-    .sig-space { height: 55px; display: flex; align-items: center; justify-content: center; margin: 5px 0; }
-    .sig-badge { border: 1px solid #2563eb; color: #2563eb; font-size: 9px; padding: 2px 8px; border-radius: 4px; font-weight: 800; background: #eff6ff; }
-    .sig-name { font-weight: 800; text-decoration: underline; color: #0f172a; text-transform: uppercase; }
+    .ref-container { margin-top: 10px; text-align: center; border: 1px solid #e2e8f0; border-radius: 12px; padding: 10px; background: #fff8f1; }
+    .ref-container img { max-width: 100%; max-height: 320px; object-fit: contain; border-radius: 8px; border: 1px solid #fed7aa; }
     .proof-grid { display: flex; gap: 12px; margin-top: 10px; }
     .proof-card { flex: 1; text-align: center; border: 1px solid #cbd5e1; border-radius: 8px; padding: 6px; background: #f8fafc; }
-    .proof-card img { width: 100%; max-height: 160px; object-fit: cover; border-radius: 6px; }
+    .proof-card img { width: 100%; max-height: 180px; object-fit: cover; border-radius: 6px; }
     .footer { margin-top: 20px; text-align: center; font-size: 9.5px; color: #94a3b8; border-top: 1px solid #f1f5f9; padding-top: 8px; }
   </style>
 </head>
@@ -127,8 +124,16 @@ function generateAndSaveSplDocument(data: {
       <tr><th>Uraian Tugas / Instruksi</th><td><em>"${data.description || 'Pelaksanaan Pekerjaan Lembur Operasional'}"</em></td></tr>
     </table>
 
+    ${data.referenceImageUrl ? `
+    <div class="section-title">III. GAMBAR REFERENSI & PANDUAN KERJA ADMIN</div>
+    <div class="ref-container">
+      <p style="font-weight:bold; font-size:10.5px; margin:0 0 6px 0; color:#c2410c;">📷 Lampiran Foto Denah / Referensi Panduan Kerja:</p>
+      <img src="${data.referenceImageUrl}" alt="Gambar Referensi Admin">
+    </div>
+    ` : ''}
+
     ${data.initialProofUrl || data.finalProofUrl ? `
-    <div class="section-title">III. LAMPIRAN BUKTI DOKUMENTASI FOTO</div>
+    <div class="section-title">${data.referenceImageUrl ? 'IV' : 'III'}. LAMPIRAN BUKTI DOKUMENTASI FOTO BUKTI KARYAWAN</div>
     <div class="proof-grid">
       ${data.initialProofUrl ? `
         <div class="proof-card">
@@ -1475,10 +1480,26 @@ export function registerRoutes(app: Express) {
         const splUrl = files?.splPhoto?.[0] ? await processSingleUpload(files.splPhoto[0], "overtimeSPL", user[0].fullName) : pendingOt[0].splDocumentUrl;
         const initialProofUrl = files?.initialProofPhoto?.[0] ? await processSingleUpload(files.initialProofPhoto[0], "overtimeInitial", user[0].fullName) : pendingOt[0].initialProofUrl;
 
+        let updatedSplDocUrl = splUrl;
+        if (pendingOt[0].splNumber) {
+          updatedSplDocUrl = generateAndSaveSplDocument({
+            splNumber: pendingOt[0].splNumber,
+            employeeName: user[0].fullName || "Karyawan",
+            employeeNik: user[0].username,
+            employeePosition: user[0].position,
+            employeeBranch: user[0].branch,
+            date: safeFormatDate(pendingOt[0].startTime, "yyyy-MM-dd"),
+            startTime: safeFormatDate(pendingOt[0].startTime, "HH:mm"),
+            endTime: pendingOt[0].endTime ? safeFormatDate(pendingOt[0].endTime, "HH:mm") : "Selesai",
+            description: description || pendingOt[0].description || "Lembur",
+            initialProofUrl: initialProofUrl
+          });
+        }
+
         await db.update(overtimes).set({
           startTime: new Date(),
           description: description || pendingOt[0].description || "Lembur",
-          splDocumentUrl: splUrl,
+          splDocumentUrl: updatedSplDocUrl,
           initialProofUrl: initialProofUrl,
           status: "ongoing",
           employeeApproval: "approved"
@@ -1520,7 +1541,12 @@ export function registerRoutes(app: Express) {
       const ongoingOvertimes = await db.select({
         id: overtimes.id,
         attendanceId: overtimes.attendanceId,
-        startTime: overtimes.startTime
+        startTime: overtimes.startTime,
+        endTime: overtimes.endTime,
+        description: overtimes.description,
+        splNumber: overtimes.splNumber,
+        initialProofUrl: overtimes.initialProofUrl,
+        splDocumentUrl: overtimes.splDocumentUrl
       })
       .from(overtimes)
       .innerJoin(attendance, eq(overtimes.attendanceId, attendance.id))
@@ -1535,10 +1561,29 @@ export function registerRoutes(app: Express) {
       const activeOt = ongoingOvertimes[0];
       const finalProofUrl = files?.finalProofPhoto?.[0] ? await processSingleUpload(files.finalProofPhoto[0], "overtimeFinal", user[0].fullName) : null;
 
+      let updatedSplDocUrl = activeOt.splDocumentUrl;
+      if (activeOt.splNumber) {
+        updatedSplDocUrl = generateAndSaveSplDocument({
+          splNumber: activeOt.splNumber,
+          employeeName: user[0].fullName || "Karyawan",
+          employeeNik: user[0].username,
+          employeePosition: user[0].position,
+          employeeBranch: user[0].branch,
+          date: safeFormatDate(activeOt.startTime, "yyyy-MM-dd"),
+          startTime: safeFormatDate(activeOt.startTime, "HH:mm"),
+          endTime: safeFormatDate(new Date(), "HH:mm"),
+          description: activeOt.description || "Lembur",
+          initialProofUrl: activeOt.initialProofUrl,
+          finalProofUrl: finalProofUrl,
+          finalDescription: finalDescription || "Selesai Lembur"
+        });
+      }
+
       await db.update(overtimes).set({
         endTime: new Date(),
         finalProofUrl: finalProofUrl,
         finalDescription: finalDescription || "Selesai Lembur",
+        splDocumentUrl: updatedSplDocUrl,
         status: "completed"
       }).where(eq(overtimes.id, activeOt.id));
 
@@ -1763,21 +1808,19 @@ export function registerRoutes(app: Express) {
 
         const splNum = `SPL/MIP/${date.replace(/-/g, '')}/${Math.floor(1000 + Math.random() * 9000)}`;
 
-        let finalSplUrl = splUrl;
-        if (!finalSplUrl) {
-          finalSplUrl = generateAndSaveSplDocument({
-            splNumber: splNum,
-            employeeName: targetUser[0].fullName || "Karyawan",
-            employeeNik: targetUser[0].username,
-            employeePosition: targetUser[0].position,
-            employeeBranch: targetUser[0].branch,
-            date: date,
-            startTime: startTime,
-            endTime: endTime || "Selesai",
-            description: description || "Surat Perintah Lembur (SPL)",
-            assignedBy: (req.user as any)?.fullName || "Manajemen PT MIP"
-          });
-        }
+        const finalSplUrl = generateAndSaveSplDocument({
+          splNumber: splNum,
+          employeeName: targetUser[0].fullName || "Karyawan",
+          employeeNik: targetUser[0].username,
+          employeePosition: targetUser[0].position,
+          employeeBranch: targetUser[0].branch,
+          date: date,
+          startTime: startTime,
+          endTime: endTime || "Selesai",
+          description: description || "Surat Perintah Lembur (SPL)",
+          assignedBy: (req.user as any)?.fullName || "Manajemen PT MIP",
+          referenceImageUrl: splUrl || null
+        });
 
         const insertOtRes: any = await (db.insert(overtimes) as any).values({
           attendanceId: attendanceId,
