@@ -398,22 +398,28 @@ export default function AdminDashboard() {
 
                     <Card
                         className="border-none shadow-sm hover:shadow-md transition-all bg-white rounded-xl overflow-hidden group cursor-pointer hover:translate-y-[-2px]"
-                        onClick={() => setLocation("/admin/leaves")}
+                        onClick={() => setLocation("/admin/recap")}
                     >
                         <CardContent className="p-6">
                             <div className="flex justify-between items-start mb-4">
                                 <div>
-                                    <p className="text-sm font-medium text-gray-500 mb-1">Cuti Menunggu</p>
-                                    <h3 className="text-4xl font-bold text-blue-600">
-                                        {leaveRequests?.filter(r => r.status === 'pending').length || 0}
+                                    <p className="text-sm font-medium text-gray-500 mb-1">Belum Absen Hari Ini</p>
+                                    <h3 className="text-4xl font-bold text-red-600">
+                                        {(() => {
+                                            const now = new Date();
+                                            const isToday = (date: any) => new Date(date).toDateString() === now.toDateString();
+                                            const todayRecs = attendanceHistory?.filter(a => isToday(a.date)) || [];
+                                            const totalEmps = stats?.totalEmployees || 0;
+                                            return Math.max(0, totalEmps - todayRecs.length);
+                                        })()}
                                     </h3>
                                 </div>
-                                <div className="p-2 bg-gradient-to-br from-blue-100 to-blue-50 rounded-lg group-hover:scale-110 transition-transform">
-                                    <CalendarDays className="h-6 w-6 text-blue-500" />
+                                <div className="p-2 bg-gradient-to-br from-red-100 to-red-50 rounded-lg group-hover:scale-110 transition-transform">
+                                    <AlertCircle className="h-6 w-6 text-red-500" />
                                 </div>
                             </div>
                             <div className="flex items-center space-x-2 text-xs text-gray-400">
-                                <span>Perlu Persetujuan</span>
+                                <span>Lihat Karyawan Belum Absen</span>
                             </div>
                         </CardContent>
                     </Card>
@@ -589,117 +595,140 @@ export default function AdminDashboard() {
                     </Card>
                 </div>
 
-                {/* Live Feed and Absence List */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    <Card className="border-none shadow-md bg-white lg:col-span-2">
-                        <CardHeader>
-                            <CardTitle className="text-lg font-bold text-gray-800">Live Absensi Terbaru</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="overflow-x-auto">
-                                <table className="w-full text-sm text-left">
-                                    <thead className="text-xs text-gray-500 uppercase bg-gray-50/50">
-                                        <tr>
-                                            <th className="px-4 py-3">Hari / Tanggal</th>
-                                            <th className="px-4 py-3">NIK</th>
-                                            <th className="px-4 py-3">Masuk</th>
-                                            <th className="px-4 py-3">Istirahat</th>
-                                            <th className="px-4 py-3">Selesai</th>
-                                            <th className="px-4 py-3">Pulang</th>
-                                            <th className="px-4 py-3">Status</th>
-                                            <th className="px-4 py-3">Keterangan</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {recentActivities.map((record) => (
-                                            <tr key={record.id} className="border-b border-gray-50 hover:bg-gray-50/50">
-                                                <td className="px-4 py-3 font-medium text-gray-900">
-                                                    {format(new Date(record.date), 'EEEE, d MMM yyyy', { locale: id })}
-                                                </td>
-                                                <td className="px-4 py-3 font-mono text-gray-600">{getUserNik(record.userId)}</td>
-                                                <td className="px-4 py-3 text-primary font-mono">
-                                                    {record.checkIn ? format(new Date(record.checkIn), 'HH:mm') : '-'}
-                                                </td>
-                                                <td className="px-4 py-3 text-primary font-mono">
-                                                    {record.breakStart ? format(new Date(record.breakStart), 'HH:mm') : '-'}
-                                                </td>
-                                                <td className="px-4 py-3 text-primary font-mono">
-                                                    {record.breakEnd ? format(new Date(record.breakEnd), 'HH:mm') : '-'}
-                                                </td>
-                                                <td className="px-4 py-3 text-red-600 font-mono">
-                                                    {record.checkOut ? format(new Date(record.checkOut), 'HH:mm') : '-'}
-                                                </td>
-                                                <td className="px-4 py-3">
-                                                    <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase
-                                                ${record.status === 'present' ? 'bg-primary/10 text-primary' :
-                                                            record.status === 'late' ? 'bg-red-100 text-red-700' :
-                                                                record.status === 'sick' ? 'bg-blue-100 text-blue-700' :
-                                                                    record.status === 'permission' ? 'bg-purple-100 text-purple-700' :
-                                                                        'bg-gray-100 text-gray-700'}`}>
-                                                        {record.status === 'present' ? 'Hadir' :
-                                                            record.status === 'late' ? 'Telat' :
-                                                                record.status === 'sick' ? 'Sakit' :
-                                                                    record.status === 'permission' ? 'Izin' :
-                                                                        record.status === 'absent' ? 'Alpha' : record.status}
+                {/* Single Combined Card: Live Absensi (Hadir) & Daftar Belum Absen */}
+                <Card className="border-none shadow-md bg-white mb-8 overflow-hidden rounded-2xl">
+                    <CardHeader className="bg-gray-50/70 border-b border-gray-100 py-4 px-6 flex flex-row items-center justify-between">
+                        <div>
+                            <CardTitle className="text-lg font-black text-gray-900">Monitoring Absensi Karyawan Hari Ini</CardTitle>
+                            <p className="text-xs text-gray-500 mt-0.5">Daftar kehadiran real-time & daftar karyawan yang belum melakukan presensi</p>
+                        </div>
+                        <Button 
+                            variant="outline" 
+                            size="sm" 
+                            onClick={() => setLocation("/admin/recap")}
+                            className="rounded-xl text-xs font-bold border-orange-200 text-orange-700 hover:bg-orange-50 gap-1.5"
+                        >
+                            <Clock className="w-3.5 h-3.5" /> Rekap Absen Lengkap
+                        </Button>
+                    </CardHeader>
+                    <CardContent className="p-0">
+                        <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-gray-200">
+                            {/* SISI KIRI: DAFTAR KARYAWAN HADIR */}
+                            <div className="p-5 space-y-3">
+                                <div className="flex items-center justify-between pb-2 border-b border-gray-100">
+                                    <h3 className="text-sm font-black text-gray-800 flex items-center gap-2">
+                                        <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                                        Daftar Karyawan Hadir ({recentActivities.length})
+                                    </h3>
+                                    <span className="text-[11px] font-semibold text-emerald-600 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-100">
+                                        Real-time
+                                    </span>
+                                </div>
+
+                                <div className="space-y-1.5 max-h-[420px] overflow-y-auto pr-1">
+                                    {recentActivities.map((record, index) => {
+                                        const userObj = users?.find(u => u.id === record.userId);
+                                        const empName = userObj?.fullName || `Karyawan #${record.userId}`;
+                                        const nik = userObj?.nik || userObj?.username || "-";
+
+                                        return (
+                                            <div
+                                                key={record.id}
+                                                onClick={() => setLocation(`/admin/recap?search=${encodeURIComponent(empName)}`)}
+                                                className="flex items-center justify-between p-2.5 rounded-xl hover:bg-orange-50/80 border border-transparent hover:border-orange-200 transition-all cursor-pointer group"
+                                            >
+                                                <div className="flex items-center gap-3 min-w-0">
+                                                    <span className="w-6 text-center text-xs font-black text-gray-400 group-hover:text-primary">
+                                                        {index + 1}.
                                                     </span>
-                                                </td>
-                                                <td className="px-4 py-3 text-xs text-gray-500 italic max-w-[150px] truncate" title={record.notes || (record as any).lateReason || "-"}>
-                                                    {record.notes ? record.notes : ((record as any).lateReason ? `Telat: ${(record as any).lateReason}` : "-")}
-                                                </td>
-                                            </tr>
-                                        ))}
-                                        {recentActivities.length === 0 && (
-                                            <tr>
-                                                <td colSpan={8} className="px-4 py-8 text-center text-gray-500">
-                                                    Belum ada data absensi untuk hari ini.
-                                                </td>
-                                            </tr>
-                                        )}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </CardContent>
-                    </Card>
-
-                    {/* Who Didn't Clock In */}
-                    <Card className="border-none shadow-md bg-white">
-                        <CardHeader className="flex flex-col space-y-2">
-                            <CardTitle className="text-lg font-bold text-gray-800">Daftar Belum Absen</CardTitle>
-                            <Input
-                                type="date"
-                                value={absenceDate}
-                                onChange={(e) => setAbsenceDate(e.target.value)}
-                                className="h-8 text-xs"
-                            />
-                        </CardHeader>
-                        <CardContent>
-                            <div className="space-y-3 max-h-[400px] overflow-auto pr-2">
-                                {(() => {
-                                    const employees = users?.filter(u => u.role === 'employee') || [];
-                                    const dateRecords = attendanceHistory?.filter(a => format(new Date(a.date), 'yyyy-MM-dd') === absenceDate) || [];
-                                    const absentEmployees = employees.filter(emp => !dateRecords.some(att => att.userId === emp.id));
-
-                                    if (absentEmployees.length === 0) {
-                                        return <p className="text-center py-8 text-gray-400 text-sm">Semua tenaga kerja sudah absen.</p>;
-                                    }
-
-                                    return absentEmployees.map(emp => (
-                                        <div key={emp.id} className="flex items-center gap-3 p-3 rounded-xl bg-red-50/50 border border-red-100/50">
-                                            <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center text-red-600 font-bold text-xs">
-                                                {emp.fullName.charAt(0)}
+                                                    <div className="min-w-0">
+                                                        <p className="font-bold text-xs text-gray-800 group-hover:text-primary transition-colors truncate">
+                                                            {empName}
+                                                        </p>
+                                                        <p className="text-[10px] text-gray-400 font-mono">
+                                                            NIK: {nik} • Masuk: <span className="font-bold text-emerald-600">{record.checkIn ? format(new Date(record.checkIn), 'HH:mm') : '-'}</span>
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold shrink-0 ${
+                                                    record.status === 'present' ? 'bg-emerald-100 text-emerald-800' :
+                                                    record.status === 'late' ? 'bg-amber-100 text-amber-800' :
+                                                    'bg-gray-100 text-gray-700'
+                                                }`}>
+                                                    {record.status === 'present' ? 'Hadir' : record.status === 'late' ? 'Telat' : record.status}
+                                                </span>
                                             </div>
-                                            <div className="flex-1 min-w-0">
-                                                <p className="font-bold text-sm text-gray-800 truncate">{emp.fullName}</p>
-                                                <p className="text-[10px] text-gray-500 font-mono capitalize">{emp.nik || emp.username}</p>
-                                            </div>
-                                            <div className="text-[10px] font-bold text-red-400 uppercase">Alpha</div>
+                                        );
+                                    })}
+
+                                    {recentActivities.length === 0 && (
+                                        <div className="py-12 text-center text-gray-400 space-y-1">
+                                            <Clock className="w-8 h-8 mx-auto text-gray-300" />
+                                            <p className="text-xs font-semibold">Belum ada karyawan yang absen hadir hari ini.</p>
                                         </div>
-                                    ));
-                                })()}
+                                    )}
+                                </div>
                             </div>
-                        </CardContent>
-                    </Card>
-                </div>
+
+                            {/* SISI KANAN: DAFTAR KARYAWAN BELUM ABSEN */}
+                            <div className="p-5 space-y-3 bg-red-50/10">
+                                <div className="flex items-center justify-between pb-2 border-b border-gray-100">
+                                    <h3 className="text-sm font-black text-gray-800 flex items-center gap-2">
+                                        <span className="w-2.5 h-2.5 rounded-full bg-red-500"></span>
+                                        Daftar Belum Absen
+                                    </h3>
+                                    <Input
+                                        type="date"
+                                        value={absenceDate}
+                                        onChange={(e) => setAbsenceDate(e.target.value)}
+                                        className="h-7 text-[11px] w-36 rounded-lg bg-white border-gray-200 font-semibold"
+                                    />
+                                </div>
+
+                                <div className="space-y-1.5 max-h-[420px] overflow-y-auto pr-1">
+                                    {(() => {
+                                        const employees = users?.filter(u => u.role === 'employee') || [];
+                                        const dateRecords = attendanceHistory?.filter(a => format(new Date(a.date), 'yyyy-MM-dd') === absenceDate) || [];
+                                        const absentEmployees = employees.filter(emp => !dateRecords.some(att => att.userId === emp.id));
+
+                                        if (absentEmployees.length === 0) {
+                                            return (
+                                                <div className="py-12 text-center text-emerald-600 space-y-1">
+                                                    <p className="text-xs font-bold">✨ Semua karyawan sudah absen pada tanggal ini.</p>
+                                                </div>
+                                            );
+                                        }
+
+                                        return absentEmployees.map((emp, index) => (
+                                            <div
+                                                key={emp.id}
+                                                onClick={() => setLocation(`/admin/recap?search=${encodeURIComponent(emp.fullName)}`)}
+                                                className="flex items-center justify-between p-2.5 rounded-xl hover:bg-red-50/80 border border-transparent hover:border-red-200 transition-all cursor-pointer group"
+                                            >
+                                                <div className="flex items-center gap-3 min-w-0">
+                                                    <span className="w-6 text-center text-xs font-black text-gray-400 group-hover:text-red-600">
+                                                        {index + 1}.
+                                                    </span>
+                                                    <div className="min-w-0">
+                                                        <p className="font-bold text-xs text-gray-800 group-hover:text-red-600 transition-colors truncate">
+                                                            {emp.fullName}
+                                                        </p>
+                                                        <p className="text-[10px] text-gray-400 font-mono">
+                                                            NIK: {emp.nik || emp.username || emp.id}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-700 shrink-0">
+                                                    Belum Absen
+                                                </span>
+                                            </div>
+                                        ));
+                                    })()}
+                                </div>
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
 
                 {/* Recent Leave Requests Card */}
                 <div className="mt-8">

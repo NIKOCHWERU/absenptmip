@@ -856,7 +856,25 @@ export default function AdminOvertimePage() {
               </h3>
               <table className="w-full border-collapse text-xs">
                 <tbody>
-                  <tr className="border"><th className="border p-2 bg-gray-50 text-left w-1/3 font-bold text-gray-700">Nama Karyawan</th><td className="border p-2 font-black uppercase text-gray-900">{assignUserIds.length > 0 ? `${assignUserIds.length} Karyawan Dipilih` : 'KARYAWAN DEMO'}</td></tr>
+                  <tr className="border">
+                    <th className="border p-2 bg-gray-50 text-left w-1/3 font-bold text-gray-700">Nama Karyawan</th>
+                    <td className="border p-2 font-bold uppercase text-gray-900">
+                      {assignUserIds.length > 0 ? (
+                        <div className="space-y-1">
+                          {assignUserIds.map((id, idx) => {
+                            const u = employeeUsers.find(emp => String(emp.id) === String(id));
+                            return (
+                              <div key={id} className="text-xs">
+                                {assignUserIds.length > 1 ? `${idx + 1}. ` : ""}{u?.fullName || `KARYAWAN #${id}`} {u?.nik ? `(NIK: ${u.nik})` : ""}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        'KARYAWAN DEMO'
+                      )}
+                    </td>
+                  </tr>
                   <tr className="border"><th className="border p-2 bg-gray-50 text-left font-bold text-gray-700">Unit Kerja / Cabang</th><td className="border p-2 font-medium">{config?.namaPt || "PT MEKANO INDUSTRIAL PRESISI"}</td></tr>
                 </tbody>
               </table>
