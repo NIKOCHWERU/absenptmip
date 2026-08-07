@@ -377,6 +377,59 @@ export default function EmployeeDashboard() {
     const [rejectReasonText, setRejectReasonText] = useState("");
     const [isSubmittingOvertime, setIsSubmittingOvertime] = useState(false);
 
+    // States for Approve Overtime (SPL) with Proof Photo & Description
+    const [isApproveSplModalOpen, setIsApproveSplModalOpen] = useState(false);
+    const [isApproveSplCameraOpen, setIsApproveSplCameraOpen] = useState(false);
+    const [approveSplDescription, setApproveSplDescription] = useState("");
+    const [approveSplPhoto, setApproveSplPhoto] = useState<string | null>(null);
+    const [isSubmittingApproveSpl, setIsSubmittingApproveSpl] = useState(false);
+    const approveSplFileInputRef = useRef<HTMLInputElement>(null);
+
+    const handleApproveSplFileSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        try {
+            const formData = new FormData();
+            formData.append("photo", file);
+            const res = await fetch("/api/upload-direct", {
+                method: "POST",
+                body: formData,
+            });
+            if (!res.ok) throw new Error("Gagal mengunggah foto");
+            const data = await res.json();
+            setApproveSplPhoto(data.url);
+        } catch (err: any) {
+            toast({ title: "Gagal Mengunggah Foto", description: err.message, variant: "destructive" });
+        }
+    };
+
+    const handleConfirmApproveSpl = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!activeOvertimeToday) return;
+
+        try {
+            setIsSubmittingApproveSpl(true);
+            const res = await fetch("/api/attendance/overtime/respond", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    overtimeId: activeOvertimeToday.id,
+                    action: "approve",
+                    initialProofUrl: approveSplPhoto || null,
+                    description: approveSplDescription
+                })
+            });
+            if (!res.ok) throw new Error("Gagal menyetujui lembur");
+            setIsApproveSplModalOpen(false);
+            refetchOvertimeToday();
+            toast({ title: "Penugasan Lembur Disetujui!", description: "Status lembur telah disetujui." });
+        } catch (err: any) {
+            toast({ title: "Gagal", description: err.message, variant: "destructive" });
+        } finally {
+            setIsSubmittingApproveSpl(false);
+        }
+    };
+
     const dataURLtoFile = (dataurl: string, filename: string): File => {
         const arr = dataurl.split(',');
         const mime = arr[0].match(/:(.*?);/)?.[1] || 'image/jpeg';
@@ -1322,7 +1375,8 @@ export default function EmployeeDashboard() {
                                                         </Button>
                                                     )}
 
-                                                    {activeOvertimeToday && activeOvertimeToday.id === spl.id && (
+                                                    {/* Tombol Lihat Form Lembur HANYA jika persetujuan MASIH pending */}
+                                                    {activeOvertimeToday && activeOvertimeToday.id === spl.id && spl.employeeApproval === 'pending' && (
                                                         <Button
                                                             type="button"
                                                             onClick={() => setIsSplNoticeModalOpen(true)}
@@ -1898,21 +1952,11 @@ export default function EmployeeDashboard() {
                                             Tolak
                                         </Button>
                                         <Button
-                                            onClick={async () => {
-                                                try {
-                                                    const res = await fetch("/api/attendance/overtime/respond", {
-                                                        method: "POST",
-                                                        headers: { "Content-Type": "application/json" },
-                                                        body: JSON.stringify({ overtimeId: activeOvertimeToday.id, action: "approve" })
-                                                    });
-                                                    if (!res.ok) throw new Error("Gagal menyetujui lembur");
-                                                    setIsSplNoticeModalOpen(false);
-                                                    refetchOvertimeToday();
-                                                    toast({ title: "Penugasan Lembur Disetujui!", description: "Status SPL telah dikonfirmasi." });
-                                                    setIsStartOvertimeConfirmOpen(true);
-                                                } catch (err: any) {
-                                                    toast({ title: "Gagal", description: err.message, variant: "destructive" });
-                                                }
+                                            onClick={() => {
+                                                setIsSplNoticeModalOpen(false);
+                                                setApproveSplDescription(activeOvertimeToday.description || "");
+                                                setApproveSplPhoto(null);
+                                                setIsApproveSplModalOpen(true);
                                             }}
                                             className="h-12 rounded-2xl bg-primary hover:bg-primary/90 text-white font-bold text-xs shadow-md shadow-primary/20"
                                         >
@@ -2120,6 +2164,116 @@ export default function EmployeeDashboard() {
                     </div>
                 </DialogContent>
             </Dialog>
+
+            {/* OVERTIME MODAL: SETUJUI LEMBUR (AMBIL FOTO & KETERANGAN) */}
+            <Dialog open={isApproveSplModalOpen} onOpenChange={setIsApproveSplModalOpen}>
+                <DialogContent className="rounded-3xl max-w-sm md:max-w-md p-6 bg-white shadow-2xl space-y-4">
+                    <DialogHeader>
+                        <div className="mx-auto w-14 h-14 bg-emerald-100 rounded-full flex items-center justify-center mb-1">
+                            <CheckCircle2 className="w-7 h-7 text-emerald-600" />
+                        </div>
+                        <DialogTitle className="text-center text-lg font-black text-gray-900">
+                            Persetujuan Penugasan Lembur (SPL)
+                        </DialogTitle>
+                        <DialogDescription className="text-center text-xs text-gray-500">
+                            Ambil foto bukti awal dan lengkapi keterangan pekerjaan sebelum menyetujui lembur.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <form onSubmit={handleConfirmApproveSpl} className="space-y-4">
+                        {/* 1. Ambil Foto Bukti */}
+                        <div className="space-y-2">
+                            <label className="text-xs font-bold text-gray-700 block">
+                                1. Foto Bukti Awal Lembur
+                            </label>
+                            
+                            {approveSplPhoto ? (
+                                <div className="relative rounded-2xl overflow-hidden border border-emerald-300 bg-gray-50 h-44 flex items-center justify-center">
+                                    <img src={approveSplPhoto} alt="Bukti Lembur" className="w-full h-full object-cover" />
+                                    <button
+                                        type="button"
+                                        onClick={() => setApproveSplPhoto(null)}
+                                        className="absolute top-2 right-2 bg-red-600 text-white p-1.5 rounded-full text-xs font-bold shadow-lg"
+                                    >
+                                        ✕ Foto Ulang
+                                    </button>
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-2 gap-2">
+                                    <input
+                                        ref={approveSplFileInputRef}
+                                        type="file"
+                                        accept="image/*"
+                                        className="hidden"
+                                        onChange={handleApproveSplFileSelected}
+                                    />
+                                    <Button
+                                        type="button"
+                                        onClick={() => approveSplFileInputRef.current?.click()}
+                                        variant="outline"
+                                        className="h-12 rounded-2xl border-2 border-primary/30 text-primary font-bold text-xs gap-1.5 hover:bg-primary/5"
+                                    >
+                                        <Upload className="w-4 h-4" /> Upload Foto
+                                    </Button>
+                                    <Button
+                                        type="button"
+                                        onClick={() => setIsApproveSplCameraOpen(true)}
+                                        className="h-12 rounded-2xl bg-primary hover:bg-primary/90 text-white font-bold text-xs gap-1.5 shadow-md shadow-primary/20"
+                                    >
+                                        <Camera className="w-4 h-4" /> Kamera Live
+                                    </Button>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* 2. Keterangan */}
+                        <div className="space-y-2">
+                            <label className="text-xs font-bold text-gray-700 block">
+                                2. Keterangan Pekerjaan Lembur
+                            </label>
+                            <Textarea
+                                placeholder="Tuliskan keterangan / tugas lembur hari ini..."
+                                value={approveSplDescription}
+                                onChange={(e) => setApproveSplDescription(e.target.value)}
+                                className="rounded-2xl border-gray-200 min-h-[90px] text-xs"
+                            />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3 pt-2">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => {
+                                    setIsApproveSplModalOpen(false);
+                                    setIsSplNoticeModalOpen(true);
+                                }}
+                                className="h-11 rounded-xl text-xs font-bold border-gray-200 text-gray-700"
+                            >
+                                Kembali
+                            </Button>
+                            <Button
+                                type="submit"
+                                disabled={isSubmittingApproveSpl}
+                                className="h-11 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md shadow-emerald-600/30"
+                            >
+                                {isSubmittingApproveSpl ? "Menyimpan..." : "Setujui Lembur"}
+                            </Button>
+                        </div>
+                    </form>
+                </DialogContent>
+            </Dialog>
+
+            {/* Live Camera for Approve SPL */}
+            <CameraModal
+                open={isApproveSplCameraOpen}
+                onCapture={(photoData) => {
+                    setApproveSplPhoto(photoData);
+                    setIsApproveSplCameraOpen(false);
+                }}
+                onClose={() => setIsApproveSplCameraOpen(false)}
+                locationAddress={locationAddress}
+                allowCaption={false}
+            />
         </div>
     );
 }

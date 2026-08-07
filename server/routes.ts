@@ -1772,10 +1772,15 @@ export function registerRoutes(app: Express) {
       if (ot.length === 0) return res.status(404).json({ message: "Data lembur tidak ditemukan" });
 
       if (action === "approve") {
-        await db.update(overtimes).set({
+        const { initialProofUrl, description } = req.body;
+        const updateData: any = {
           employeeApproval: "approved"
-        }).where(eq(overtimes.id, Number(overtimeId)));
-        return res.json({ message: "Penugasan lembur telah disetujui (Terima Tugas). Silakan klik Mulai Lembur saat siap." });
+        };
+        if (initialProofUrl) updateData.initialProofUrl = initialProofUrl;
+        if (description) updateData.description = description;
+
+        await db.update(overtimes).set(updateData).where(eq(overtimes.id, Number(overtimeId)));
+        return res.json({ message: "Penugasan lembur telah disetujui." });
       } else if (action === "reject") {
         await db.update(overtimes).set({
           employeeApproval: "rejected",
