@@ -257,6 +257,15 @@ async function generateAndSaveSplDocument(data: {
     </div>
   </div>
  </div>
+  <script>
+    window.onload = function() {
+      if (window.location.search.includes('print=1') || window.location.search.includes('download=1')) {
+        setTimeout(function() {
+          window.print();
+        }, 300);
+      }
+    };
+  </script>
 </body>
 </html>`;
 

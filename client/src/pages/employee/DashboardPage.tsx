@@ -1225,10 +1225,14 @@ export default function EmployeeDashboard() {
                                             {(spl.splDocumentUrl || spl.fileUrl) && (
                                                 <Button
                                                     type="button"
-                                                    onClick={() => setViewDocumentUrl(spl.splDocumentUrl || spl.fileUrl)}
+                                                    onClick={() => {
+                                                        const targetUrl = spl.splDocumentUrl || spl.fileUrl;
+                                                        const printUrl = targetUrl.includes('?') ? `${targetUrl}&print=1` : `${targetUrl}?print=1`;
+                                                        window.open(printUrl, "_blank");
+                                                    }}
                                                     className="w-full h-10 rounded-xl bg-orange-600 hover:bg-orange-700 text-white font-bold text-xs gap-2 shadow-md shadow-orange-200"
                                                 >
-                                                    <Eye className="w-4 h-4" /> Lihat Dokumen
+                                                    <Download className="w-4 h-4" /> Unduh Surat SPL (PDF)
                                                 </Button>
                                             )}
 
