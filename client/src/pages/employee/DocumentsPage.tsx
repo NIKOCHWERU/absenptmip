@@ -80,31 +80,42 @@ export default function DocumentsPage() {
   const [selectedDoc, setSelectedDoc] = useState<any | null>(null);
 
   // Fetch all documents for employee
-  const { data: docsData, isLoading } = useQuery<any>({
+  const { data: docsData, isLoading: isLoadingDocs } = useQuery<any>({
     queryKey: ["/api/employee/documents/all"],
   });
 
+  // Direct fetch for employee SPL list
+  const { data: mySplData, isLoading: isLoadingSpl } = useQuery<any[]>({
+    queryKey: ["/api/employee/overtimes/my-spl"],
+  });
+
+  const isLoading = isLoadingDocs && isLoadingSpl;
+
   // Combine and map documents
   const allDocs: any[] = [];
+  const processedSplIds = new Set<number>();
 
-  if (docsData?.spl) {
-    docsData.spl.forEach((item: any) => {
-      const isPast = checkIsOvertimePast(item.date || item.overtimeDate || item.startTime, item.endTime) && item.status !== 'completed' && item.status !== 'ongoing';
-      allDocs.push({
-        id: `spl-${item.id}`,
-        type: "spl",
-        title: "Surat Perintah Lembur (SPL)",
-        docNumber: item.splNumber || `SPL-${item.id}`,
-        date: item.date || item.overtimeDate || item.startTime || item.createdAt,
-        rawDate: new Date(item.date || item.overtimeDate || item.startTime || item.createdAt).getTime(),
-        status: isPast ? "expired" : (item.employeeApproval || item.status || "pending"),
-        statusLabel: isPast ? "Melewatkan Lembur" : item.employeeApproval === 'approved' ? "Disetujui" : item.employeeApproval === 'rejected' ? "Ditolak" : "Menunggu",
-        description: item.description || "Instruksi Penugasan Lembur dari Pimpinan / HRD",
-        fileUrl: item.splDocumentUrl || item.fileUrl,
-        raw: item,
-      });
+  const splItems = [...(docsData?.spl || []), ...(mySplData || [])];
+
+  splItems.forEach((item: any) => {
+    if (!item || !item.id || processedSplIds.has(item.id)) return;
+    processedSplIds.add(item.id);
+
+    const isPast = checkIsOvertimePast(item.date || item.overtimeDate || item.startTime, item.endTime) && item.status !== 'completed' && item.status !== 'ongoing';
+    allDocs.push({
+      id: `spl-${item.id}`,
+      type: "spl",
+      title: "Surat Perintah Lembur (SPL)",
+      docNumber: item.splNumber || `SPL-${item.id}`,
+      date: item.date || item.overtimeDate || item.startTime || item.createdAt,
+      rawDate: new Date(item.date || item.overtimeDate || item.startTime || item.createdAt).getTime(),
+      status: isPast ? "expired" : (item.employeeApproval || item.status || "pending"),
+      statusLabel: isPast ? "Melewatkan Lembur" : item.employeeApproval === 'approved' ? "Disetujui" : item.employeeApproval === 'rejected' ? "Ditolak" : "Menunggu",
+      description: item.description || "Instruksi Penugasan Lembur dari Pimpinan / HRD",
+      fileUrl: item.splDocumentUrl || item.fileUrl,
+      raw: item,
     });
-  }
+  });
 
   if (docsData?.warningLetters) {
     docsData.warningLetters.forEach((item: any) => {

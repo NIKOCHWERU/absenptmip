@@ -2253,6 +2253,59 @@ export function registerRoutes(app: Express) {
     }
   });
 
+  app.get("/api/employee/documents/all", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const userId = Number((req.user as any)?.id || (req.session as any)?.userId);
+
+      const splList = await db.select({
+        id: overtimes.id,
+        attendanceId: overtimes.attendanceId,
+        startTime: overtimes.startTime,
+        endTime: overtimes.endTime,
+        splDocumentUrl: overtimes.splDocumentUrl,
+        description: overtimes.description,
+        status: overtimes.status,
+        employeeApproval: overtimes.employeeApproval,
+        rejectionReason: overtimes.rejectionReason,
+        splNumber: overtimes.splNumber,
+        createdAt: overtimes.createdAt,
+        date: attendance.date
+      })
+      .from(overtimes)
+      .innerJoin(attendance, eq(overtimes.attendanceId, attendance.id))
+      .where(eq(attendance.userId, userId))
+      .orderBy(desc(overtimes.createdAt));
+
+      const sp = await db
+        .select()
+        .from(warningLetters)
+        .where(eq(warningLetters.userId, userId))
+        .orderBy(desc(warningLetters.createdAt));
+
+      const mut = await db
+        .select()
+        .from(mutations)
+        .where(eq(mutations.userId, userId))
+        .orderBy(desc(mutations.createdAt));
+
+      const resg = await db
+        .select()
+        .from(resignations)
+        .where(eq(resignations.userId, userId))
+        .orderBy(desc(resignations.createdAt));
+
+      res.json({
+        spl: splList,
+        warningLetters: sp,
+        mutations: mut,
+        resignations: resg,
+      });
+    } catch (err: any) {
+      console.error("Fetch all employee documents error:", err);
+      res.status(500).json({ message: err.message });
+    }
+  });
+
   // 11. Employee popup notification checking
   // Cutoff date is 2026-06-10T04:00:00.000Z UTC (11:00 WIB)
   app.get("/api/employee/documents", isAuthenticated, async (req: Request, res: Response) => {
