@@ -132,6 +132,7 @@ export default function AdminSettingsPage() {
     shift: true,
     resignation: true,
     break: true,
+    overtime: true,
   });
 
   useEffect(() => {
@@ -158,6 +159,7 @@ export default function AdminSettingsPage() {
           shift: config.features.shift !== false,
           resignation: config.features.resignation !== false,
           break: config.features.break !== false,
+          overtime: config.features.overtime !== false,
         });
       }
     }
@@ -513,6 +515,19 @@ export default function AdminSettingsPage() {
                   <Switch
                     checked={features.info}
                     onCheckedChange={() => handleToggle("info")}
+                    className="data-[state=checked]:bg-primary"
+                  />
+                </div>
+
+                {/* Overtime Toggle */}
+                <div className="flex items-center justify-between p-3 border border-gray-50 rounded-xl hover:bg-gray-50/50 transition-colors">
+                  <div className="space-y-0.5">
+                    <Label className="text-xs font-bold text-gray-700">Sistem Lembur (SPL)</Label>
+                    <p className="text-[10px] text-gray-400 leading-tight font-medium leading-none">Penugasan & riwayat lembur karyawan.</p>
+                  </div>
+                  <Switch
+                    checked={features.overtime}
+                    onCheckedChange={() => handleToggle("overtime")}
                     className="data-[state=checked]:bg-primary"
                   />
                 </div>
