@@ -75,6 +75,41 @@ function LiveOvertimeTimer({ startTime }: { startTime: string | Date }) {
     );
 }
 
+function checkIsOvertimePast(splDateVal: any, endTimeVal: any): boolean {
+    if (!splDateVal) return false;
+    try {
+        let dateStr = "";
+        if (typeof splDateVal === "string") {
+            dateStr = splDateVal.split("T")[0];
+        } else if (splDateVal instanceof Date) {
+            dateStr = splDateVal.toISOString().split("T")[0];
+        } else {
+            return false;
+        }
+
+        let endHhMm = "23:59";
+        if (endTimeVal) {
+            if (typeof endTimeVal === "string") {
+                if (endTimeVal.length === 5) {
+                    endHhMm = endTimeVal;
+                } else if (endTimeVal.includes("T")) {
+                    endHhMm = endTimeVal.split("T")[1]?.substring(0, 5) || "23:59";
+                }
+            } else if (endTimeVal instanceof Date) {
+                endHhMm = `${String(endTimeVal.getHours()).padStart(2, '0')}:${String(endTimeVal.getMinutes()).padStart(2, '0')}`;
+            }
+        }
+
+        const [yr, mo, dy] = dateStr.split("-").map(Number);
+        const [hh, mm] = endHhMm.split(":").map(Number);
+        
+        const endDateTime = new Date(yr, mo - 1, dy, hh, mm, 59);
+        return new Date().getTime() > endDateTime.getTime();
+    } catch (err) {
+        return false;
+    }
+}
+
 // Helper component for Shift Selection Modal
 function ShiftModal({
     open,
@@ -1194,16 +1229,19 @@ export default function EmployeeDashboard() {
                                 const startTimeStr = spl.startTime ? (spl.startTime.length === 5 ? spl.startTime : safeFormatDate(spl.startTime, "HH:mm")) : "-";
                                 const endTimeStr = spl.endTime ? (spl.endTime.length === 5 ? spl.endTime : safeFormatDate(spl.endTime, "HH:mm")) : "-";
 
+                                const isPast = checkIsOvertimePast(spl.date || spl.overtimeDate || spl.startTime, spl.endTime) && spl.status !== 'completed' && spl.status !== 'ongoing';
+
                                 return (
-                                    <div key={spl.id} className="bg-orange-50/40 rounded-2xl p-4 border border-orange-100 space-y-2">
+                                    <div key={spl.id} className={`rounded-2xl p-4 border space-y-2 ${isPast ? 'bg-red-50/50 border-red-200' : 'bg-orange-50/40 border-orange-100'}`}>
                                         <div className="flex items-center justify-between">
                                             <span className="font-extrabold text-xs text-orange-950">{toTitleCase(dateStr)}</span>
                                             <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                                                isPast ? 'bg-red-100 text-red-800' :
                                                 spl.employeeApproval === 'approved' ? 'bg-emerald-100 text-emerald-800' :
                                                 spl.employeeApproval === 'rejected' ? 'bg-red-100 text-red-800' :
                                                 'bg-amber-100 text-amber-800'
                                             }`}>
-                                                {spl.employeeApproval === 'approved' ? 'Disetujui' : spl.employeeApproval === 'rejected' ? 'Ditolak' : 'Menunggu'}
+                                                {isPast ? 'Melewatkan Lembur' : spl.employeeApproval === 'approved' ? 'Disetujui' : spl.employeeApproval === 'rejected' ? 'Ditolak' : 'Menunggu'}
                                             </span>
                                         </div>
 
@@ -1217,57 +1255,65 @@ export default function EmployeeDashboard() {
                                             </p>
                                         )}
 
-                                        {spl.status === "ongoing" && spl.startTime && (
-                                            <LiveOvertimeTimer startTime={spl.startTime} />
+                                        {isPast ? (
+                                            <div className="bg-red-100/70 border border-red-200 rounded-xl p-3 text-red-900 text-xs font-semibold leading-relaxed">
+                                                ⚠️ Anda melewatkan lembur tanggal <strong className="underline">{toTitleCase(dateStr)}</strong> pukul <strong className="underline">{startTimeStr} – {endTimeStr} WIB</strong>.
+                                            </div>
+                                        ) : (
+                                            <>
+                                                {spl.status === "ongoing" && spl.startTime && (
+                                                    <LiveOvertimeTimer startTime={spl.startTime} />
+                                                )}
+
+                                                <div className="grid grid-cols-1 gap-2 mt-2">
+                                                    {/* Tombol Mulai Lembur jika sudah Disetujui & Belum Berjalan */}
+                                                    {spl.employeeApproval === 'approved' && spl.status !== 'ongoing' && spl.status !== 'completed' && (
+                                                        <Button
+                                                            type="button"
+                                                            onClick={() => setIsStartOvertimeConfirmOpen(true)}
+                                                            className="w-full h-11 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs gap-2 shadow-lg shadow-emerald-600/30 animate-pulse"
+                                                        >
+                                                            <Play className="w-4 h-4 fill-white" /> Mulai Lembur Sekarang
+                                                        </Button>
+                                                    )}
+
+                                                    {/* Tombol Selesai Lembur jika Sedang Berjalan */}
+                                                    {spl.status === 'ongoing' && (
+                                                        <Button
+                                                            type="button"
+                                                            onClick={() => setIsEndOvertimeCameraOpen(true)}
+                                                            className="w-full h-11 rounded-xl bg-red-600 hover:bg-red-700 text-white font-black text-xs gap-2 shadow-lg shadow-red-600/30"
+                                                        >
+                                                            <CheckCircle2 className="w-4 h-4" /> Selesai Lembur
+                                                        </Button>
+                                                    )}
+
+                                                    {(spl.splDocumentUrl || spl.fileUrl) && (
+                                                        <Button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                const targetUrl = spl.splDocumentUrl || spl.fileUrl;
+                                                                const printUrl = targetUrl.includes('?') ? `${targetUrl}&print=1` : `${targetUrl}?print=1`;
+                                                                window.open(printUrl, "_blank");
+                                                            }}
+                                                            className="w-full h-10 rounded-xl bg-orange-600 hover:bg-orange-700 text-white font-bold text-xs gap-2 shadow-md shadow-orange-200"
+                                                        >
+                                                            <Download className="w-4 h-4" /> Unduh Surat SPL (PDF)
+                                                        </Button>
+                                                    )}
+
+                                                    {activeOvertimeToday && activeOvertimeToday.id === spl.id && (
+                                                        <Button
+                                                            type="button"
+                                                            onClick={() => setIsSplNoticeModalOpen(true)}
+                                                            className="w-full h-10 rounded-xl bg-primary hover:bg-primary/90 text-white font-bold text-xs gap-2 shadow-md shadow-primary/20"
+                                                        >
+                                                            <FileText className="w-4 h-4" /> Lihat Form Lembur
+                                                        </Button>
+                                                    )}
+                                                </div>
+                                            </>
                                         )}
-
-                                        <div className="grid grid-cols-1 gap-2 mt-2">
-                                            {/* Tombol Mulai Lembur jika sudah Disetujui & Belum Berjalan */}
-                                            {spl.employeeApproval === 'approved' && spl.status !== 'ongoing' && spl.status !== 'completed' && (
-                                                <Button
-                                                    type="button"
-                                                    onClick={() => setIsStartOvertimeConfirmOpen(true)}
-                                                    className="w-full h-11 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs gap-2 shadow-lg shadow-emerald-600/30 animate-pulse"
-                                                >
-                                                    <Play className="w-4 h-4 fill-white" /> Mulai Lembur Sekarang
-                                                </Button>
-                                            )}
-
-                                            {/* Tombol Selesai Lembur jika Sedang Berjalan */}
-                                            {spl.status === 'ongoing' && (
-                                                <Button
-                                                    type="button"
-                                                    onClick={() => setIsEndOvertimeCameraOpen(true)}
-                                                    className="w-full h-11 rounded-xl bg-red-600 hover:bg-red-700 text-white font-black text-xs gap-2 shadow-lg shadow-red-600/30"
-                                                >
-                                                    <CheckCircle2 className="w-4 h-4" /> Selesai Lembur
-                                                </Button>
-                                            )}
-
-                                            {(spl.splDocumentUrl || spl.fileUrl) && (
-                                                <Button
-                                                    type="button"
-                                                    onClick={() => {
-                                                        const targetUrl = spl.splDocumentUrl || spl.fileUrl;
-                                                        const printUrl = targetUrl.includes('?') ? `${targetUrl}&print=1` : `${targetUrl}?print=1`;
-                                                        window.open(printUrl, "_blank");
-                                                    }}
-                                                    className="w-full h-10 rounded-xl bg-orange-600 hover:bg-orange-700 text-white font-bold text-xs gap-2 shadow-md shadow-orange-200"
-                                                >
-                                                    <Download className="w-4 h-4" /> Unduh Surat SPL (PDF)
-                                                </Button>
-                                            )}
-
-                                            {activeOvertimeToday && activeOvertimeToday.id === spl.id && (
-                                                <Button
-                                                    type="button"
-                                                    onClick={() => setIsSplNoticeModalOpen(true)}
-                                                    className="w-full h-10 rounded-xl bg-primary hover:bg-primary/90 text-white font-bold text-xs gap-2 shadow-md shadow-primary/20"
-                                                >
-                                                    <FileText className="w-4 h-4" /> Lihat Form Lembur
-                                                </Button>
-                                            )}
-                                        </div>
                                     </div>
                                 );
                             })}
@@ -1779,75 +1825,83 @@ export default function EmployeeDashboard() {
                         </DialogDescription>
                     </DialogHeader>
 
-                    {activeOvertimeToday && (
-                        <div className="space-y-3 py-2 text-xs">
-                            <div className="bg-gray-50 p-3.5 rounded-2xl border border-gray-100 space-y-2">
-                                <div className="grid grid-cols-2 gap-2 text-[11px]">
-                                    <div><span className="text-gray-400 font-bold block">Nama:</span> <strong className="text-gray-900">{user?.fullName}</strong></div>
-                                    <div><span className="text-gray-400 font-bold block">NIK:</span> <strong className="text-gray-900">{user?.username}</strong></div>
-                                    <div><span className="text-gray-400 font-bold block">Jabatan:</span> <strong className="text-gray-900">{user?.position || '-'}</strong></div>
-                                    <div><span className="text-gray-400 font-bold block">No. SPL:</span> <strong className="text-orange-700">{activeOvertimeToday.splNumber || "SPL Resmi"}</strong></div>
-                                </div>
-                                <div className="border-t border-gray-200 pt-2 text-[11px]">
-                                    <span className="text-gray-400 font-bold block">Waktu Lembur:</span>
-                                    <strong className="text-primary text-xs">
-                                        {safeFormatDate(activeOvertimeToday.startTime, "d MMMM yyyy (HH:mm", { locale: id })} - {activeOvertimeToday.endTime ? safeFormatDate(activeOvertimeToday.endTime, "HH:mm WIB)", { locale: id }) : "Selesai WIB)"}
-                                    </strong>
-                                </div>
-                                <div className="border-t border-gray-200 pt-2 text-[11px]">
-                                    <span className="text-gray-400 font-bold block">Uraian Pekerjaan:</span>
-                                    <p className="italic font-medium text-gray-800">"{activeOvertimeToday.description || 'Instruksi Lembur'}"</p>
-                                </div>
-                            </div>
+                    {activeOvertimeToday && (() => {
+                        const isPastNotice = checkIsOvertimePast(activeOvertimeToday.overtimeDate || activeOvertimeToday.date || activeOvertimeToday.startTime, activeOvertimeToday.endTime) && activeOvertimeToday.status !== 'completed' && activeOvertimeToday.status !== 'ongoing';
+                        const dateStr = safeFormatDate(activeOvertimeToday.overtimeDate || activeOvertimeToday.date || activeOvertimeToday.startTime, "EEEE, d MMMM yyyy");
+                        const startTimeStr = activeOvertimeToday.startTime ? (activeOvertimeToday.startTime.length === 5 ? activeOvertimeToday.startTime : safeFormatDate(activeOvertimeToday.startTime, "HH:mm")) : "-";
+                        const endTimeStr = activeOvertimeToday.endTime ? (activeOvertimeToday.endTime.length === 5 ? activeOvertimeToday.endTime : safeFormatDate(activeOvertimeToday.endTime, "HH:mm")) : "-";
 
-                            {activeOvertimeToday.splDocumentUrl && (
-                                <div className="p-3 bg-blue-50 border border-blue-100 rounded-2xl flex items-center justify-between">
-                                    <span className="text-[11px] font-bold text-blue-900">Lampiran Dokumen Admin:</span>
-                                    <Button
-                                        size="sm"
-                                        onClick={() => setViewDocumentUrl(activeOvertimeToday.splDocumentUrl)}
-                                        className="h-8 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold gap-1"
-                                    >
-                                        <Eye className="w-3.5 h-3.5" /> Lihat Dokumen
-                                    </Button>
+                        return (
+                            <div className="space-y-3 py-2 text-xs">
+                                <div className="bg-gray-50 p-3.5 rounded-2xl border border-gray-100 space-y-2">
+                                    <div className="grid grid-cols-2 gap-2 text-[11px]">
+                                        <div><span className="text-gray-400 font-bold block">Nama:</span> <strong className="text-gray-900">{user?.fullName}</strong></div>
+                                        <div><span className="text-gray-400 font-bold block">NIK:</span> <strong className="text-gray-900">{user?.username}</strong></div>
+                                        <div><span className="text-gray-400 font-bold block">Jabatan:</span> <strong className="text-gray-900">{user?.position || '-'}</strong></div>
+                                    </div>
+                                    <div className="border-t border-gray-200 pt-2 text-[11px]">
+                                        <span className="text-gray-400 font-bold block">Waktu Lembur:</span>
+                                        <strong className="text-primary text-xs">
+                                            {toTitleCase(dateStr)} ({startTimeStr} - {endTimeStr} WIB)
+                                        </strong>
+                                    </div>
+                                    <div className="border-t border-gray-200 pt-2 text-[11px]">
+                                        <span className="text-gray-400 font-bold block">Uraian Pekerjaan:</span>
+                                        <p className="italic font-medium text-gray-800">"{activeOvertimeToday.description || 'Instruksi Lembur'}"</p>
+                                    </div>
                                 </div>
-                            )}
 
-                            <div className="grid grid-cols-2 gap-3 pt-2">
-                                <Button
-                                    variant="outline"
-                                    onClick={() => {
-                                        setIsSplNoticeModalOpen(false);
-                                        setIsRejectSplModalOpen(true);
-                                    }}
-                                    className="h-12 rounded-2xl border-red-200 text-red-600 hover:bg-red-50 font-bold text-xs"
-                                >
-                                    Tolak
-                                </Button>
-                                <Button
-                                    onClick={async () => {
-                                        try {
-                                            const res = await fetch("/api/attendance/overtime/respond", {
-                                                method: "POST",
-                                                headers: { "Content-Type": "application/json" },
-                                                body: JSON.stringify({ overtimeId: activeOvertimeToday.id, action: "approve" })
-                                            });
-                                            if (!res.ok) throw new Error("Gagal menyetujui lembur");
-                                            setIsSplNoticeModalOpen(false);
-                                            refetchOvertimeToday();
-                                            toast({ title: "Penugasan Lembur Disetujui!", description: "Status SPL telah dikonfirmasi." });
-                                            setIsStartOvertimeConfirmOpen(true);
-                                        } catch (err: any) {
-                                            toast({ title: "Gagal", description: err.message, variant: "destructive" });
-                                        }
-                                    }}
-                                    className="h-12 rounded-2xl bg-primary hover:bg-primary/90 text-white font-bold text-xs shadow-md shadow-primary/20"
-                                >
-                                    Setujui
-                                </Button>
+                                {isPastNotice ? (
+                                    <div className="bg-red-50 border border-red-200 rounded-2xl p-4 text-center space-y-2">
+                                        <p className="font-extrabold text-xs text-red-700 uppercase tracking-wide">⚠️ Lembur Telah Kadaluarsa</p>
+                                        <p className="text-xs font-semibold text-red-900 leading-relaxed">
+                                            Anda melewatkan lembur tanggal <strong className="underline">{toTitleCase(dateStr)}</strong> pukul <strong className="underline">{startTimeStr} – {endTimeStr} WIB</strong>.
+                                        </p>
+                                        <Button
+                                            onClick={() => setIsSplNoticeModalOpen(false)}
+                                            className="w-full h-10 rounded-xl bg-gray-800 hover:bg-gray-900 text-white font-bold text-xs mt-2"
+                                        >
+                                            Tutup
+                                        </Button>
+                                    </div>
+                                ) : (
+                                    <div className="grid grid-cols-2 gap-3 pt-2">
+                                        <Button
+                                            variant="outline"
+                                            onClick={() => {
+                                                setIsSplNoticeModalOpen(false);
+                                                setIsRejectSplModalOpen(true);
+                                            }}
+                                            className="h-12 rounded-2xl border-red-200 text-red-600 hover:bg-red-50 font-bold text-xs"
+                                        >
+                                            Tolak
+                                        </Button>
+                                        <Button
+                                            onClick={async () => {
+                                                try {
+                                                    const res = await fetch("/api/attendance/overtime/respond", {
+                                                        method: "POST",
+                                                        headers: { "Content-Type": "application/json" },
+                                                        body: JSON.stringify({ overtimeId: activeOvertimeToday.id, action: "approve" })
+                                                    });
+                                                    if (!res.ok) throw new Error("Gagal menyetujui lembur");
+                                                    setIsSplNoticeModalOpen(false);
+                                                    refetchOvertimeToday();
+                                                    toast({ title: "Penugasan Lembur Disetujui!", description: "Status SPL telah dikonfirmasi." });
+                                                    setIsStartOvertimeConfirmOpen(true);
+                                                } catch (err: any) {
+                                                    toast({ title: "Gagal", description: err.message, variant: "destructive" });
+                                                }
+                                            }}
+                                            className="h-12 rounded-2xl bg-primary hover:bg-primary/90 text-white font-bold text-xs shadow-md shadow-primary/20"
+                                        >
+                                            Setujui
+                                        </Button>
+                                    </div>
+                                )}
                             </div>
-                        </div>
-                    )}
+                        );
+                    })()}
                 </DialogContent>
             </Dialog>
 
