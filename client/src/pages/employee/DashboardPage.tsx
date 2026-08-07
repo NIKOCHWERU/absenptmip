@@ -338,13 +338,19 @@ export default function EmployeeDashboard() {
     const [isOffDayOpen, setIsOffDayOpen] = useState(false);
     const [selectedShiftId, setSelectedShiftId] = useState<number | null>(null);
 
-    // Safe date formatting helper to prevent uncaught RangeError crash
+    // Safe date formatting helper to prevent uncaught RangeError crash & timezone shift
     const safeFormatDate = (dateVal: any, formatStr: string, options?: any) => {
         if (!dateVal) return "-";
         try {
-            const d = new Date(dateVal);
+            let d: Date;
+            if (typeof dateVal === "string" && dateVal.length === 10 && dateVal.includes("-")) {
+                const [y, m, day] = dateVal.split("-").map(Number);
+                d = new Date(y, m - 1, day, 12, 0, 0);
+            } else {
+                d = new Date(dateVal);
+            }
             if (isNaN(d.getTime())) return "-";
-            return format(d, formatStr, options);
+            return format(d, formatStr, { locale: id, ...options });
         } catch (_) {
             return "-";
         }
