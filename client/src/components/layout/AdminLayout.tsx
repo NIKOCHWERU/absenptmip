@@ -354,11 +354,17 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         queryKey: ["/api/admin/unverified-employees"],
     });
 
+    const { data: overtimesListNotif } = useQuery<any[]>({
+        queryKey: ["/api/admin/overtimes"],
+        refetchInterval: 5000,
+    });
+
     const pendingLeaveCount = leaveRequests?.filter((r) => r.status === 'pending').length || 0;
     const pendingComplaintsCount = complaintsStats?.pendingCount || 0;
     const pendingVerificationCount = unverifiedEmployees?.filter((e) => e.registrationStatus === 'pending').length || 0;
+    const activeOvertimeReportCount = overtimesListNotif?.filter((o) => o.status === 'ongoing' || (o.status === 'completed' && !o.verified)).length || 0;
 
-    const totalNotifications = pendingLeaveCount + pendingComplaintsCount + pendingVerificationCount;
+    const totalNotifications = pendingLeaveCount + pendingComplaintsCount + pendingVerificationCount + activeOvertimeReportCount;
 
     const [viewedCount, setViewedCount] = useState(() => {
         const stored = localStorage.getItem("admin_notif_count");
@@ -721,6 +727,21 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                                                      </div>
                                                  </div>
                                              ) : null}
+
+                                              {activeOvertimeReportCount > 0 ? (
+                                                  <div 
+                                                      onClick={() => { setLocation("/admin/overtime-management"); setNotifOpen(false); }}
+                                                      className="px-4 py-3 hover:bg-gray-50 cursor-pointer flex gap-3 items-start"
+                                                  >
+                                                      <div className="w-8 h-8 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center shrink-0 mt-0.5">
+                                                          <Clock className="w-4 h-4" />
+                                                      </div>
+                                                      <div>
+                                                          <p className="text-xs font-bold text-gray-700">Laporan Lembur Masuk</p>
+                                                          <p className="text-[10px] text-gray-500 mt-0.5">Ada {activeOvertimeReportCount} sesi lembur berjalan / laporan hasil lembur yang perlu ditinjau.</p>
+                                                      </div>
+                                                  </div>
+                                              ) : null}
 
                                              {pendingVerificationCount > 0 ? (
                                                  <div 

@@ -92,7 +92,10 @@ export default function AdminOvertimePage() {
 
   // Data Real Employees & Real Overtimes
   const { data: users } = useQuery<User[]>({ queryKey: ["/api/admin/users"] });
-  const { data: overtimesList, isLoading } = useQuery<any[]>({ queryKey: ["/api/admin/overtimes"] });
+  const { data: overtimesList, isLoading } = useQuery<any[]>({
+    queryKey: ["/api/admin/overtimes"],
+    refetchInterval: 3000,
+  });
 
   // Filter Employees
   const employeeUsers = users?.filter(u => u.role === "employee") || [];

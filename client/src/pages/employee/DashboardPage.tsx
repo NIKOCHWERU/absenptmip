@@ -430,6 +430,115 @@ export default function EmployeeDashboard() {
         }
     };
 
+    // Form States for Mulai Lembur & Selesai Lembur Reports
+    const [isStartOvertimeReportOpen, setIsStartOvertimeReportOpen] = useState(false);
+    const [startOvertimePhoto, setStartOvertimePhoto] = useState<string | null>(null);
+    const [startOvertimeNotes, setStartOvertimeNotes] = useState("");
+    const startOvertimeFileInputRef = useRef<HTMLInputElement>(null);
+
+    const [isEndOvertimeReportOpen, setIsEndOvertimeReportOpen] = useState(false);
+    const [endOvertimePhoto, setEndOvertimePhoto] = useState<string | null>(null);
+    const [endOvertimeNotes, setEndOvertimeNotes] = useState("");
+    const endOvertimeFileInputRef = useRef<HTMLInputElement>(null);
+
+    const handleStartOvertimeFileSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        try {
+            const formData = new FormData();
+            formData.append("photo", file);
+            const res = await fetch("/api/upload-direct", { method: "POST", body: formData });
+            if (!res.ok) throw new Error("Gagal unggah foto");
+            const data = await res.json();
+            setStartOvertimePhoto(data.url);
+        } catch (err: any) {
+            toast({ title: "Gagal Unggah Foto", description: err.message, variant: "destructive" });
+        }
+    };
+
+    const handleEndOvertimeFileSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        try {
+            const formData = new FormData();
+            formData.append("photo", file);
+            const res = await fetch("/api/upload-direct", { method: "POST", body: formData });
+            if (!res.ok) throw new Error("Gagal unggah foto");
+            const data = await res.json();
+            setEndOvertimePhoto(data.url);
+        } catch (err: any) {
+            toast({ title: "Gagal Unggah Foto", description: err.message, variant: "destructive" });
+        }
+    };
+
+    const handleStartOvertimeSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        try {
+            setIsSubmittingOvertime(true);
+            const formData = new FormData();
+            if (startOvertimePhoto) {
+                if (startOvertimePhoto.startsWith("data:")) {
+                    const photoFile = dataURLtoFile(startOvertimePhoto, `overtime_start_${Date.now()}.jpg`);
+                    formData.append("initialProofPhoto", photoFile);
+                } else {
+                    formData.append("initialProofUrl", startOvertimePhoto);
+                }
+            }
+            if (startOvertimeNotes) {
+                formData.append("description", startOvertimeNotes);
+            }
+            const res = await fetch("/api/attendance/overtime/start", {
+                method: "POST",
+                body: formData
+            });
+            if (!res.ok) {
+                const err = await res.json();
+                throw new Error(err.message || "Gagal mulai lembur");
+            }
+            setIsStartOvertimeReportOpen(false);
+            toast({ title: "Laporan Awal Lembur Terkirim!", description: "Sesi lembur Anda telah berjalan." });
+            refetchOvertimeToday();
+        } catch (err: any) {
+            toast({ title: "Gagal Mulai Lembur", description: err.message, variant: "destructive" });
+        } finally {
+            setIsSubmittingOvertime(false);
+        }
+    };
+
+    const handleEndOvertimeSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        try {
+            setIsSubmittingOvertime(true);
+            const formData = new FormData();
+            if (endOvertimePhoto) {
+                if (endOvertimePhoto.startsWith("data:")) {
+                    const photoFile = dataURLtoFile(endOvertimePhoto, `overtime_end_${Date.now()}.jpg`);
+                    formData.append("finalProofPhoto", photoFile);
+                } else {
+                    formData.append("finalProofUrl", endOvertimePhoto);
+                }
+            }
+            if (endOvertimeNotes) {
+                formData.append("finalDescription", endOvertimeNotes);
+            }
+            const res = await fetch("/api/attendance/overtime/end", {
+                method: "POST",
+                body: formData
+            });
+            if (!res.ok) {
+                const err = await res.json();
+                throw new Error(err.message || "Gagal mengakhiri lembur");
+            }
+            setIsEndOvertimeReportOpen(false);
+            toast({ title: "Laporan Selesai Lembur Terkirim!", description: "Sesi lembur Anda telah diakhiri dan diperbarui di daftar admin." });
+            refetchOvertimeToday();
+        } catch (err: any) {
+            toast({ title: "Gagal Mengakhiri Lembur", description: err.message, variant: "destructive" });
+        } finally {
+            setIsSubmittingOvertime(false);
+        }
+    };
+
     const dataURLtoFile = (dataurl: string, filename: string): File => {
         const arr = dataurl.split(',');
         const mime = arr[0].match(/:(.*?);/)?.[1] || 'image/jpeg';
@@ -1149,19 +1258,25 @@ export default function EmployeeDashboard() {
             {/* Camera Modal - Mulai Lembur */}
             <CameraModal
                 open={isStartOvertimeCameraOpen}
-                onCapture={handleStartOvertimeCaptured}
+                onCapture={(photoDataUrl) => {
+                    setStartOvertimePhoto(photoDataUrl);
+                    setIsStartOvertimeCameraOpen(false);
+                }}
                 onClose={() => setIsStartOvertimeCameraOpen(false)}
                 locationAddress={locationAddress}
-                allowCaption={true}
+                allowCaption={false}
             />
 
             {/* Camera Modal - Selesai Lembur */}
             <CameraModal
                 open={isEndOvertimeCameraOpen}
-                onCapture={handleEndOvertimeCaptured}
+                onCapture={(photoDataUrl) => {
+                    setEndOvertimePhoto(photoDataUrl);
+                    setIsEndOvertimeCameraOpen(false);
+                }}
                 onClose={() => setIsEndOvertimeCameraOpen(false)}
                 locationAddress={locationAddress}
-                allowCaption={true}
+                allowCaption={false}
             />
 
             {/* Alert Confirmation - Mulai Lembur */}
@@ -1343,7 +1458,11 @@ export default function EmployeeDashboard() {
                                                     {spl.employeeApproval === 'approved' && spl.status !== 'ongoing' && spl.status !== 'completed' && (
                                                         <Button
                                                             type="button"
-                                                            onClick={() => setIsStartOvertimeConfirmOpen(true)}
+                                                            onClick={() => {
+                                                                setStartOvertimeNotes(spl.description || "");
+                                                                setStartOvertimePhoto(null);
+                                                                setIsStartOvertimeReportOpen(true);
+                                                            }}
                                                             className="w-full h-11 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs gap-2 shadow-lg shadow-emerald-600/30 animate-pulse"
                                                         >
                                                             <Play className="w-4 h-4 fill-white" /> Mulai Lembur Sekarang
@@ -1354,7 +1473,11 @@ export default function EmployeeDashboard() {
                                                     {spl.status === 'ongoing' && (
                                                         <Button
                                                             type="button"
-                                                            onClick={() => setIsEndOvertimeCameraOpen(true)}
+                                                            onClick={() => {
+                                                                setEndOvertimeNotes("Selesai melaksanakan penugasan lembur");
+                                                                setEndOvertimePhoto(null);
+                                                                setIsEndOvertimeReportOpen(true);
+                                                            }}
                                                             className="w-full h-11 rounded-xl bg-red-600 hover:bg-red-700 text-white font-black text-xs gap-2 shadow-lg shadow-red-600/30"
                                                         >
                                                             <CheckCircle2 className="w-4 h-4" /> Selesai Lembur
@@ -2274,6 +2397,196 @@ export default function EmployeeDashboard() {
                 locationAddress={locationAddress}
                 allowCaption={false}
             />
+
+            {/* OVERTIME MODAL: FORMULIR LAPORAN AWAL LEMBUR */}
+            <Dialog open={isStartOvertimeReportOpen} onOpenChange={setIsStartOvertimeReportOpen}>
+                <DialogContent className="rounded-3xl max-w-sm md:max-w-md p-6 bg-white shadow-2xl space-y-4">
+                    <DialogHeader>
+                        <div className="mx-auto w-14 h-14 bg-emerald-100 rounded-full flex items-center justify-center mb-1">
+                            <Play className="w-7 h-7 text-emerald-600 fill-emerald-600" />
+                        </div>
+                        <DialogTitle className="text-center text-lg font-black text-gray-900">
+                            Formulir Laporan Awal Lembur
+                        </DialogTitle>
+                        <DialogDescription className="text-center text-xs text-gray-500">
+                            Lengkapi foto bukti awal dan keterangan pekerjaan untuk memulai sesi lembur.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <form onSubmit={handleStartOvertimeSubmit} className="space-y-4">
+                        {/* 1. Ambil Foto */}
+                        <div className="space-y-2">
+                            <label className="text-xs font-bold text-gray-700 block">
+                                1. Ambil Foto Awal Lembur <span className="text-red-500">*</span>
+                            </label>
+                            
+                            {startOvertimePhoto ? (
+                                <div className="relative rounded-2xl overflow-hidden border border-emerald-300 bg-gray-50 h-44 flex items-center justify-center">
+                                    <img src={startOvertimePhoto} alt="Foto Awal Lembur" className="w-full h-full object-cover" />
+                                    <button
+                                        type="button"
+                                        onClick={() => setStartOvertimePhoto(null)}
+                                        className="absolute top-2 right-2 bg-red-600 text-white p-1.5 rounded-full text-xs font-bold shadow-lg"
+                                    >
+                                        ✕ Foto Ulang
+                                    </button>
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-2 gap-2">
+                                    <input
+                                        ref={startOvertimeFileInputRef}
+                                        type="file"
+                                        accept="image/*"
+                                        className="hidden"
+                                        onChange={handleStartOvertimeFileSelected}
+                                    />
+                                    <Button
+                                        type="button"
+                                        onClick={() => startOvertimeFileInputRef.current?.click()}
+                                        variant="outline"
+                                        className="h-12 rounded-2xl border-2 border-primary/30 text-primary font-bold text-xs gap-1.5 hover:bg-primary/5"
+                                    >
+                                        <Upload className="w-4 h-4" /> Upload Foto
+                                    </Button>
+                                    <Button
+                                        type="button"
+                                        onClick={() => setIsStartOvertimeCameraOpen(true)}
+                                        className="h-12 rounded-2xl bg-primary hover:bg-primary/90 text-white font-bold text-xs gap-1.5 shadow-md shadow-primary/20"
+                                    >
+                                        <Camera className="w-4 h-4" /> Kamera Live
+                                    </Button>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* 2. Keterangan */}
+                        <div className="space-y-2">
+                            <label className="text-xs font-bold text-gray-700 block">
+                                2. Keterangan Pekerjaan Lembur
+                            </label>
+                            <Textarea
+                                placeholder="Tuliskan instruksi / pekerjaan awal lembur Anda..."
+                                value={startOvertimeNotes}
+                                onChange={(e) => setStartOvertimeNotes(e.target.value)}
+                                className="rounded-2xl border-gray-200 min-h-[90px] text-xs"
+                            />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3 pt-2">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => setIsStartOvertimeReportOpen(false)}
+                                className="h-11 rounded-xl text-xs font-bold border-gray-200 text-gray-700"
+                            >
+                                Batal
+                            </Button>
+                            <Button
+                                type="submit"
+                                disabled={isSubmittingOvertime}
+                                className="h-11 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md shadow-emerald-600/30"
+                            >
+                                {isSubmittingOvertime ? "Memproses..." : "Mulai Sesi Lembur"}
+                            </Button>
+                        </div>
+                    </form>
+                </DialogContent>
+            </Dialog>
+
+            {/* OVERTIME MODAL: FORMULIR LAPORAN SELESAI LEMBUR */}
+            <Dialog open={isEndOvertimeReportOpen} onOpenChange={setIsEndOvertimeReportOpen}>
+                <DialogContent className="rounded-3xl max-w-sm md:max-w-md p-6 bg-white shadow-2xl space-y-4">
+                    <DialogHeader>
+                        <div className="mx-auto w-14 h-14 bg-red-100 rounded-full flex items-center justify-center mb-1">
+                            <CheckCircle2 className="w-7 h-7 text-red-600" />
+                        </div>
+                        <DialogTitle className="text-center text-lg font-black text-gray-900">
+                            Formulir Laporan Selesai Lembur
+                        </DialogTitle>
+                        <DialogDescription className="text-center text-xs text-gray-500">
+                            Ambil foto hasil pekerjaan dan buat ringkasan laporan sebelum mengakhiri lembur.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <form onSubmit={handleEndOvertimeSubmit} className="space-y-4">
+                        {/* 1. Ambil Foto */}
+                        <div className="space-y-2">
+                            <label className="text-xs font-bold text-gray-700 block">
+                                1. Ambil Foto Hasil Lembur <span className="text-red-500">*</span>
+                            </label>
+                            
+                            {endOvertimePhoto ? (
+                                <div className="relative rounded-2xl overflow-hidden border border-red-300 bg-gray-50 h-44 flex items-center justify-center">
+                                    <img src={endOvertimePhoto} alt="Hasil Lembur" className="w-full h-full object-cover" />
+                                    <button
+                                        type="button"
+                                        onClick={() => setEndOvertimePhoto(null)}
+                                        className="absolute top-2 right-2 bg-red-600 text-white p-1.5 rounded-full text-xs font-bold shadow-lg"
+                                    >
+                                        ✕ Foto Ulang
+                                    </button>
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-2 gap-2">
+                                    <input
+                                        ref={endOvertimeFileInputRef}
+                                        type="file"
+                                        accept="image/*"
+                                        className="hidden"
+                                        onChange={handleEndOvertimeFileSelected}
+                                    />
+                                    <Button
+                                        type="button"
+                                        onClick={() => endOvertimeFileInputRef.current?.click()}
+                                        variant="outline"
+                                        className="h-12 rounded-2xl border-2 border-primary/30 text-primary font-bold text-xs gap-1.5 hover:bg-primary/5"
+                                    >
+                                        <Upload className="w-4 h-4" /> Upload Foto
+                                    </Button>
+                                    <Button
+                                        type="button"
+                                        onClick={() => setIsEndOvertimeCameraOpen(true)}
+                                        className="h-12 rounded-2xl bg-primary hover:bg-primary/90 text-white font-bold text-xs gap-1.5 shadow-md shadow-primary/20"
+                                    >
+                                        <Camera className="w-4 h-4" /> Kamera Live
+                                    </Button>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* 2. Keterangan */}
+                        <div className="space-y-2">
+                            <label className="text-xs font-bold text-gray-700 block">
+                                2. Keterangan Hasil Lembur
+                            </label>
+                            <Textarea
+                                placeholder="Tuliskan hasil pekerjaan lembur yang telah diselesaikan..."
+                                value={endOvertimeNotes}
+                                onChange={(e) => setEndOvertimeNotes(e.target.value)}
+                                className="rounded-2xl border-gray-200 min-h-[90px] text-xs"
+                            />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3 pt-2">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => setIsEndOvertimeReportOpen(false)}
+                                className="h-11 rounded-xl text-xs font-bold border-gray-200 text-gray-700"
+                            >
+                                Batal
+                            </Button>
+                            <Button
+                                type="submit"
+                                disabled={isSubmittingOvertime}
+                                className="h-11 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold text-xs shadow-md shadow-red-600/30"
+                            >
+                                {isSubmittingOvertime ? "Memproses..." : "Kirim & Selesai Lembur"}
+                            </Button>
+                        </div>
+                    </form>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }
