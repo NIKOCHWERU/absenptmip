@@ -1222,6 +1222,28 @@ export default function EmployeeDashboard() {
                                         )}
 
                                         <div className="grid grid-cols-1 gap-2 mt-2">
+                                            {/* Tombol Mulai Lembur jika sudah Disetujui & Belum Berjalan */}
+                                            {spl.employeeApproval === 'approved' && spl.status !== 'ongoing' && spl.status !== 'completed' && (
+                                                <Button
+                                                    type="button"
+                                                    onClick={() => setIsStartOvertimeConfirmOpen(true)}
+                                                    className="w-full h-11 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs gap-2 shadow-lg shadow-emerald-600/30 animate-pulse"
+                                                >
+                                                    <Play className="w-4 h-4 fill-white" /> Mulai Lembur Sekarang
+                                                </Button>
+                                            )}
+
+                                            {/* Tombol Selesai Lembur jika Sedang Berjalan */}
+                                            {spl.status === 'ongoing' && (
+                                                <Button
+                                                    type="button"
+                                                    onClick={() => setIsEndOvertimeCameraOpen(true)}
+                                                    className="w-full h-11 rounded-xl bg-red-600 hover:bg-red-700 text-white font-black text-xs gap-2 shadow-lg shadow-red-600/30"
+                                                >
+                                                    <CheckCircle2 className="w-4 h-4" /> Selesai Lembur
+                                                </Button>
+                                            )}
+
                                             {(spl.splDocumentUrl || spl.fileUrl) && (
                                                 <Button
                                                     type="button"
@@ -1813,7 +1835,8 @@ export default function EmployeeDashboard() {
                                             if (!res.ok) throw new Error("Gagal menyetujui lembur");
                                             setIsSplNoticeModalOpen(false);
                                             refetchOvertimeToday();
-                                            toast({ title: "Penugasan Lembur Disetujui!", description: "Status SPL telah dikonfirmasi disetujui." });
+                                            toast({ title: "Penugasan Lembur Disetujui!", description: "Status SPL telah dikonfirmasi." });
+                                            setIsStartOvertimeConfirmOpen(true);
                                         } catch (err: any) {
                                             toast({ title: "Gagal", description: err.message, variant: "destructive" });
                                         }
