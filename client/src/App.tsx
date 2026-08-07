@@ -17,6 +17,7 @@ import ComplaintPage from "./pages/employee/ComplaintPage.js";
 import ProfilePage from "./pages/employee/ProfilePage.js";
 import InfoPage from "./pages/employee/InfoPage.js";
 import RegistrationPage from "./pages/employee/RegistrationPage.js";
+import DocumentsPage from "./pages/employee/DocumentsPage.js";
 import AdminOvertimePage from "./pages/admin/AdminOvertimePage.js";
 import AdminOvertimeHistoryPage from "./pages/admin/AdminOvertimeHistoryPage.js";
 import AdminDashboard from "./pages/admin/DashboardPage.js";
@@ -172,6 +173,9 @@ export default function App() {
             </Route>
             <Route path="/employee/info">
               {() => <ProtectedRoute component={InfoPage} roles={["employee"]} />}
+            </Route>
+            <Route path="/employee/documents">
+              {() => <ProtectedRoute component={DocumentsPage} roles={["employee"]} />}
             </Route>
             <Route path="/employee/registration">
               {() => <ProtectedRoute component={RegistrationPage} roles={["employee"]} />}

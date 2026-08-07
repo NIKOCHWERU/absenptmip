@@ -459,7 +459,13 @@ export default function EmployeeDashboard() {
              activeOvertimeToday.status === "pending" ||
              !activeOvertimeToday.employeeApproval)
         ) {
-            setIsSplNoticeModalOpen(true);
+            const isPast = checkIsOvertimePast(
+                activeOvertimeToday.overtimeDate || activeOvertimeToday.date || activeOvertimeToday.startTime,
+                activeOvertimeToday.endTime
+            );
+            if (!isPast) {
+                setIsSplNoticeModalOpen(true);
+            }
         }
     }, [activeOvertimeToday]);
 
@@ -1213,24 +1219,32 @@ export default function EmployeeDashboard() {
                 </motion.div>
 
                 {/* Section Surat Perintah Lembur (SPL) Di Bawah Data Nama Karyawan */}
-                {mySplList && mySplList.length > 0 && (
-                    <motion.div
-                        initial={{ y: 20, opacity: 0 }}
-                        animate={{ y: 0, opacity: 1 }}
-                        className="bg-white rounded-3xl p-5 shadow-xl shadow-orange-500/5 border border-orange-200/80 space-y-3"
-                    >
-                        <div className="flex items-center justify-between border-b border-orange-100 pb-2">
-                            <h3 className="text-sm font-black text-gray-900 flex items-center gap-2">
-                                <FileText className="w-4 h-4 text-orange-600" />
-                                Surat Perintah Lembur (SPL)
-                            </h3>
-                            <span className="text-[10px] font-bold text-orange-700 bg-orange-50 px-2.5 py-0.5 rounded-full border border-orange-200">
-                                {mySplList.length} Penugasan
-                            </span>
-                        </div>
+                {(() => {
+                    const activeHomeSplList = mySplList?.filter((spl: any) => 
+                        !checkIsOvertimePast(spl.date || spl.overtimeDate || spl.startTime, spl.endTime) ||
+                        spl.status === 'ongoing'
+                    ) || [];
 
-                        <div className="space-y-3">
-                            {mySplList.map((spl: any) => {
+                    if (activeHomeSplList.length === 0) return null;
+
+                    return (
+                        <motion.div
+                            initial={{ y: 20, opacity: 0 }}
+                            animate={{ y: 0, opacity: 1 }}
+                            className="bg-white rounded-3xl p-5 shadow-xl shadow-orange-500/5 border border-orange-200/80 space-y-3"
+                        >
+                            <div className="flex items-center justify-between border-b border-orange-100 pb-2">
+                                <h3 className="text-sm font-black text-gray-900 flex items-center gap-2">
+                                    <FileText className="w-4 h-4 text-orange-600" />
+                                    Surat Perintah Lembur (SPL)
+                                </h3>
+                                <span className="text-[10px] font-bold text-orange-700 bg-orange-50 px-2.5 py-0.5 rounded-full border border-orange-200">
+                                    {activeHomeSplList.length} Penugasan Aktif
+                                </span>
+                            </div>
+
+                            <div className="space-y-3">
+                                {activeHomeSplList.map((spl: any) => {
                                 const dateStr = safeFormatDate(spl.date, "EEEE, dd MMMM yyyy");
                                 const startTimeStr = spl.startTime ? (spl.startTime.length === 5 ? spl.startTime : safeFormatDate(spl.startTime, "HH:mm")) : "-";
                                 const endTimeStr = spl.endTime ? (spl.endTime.length === 5 ? spl.endTime : safeFormatDate(spl.endTime, "HH:mm")) : "-";
@@ -1325,7 +1339,8 @@ export default function EmployeeDashboard() {
                             })}
                         </div>
                     </motion.div>
-                )}
+                );
+            })()}
 
 
 
