@@ -1589,7 +1589,9 @@ export function registerRoutes(app: Express) {
 
       if (pendingOt.length > 0) {
         const splUrl = files?.splPhoto?.[0] ? await processSingleUpload(files.splPhoto[0], "overtimeSPL", user[0].fullName) : pendingOt[0].splDocumentUrl;
-        const initialProofUrl = files?.initialProofPhoto?.[0] ? await processSingleUpload(files.initialProofPhoto[0], "overtimeInitial", user[0].fullName) : pendingOt[0].initialProofUrl;
+        const initialProofUrl = files?.initialProofPhoto?.[0]
+          ? await processSingleUpload(files.initialProofPhoto[0], "overtimeInitial", user[0].fullName)
+          : (req.body.initialProofUrl || pendingOt[0].initialProofUrl || null);
 
         let updatedSplDocUrl = splUrl;
         if (pendingOt[0].splNumber) {
@@ -1620,7 +1622,9 @@ export function registerRoutes(app: Express) {
       }
 
       const splUrl = files?.splPhoto?.[0] ? await processSingleUpload(files.splPhoto[0], "overtimeSPL", user[0].fullName) : null;
-      const initialProofUrl = files?.initialProofPhoto?.[0] ? await processSingleUpload(files.initialProofPhoto[0], "overtimeInitial", user[0].fullName) : null;
+      const initialProofUrl = files?.initialProofPhoto?.[0]
+        ? await processSingleUpload(files.initialProofPhoto[0], "overtimeInitial", user[0].fullName)
+        : (req.body.initialProofUrl || null);
 
       await db.insert(overtimes).values({
         attendanceId: activeSession.id,
@@ -1648,7 +1652,7 @@ export function registerRoutes(app: Express) {
       const files = req.files as { [fieldname: string]: Express.Multer.File[] };
       const finalDescription = req.body.finalDescription;
       
-      // Find active ongoing overtime for this user
+      // Find active overtime for this user (ongoing or approved pending completion)
       const ongoingOvertimes = await db.select({
         id: overtimes.id,
         attendanceId: overtimes.attendanceId,
@@ -1661,7 +1665,11 @@ export function registerRoutes(app: Express) {
       })
       .from(overtimes)
       .innerJoin(attendance, eq(overtimes.attendanceId, attendance.id))
-      .where(and(eq(attendance.userId, userId), eq(overtimes.status, "ongoing")))
+      .where(and(
+        eq(attendance.userId, userId),
+        ne(overtimes.status, "completed"),
+        ne(overtimes.status, "cancelled")
+      ))
       .orderBy(desc(overtimes.id))
       .limit(1);
 
@@ -1670,7 +1678,9 @@ export function registerRoutes(app: Express) {
       }
 
       const activeOt = ongoingOvertimes[0];
-      const finalProofUrl = files?.finalProofPhoto?.[0] ? await processSingleUpload(files.finalProofPhoto[0], "overtimeFinal", user[0].fullName) : null;
+      const finalProofUrl = files?.finalProofPhoto?.[0]
+        ? await processSingleUpload(files.finalProofPhoto[0], "overtimeFinal", user[0].fullName)
+        : (req.body.finalProofUrl || null);
 
       let updatedSplDocUrl = activeOt.splDocumentUrl;
       if (activeOt.splNumber) {
