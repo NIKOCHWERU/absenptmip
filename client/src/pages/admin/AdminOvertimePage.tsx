@@ -537,8 +537,8 @@ export default function AdminOvertimePage() {
       {/* MODAL POPUP 1: FORM PENUGASAN LEMBUR (SPL)                                 */}
       {/* ========================================================================= */}
       <Dialog open={isAssignModalOpen} onOpenChange={setIsAssignModalOpen}>
-        <DialogContent className="sm:max-w-xl rounded-2xl p-6 bg-white">
-          <DialogHeader>
+        <DialogContent className="sm:max-w-xl max-h-[90vh] flex flex-col rounded-2xl p-0 bg-white overflow-hidden shadow-2xl">
+          <DialogHeader className="p-5 pb-3 border-b border-gray-100 shrink-0 bg-white">
             <DialogTitle className="text-xl font-black text-gray-900 flex items-center gap-2">
               <Clock className="w-5 h-5 text-primary" /> Form Penugasan Lembur (Buat SPL)
             </DialogTitle>
@@ -547,7 +547,8 @@ export default function AdminOvertimePage() {
             </DialogDescription>
           </DialogHeader>
 
-          <form onSubmit={(e) => { e.preventDefault(); assignMutation.mutate(); }} className="space-y-4 py-2">
+          <form onSubmit={(e) => { e.preventDefault(); assignMutation.mutate(); }} className="flex flex-col flex-1 overflow-hidden min-h-0">
+            <div className="flex-1 overflow-y-auto p-5 space-y-4">
             {/* Field 1: Pilih Beberapa Karyawan (Custom Dropdown Multi-select) */}
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
@@ -796,7 +797,7 @@ export default function AdminOvertimePage() {
               </div>
             </div>
 
-            <DialogFooter className="pt-3 border-t border-gray-100 flex flex-row items-center justify-between gap-2">
+            <DialogFooter className="p-4 border-t border-gray-100 bg-gray-50/80 shrink-0 flex flex-row items-center justify-between gap-2">
               <Button
                 type="button"
                 variant="outline"
@@ -908,7 +909,7 @@ export default function AdminOvertimePage() {
       {/* MODAL POPUP 2: PERIKSA SURAT & LAPORAN BUKTI FOTO                       */}
       {/* ========================================================================= */}
       <Dialog open={!!viewDetail} onOpenChange={(open) => !open && setViewDetail(null)}>
-        <DialogContent className="sm:max-w-2xl rounded-2xl p-6 bg-white">
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl p-6 bg-white shadow-2xl">
           {viewDetail && (
             <div>
               <DialogHeader className="border-b pb-3 mb-4">
