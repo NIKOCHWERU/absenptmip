@@ -270,7 +270,22 @@ async function generateAndSaveSplDocument(data: {
 </html>`;
 
   fs.writeFileSync(filePath, htmlContent, "utf-8");
-  return `/uploads/${filename}`;
+  const localUrl = `/uploads/${filename}`;
+
+  if (isDriveConfigured) {
+    try {
+      const driveFilename = `${cleanName}_${safeFormatDate(data.date, "yyyy-MM-dd")}_SuratPerintahLembur_${cleanSplNum}.html`;
+      const fileBuffer = fs.readFileSync(filePath);
+      const driveRes = await uploadFile(fileBuffer, driveFilename, "text/html", "Lembur");
+      if (driveRes?.fileId) {
+        return driveRes.fileId;
+      }
+    } catch (err: any) {
+      console.error("GDrive upload for SPL document failed, using local path:", err.message);
+    }
+  }
+
+  return localUrl;
 }
 
 import { uploadFile, isDriveConfigured, buildDriveFilename, DriveFolder, downloadFileStream } from "./services/googleDrive.js";
@@ -1595,7 +1610,7 @@ export function registerRoutes(app: Express) {
 
         let updatedSplDocUrl = splUrl;
         if (pendingOt[0].splNumber) {
-          updatedSplDocUrl = generateAndSaveSplDocument({
+          updatedSplDocUrl = await generateAndSaveSplDocument({
             splNumber: pendingOt[0].splNumber,
             employeeName: user[0].fullName || "Karyawan",
             employeeNik: user[0].username,
@@ -1684,7 +1699,7 @@ export function registerRoutes(app: Express) {
 
       let updatedSplDocUrl = activeOt.splDocumentUrl;
       if (activeOt.splNumber) {
-        updatedSplDocUrl = generateAndSaveSplDocument({
+        updatedSplDocUrl = await generateAndSaveSplDocument({
           splNumber: activeOt.splNumber,
           employeeName: user[0].fullName || "Karyawan",
           employeeNik: user[0].username,
@@ -1867,6 +1882,33 @@ export function registerRoutes(app: Express) {
       .innerJoin(attendance, eq(overtimes.attendanceId, attendance.id))
       .innerJoin(users, eq(attendance.userId, users.id))
       .orderBy(desc(overtimes.createdAt));
+
+      // Auto-repair any items with corrupted [object Promise] splDocumentUrl
+      for (const item of allOvertimes) {
+        if (item.splDocumentUrl && (item.splDocumentUrl.includes('[object') || item.splDocumentUrl.includes('Promise'))) {
+          try {
+            const splNum = item.splNumber || `SPL/MIP/${safeFormatDate(item.date, 'yyyyMMdd')}/${item.id}`;
+            const repairedUrl = await generateAndSaveSplDocument({
+              splNumber: splNum,
+              employeeName: item.fullName || "Karyawan",
+              employeeNik: item.nik || "-",
+              employeePosition: item.position,
+              employeeBranch: item.branch,
+              date: safeFormatDate(item.date, "yyyy-MM-dd"),
+              startTime: item.startTime ? safeFormatDate(item.startTime, "HH:mm") : "00:00",
+              endTime: item.endTime ? safeFormatDate(item.endTime, "HH:mm") : "Selesai",
+              description: item.description || "Surat Perintah Lembur",
+              initialProofUrl: item.initialProofUrl,
+              finalProofUrl: item.finalProofUrl,
+              finalDescription: item.finalDescription
+            });
+            await db.update(overtimes).set({ splDocumentUrl: repairedUrl }).where(eq(overtimes.id, item.id));
+            item.splDocumentUrl = repairedUrl;
+          } catch (err) {
+            console.error("Failed to repair splDocumentUrl:", err);
+          }
+        }
+      }
 
       res.json(allOvertimes);
     } catch (e: any) {

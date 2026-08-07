@@ -550,16 +550,29 @@ export default function AdminOvertimeHistoryPage() {
                                 <div className="font-semibold text-gray-700 flex items-center gap-1.5">
                                     <FileText className="w-4 h-4 text-orange-600" /> 1. Surat Perintah Lembur ({viewDetail.splNumber || "SPL Resmi"})
                                 </div>
-                                {viewDetail.splDocumentUrl && (
-                                    <div className="flex justify-between items-center bg-white p-2 rounded-lg border border-gray-200">
-                                        <span className="text-gray-600 font-mono text-[11px] truncate max-w-[200px]">{viewDetail.splDocumentUrl}</span>
+                                <div className="flex justify-between items-center bg-white p-2 rounded-lg border border-gray-200">
+                                    <span className="text-gray-600 font-mono text-[11px] truncate max-w-[220px]">
+                                        {viewDetail.splDocumentUrl && !viewDetail.splDocumentUrl.includes('[object')
+                                            ? viewDetail.splDocumentUrl
+                                            : "Dokumen Surat Perintah Lembur (SPL)"}
+                                    </span>
+                                    {viewDetail.splDocumentUrl && !viewDetail.splDocumentUrl.includes('[object') ? (
                                         <a href={resolveFileUrl(viewDetail.splDocumentUrl)} target="_blank" rel="noopener noreferrer">
                                             <Button size="sm" variant="outline" className="h-7 text-[10px] text-blue-600 border-blue-200 hover:bg-blue-50 font-bold">
                                                 Unduh SPL
                                             </Button>
                                         </a>
-                                    </div>
-                                )}
+                                    ) : (
+                                        <Button
+                                            size="sm"
+                                            variant="outline"
+                                            className="h-7 text-[10px] text-blue-600 border-blue-200 hover:bg-blue-50 font-bold"
+                                            onClick={() => handlePrintOvertime(viewDetail)}
+                                        >
+                                            Cetak / Unduh SPL
+                                        </Button>
+                                    )}
+                                </div>
                             </div>
 
                             {/* Deskripsi Awal & Bukti Foto */}

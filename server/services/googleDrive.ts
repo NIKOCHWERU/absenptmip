@@ -94,7 +94,7 @@ async function ensureValidToken(): Promise<void> {
 // Build readable filename based on action type
 export function buildDriveFilename(
     fullName: string,
-    actionType: 'clockIn' | 'breakStart' | 'breakEnd' | 'clockOut' | 'lateReason' | 'complaint' | 'document' | 'profile',
+    actionType: 'clockIn' | 'breakStart' | 'breakEnd' | 'clockOut' | 'lateReason' | 'complaint' | 'document' | 'profile' | 'overtimeSPL' | 'overtimeInitial' | 'overtimeFinal',
     docLabel?: string // e.g. "KTP", "NPWP", "BPJS", "Profil"
 ): string {
     const cleanName = fullName.replace(/\s+/g, '').replace(/[^a-zA-Z0-9]/g, '');
@@ -113,6 +113,9 @@ export function buildDriveFilename(
         complaint: 'Pengaduan',
         document: docLabel ? `Dokumen_${docLabel}` : 'Dokumen',
         profile: 'FotoProfil',
+        overtimeSPL: 'SuratPerintahLembur_SPL',
+        overtimeInitial: 'FotoAwalLembur',
+        overtimeFinal: 'DokumentasiHasilLembur',
     };
 
     const action = actionMap[actionType] || actionType;
