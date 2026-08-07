@@ -119,17 +119,18 @@ export default function DocumentsPage() {
 
   if (docsData?.warningLetters) {
     docsData.warningLetters.forEach((item: any) => {
+      if (item.status !== 'approved') return;
       allDocs.push({
         id: `sp-${item.id}`,
         type: "sp",
-        title: `Surat Peringatan (${item.level || 'SP'})`,
+        title: `Surat Peringatan (${item.type || item.level || 'SP'})`,
         docNumber: item.letterNumber || `SP-${item.id}`,
-        date: item.createdAt,
+        date: item.startDate || item.createdAt,
         rawDate: new Date(item.createdAt).getTime(),
-        status: item.status || "approved",
-        statusLabel: item.status === 'approved' ? "Diterbitkan Resmi" : "Draft",
-        description: item.reason || "Surat Peringatan Kedisiplinan Kerja Karyawan",
-        fileUrl: item.fileUrl,
+        status: "approved",
+        statusLabel: "Diterbitkan Resmi",
+        description: item.notes || item.reason || "Surat Peringatan Kedisiplinan Kerja Karyawan",
+        fileUrl: item.documentUrl || item.fileUrl,
         raw: item,
       });
     });

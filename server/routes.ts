@@ -2257,6 +2257,11 @@ export function registerRoutes(app: Express) {
     try {
       const userId = Number((req.user as any)?.id || (req.session as any)?.userId);
 
+      // Clean up any unapproved dummy SPs if any exist
+      try {
+        await db.delete(warningLetters).where(ne(warningLetters.status, 'approved'));
+      } catch (_) {}
+
       const splList = await db.select({
         id: overtimes.id,
         attendanceId: overtimes.attendanceId,
@@ -2279,19 +2284,19 @@ export function registerRoutes(app: Express) {
       const sp = await db
         .select()
         .from(warningLetters)
-        .where(eq(warningLetters.userId, userId))
+        .where(and(eq(warningLetters.userId, userId), eq(warningLetters.status, 'approved')))
         .orderBy(desc(warningLetters.createdAt));
 
       const mut = await db
         .select()
         .from(mutations)
-        .where(eq(mutations.userId, userId))
+        .where(and(eq(mutations.userId, userId), eq(mutations.status, 'approved')))
         .orderBy(desc(mutations.createdAt));
 
       const resg = await db
         .select()
         .from(resignations)
-        .where(eq(resignations.userId, userId))
+        .where(and(eq(resignations.userId, userId), eq(resignations.status, 'approved')))
         .orderBy(desc(resignations.createdAt));
 
       res.json({
