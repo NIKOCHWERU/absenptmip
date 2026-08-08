@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -11,13 +11,13 @@ import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
 import { 
-  Plus, Calendar, Clock, User as UserIcon, Eye, Printer, Trash2, Check, X, FileText, Send, Upload, ArrowLeft, Image as ImageIcon, CheckCircle, ShieldCheck, AlertCircle, Zap
+  Plus, Calendar, Clock, User as UserIcon, Eye, Printer, Trash2, Check, X, FileText, Send, Upload, ArrowLeft, Image as ImageIcon, CheckCircle, ShieldCheck, AlertCircle, Zap, Search, Filter, Pencil, RefreshCw
 } from "lucide-react";
 import { User } from "@shared/schema";
 import { TimePicker24h } from "@/components/TimePicker24h";
 import { formatLongDate } from "@/lib/utils";
 
-// Helper: Calculate dynamic overtime range & duration (handles over-midnight e.g. 23:00 to 02:00 = 3 hours)
+// Helper: Calculate dynamic overtime range & duration
 function calculateOvertimeEstimatedDuration(dateStr: string, startTimeStr: string, endTimeStr: string) {
   if (!dateStr || !startTimeStr || !endTimeStr) return { mins: 0, text: "-", displayRange: "-", isNextDay: false };
   try {
@@ -100,11 +100,18 @@ export default function AdminOvertimePage() {
   // Filter Employees
   const employeeUsers = users?.filter(u => u.role === "employee") || [];
 
-  // Modal State for Penugasan Lembur
-  const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
-  const [viewDetail, setViewDetail] = useState<any | null>(null);
+  // Filter & Search State
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
 
-  // Form Fields — multi-select karyawan
+  // Modal States
+  const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
+  const [isManualModalOpen, setIsManualModalOpen] = useState(false);
+  const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
+  const [viewDetail, setViewDetail] = useState<any | null>(null);
+  const [editItem, setEditItem] = useState<any | null>(null);
+
+  // Form Fields — Multi-select Karyawan (SPL Baru)
   const [assignUserIds, setAssignUserIds] = useState<string[]>([]);
   const [assignDate, setAssignDate] = useState<string>(format(new Date(), "yyyy-MM-dd"));
   const [assignStartTime, setAssignStartTime] = useState<string>("17:00");
@@ -113,8 +120,23 @@ export default function AdminOvertimePage() {
   const [assignRefRows, setAssignRefRows] = useState<{ id: string; file: File | null; caption: string }[]>([
     { id: "1", file: null, caption: "" }
   ]);
-  const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
   const [isEmployeeDropdownOpen, setIsEmployeeDropdownOpen] = useState(false);
+
+  // Form Fields — Input Lembur Manual Admin
+  const [manualUserId, setManualUserId] = useState<string>("");
+  const [manualDate, setManualDate] = useState<string>(format(new Date(), "yyyy-MM-dd"));
+  const [manualStartTime, setManualStartTime] = useState<string>("17:00");
+  const [manualEndTime, setManualEndTime] = useState<string>("20:00");
+  const [manualTask, setManualTask] = useState<string>("");
+  const [manualStatus, setManualStatus] = useState<string>("completed");
+
+  // Form Fields — Edit Lembur Admin
+  const [editStartTime, setEditStartTime] = useState<string>("");
+  const [editEndTime, setEditEndTime] = useState<string>("");
+  const [editTask, setEditTask] = useState<string>("");
+  const [editFinalTask, setEditFinalTask] = useState<string>("");
+  const [editStatus, setEditStatus] = useState<string>("completed");
+  const [editApproval, setEditApproval] = useState<string>("approved");
 
   const toggleAssignUser = (uid: string) => {
     setAssignUserIds(prev =>
@@ -134,14 +156,14 @@ export default function AdminOvertimePage() {
   const [sortField, setSortField] = useState<string>("createdAt");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
 
-  // Open modal — reset selection
+  // Open modal SPL — reset selection
   const handleOpenAssignModal = () => {
     setAssignUserIds([]);
     setAssignRefRows([{ id: "1", file: null, caption: "" }]);
     setIsAssignModalOpen(true);
   };
 
-  // Mutation Penugasan Lembur ke beberapa karyawan sekaligus
+  // Mutation Penugasan Lembur Baru (SPL)
   const assignMutation = useMutation({
     mutationFn: async () => {
       if (assignUserIds.length === 0) throw new Error("Pilih minimal 1 karyawan");
@@ -192,7 +214,7 @@ export default function AdminOvertimePage() {
       toast({
         title: "Penugasan Lembur Dikirim!",
         description: successCount === totalCount
-          ? `SPL berhasil dikirim ke ${successCount} karyawan. Mereka akan menerima notifikasi pop-up untuk menyetujui.`
+          ? `SPL berhasil dikirim ke ${successCount} karyawan.`
           : `SPL dikirim ke ${successCount} dari ${totalCount} karyawan.`,
       });
     },
@@ -202,6 +224,82 @@ export default function AdminOvertimePage() {
         description: err.message,
         variant: "destructive",
       });
+    }
+  });
+
+  // Mutation Input Lembur Manual Admin
+  const manualMutation = useMutation({
+    mutationFn: async () => {
+      if (!manualUserId) throw new Error("Pilih Karyawan terlebih dahulu");
+      if (!manualDate || !manualStartTime) throw new Error("Tanggal dan Jam Mulai Wajib Diisi");
+
+      const startIso = `${manualDate}T${manualStartTime}:00+07:00`;
+      let endIso: string | null = null;
+      if (manualEndTime) {
+        let tempEnd = new Date(`${manualDate}T${manualEndTime}:00+07:00`);
+        let tempStart = new Date(startIso);
+        if (tempEnd < tempStart) {
+          tempEnd.setDate(tempEnd.getDate() + 1);
+        }
+        endIso = tempEnd.toISOString();
+      }
+
+      const res = await fetch("/api/admin/overtimes/manual", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: Number(manualUserId),
+          date: manualDate,
+          startTime: new Date(startIso).toISOString(),
+          endTime: endIso,
+          description: manualTask || "Lembur Manual Admin",
+          status: manualStatus
+        })
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.message || "Gagal menambah lembur manual");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/overtimes"] });
+      setIsManualModalOpen(false);
+      setManualUserId("");
+      setManualTask("");
+      toast({ title: "Berhasil!", description: "Data lembur manual telah ditambahkan." });
+    },
+    onError: (err: any) => {
+      toast({ title: "Gagal", description: err.message, variant: "destructive" });
+    }
+  });
+
+  // Mutation Edit Lembur Admin
+  const editMutation = useMutation({
+    mutationFn: async () => {
+      if (!editItem) return;
+      const res = await fetch(`/api/admin/overtimes/${editItem.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          startTime: editStartTime ? new Date(editStartTime).toISOString() : editItem.startTime,
+          endTime: editEndTime ? new Date(editEndTime).toISOString() : null,
+          description: editTask,
+          finalDescription: editFinalTask,
+          status: editStatus,
+          employeeApproval: editApproval
+        })
+      });
+      if (!res.ok) throw new Error("Gagal memperbarui data lembur");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/overtimes"] });
+      setEditItem(null);
+      toast({ title: "Tersimpan", description: "Perubahan data lembur berhasil disimpan." });
+    },
+    onError: (err: any) => {
+      toast({ title: "Gagal", description: err.message, variant: "destructive" });
     }
   });
 
@@ -235,6 +333,16 @@ export default function AdminOvertimePage() {
     }
   });
 
+  const handleOpenEdit = (item: any) => {
+    setEditItem(item);
+    setEditStartTime(item.startTime ? format(new Date(item.startTime), "yyyy-MM-dd'T'HH:mm") : "");
+    setEditEndTime(item.endTime ? format(new Date(item.endTime), "yyyy-MM-dd'T'HH:mm") : "");
+    setEditTask(item.description || "");
+    setEditFinalTask(item.finalDescription || "");
+    setEditStatus(item.status || "completed");
+    setEditApproval(item.employeeApproval || "approved");
+  };
+
   const toggleSort = (field: string) => {
     if (sortField === field) {
       setSortOrder(sortOrder === "asc" ? "desc" : "asc");
@@ -244,7 +352,23 @@ export default function AdminOvertimePage() {
     }
   };
 
-  const sortedRequests = [...(overtimesList || [])].sort((a, b) => {
+  // Filtering & Sorting
+  const filteredRequests = (overtimesList || []).filter(req => {
+    const nameMatch = (req.fullName || "").toLowerCase().includes(searchTerm.toLowerCase());
+    const nikMatch = (req.nik || "").toLowerCase().includes(searchTerm.toLowerCase());
+    const descMatch = (req.description || "").toLowerCase().includes(searchTerm.toLowerCase());
+    const searchPass = nameMatch || nikMatch || descMatch;
+
+    let statusPass = true;
+    if (statusFilter === "pending") statusPass = req.employeeApproval === "pending";
+    else if (statusFilter === "ongoing") statusPass = req.status === "ongoing";
+    else if (statusFilter === "completed") statusPass = req.status === "completed";
+    else if (statusFilter === "rejected") statusPass = req.employeeApproval === "rejected" || req.status === "cancelled";
+
+    return searchPass && statusPass;
+  });
+
+  const sortedRequests = [...filteredRequests].sort((a, b) => {
     let valA: any = a[sortField] || "";
     let valB: any = b[sortField] || "";
     if (sortField === "name") {
@@ -255,6 +379,12 @@ export default function AdminOvertimePage() {
     if (valA > valB) return sortOrder === "asc" ? 1 : -1;
     return 0;
   });
+
+  // Calculate Stats
+  const totalCount = overtimesList?.length || 0;
+  const ongoingCount = overtimesList?.filter(o => o.status === 'ongoing').length || 0;
+  const pendingCount = overtimesList?.filter(o => o.employeeApproval === 'pending').length || 0;
+  const completedCount = overtimesList?.filter(o => o.status === 'completed').length || 0;
 
   const handlePrintSpl = (item: any) => {
     const printWindow = window.open("", "_blank");
@@ -324,12 +454,22 @@ export default function AdminOvertimePage() {
       {/* Header Section */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-black text-gray-900 tracking-tight">Manajemen Permohonan & Penugasan Lembur</h1>
-          <p class="text-sm text-gray-500">
-            Penugasan lembur (SPL) ke seluruh karyawan. Karyawan akan langsung menerima notifikasi pop-up modal di HP untuk menyetujui atau mengajukan izin tidak lembur.
+          <h1 className="text-2xl font-black text-gray-900 tracking-tight">Kelola Lembur Tenaga Kerja</h1>
+          <p className="text-sm text-gray-500">
+            Pusat manajemen penugasan lembur (SPL), input lembur manual, dan verifikasi berkas hasil lembur karyawan.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          {/* Tombol Input Lembur Manual Admin */}
+          <Button
+            variant="outline"
+            className="rounded-lg gap-2 cursor-pointer bg-white border-orange-200 text-orange-700 hover:bg-orange-50 font-bold"
+            onClick={() => setIsManualModalOpen(true)}
+          >
+            <Plus className="w-4 h-4 text-orange-600" />
+            + Input Lembur Manual
+          </Button>
+
           {/* Tombol Modal Penugasan Lembur */}
           <Button
             className="bg-primary hover:bg-primary/90 text-white rounded-lg gap-2 cursor-pointer shadow-sm font-bold"
@@ -346,40 +486,111 @@ export default function AdminOvertimePage() {
             onClick={() => setLocation("/admin/recap")}
           >
             <Calendar className="w-4 h-4" />
-            Rekapitulasi Absensi & Lembur
+            Rekapitulasi
           </Button>
         </div>
       </div>
 
-      {/* Main Table Section */}
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-2xl font-bold text-gray-900">Daftar Penugasan & Riwayat Lembur</h2>
-            <p className="text-sm text-gray-500">Daftar lengkap lembur aktif, status persetujuan karyawan, dan bukti foto hasil lembur.</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button
-              variant={sortField === "createdAt" ? "default" : "outline"}
-              size="sm"
-              onClick={() => toggleSort("createdAt")}
-              className="text-xs rounded-full h-8 px-3"
-            >
-              Terbaru {sortField === "createdAt" && (sortOrder === "asc" ? "↑" : "↓")}
-            </Button>
-            <Button
-              variant={sortField === "name" ? "default" : "outline"}
-              size="sm"
-              onClick={() => toggleSort("name")}
-              className="text-xs rounded-full h-8 px-3"
-            >
-              Nama {sortField === "name" && (sortOrder === "asc" ? "↑" : "↓")}
-            </Button>
-          </div>
-        </div>
+      {/* Stats Cards Overview */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <Card className="border-none shadow-xs bg-white rounded-xl">
+          <CardContent className="p-4 flex items-center justify-between">
+            <div>
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Total Penugasan</p>
+              <h3 className="text-xl font-black text-gray-900 mt-0.5">{totalCount}</h3>
+            </div>
+            <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
+              <Clock className="w-5 h-5" />
+            </div>
+          </CardContent>
+        </Card>
 
-        {/* Card Table Container */}
-        <Card className="border-gray-100 shadow-sm rounded-xl overflow-hidden mt-6">
+        <Card className="border-none shadow-xs bg-white rounded-xl">
+          <CardContent className="p-4 flex items-center justify-between">
+            <div>
+              <p className="text-[10px] font-bold text-orange-600 uppercase tracking-wider">Sedang Berlangsung</p>
+              <h3 className="text-xl font-black text-orange-600 mt-0.5">{ongoingCount}</h3>
+            </div>
+            <div className="w-10 h-10 rounded-xl bg-orange-50 text-orange-600 flex items-center justify-center font-bold">
+              <Zap className="w-5 h-5" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-none shadow-xs bg-white rounded-xl">
+          <CardContent className="p-4 flex items-center justify-between">
+            <div>
+              <p className="text-[10px] font-bold text-amber-600 uppercase tracking-wider">Menunggu Konfirmasi</p>
+              <h3 className="text-xl font-black text-amber-600 mt-0.5">{pendingCount}</h3>
+            </div>
+            <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold">
+              <AlertCircle className="w-5 h-5" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-none shadow-xs bg-white rounded-xl">
+          <CardContent className="p-4 flex items-center justify-between">
+            <div>
+              <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider">Selesai & Verified</p>
+              <h3 className="text-xl font-black text-emerald-600 mt-0.5">{completedCount}</h3>
+            </div>
+            <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
+              <ShieldCheck className="w-5 h-5" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Main Table Section & Filter */}
+      <div className="space-y-4">
+        <Card className="border-gray-100 shadow-sm rounded-xl overflow-hidden">
+          <CardHeader className="bg-white border-b border-gray-50 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 p-4">
+            <div className="flex-1 relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <Input
+                placeholder="Cari nama karyawan, NIK, atau instruksi pekerjaan..."
+                className="pl-9 rounded-lg border-gray-100 bg-gray-50 focus:bg-white transition-all h-10 text-xs"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-[180px] h-10 rounded-lg text-xs bg-gray-50 border-gray-100">
+                  <SelectValue placeholder="Filter Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Semua Status</SelectItem>
+                  <SelectItem value="pending">Menunggu Persetujuan</SelectItem>
+                  <SelectItem value="ongoing">Sedang Berlangsung</SelectItem>
+                  <SelectItem value="completed">Selesai & Verified</SelectItem>
+                  <SelectItem value="rejected">Ditolak / Dibatalkan</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <div className="flex items-center gap-1 border border-gray-100 rounded-lg p-1 bg-gray-50">
+                <Button
+                  variant={sortField === "createdAt" ? "default" : "ghost"}
+                  size="sm"
+                  onClick={() => toggleSort("createdAt")}
+                  className="text-[10px] rounded-md h-7 px-2 font-bold"
+                >
+                  Terbaru {sortField === "createdAt" && (sortOrder === "asc" ? "↑" : "↓")}
+                </Button>
+                <Button
+                  variant={sortField === "name" ? "default" : "ghost"}
+                  size="sm"
+                  onClick={() => toggleSort("name")}
+                  className="text-[10px] rounded-md h-7 px-2 font-bold"
+                >
+                  Nama {sortField === "name" && (sortOrder === "asc" ? "↑" : "↓")}
+                </Button>
+              </div>
+            </div>
+          </CardHeader>
+
           <CardContent className="p-0">
             <div className="overflow-x-auto">
               <table className="w-full text-sm text-left">
@@ -390,15 +601,22 @@ export default function AdminOvertimePage() {
                     <th className="px-6 py-4">Jam & Durasi</th>
                     <th className="px-6 py-4">Respon Karyawan</th>
                     <th className="px-6 py-4">Status Lembur</th>
-                    <th className="px-6 py-4 max-w-[200px]">Uraian Pekerjaan</th>
+                    <th className="px-6 py-4 max-w-[180px]">Uraian Pekerjaan</th>
                     <th className="px-6 py-4 text-center">Aksi Admin</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
-                  {sortedRequests.length === 0 ? (
+                  {isLoading ? (
+                    <tr>
+                      <td colSpan={7} className="text-center py-12 text-gray-400">
+                        <RefreshCw className="w-6 h-6 animate-spin mx-auto text-primary" />
+                        <span className="text-xs block mt-2">Memuat data lembur...</span>
+                      </td>
+                    </tr>
+                  ) : sortedRequests.length === 0 ? (
                     <tr>
                       <td colSpan={7} className="text-center py-10 text-gray-400 italic text-xs">
-                        Belum ada data penugasan lembur. Klik tombol "+ Penugasan Lembur Baru (SPL)" untuk menambah.
+                        Tidak ada data penugasan lembur yang sesuai filter.
                       </td>
                     </tr>
                   ) : sortedRequests.map((req) => {
@@ -444,7 +662,7 @@ export default function AdminOvertimePage() {
                                 <X className="w-3 h-3 text-red-600" /> Izin Tidak Lembur
                               </span>
                               {req.rejectionReason && (
-                                <p className="text-[10px] text-red-600 italic">"{req.rejectionReason}"</p>
+                                <p className="text-[10px] text-red-600 italic max-w-[150px] truncate">"{req.rejectionReason}"</p>
                               )}
                             </div>
                           ) : (
@@ -480,23 +698,34 @@ export default function AdminOvertimePage() {
                         </td>
 
                         {/* Column 6: Uraian Pekerjaan */}
-                        <td className="px-6 py-4 max-w-[200px]">
+                        <td className="px-6 py-4 max-w-[180px]">
                           <p className="text-gray-600 line-clamp-2 italic text-xs leading-relaxed">"{req.description || '-'}"</p>
                         </td>
 
                         {/* Column 7: Aksi Admin */}
                         <td className="px-6 py-4">
-                          <div className="flex items-center justify-center gap-1.5">
+                          <div className="flex items-center justify-center gap-1">
                             {/* Eye Detail */}
                             <Button
                               variant="outline"
                               size="sm"
-                              className="rounded-lg h-8 px-2.5 gap-1 text-xs font-bold text-blue-600 border-blue-100 hover:bg-blue-50"
+                              className="rounded-lg h-8 px-2 text-xs font-bold text-blue-600 border-blue-100 hover:bg-blue-50"
                               onClick={() => setViewDetail(req)}
                               title="Periksa Laporan & Bukti Foto"
                             >
                               <Eye className="w-3.5 h-3.5" />
-                              <span>Detail</span>
+                              <span className="hidden lg:inline">Detail</span>
+                            </Button>
+
+                            {/* Edit Button */}
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="rounded-lg text-amber-600 border-amber-100 hover:bg-amber-50 h-8 w-8 p-0"
+                              onClick={() => handleOpenEdit(req)}
+                              title="Edit Data Lembur"
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
                             </Button>
 
                             {/* Print SPL */}
@@ -539,7 +768,14 @@ export default function AdminOvertimePage() {
       {/* ========================================================================= */}
       {/* MODAL POPUP 1: FORM PENUGASAN LEMBUR (SPL)                                 */}
       {/* ========================================================================= */}
-      <Dialog open={isAssignModalOpen} onOpenChange={setIsAssignModalOpen}>
+      <Dialog 
+        open={isAssignModalOpen} 
+        onOpenChange={(open) => {
+          // If preview modal is currently open, DO NOT close assign modal
+          if (!open && isPreviewModalOpen) return;
+          setIsAssignModalOpen(open);
+        }}
+      >
         <DialogContent className="sm:max-w-xl max-h-[90vh] flex flex-col rounded-2xl p-0 bg-white overflow-hidden shadow-2xl">
           <DialogHeader className="p-5 pb-3 border-b border-gray-100 shrink-0 bg-white">
             <DialogTitle className="text-xl font-black text-gray-900 flex items-center gap-2">
@@ -552,253 +788,249 @@ export default function AdminOvertimePage() {
 
           <form onSubmit={(e) => { e.preventDefault(); assignMutation.mutate(); }} className="flex flex-col flex-1 overflow-hidden min-h-0">
             <div className="flex-1 overflow-y-auto p-5 space-y-4">
-            {/* Field 1: Pilih Beberapa Karyawan (Custom Dropdown Multi-select) */}
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-bold text-gray-700">Tenaga Kerja / Karyawan *</label>
-                <button
-                  type="button"
-                  onClick={toggleSelectAllEmployees}
-                  className="text-[10px] font-bold text-primary hover:underline"
-                >
-                  {assignUserIds.length === employeeUsers.length ? "✗ Batal Semua" : "✓ Pilih Semua"}
-                </button>
-              </div>
+              {/* Field 1: Pilih Beberapa Karyawan */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-gray-700">Tenaga Kerja / Karyawan *</label>
+                  <button
+                    type="button"
+                    onClick={toggleSelectAllEmployees}
+                    className="text-[10px] font-bold text-primary hover:underline"
+                  >
+                    {assignUserIds.length === employeeUsers.length ? "✗ Batal Semua" : "✓ Pilih Semua"}
+                  </button>
+                </div>
 
-              {/* Dropdown trigger button */}
-              <div className="relative">
-                <button
-                  type="button"
-                  onClick={() => setIsEmployeeDropdownOpen(prev => !prev)}
-                  className="w-full flex items-center justify-between gap-2 border border-gray-200 rounded-xl h-10 px-3 text-xs font-semibold bg-white hover:bg-gray-50 transition-colors"
-                >
-                  <span className="flex-1 text-left truncate text-gray-700">
-                    {assignUserIds.length === 0
-                      ? "Pilih karyawan..."
-                      : assignUserIds.length === employeeUsers.length
-                      ? `Semua karyawan dipilih (${assignUserIds.length} orang)`
-                      : assignUserIds.length === 1
-                      ? employeeUsers.find(u => String(u.id) === assignUserIds[0])?.fullName || "1 karyawan"
-                      : `${assignUserIds.length} karyawan dipilih`
-                    }
-                  </span>
-                  <svg className={`w-4 h-4 text-gray-400 shrink-0 transition-transform ${isEmployeeDropdownOpen ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
-                </button>
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setIsEmployeeDropdownOpen(prev => !prev)}
+                    className="w-full flex items-center justify-between gap-2 border border-gray-200 rounded-xl h-10 px-3 text-xs font-semibold bg-white hover:bg-gray-50 transition-colors"
+                  >
+                    <span className="flex-1 text-left truncate text-gray-700">
+                      {assignUserIds.length === 0
+                        ? "Pilih karyawan..."
+                        : assignUserIds.length === employeeUsers.length
+                        ? `Semua karyawan dipilih (${assignUserIds.length} orang)`
+                        : assignUserIds.length === 1
+                        ? employeeUsers.find(u => String(u.id) === assignUserIds[0])?.fullName || "1 karyawan"
+                        : `${assignUserIds.length} karyawan dipilih`
+                      }
+                    </span>
+                    <svg className={`w-4 h-4 text-gray-400 shrink-0 transition-transform ${isEmployeeDropdownOpen ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                  </button>
 
-                {/* Dropdown panel */}
-                {isEmployeeDropdownOpen && (
-                  <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden">
-                    <div className="max-h-52 overflow-y-auto divide-y divide-gray-50">
-                      {employeeUsers.map(u => (
-                        <label
-                          key={u.id}
-                          className={`flex items-center gap-3 px-3 py-2.5 cursor-pointer hover:bg-gray-50 transition-colors ${
-                            assignUserIds.includes(String(u.id)) ? "bg-primary/5" : ""
-                          }`}
+                  {isEmployeeDropdownOpen && (
+                    <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden">
+                      <div className="max-h-52 overflow-y-auto divide-y divide-gray-50">
+                        {employeeUsers.map(u => (
+                          <label
+                            key={u.id}
+                            className={`flex items-center gap-3 px-3 py-2.5 cursor-pointer hover:bg-gray-50 transition-colors ${
+                              assignUserIds.includes(String(u.id)) ? "bg-primary/5" : ""
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              className="w-4 h-4 accent-primary rounded shrink-0"
+                              checked={assignUserIds.includes(String(u.id))}
+                              onChange={() => toggleAssignUser(String(u.id))}
+                            />
+                            <div className="flex items-center gap-2 min-w-0">
+                              <div className="w-7 h-7 rounded-full bg-orange-100 text-orange-700 font-black text-[10px] flex items-center justify-center shrink-0 uppercase">
+                                {u.fullName.charAt(0)}
+                              </div>
+                              <div className="min-w-0">
+                                <span className="block text-xs font-bold text-gray-800">{u.fullName}</span>
+                                <span className="text-[10px] text-gray-400 font-mono">NIK: {u.nik || u.username}</span>
+                              </div>
+                            </div>
+                          </label>
+                        ))}
+                      </div>
+                      <div className="border-t border-gray-100 px-3 py-2 bg-gray-50">
+                        <button
+                          type="button"
+                          onClick={() => setIsEmployeeDropdownOpen(false)}
+                          className="w-full text-xs font-bold text-primary text-center hover:underline"
                         >
-                          <input
-                            type="checkbox"
-                            className="w-4 h-4 accent-primary rounded shrink-0"
-                            checked={assignUserIds.includes(String(u.id))}
-                            onChange={() => toggleAssignUser(String(u.id))}
-                          />
-                          <div className="flex items-center gap-2 min-w-0">
-                            <div className="w-7 h-7 rounded-full bg-orange-100 text-orange-700 font-black text-[10px] flex items-center justify-center shrink-0 uppercase">
-                              {u.fullName.charAt(0)}
-                            </div>
-                            <div className="min-w-0">
-                              <span className="block text-xs font-bold text-gray-800">{u.fullName}</span>
-                              <span className="text-[10px] text-gray-400 font-mono">NIK: {u.nik || u.username}</span>
-                            </div>
-                          </div>
-                        </label>
-                      ))}
+                          Selesai Pilih ({assignUserIds.length} dipilih)
+                        </button>
+                      </div>
                     </div>
-                    <div className="border-t border-gray-100 px-3 py-2 bg-gray-50">
-                      <button
-                        type="button"
-                        onClick={() => setIsEmployeeDropdownOpen(false)}
-                        className="w-full text-xs font-bold text-primary text-center hover:underline"
-                      >
-                        Selesai Pilih ({assignUserIds.length} dipilih)
-                      </button>
-                    </div>
-                  </div>
+                  )}
+                </div>
+
+                {assignUserIds.length === 0 && (
+                  <p className="text-[10px] text-red-500 font-semibold">* Pilih minimal 1 karyawan</p>
                 )}
               </div>
 
-              {assignUserIds.length === 0 && (
-                <p className="text-[10px] text-red-500 font-semibold">* Pilih minimal 1 karyawan</p>
-              )}
-            </div>
-
-            {/* Field 2 & 3: Tanggal & Waktu 24 Jam */}
-            <div className="space-y-4">
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-bold text-gray-700">Tanggal Lembur</label>
-                  {assignDate && (
-                    <span className="text-[11px] font-black text-primary bg-primary/10 px-2 py-0.5 rounded-md">
-                      Format DD/MM/YYYY: {format(new Date(assignDate), "dd/MM/yyyy", { locale: id })}
-                    </span>
-                  )}
+              {/* Field 2 & 3: Tanggal & Waktu 24 Jam */}
+              <div className="space-y-4">
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-gray-700">Tanggal Lembur</label>
+                    {assignDate && (
+                      <span className="text-[11px] font-black text-primary bg-primary/10 px-2 py-0.5 rounded-md">
+                        Format DD/MM/YYYY: {format(new Date(assignDate), "dd/MM/yyyy", { locale: id })}
+                      </span>
+                    )}
+                  </div>
+                  <Input
+                    type="date"
+                    value={assignDate}
+                    onChange={(e) => setAssignDate(e.target.value)}
+                    className="rounded-xl border-gray-200 h-10 text-xs font-medium"
+                  />
                 </div>
-                <Input
-                  type="date"
-                  value={assignDate}
-                  onChange={(e) => setAssignDate(e.target.value)}
-                  className="rounded-xl border-gray-200 h-10 text-xs font-medium"
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-gray-700 block">Jam Mulai (24 Jam)</label>
+                    <TimePicker24h
+                      value={assignStartTime}
+                      onChange={(val) => setAssignStartTime(val)}
+                      placeholder="17:00"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-gray-700 block">Estimasi Selesai (24 Jam)</label>
+                    <TimePicker24h
+                      value={assignEndTime}
+                      onChange={(val) => setAssignEndTime(val)}
+                      placeholder="20:30"
+                    />
+                  </div>
+                </div>
+
+                {/* Dynamic Overtime Estimate Banner */}
+                {assignDate && assignStartTime && assignEndTime && (() => {
+                  const calc = calculateOvertimeEstimatedDuration(assignDate, assignStartTime, assignEndTime);
+                  return (
+                    <div className="p-3.5 bg-orange-50/80 border border-orange-200 rounded-2xl space-y-1 mt-2">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="font-extrabold text-orange-900 uppercase tracking-wide flex items-center gap-1.5">
+                          <Zap className="w-4 h-4 text-orange-500 fill-orange-500" /> Estimasi Durasi Lembur
+                        </span>
+                        <span className="font-black text-xs text-orange-700 bg-orange-200/80 px-2.5 py-0.5 rounded-full">
+                          ⚡ {calc.text}
+                        </span>
+                      </div>
+                      <p className="text-xs text-orange-900 font-bold pt-1">
+                        Periode: <span className="font-mono text-xs">{calc.displayRange}</span>
+                      </p>
+                      {calc.isNextDay && (
+                        <p className="text-[11px] text-orange-600 font-semibold italic">
+                          * Lembur melewati tengah malam dan berakhir pada hari berikutnya ({calc.formattedEnd}).
+                        </p>
+                      )}
+                    </div>
+                  );
+                })()}
+              </div>
+
+              {/* Field 4: Uraian Tugas */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-gray-700">Uraian Pekerjaan Lembur *</label>
+                <Textarea
+                  placeholder="Contoh: Perbaikan Mesin Production Line & Maintenance Listrik..."
+                  value={assignTask}
+                  onChange={(e) => setAssignTask(e.target.value)}
+                  className="rounded-xl border-gray-200 min-h-[90px] text-xs leading-relaxed"
                 />
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {/* Jam Mulai 24 Jam */}
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-gray-700 block">Jam Mulai (24 Jam)</label>
-                  <TimePicker24h
-                    value={assignStartTime}
-                    onChange={(val) => setAssignStartTime(val)}
-                    placeholder="17:00"
-                  />
+              {/* Field 5: Tabel Dynamic Upload Gambar Referensi */}
+              <div className="space-y-2 pt-1">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-gray-800">
+                    Upload Gambar Referensi / Panduan Kerja (Opsional)
+                  </label>
+                  <span className="text-[10px] text-gray-400">Multi Upload + Keterangan</span>
                 </div>
 
-                {/* Estimasi Selesai 24 Jam */}
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-gray-700 block">Estimasi Selesai (24 Jam)</label>
-                  <TimePicker24h
-                    value={assignEndTime}
-                    onChange={(val) => setAssignEndTime(val)}
-                    placeholder="20:30"
-                  />
-                </div>
-              </div>
-
-              {/* Dynamic Overtime Estimate Banner */}
-              {assignDate && assignStartTime && assignEndTime && (() => {
-                const calc = calculateOvertimeEstimatedDuration(assignDate, assignStartTime, assignEndTime);
-                return (
-                  <div className="p-3.5 bg-orange-50/80 border border-orange-200 rounded-2xl space-y-1 mt-2">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="font-extrabold text-orange-900 uppercase tracking-wide flex items-center gap-1.5">
-                        <Zap className="w-4 h-4 text-orange-500 fill-orange-500" /> Estimasi Durasi Lembur
-                      </span>
-                      <span className="font-black text-xs text-orange-700 bg-orange-200/80 px-2.5 py-0.5 rounded-full">
-                        ⚡ {calc.text}
-                      </span>
-                    </div>
-                    <p className="text-xs text-orange-900 font-bold pt-1">
-                      Periode: <span className="font-mono text-xs">{calc.displayRange}</span>
-                    </p>
-                    {calc.isNextDay && (
-                      <p className="text-[11px] text-orange-600 font-semibold italic">
-                        * Lembur melewati tengah malam dan berakhir pada hari berikutnya ({calc.formattedEnd}).
-                      </p>
-                    )}
-                  </div>
-                );
-              })()}
-            </div>
-
-            {/* Field 4: Uraian Tugas */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-gray-700">Uraian Pekerjaan Lembur *</label>
-              <Textarea
-                placeholder="Contoh: Perbaikan Mesin Production Line & Maintenance Listrik..."
-                value={assignTask}
-                onChange={(e) => setAssignTask(e.target.value)}
-                className="rounded-xl border-gray-200 min-h-[90px] text-xs leading-relaxed"
-              />
-            </div>
-
-            {/* Field 5: Tabel Dynamic Upload Gambar Referensi & Keterangan */}
-            <div className="space-y-2 pt-1">
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-bold text-gray-800">
-                  Upload Gambar Referensi / Panduan Kerja (Opsional)
-                </label>
-                <span className="text-[10px] text-gray-400">Dapat Upload Banyak Foto + Keterangan</span>
-              </div>
-
-              <div className="border border-gray-200 rounded-2xl overflow-hidden bg-white shadow-sm">
-                <table className="w-full text-left text-xs border-collapse">
-                  <thead className="bg-orange-50/80 border-b border-orange-100 text-orange-950 font-bold">
-                    <tr>
-                      <th className="p-2.5 w-1/2">Upload Gambar</th>
-                      <th className="p-2.5 w-1/2">Keterangan</th>
-                      <th className="p-2.5 w-10 text-center">Aksi</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {assignRefRows.map((row, idx) => (
-                      <tr key={row.id} className="hover:bg-gray-50/50">
-                        <td className="p-2.5">
-                          <div className="flex items-center gap-2">
-                            <input
-                              type="file"
-                              accept="image/*"
-                              id={`ref-file-${row.id}`}
-                              className="hidden"
-                              onChange={(e) => {
-                                const file = e.target.files?.[0] || null;
-                                setAssignRefRows(prev => prev.map(r => r.id === row.id ? { ...r, file } : r));
-                              }}
-                            />
-                            <label
-                              htmlFor={`ref-file-${row.id}`}
-                              className="cursor-pointer px-3 py-1.5 rounded-xl border border-dashed border-orange-300 bg-orange-50/50 hover:bg-orange-100/50 text-[11px] font-bold text-orange-800 flex items-center gap-1.5 shrink-0"
-                            >
-                              <Upload className="w-3.5 h-3.5 text-orange-600" />
-                              {row.file ? "Ganti File" : "Pilih File"}
-                            </label>
-                            {row.file && (
-                              <span className="text-[10px] font-medium text-gray-600 truncate max-w-[120px]" title={row.file.name}>
-                                {row.file.name}
-                              </span>
-                            )}
-                          </div>
-                        </td>
-                        <td className="p-2.5">
-                          <Input
-                            type="text"
-                            placeholder={`Contoh: Panduan Pekerjaan #${idx + 1}...`}
-                            value={row.caption}
-                            onChange={(e) => {
-                              const caption = e.target.value;
-                              setAssignRefRows(prev => prev.map(r => r.id === row.id ? { ...r, caption } : r));
-                            }}
-                            className="h-8 rounded-lg text-xs border-gray-200"
-                          />
-                        </td>
-                        <td className="p-2.5 text-center">
-                          {assignRefRows.length > 1 && (
-                            <button
-                              type="button"
-                              onClick={() => setAssignRefRows(prev => prev.filter(r => r.id !== row.id))}
-                              className="text-red-500 hover:text-red-700 p-1"
-                              title="Hapus Baris"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          )}
-                        </td>
+                <div className="border border-gray-200 rounded-2xl overflow-hidden bg-white shadow-sm">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead className="bg-orange-50/80 border-b border-orange-100 text-orange-950 font-bold">
+                      <tr>
+                        <th className="p-2.5 w-1/2">Upload Gambar</th>
+                        <th className="p-2.5 w-1/2">Keterangan</th>
+                        <th className="p-2.5 w-10 text-center">Aksi</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {assignRefRows.map((row, idx) => (
+                        <tr key={row.id} className="hover:bg-gray-50/50">
+                          <td className="p-2.5">
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="file"
+                                accept="image/*"
+                                id={`ref-file-${row.id}`}
+                                className="hidden"
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0] || null;
+                                  setAssignRefRows(prev => prev.map(r => r.id === row.id ? { ...r, file } : r));
+                                }}
+                              />
+                              <label
+                                htmlFor={`ref-file-${row.id}`}
+                                className="cursor-pointer px-3 py-1.5 rounded-xl border border-dashed border-orange-300 bg-orange-50/50 hover:bg-orange-100/50 text-[11px] font-bold text-orange-800 flex items-center gap-1.5 shrink-0"
+                              >
+                                <Upload className="w-3.5 h-3.5 text-orange-600" />
+                                {row.file ? "Ganti File" : "Pilih File"}
+                              </label>
+                              {row.file && (
+                                <span className="text-[10px] font-medium text-gray-600 truncate max-w-[120px]" title={row.file.name}>
+                                  {row.file.name}
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="p-2.5">
+                            <Input
+                              type="text"
+                              placeholder={`Contoh: Panduan Pekerjaan #${idx + 1}...`}
+                              value={row.caption}
+                              onChange={(e) => {
+                                const caption = e.target.value;
+                                setAssignRefRows(prev => prev.map(r => r.id === row.id ? { ...r, caption } : r));
+                              }}
+                              className="h-8 rounded-lg text-xs border-gray-200"
+                            />
+                          </td>
+                          <td className="p-2.5 text-center">
+                            {assignRefRows.length > 1 && (
+                              <button
+                                type="button"
+                                onClick={() => setAssignRefRows(prev => prev.filter(r => r.id !== row.id))}
+                                className="text-red-500 hover:text-red-700 p-1"
+                                title="Hapus Baris"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
 
-                <div className="p-2.5 bg-gray-50 border-t border-gray-100">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setAssignRefRows(prev => [...prev, { id: Date.now().toString(), file: null, caption: "" }])}
-                    className="w-full h-8 rounded-xl text-xs font-bold border-orange-200 text-orange-700 hover:bg-orange-100/60 gap-1.5"
-                  >
-                    <Plus className="w-3.5 h-3.5" /> + Tambah Gambar
-                  </Button>
+                  <div className="p-2.5 bg-gray-50 border-t border-gray-100">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setAssignRefRows(prev => [...prev, { id: Date.now().toString(), file: null, caption: "" }])}
+                      className="w-full h-8 rounded-xl text-xs font-bold border-orange-200 text-orange-700 hover:bg-orange-100/60 gap-1.5"
+                    >
+                      <Plus className="w-3.5 h-3.5" /> + Tambah Gambar
+                    </Button>
+                  </div>
                 </div>
               </div>
-            </div>
             </div>
 
             <DialogFooter className="p-4 border-t border-gray-100 bg-gray-50/80 shrink-0 flex flex-row items-center justify-between gap-2">
@@ -823,9 +1055,21 @@ export default function AdminOvertimePage() {
         </DialogContent>
       </Dialog>
 
-      {/* MODAL LIVE PREVIEW SURAT LEMBUR (SPL) ADMIN */}
-      <Dialog open={isPreviewModalOpen} onOpenChange={setIsPreviewModalOpen}>
-        <DialogContent className="max-w-3xl rounded-3xl p-6 bg-white shadow-2xl max-h-[90vh] overflow-y-auto">
+      {/* ========================================================================= */}
+      {/* MODAL LIVE PREVIEW SURAT LEMBUR (SPL) ADMIN                               */}
+      {/* ========================================================================= */}
+      <Dialog 
+        open={isPreviewModalOpen} 
+        onOpenChange={(open) => setIsPreviewModalOpen(open)}
+      >
+        <DialogContent 
+          className="max-w-3xl rounded-3xl p-6 bg-white shadow-2xl max-h-[90vh] overflow-y-auto z-50"
+          onPointerDownOutside={(e) => e.preventDefault()}
+          onEscapeKeyDown={(e) => {
+            e.preventDefault();
+            setIsPreviewModalOpen(false);
+          }}
+        >
           <DialogHeader className="border-b pb-3 mb-3">
             <DialogTitle className="text-base font-black text-gray-900 flex items-center justify-between">
               <span>Preview Live Surat Perintah Lembur (SPL)</span>
@@ -836,7 +1080,7 @@ export default function AdminOvertimePage() {
           </DialogHeader>
 
           <div className="bg-white border-2 border-gray-200 rounded-2xl p-6 space-y-4 shadow-sm text-xs text-gray-800">
-            {/* Kop Surat Resmi Dynamic dari Setting App */}
+            {/* Kop Surat Resmi */}
             <div className="flex items-center justify-between pb-3 border-b-2 border-gray-900">
               <div className="flex items-center gap-3">
                 <img src={(config?.logoUrl && config.logoUrl !== "/logo_elok_buah.jpg") ? config.logoUrl : "/icon-192.png"} alt="Logo Perusahaan" className="h-12 w-auto object-contain" onError={(e) => (e.currentTarget.src = '/icon-192.png')} />
@@ -847,7 +1091,7 @@ export default function AdminOvertimePage() {
               </div>
             </div>
 
-            {/* Judul Dokumen (Nomor Surat Dihapus Sesuai Permintaan) */}
+            {/* Judul Dokumen */}
             <div className="text-center space-y-0.5 py-1">
               <h2 className="text-sm font-black text-blue-900 uppercase underline tracking-wider">SURAT PERINTAH LEMBUR (SPL)</h2>
             </div>
@@ -919,8 +1163,15 @@ export default function AdminOvertimePage() {
             </div>
           </div>
 
-          <DialogFooter className="pt-2">
-            <Button onClick={() => setIsPreviewModalOpen(false)} className="w-full h-11 rounded-xl bg-gray-900 text-white font-bold text-xs">
+          <DialogFooter className="pt-3 flex justify-end">
+            <Button 
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsPreviewModalOpen(false);
+              }} 
+              className="w-full sm:w-auto px-6 h-11 rounded-xl bg-gray-900 hover:bg-gray-800 text-white font-bold text-xs cursor-pointer"
+            >
               Tutup Preview
             </Button>
           </DialogFooter>
@@ -928,7 +1179,206 @@ export default function AdminOvertimePage() {
       </Dialog>
 
       {/* ========================================================================= */}
-      {/* MODAL POPUP 2: PERIKSA SURAT & LAPORAN BUKTI FOTO                       */}
+      {/* MODAL POPUP 2: INPUT LEMBUR MANUAL ADMIN                                  */}
+      {/* ========================================================================= */}
+      <Dialog open={isManualModalOpen} onOpenChange={setIsManualModalOpen}>
+        <DialogContent className="sm:max-w-md rounded-2xl p-6 bg-white shadow-2xl">
+          <DialogHeader className="border-b pb-3">
+            <DialogTitle className="text-lg font-black text-gray-900 flex items-center gap-2">
+              <Plus className="w-5 h-5 text-orange-600" /> Input Lembur Manual Admin
+            </DialogTitle>
+            <DialogDescription className="text-xs text-gray-500">
+              Catat data lembur karyawan secara langsung tanpa melalui alur persetujuan SPL di HP.
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={(e) => { e.preventDefault(); manualMutation.mutate(); }} className="space-y-4 pt-2 text-xs">
+            <div className="space-y-1.5">
+              <label className="font-bold text-gray-700">Pilih Karyawan *</label>
+              <Select value={manualUserId} onValueChange={setManualUserId}>
+                <SelectTrigger className="h-10 rounded-xl border-gray-200 text-xs">
+                  <SelectValue placeholder="Pilih Karyawan..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {employeeUsers.map(u => (
+                    <SelectItem key={u.id} value={String(u.id)}>
+                      {u.fullName} (NIK: {u.nik || u.username})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="font-bold text-gray-700">Tanggal Lembur *</label>
+              <Input
+                type="date"
+                value={manualDate}
+                onChange={(e) => setManualDate(e.target.value)}
+                className="h-10 rounded-xl border-gray-200 text-xs"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <label className="font-bold text-gray-700 block">Jam Mulai</label>
+                <TimePicker24h
+                  value={manualStartTime}
+                  onChange={(val) => setManualStartTime(val)}
+                  placeholder="17:00"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="font-bold text-gray-700 block">Jam Selesai</label>
+                <TimePicker24h
+                  value={manualEndTime}
+                  onChange={(val) => setManualEndTime(val)}
+                  placeholder="20:00"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="font-bold text-gray-700">Uraian Pekerjaan</label>
+              <Textarea
+                placeholder="Instruksi / Catatan pekerjaan lembur..."
+                value={manualTask}
+                onChange={(e) => setManualTask(e.target.value)}
+                className="rounded-xl border-gray-200 text-xs min-h-[70px]"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="font-bold text-gray-700">Status Lembur</label>
+              <Select value={manualStatus} onValueChange={setManualStatus}>
+                <SelectTrigger className="h-10 rounded-xl border-gray-200 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="completed">Selesai (Completed)</SelectItem>
+                  <SelectItem value="ongoing">Sedang Berlangsung (Ongoing)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <DialogFooter className="pt-3 border-t gap-2">
+              <Button type="button" variant="outline" onClick={() => setIsManualModalOpen(false)} className="rounded-xl text-xs">
+                Batal
+              </Button>
+              <Button type="submit" disabled={manualMutation.isPending} className="rounded-xl text-xs font-bold bg-orange-600 hover:bg-orange-700 text-white">
+                {manualMutation.isPending ? "Simpan..." : "Simpan Lembur Manual"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* ========================================================================= */}
+      {/* MODAL POPUP 3: EDIT DATA LEMBUR ADMIN                                     */}
+      {/* ========================================================================= */}
+      <Dialog open={!!editItem} onOpenChange={(open) => !open && setEditItem(null)}>
+        <DialogContent className="sm:max-w-md rounded-2xl p-6 bg-white shadow-2xl">
+          <DialogHeader className="border-b pb-3">
+            <DialogTitle className="text-lg font-black text-gray-900 flex items-center gap-2">
+              <Pencil className="w-5 h-5 text-amber-600" /> Edit Data Penugasan Lembur
+            </DialogTitle>
+            <DialogDescription className="text-xs text-gray-500">
+              Perbarui rincian jam, uraian pekerjaan, atau status lembur karyawan.
+            </DialogDescription>
+          </DialogHeader>
+
+          {editItem && (
+            <form onSubmit={(e) => { e.preventDefault(); editMutation.mutate(); }} className="space-y-4 pt-2 text-xs">
+              <div className="p-3 bg-gray-50 rounded-xl border border-gray-100">
+                <span className="font-bold text-gray-900 block">{editItem.fullName}</span>
+                <span className="text-[10px] text-gray-400 font-mono">NIK: {editItem.nik} | {editItem.splNumber || "SPL Resmi"}</span>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="font-bold text-gray-700">Waktu Mulai</label>
+                <Input
+                  type="datetime-local"
+                  value={editStartTime}
+                  onChange={(e) => setEditStartTime(e.target.value)}
+                  className="h-10 rounded-xl border-gray-200 text-xs"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="font-bold text-gray-700">Waktu Selesai</label>
+                <Input
+                  type="datetime-local"
+                  value={editEndTime}
+                  onChange={(e) => setEditEndTime(e.target.value)}
+                  className="h-10 rounded-xl border-gray-200 text-xs"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="font-bold text-gray-700">Uraian Instruksi Awal</label>
+                <Textarea
+                  value={editTask}
+                  onChange={(e) => setEditTask(e.target.value)}
+                  className="rounded-xl border-gray-200 text-xs min-h-[60px]"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="font-bold text-gray-700">Laporan Hasil Pekerjaan</label>
+                <Textarea
+                  value={editFinalTask}
+                  onChange={(e) => setEditFinalTask(e.target.value)}
+                  className="rounded-xl border-gray-200 text-xs min-h-[60px]"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label className="font-bold text-gray-700">Status Lembur</label>
+                  <Select value={editStatus} onValueChange={setEditStatus}>
+                    <SelectTrigger className="h-10 rounded-xl border-gray-200 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="pending">Belum Dimulai</SelectItem>
+                      <SelectItem value="ongoing">Sedang Berlangsung</SelectItem>
+                      <SelectItem value="completed">Selesai & Verified</SelectItem>
+                      <SelectItem value="cancelled">Dibatalkan</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="font-bold text-gray-700">Respon Karyawan</label>
+                  <Select value={editApproval} onValueChange={setEditApproval}>
+                    <SelectTrigger className="h-10 rounded-xl border-gray-200 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="approved">Disetujui</SelectItem>
+                      <SelectItem value="pending">Menunggu</SelectItem>
+                      <SelectItem value="rejected">Ditolak / Izin</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <DialogFooter className="pt-3 border-t gap-2">
+                <Button type="button" variant="outline" onClick={() => setEditItem(null)} className="rounded-xl text-xs">
+                  Batal
+                </Button>
+                <Button type="submit" disabled={editMutation.isPending} className="rounded-xl text-xs font-bold bg-amber-600 hover:bg-amber-700 text-white">
+                  {editMutation.isPending ? "Menyimpan..." : "Simpan Perubahan"}
+                </Button>
+              </DialogFooter>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* ========================================================================= */}
+      {/* MODAL POPUP 4: PERIKSA SURAT & LAPORAN BUKTI FOTO                       */}
       {/* ========================================================================= */}
       <Dialog open={!!viewDetail} onOpenChange={(open) => !open && setViewDetail(null)}>
         <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl p-6 bg-white shadow-2xl">

@@ -2042,20 +2042,52 @@ export function registerRoutes(app: Express) {
   // API Tambah & Edit Lembur Manual oleh Admin
   app.post("/api/admin/overtimes/manual", isAuthenticated, isAdmin, async (req: Request, res: Response) => {
     try {
-      const { attendanceId, startTime, endTime, description, finalDescription, status } = req.body;
-      if (!attendanceId || !startTime) {
+      const { userId, date, attendanceId, startTime, endTime, description, finalDescription, status } = req.body;
+      let targetAttId = attendanceId ? Number(attendanceId) : null;
+
+      if (!targetAttId) {
+        if (!userId || (!date && !startTime)) {
+          return res.status(400).json({ message: "Pilih Karyawan, Tanggal, dan Jam Mulai Wajib Diisi" });
+        }
+        const otDate = date || (startTime ? startTime.split('T')[0] : getAdminDate());
+        let attRecord = await db.select().from(attendance).where(and(eq(attendance.userId, Number(userId)), eq(attendance.date, otDate))).limit(1);
+        if (attRecord.length === 0) {
+          const insertRes: any = await db.insert(attendance).values({
+            userId: Number(userId),
+            date: otDate,
+            status: "present",
+            checkIn: null,
+            notes: "Lembur Manual Admin"
+          });
+          targetAttId = insertRes[0]?.insertId || insertRes?.insertId;
+          if (!targetAttId) {
+            const [createdAtt] = await db.select().from(attendance).where(and(eq(attendance.userId, Number(userId)), eq(attendance.date, otDate))).limit(1);
+            targetAttId = createdAtt?.id;
+          }
+        } else {
+          targetAttId = attRecord[0].id;
+        }
+      }
+
+      if (!targetAttId || !startTime) {
         return res.status(400).json({ message: "Attendance ID dan Jam Mulai Wajib Diisi" });
       }
+
+      const splDateStr = (date || (typeof startTime === 'string' ? startTime.split('T')[0] : safeFormatDate(new Date(), 'yyyy-MM-dd'))).replace(/-/g, '');
+      const splNum = `SPL/MIP/${splDateStr}/${Math.floor(1000 + Math.random() * 9000)}`;
+
       const [newOt] = await (db.insert(overtimes) as any).values({
-        attendanceId: Number(attendanceId),
+        attendanceId: targetAttId,
         startTime: new Date(startTime),
         endTime: endTime ? new Date(endTime) : null,
         description: description || "Lembur Manual Admin",
         finalDescription: finalDescription || null,
         status: status || (endTime ? "completed" : "ongoing"),
-        employeeApproval: "approved"
+        employeeApproval: "approved",
+        splNumber: splNum,
+        assignedBy: (req.user as any)?.id
       });
-      res.json({ message: "Lembur manual berhasil ditambahkan", id: newOt.insertId });
+      res.json({ message: "Lembur manual berhasil ditambahkan", id: newOt?.insertId || newOt });
     } catch (e: any) {
       console.error("Manual overtime error:", e);
       res.status(500).json({ message: e.message || "Internal server error" });
@@ -2065,13 +2097,15 @@ export function registerRoutes(app: Express) {
   app.put("/api/admin/overtimes/:id", isAuthenticated, isAdmin, async (req: Request, res: Response) => {
     try {
       const id = Number(req.params.id);
-      const { startTime, endTime, description, finalDescription, status } = req.body;
+      const { startTime, endTime, description, finalDescription, status, employeeApproval, splNumber } = req.body;
       const updateData: any = {};
       if (startTime) updateData.startTime = new Date(startTime);
       if (endTime !== undefined) updateData.endTime = endTime ? new Date(endTime) : null;
       if (description !== undefined) updateData.description = description;
       if (finalDescription !== undefined) updateData.finalDescription = finalDescription;
       if (status) updateData.status = status;
+      if (employeeApproval) updateData.employeeApproval = employeeApproval;
+      if (splNumber) updateData.splNumber = splNumber;
 
       await db.update(overtimes).set(updateData).where(eq(overtimes.id, id));
       res.json({ message: "Data lembur berhasil diperbarui" });
