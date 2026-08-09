@@ -1634,29 +1634,17 @@ export default function AttendanceHistoryPage() {
                                                      {/* Sub-baris Foto Lembur jika ada lembur pada tanggal ini */}
                                                      {(() => {
                                                          const ot = allOvertimes?.find(o => o.attendanceId === record.id);
-                                                         if (!ot) return null;
+                                                         if (!ot || ot.employeeApproval !== "approved" || !ot.initialProofUrl) return null;
 
-                                                         const isRejected = ot.employeeApproval === "rejected";
-                                                         const isPendingApproval = ot.employeeApproval === "pending";
-                                                         const hasStarted = !isRejected && !isPendingApproval && !!ot.initialProofUrl && (ot.status === "ongoing" || ot.status === "completed");
-                                                         const hasFinished = hasStarted && ot.status === "completed" && !!ot.finalProofUrl;
+                                                         const hasFinished = ot.status === "completed" && !!ot.finalProofUrl;
 
-                                                         const otStart = hasStarted && ot.startTime ? format(new Date(ot.startTime), "HH:mm") : "-";
+                                                         const otStart = ot.startTime ? format(new Date(ot.startTime), "HH:mm") : "-";
                                                          const otEnd = hasFinished && ot.endTime ? format(new Date(ot.endTime), "HH:mm") : "-";
 
-                                                         let statusLabel = "BELUM DIMULAI";
-                                                         let statusClass = "bg-amber-100 text-amber-800 border-amber-200";
+                                                         let statusLabel = "SEDANG BERLANGSUNG";
+                                                         let statusClass = "bg-orange-100 text-orange-800 border-orange-200";
 
-                                                         if (isRejected) {
-                                                             statusLabel = "IZIN TIDAK LEMBUR";
-                                                             statusClass = "bg-red-100 text-red-800 border-red-200";
-                                                         } else if (isPendingApproval) {
-                                                             statusLabel = "MENUNGGU KONFIRMASI";
-                                                             statusClass = "bg-amber-100 text-amber-800 border-amber-200";
-                                                         } else if (hasStarted && !hasFinished) {
-                                                             statusLabel = "SEDANG BERLANGSUNG";
-                                                             statusClass = "bg-orange-100 text-orange-800 border-orange-200";
-                                                         } else if (hasFinished) {
+                                                         if (hasFinished) {
                                                              statusLabel = "SELESAI & VERIFIED";
                                                              statusClass = "bg-emerald-100 text-emerald-800 border-emerald-200";
                                                          }

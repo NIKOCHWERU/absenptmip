@@ -572,16 +572,14 @@ export default function RecapPage() {
           <td class="col-note">${keterangan}${lateNote}</td>
         </tr>`;
 
-            // Baris Lembur jika Super Admin & ada record lembur
+            // Baris Lembur jika Super Admin & karyawan sudah setuju + mulai lembur (punya bukti awal)
             if (user?.role === "superadmin") {
                 const ot = allOvertimes?.find(o => o.attendanceId === row.id);
-                if (ot) {
-                    const isRejected = ot.employeeApproval === "rejected";
-                    const isPendingApproval = ot.employeeApproval === "pending";
-                    const hasStarted = !isRejected && !isPendingApproval && !!ot.initialProofUrl && (ot.status === "ongoing" || ot.status === "completed");
-                    const hasFinished = hasStarted && ot.status === "completed" && !!ot.finalProofUrl;
+                if (ot && ot.employeeApproval === "approved" && ot.initialProofUrl) {
+                    const hasStarted = true;
+                    const hasFinished = ot.status === "completed" && !!ot.finalProofUrl;
 
-                    const otStart = hasStarted && ot.startTime ? format(new Date(ot.startTime), "HH:mm") : "-";
+                    const otStart = ot.startTime ? format(new Date(ot.startTime), "HH:mm") : "-";
                     const otEnd = hasFinished && ot.endTime ? format(new Date(ot.endTime), "HH:mm") : "-";
 
                     const otMins = (hasFinished && ot.startTime && ot.endTime)
@@ -589,30 +587,14 @@ export default function RecapPage() {
                         : 0;
                     const otDurationStr = (hasFinished && otMins > 0) ? formatDuration(otMins) : "-";
 
-                    let statusLabel = "BELUM DIMULAI";
-                    let statusStyle = "background:#fef3c7;color:#b45309;";
-                    if (isRejected) {
-                        statusLabel = "IZIN TIDAK LEMBUR";
-                        statusStyle = "background:#fee2e2;color:#b91c1c;";
-                    } else if (isPendingApproval) {
-                        statusLabel = "MENUNGGU KONFIRMASI";
-                        statusStyle = "background:#fef3c7;color:#b45309;";
-                    } else if (hasStarted && !hasFinished) {
-                        statusLabel = "SEDANG BERLANGSUNG";
-                        statusStyle = "background:#ffedd5;color:#c2410c;";
-                    } else if (hasFinished) {
+                    let statusLabel = "SEDANG BERLANGSUNG";
+                    let statusStyle = "background:#ffedd5;color:#c2410c;";
+                    if (hasFinished) {
                         statusLabel = "SELESAI";
                         statusStyle = "background:#dcfce7;color:#15803d;";
                     }
 
-                    let noteText = ot.description || "Pekerjaan Lembur";
-                    if (isRejected) {
-                        noteText = ot.rejectionReason ? `Izin: "${ot.rejectionReason}"` : "Izin Tidak Lembur";
-                    } else if (isPendingApproval) {
-                        noteText = `${ot.description || 'Penugasan Lembur'} (Menunggu Konfirmasi Karyawan)`;
-                    } else if (!hasStarted) {
-                        noteText = `${ot.description || 'Penugasan Lembur'} (Belum Dimulai)`;
-                    }
+                    const noteText = ot.description || "Pekerjaan Lembur";
 
                     rowHtml += `<tr style="background-color: #fff7ed;">
                       <td class="col-no"><span style="color:#ea580c;font-weight:bold;">↳</span></td>
@@ -908,13 +890,10 @@ export default function RecapPage() {
 
             if (user?.role === "superadmin") {
                 const ot = allOvertimes?.find(o => o.attendanceId === row.id);
-                if (ot) {
-                    const isRejected = ot.employeeApproval === "rejected";
-                    const isPendingApproval = ot.employeeApproval === "pending";
-                    const hasStarted = !isRejected && !isPendingApproval && !!ot.initialProofUrl && (ot.status === "ongoing" || ot.status === "completed");
-                    const hasFinished = hasStarted && ot.status === "completed" && !!ot.finalProofUrl;
+                if (ot && ot.employeeApproval === "approved" && ot.initialProofUrl) {
+                    const hasFinished = ot.status === "completed" && !!ot.finalProofUrl;
 
-                    const otStart = hasStarted && ot.startTime ? format(new Date(ot.startTime), "HH:mm") : "-";
+                    const otStart = ot.startTime ? format(new Date(ot.startTime), "HH:mm") : "-";
                     const otEnd = hasFinished && ot.endTime ? format(new Date(ot.endTime), "HH:mm") : "-";
 
                     const otMins = (hasFinished && ot.startTime && ot.endTime)
@@ -922,30 +901,14 @@ export default function RecapPage() {
                         : 0;
                     const otDurationStr = (hasFinished && otMins > 0) ? formatDuration(otMins) : "-";
 
-                    let statusLabel = "BELUM DIMULAI";
-                    let statusStyle = "background:#fef3c7;color:#b45309;";
-                    if (isRejected) {
-                        statusLabel = "IZIN TIDAK LEMBUR";
-                        statusStyle = "background:#fee2e2;color:#b91c1c;";
-                    } else if (isPendingApproval) {
-                        statusLabel = "MENUNGGU KONFIRMASI";
-                        statusStyle = "background:#fef3c7;color:#b45309;";
-                    } else if (hasStarted && !hasFinished) {
-                        statusLabel = "SEDANG BERLANGSUNG";
-                        statusStyle = "background:#ffedd5;color:#c2410c;";
-                    } else if (hasFinished) {
+                    let statusLabel = "SEDANG BERLANGSUNG";
+                    let statusStyle = "background:#ffedd5;color:#c2410c;";
+                    if (hasFinished) {
                         statusLabel = "SELESAI";
                         statusStyle = "background:#dcfce7;color:#15803d;";
                     }
 
-                    let noteText = ot.description || "Pekerjaan Lembur";
-                    if (isRejected) {
-                        noteText = ot.rejectionReason ? `Izin: "${ot.rejectionReason}"` : "Izin Tidak Lembur";
-                    } else if (isPendingApproval) {
-                        noteText = `${ot.description || 'Penugasan Lembur'} (Menunggu Konfirmasi Karyawan)`;
-                    } else if (!hasStarted) {
-                        noteText = `${ot.description || 'Penugasan Lembur'} (Belum Dimulai)`;
-                    }
+                    const noteText = ot.description || "Pekerjaan Lembur";
 
                     rowHtml += `<tr style="background-color: #fff7ed;">
                       <td class="col-no"><span style="color:#ea580c;font-weight:bold;">↳</span></td>
@@ -1606,17 +1569,14 @@ export default function RecapPage() {
                                                 </td>
                                             </tr>
 
-                                            {/* Sub-baris Lembur jika Super Admin & ada data lembur */}
+                                            {/* Sub-baris Lembur jika Super Admin & ada data lembur yang SUDAH SETUJU & SUDAH MULAI */}
                                             {user?.role === "superadmin" && (() => {
                                                 const ot = allOvertimes?.find(o => o.attendanceId === row.id);
-                                                if (!ot) return null;
+                                                if (!ot || ot.employeeApproval !== "approved" || !ot.initialProofUrl) return null;
 
-                                                const isRejected = ot.employeeApproval === "rejected";
-                                                const isPendingApproval = ot.employeeApproval === "pending";
-                                                const hasStarted = !isRejected && !isPendingApproval && !!ot.initialProofUrl && (ot.status === "ongoing" || ot.status === "completed");
-                                                const hasFinished = hasStarted && ot.status === "completed" && !!ot.finalProofUrl;
+                                                const hasFinished = ot.status === "completed" && !!ot.finalProofUrl;
 
-                                                const otStart = hasStarted && ot.startTime ? safeFormatDate(ot.startTime, "HH:mm") : "-";
+                                                const otStart = ot.startTime ? safeFormatDate(ot.startTime, "HH:mm") : "-";
                                                 const otEnd = hasFinished && ot.endTime ? safeFormatDate(ot.endTime, "HH:mm") : "-";
 
                                                 const otDurationMins = (hasFinished && ot.startTime && ot.endTime) 
@@ -1624,34 +1584,15 @@ export default function RecapPage() {
                                                     : 0;
                                                 const otDurationStr = (hasFinished && otDurationMins > 0) ? formatDuration(otDurationMins) : "-";
 
-                                                let statusLabel = "BELUM DIMULAI";
-                                                let statusClass = "bg-amber-100 text-amber-800 border-amber-200";
+                                                let statusLabel = "SEDANG BERLANGSUNG";
+                                                let statusClass = "bg-orange-100 text-orange-800 border-orange-200";
 
-                                                if (isRejected) {
-                                                    statusLabel = "IZIN TIDAK LEMBUR";
-                                                    statusClass = "bg-red-100 text-red-800 border-red-200";
-                                                } else if (isPendingApproval) {
-                                                    statusLabel = "MENUNGGU KONFIRMASI";
-                                                    statusClass = "bg-amber-100 text-amber-800 border-amber-200";
-                                                } else if (!hasStarted) {
-                                                    statusLabel = "BELUM DIMULAI";
-                                                    statusClass = "bg-amber-100 text-amber-800 border-amber-200";
-                                                } else if (hasStarted && !hasFinished) {
-                                                    statusLabel = "SEDANG BERLANGSUNG";
-                                                    statusClass = "bg-orange-100 text-orange-800 border-orange-200";
-                                                } else if (hasFinished) {
+                                                if (hasFinished) {
                                                     statusLabel = "SELESAI";
                                                     statusClass = "bg-emerald-100 text-emerald-800 border-emerald-200";
                                                 }
 
-                                                let noteText = ot.description || "Lembur pekerjaan";
-                                                if (isRejected) {
-                                                    noteText = ot.rejectionReason ? `Izin: "${ot.rejectionReason}"` : "Karyawan Izin Tidak Lembur";
-                                                } else if (isPendingApproval) {
-                                                    noteText = `${ot.description || 'Penugasan Lembur'} (Menunggu Konfirmasi Karyawan)`;
-                                                } else if (!hasStarted) {
-                                                    noteText = `${ot.description || 'Penugasan Lembur'} (Belum Dimulai)`;
-                                                }
+                                                const noteText = ot.description || "Lembur pekerjaan";
 
                                                 return (
                                                     <tr key={`ot-${row.id}`} className="bg-orange-50/50 border-b border-orange-100 hover:bg-orange-50 transition-colors">
