@@ -1631,13 +1631,35 @@ export default function AttendanceHistoryPage() {
                                                          </td>
                                                      </tr>
 
-                                                     {/* Sub-baris Foto Lembur jika ada lembur yang sudah dikirim bukti awal */}
+                                                     {/* Sub-baris Foto Lembur jika ada lembur pada tanggal ini */}
                                                      {(() => {
                                                          const ot = allOvertimes?.find(o => o.attendanceId === record.id);
-                                                         if (!ot || !ot.initialProofUrl) return null;
-                                                         const otStart = ot.startTime ? format(new Date(ot.startTime), "HH:mm") : "-";
-                                                         const isCompleted = ot.status === "completed" && !!ot.finalProofUrl;
-                                                         const otEnd = isCompleted && ot.endTime ? format(new Date(ot.endTime), "HH:mm") : "Berlangsung";
+                                                         if (!ot) return null;
+
+                                                         const isRejected = ot.employeeApproval === "rejected";
+                                                         const isPendingApproval = ot.employeeApproval === "pending";
+                                                         const hasStarted = !isRejected && !isPendingApproval && !!ot.initialProofUrl && (ot.status === "ongoing" || ot.status === "completed");
+                                                         const hasFinished = hasStarted && ot.status === "completed" && !!ot.finalProofUrl;
+
+                                                         const otStart = hasStarted && ot.startTime ? format(new Date(ot.startTime), "HH:mm") : "-";
+                                                         const otEnd = hasFinished && ot.endTime ? format(new Date(ot.endTime), "HH:mm") : "-";
+
+                                                         let statusLabel = "BELUM DIMULAI";
+                                                         let statusClass = "bg-amber-100 text-amber-800 border-amber-200";
+
+                                                         if (isRejected) {
+                                                             statusLabel = "IZIN TIDAK LEMBUR";
+                                                             statusClass = "bg-red-100 text-red-800 border-red-200";
+                                                         } else if (isPendingApproval) {
+                                                             statusLabel = "MENUNGGU KONFIRMASI";
+                                                             statusClass = "bg-amber-100 text-amber-800 border-amber-200";
+                                                         } else if (hasStarted && !hasFinished) {
+                                                             statusLabel = "SEDANG BERLANGSUNG";
+                                                             statusClass = "bg-orange-100 text-orange-800 border-orange-200";
+                                                         } else if (hasFinished) {
+                                                             statusLabel = "SELESAI & VERIFIED";
+                                                             statusClass = "bg-emerald-100 text-emerald-800 border-emerald-200";
+                                                         }
 
                                                          return (
                                                              <tr key={`ot-photo-${record.id}`} className="bg-orange-50/40 border-b border-orange-100">
@@ -1669,8 +1691,8 @@ export default function AttendanceHistoryPage() {
                                                                      </div>
                                                                  </td>
                                                                  <td className="px-6 py-4 align-top">
-                                                                     <span className="px-2 py-1 rounded text-[10px] font-bold uppercase bg-orange-100 text-orange-800 border border-orange-200">
-                                                                         {isCompleted ? "Selesai & Verified" : "Berlangsung"}
+                                                                     <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase border ${statusClass}`}>
+                                                                         {statusLabel}
                                                                      </span>
                                                                  </td>
                                                              </tr>

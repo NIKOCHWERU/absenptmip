@@ -568,14 +568,48 @@ export default function RecapPage() {
           <td class="col-note">${keterangan}${lateNote}</td>
         </tr>`;
 
-            // Baris Lembur jika Super Admin & ada lembur yang sudah dimulai (punya bukti awal)
+            // Baris Lembur jika Super Admin & ada record lembur
             if (user?.role === "superadmin") {
                 const ot = allOvertimes?.find(o => o.attendanceId === row.id);
-                if (ot && ot.initialProofUrl) {
-                    const otStart = ot.startTime ? format(new Date(ot.startTime), "HH:mm") : "-";
-                    const isCompleted = ot.status === "completed" && !!ot.finalProofUrl;
-                    const otEnd = isCompleted && ot.endTime ? format(new Date(ot.endTime), "HH:mm") : "Berlangsung";
-                    const otMins = (isCompleted && ot.startTime && ot.endTime) ? Math.round((new Date(ot.endTime).getTime() - new Date(ot.startTime).getTime()) / 60000) : 0;
+                if (ot) {
+                    const isRejected = ot.employeeApproval === "rejected";
+                    const isPendingApproval = ot.employeeApproval === "pending";
+                    const hasStarted = !isRejected && !isPendingApproval && !!ot.initialProofUrl && (ot.status === "ongoing" || ot.status === "completed");
+                    const hasFinished = hasStarted && ot.status === "completed" && !!ot.finalProofUrl;
+
+                    const otStart = hasStarted && ot.startTime ? format(new Date(ot.startTime), "HH:mm") : "-";
+                    const otEnd = hasFinished && ot.endTime ? format(new Date(ot.endTime), "HH:mm") : "-";
+
+                    const otMins = (hasFinished && ot.startTime && ot.endTime)
+                        ? Math.round((new Date(ot.endTime).getTime() - new Date(ot.startTime).getTime()) / 60000)
+                        : 0;
+                    const otDurationStr = (hasFinished && otMins > 0) ? formatDuration(otMins) : "-";
+
+                    let statusLabel = "BELUM DIMULAI";
+                    let statusStyle = "background:#fef3c7;color:#b45309;";
+                    if (isRejected) {
+                        statusLabel = "IZIN TIDAK LEMBUR";
+                        statusStyle = "background:#fee2e2;color:#b91c1c;";
+                    } else if (isPendingApproval) {
+                        statusLabel = "MENUNGGU KONFIRMASI";
+                        statusStyle = "background:#fef3c7;color:#b45309;";
+                    } else if (hasStarted && !hasFinished) {
+                        statusLabel = "SEDANG BERLANGSUNG";
+                        statusStyle = "background:#ffedd5;color:#c2410c;";
+                    } else if (hasFinished) {
+                        statusLabel = "SELESAI";
+                        statusStyle = "background:#dcfce7;color:#15803d;";
+                    }
+
+                    let noteText = ot.description || "Pekerjaan Lembur";
+                    if (isRejected) {
+                        noteText = ot.rejectionReason ? `Izin: "${ot.rejectionReason}"` : "Izin Tidak Lembur";
+                    } else if (isPendingApproval) {
+                        noteText = `${ot.description || 'Penugasan Lembur'} (Menunggu Konfirmasi Karyawan)`;
+                    } else if (!hasStarted) {
+                        noteText = `${ot.description || 'Penugasan Lembur'} (Belum Dimulai)`;
+                    }
+
                     rowHtml += `<tr style="background-color: #fff7ed;">
                       <td class="col-no"><span style="color:#ea580c;font-weight:bold;">↳</span></td>
                       <td class="col-date" style="font-size:9.5px;color:#c2410c;font-weight:bold;">LEMBUR (OVERTIME)</td>
@@ -584,10 +618,10 @@ export default function RecapPage() {
                       <td class="col-time t-dash">-</td>
                       <td class="col-time t-dash">-</td>
                       <td class="col-time" style="color:#c2410c;font-weight:bold;">${otEnd}</td>
-                      <td class="col-work" style="color:#9a3412;font-weight:bold;">${isCompleted && otMins > 0 ? formatDuration(otMins) : 'Berlangsung'}</td>
+                      <td class="col-work" style="color:#9a3412;font-weight:bold;">${otDurationStr}</td>
                       <td class="col-brk">-</td>
-                      <td class="col-stat"><span style="background:#ffedd5;color:#c2410c;padding:2px 6px;border-radius:4px;font-weight:bold;font-size:9px;">${isCompleted ? 'SELESAI' : 'BERLANGSUNG'}</span></td>
-                      <td class="col-note" style="color:#9a3412;font-style:italic;">${ot.description || 'Pekerjaan Lembur'}</td>
+                      <td class="col-stat"><span style="${statusStyle}padding:2px 6px;border-radius:4px;font-weight:bold;font-size:9px;">${statusLabel}</span></td>
+                      <td class="col-note" style="color:#9a3412;font-style:italic;">${noteText}</td>
                     </tr>`;
                 }
             }
@@ -870,11 +904,45 @@ export default function RecapPage() {
 
             if (user?.role === "superadmin") {
                 const ot = allOvertimes?.find(o => o.attendanceId === row.id);
-                if (ot && ot.initialProofUrl) {
-                    const otStart = ot.startTime ? format(new Date(ot.startTime), "HH:mm") : "-";
-                    const isCompleted = ot.status === "completed" && !!ot.finalProofUrl;
-                    const otEnd = isCompleted && ot.endTime ? format(new Date(ot.endTime), "HH:mm") : "Berlangsung";
-                    const otMins = (isCompleted && ot.startTime && ot.endTime) ? Math.round((new Date(ot.endTime).getTime() - new Date(ot.startTime).getTime()) / 60000) : 0;
+                if (ot) {
+                    const isRejected = ot.employeeApproval === "rejected";
+                    const isPendingApproval = ot.employeeApproval === "pending";
+                    const hasStarted = !isRejected && !isPendingApproval && !!ot.initialProofUrl && (ot.status === "ongoing" || ot.status === "completed");
+                    const hasFinished = hasStarted && ot.status === "completed" && !!ot.finalProofUrl;
+
+                    const otStart = hasStarted && ot.startTime ? format(new Date(ot.startTime), "HH:mm") : "-";
+                    const otEnd = hasFinished && ot.endTime ? format(new Date(ot.endTime), "HH:mm") : "-";
+
+                    const otMins = (hasFinished && ot.startTime && ot.endTime)
+                        ? Math.round((new Date(ot.endTime).getTime() - new Date(ot.startTime).getTime()) / 60000)
+                        : 0;
+                    const otDurationStr = (hasFinished && otMins > 0) ? formatDuration(otMins) : "-";
+
+                    let statusLabel = "BELUM DIMULAI";
+                    let statusStyle = "background:#fef3c7;color:#b45309;";
+                    if (isRejected) {
+                        statusLabel = "IZIN TIDAK LEMBUR";
+                        statusStyle = "background:#fee2e2;color:#b91c1c;";
+                    } else if (isPendingApproval) {
+                        statusLabel = "MENUNGGU KONFIRMASI";
+                        statusStyle = "background:#fef3c7;color:#b45309;";
+                    } else if (hasStarted && !hasFinished) {
+                        statusLabel = "SEDANG BERLANGSUNG";
+                        statusStyle = "background:#ffedd5;color:#c2410c;";
+                    } else if (hasFinished) {
+                        statusLabel = "SELESAI";
+                        statusStyle = "background:#dcfce7;color:#15803d;";
+                    }
+
+                    let noteText = ot.description || "Pekerjaan Lembur";
+                    if (isRejected) {
+                        noteText = ot.rejectionReason ? `Izin: "${ot.rejectionReason}"` : "Izin Tidak Lembur";
+                    } else if (isPendingApproval) {
+                        noteText = `${ot.description || 'Penugasan Lembur'} (Menunggu Konfirmasi Karyawan)`;
+                    } else if (!hasStarted) {
+                        noteText = `${ot.description || 'Penugasan Lembur'} (Belum Dimulai)`;
+                    }
+
                     rowHtml += `<tr style="background-color: #fff7ed;">
                       <td class="col-no"><span style="color:#ea580c;font-weight:bold;">↳</span></td>
                       <td class="col-date" style="font-size:9.5px;color:#c2410c;font-weight:bold;">LEMBUR (OVERTIME)</td>
@@ -883,10 +951,10 @@ export default function RecapPage() {
                       <td class="col-time t-dash">-</td>
                       <td class="col-time t-dash">-</td>
                       <td class="col-time" style="color:#c2410c;font-weight:bold;">${otEnd}</td>
-                      <td class="col-work" style="color:#9a3412;font-weight:bold;">${isCompleted && otMins > 0 ? formatDuration(otMins) : 'Berlangsung'}</td>
+                      <td class="col-work" style="color:#9a3412;font-weight:bold;">${otDurationStr}</td>
                       <td class="col-brk">-</td>
-                      <td class="col-stat"><span style="background:#ffedd5;color:#c2410c;padding:2px 6px;border-radius:4px;font-weight:bold;font-size:9px;">${isCompleted ? 'SELESAI' : 'BERLANGSUNG'}</span></td>
-                      <td class="col-note" style="color:#9a3412;font-style:italic;">${ot.description || 'Pekerjaan Lembur'}</td>
+                      <td class="col-stat"><span style="${statusStyle}padding:2px 6px;border-radius:4px;font-weight:bold;font-size:9px;">${statusLabel}</span></td>
+                      <td class="col-note" style="color:#9a3412;font-style:italic;">${noteText}</td>
                     </tr>`;
                 }
             }
@@ -1534,16 +1602,52 @@ export default function RecapPage() {
                                                 </td>
                                             </tr>
 
-                                            {/* Sub-baris Lembur jika Super Admin & ada data lembur yang sudah dikirim bukti awal */}
+                                            {/* Sub-baris Lembur jika Super Admin & ada data lembur */}
                                             {user?.role === "superadmin" && (() => {
                                                 const ot = allOvertimes?.find(o => o.attendanceId === row.id);
-                                                if (!ot || !ot.initialProofUrl) return null;
-                                                const otStart = ot.startTime ? safeFormatDate(ot.startTime, "HH:mm") : "-";
-                                                const isCompleted = ot.status === "completed" && !!ot.finalProofUrl;
-                                                const otEnd = isCompleted && ot.endTime ? safeFormatDate(ot.endTime, "HH:mm") : "Berlangsung";
-                                                const otDurationMins = (isCompleted && ot.startTime && ot.endTime) 
+                                                if (!ot) return null;
+
+                                                const isRejected = ot.employeeApproval === "rejected";
+                                                const isPendingApproval = ot.employeeApproval === "pending";
+                                                const hasStarted = !isRejected && !isPendingApproval && !!ot.initialProofUrl && (ot.status === "ongoing" || ot.status === "completed");
+                                                const hasFinished = hasStarted && ot.status === "completed" && !!ot.finalProofUrl;
+
+                                                const otStart = hasStarted && ot.startTime ? safeFormatDate(ot.startTime, "HH:mm") : "-";
+                                                const otEnd = hasFinished && ot.endTime ? safeFormatDate(ot.endTime, "HH:mm") : "-";
+
+                                                const otDurationMins = (hasFinished && ot.startTime && ot.endTime) 
                                                     ? Math.round((new Date(ot.endTime).getTime() - new Date(ot.startTime).getTime()) / 60000)
                                                     : 0;
+                                                const otDurationStr = (hasFinished && otDurationMins > 0) ? formatDuration(otDurationMins) : "-";
+
+                                                let statusLabel = "BELUM DIMULAI";
+                                                let statusClass = "bg-amber-100 text-amber-800 border-amber-200";
+
+                                                if (isRejected) {
+                                                    statusLabel = "IZIN TIDAK LEMBUR";
+                                                    statusClass = "bg-red-100 text-red-800 border-red-200";
+                                                } else if (isPendingApproval) {
+                                                    statusLabel = "MENUNGGU KONFIRMASI";
+                                                    statusClass = "bg-amber-100 text-amber-800 border-amber-200";
+                                                } else if (!hasStarted) {
+                                                    statusLabel = "BELUM DIMULAI";
+                                                    statusClass = "bg-amber-100 text-amber-800 border-amber-200";
+                                                } else if (hasStarted && !hasFinished) {
+                                                    statusLabel = "SEDANG BERLANGSUNG";
+                                                    statusClass = "bg-orange-100 text-orange-800 border-orange-200";
+                                                } else if (hasFinished) {
+                                                    statusLabel = "SELESAI";
+                                                    statusClass = "bg-emerald-100 text-emerald-800 border-emerald-200";
+                                                }
+
+                                                let noteText = ot.description || "Lembur pekerjaan";
+                                                if (isRejected) {
+                                                    noteText = ot.rejectionReason ? `Izin: "${ot.rejectionReason}"` : "Karyawan Izin Tidak Lembur";
+                                                } else if (isPendingApproval) {
+                                                    noteText = `${ot.description || 'Penugasan Lembur'} (Menunggu Konfirmasi Karyawan)`;
+                                                } else if (!hasStarted) {
+                                                    noteText = `${ot.description || 'Penugasan Lembur'} (Belum Dimulai)`;
+                                                }
 
                                                 return (
                                                     <tr key={`ot-${row.id}`} className="bg-orange-50/50 border-b border-orange-100 hover:bg-orange-50 transition-colors">
@@ -1558,17 +1662,15 @@ export default function RecapPage() {
                                                         <td className="px-6 py-3 text-center text-xs text-slate-300">-</td>
                                                         <td className="px-6 py-3 text-center text-xs text-slate-300">-</td>
                                                         <td className="px-6 py-3 text-center font-mono font-bold text-orange-700 text-xs">{otEnd}</td>
-                                                        <td className="px-6 py-3 font-extrabold text-orange-900 text-xs">
-                                                            {isCompleted && otDurationMins > 0 ? formatDuration(otDurationMins) : "Berlangsung"}
-                                                        </td>
+                                                        <td className="px-6 py-3 font-extrabold text-orange-900 text-xs">{otDurationStr}</td>
                                                         <td className="px-6 py-3 text-center text-xs text-slate-300">-</td>
                                                         <td className="px-6 py-3 text-center">
-                                                            <span className="px-2 py-0.5 rounded text-[10px] font-extrabold uppercase bg-orange-100 text-orange-800 border border-orange-200">
-                                                                {isCompleted ? "Selesai" : "Berlangsung"}
+                                                            <span className={`px-2 py-0.5 rounded text-[10px] font-extrabold uppercase border ${statusClass}`}>
+                                                                {statusLabel}
                                                             </span>
                                                         </td>
-                                                        <td className="px-6 py-3 text-xs text-slate-600 italic truncate max-w-[180px]">
-                                                            {ot.description || "Lembur pekerjaan"}
+                                                        <td className="px-6 py-3 text-xs text-slate-600 italic truncate max-w-[180px]" title={noteText}>
+                                                            {noteText}
                                                         </td>
                                                     </tr>
                                                 );
