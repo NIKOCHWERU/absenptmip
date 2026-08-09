@@ -168,11 +168,11 @@ async function generateAndSaveSplDocument(data: {
     th { background: #f8fafc; font-weight: 700; color: #334155; width: 30%; }
     .ref-grid { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 8px; }
     .ref-card { border: 1px solid #fed7aa; border-radius: 8px; padding: 6px; background: #fff8f1; text-align: center; flex: 1; min-width: 150px; max-width: 48%; }
-    .ref-card img { max-width: 100%; max-height: 140px; object-fit: contain; border-radius: 6px; }
+    .ref-card img { max-width: 100%; max-height: 240px; height: auto; object-fit: contain; border-radius: 6px; }
     .ref-caption { font-weight: bold; font-size: 10.5px; margin: 4px 0 2px 0; color: #c2410c; }
     .proof-grid { display: flex; gap: 12px; margin-top: 8px; }
     .proof-card { flex: 1; text-align: center; border: 1px solid #cbd5e1; border-radius: 8px; padding: 6px; background: #f8fafc; }
-    .proof-card img { width: 100%; max-height: 140px; object-fit: cover; border-radius: 6px; }
+    .proof-card img { max-width: 100%; max-height: 240px; height: auto; object-fit: contain; border-radius: 6px; }
     .footer { margin-top: 16px; text-align: center; font-size: 9.5px; color: #94a3b8; border-top: 1px solid #e2e8f0; padding-top: 8px; }
     @media print {
       html, body { background: white; }

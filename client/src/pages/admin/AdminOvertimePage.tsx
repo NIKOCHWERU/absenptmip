@@ -1444,11 +1444,11 @@ export default function AdminOvertimePage() {
                       <ImageIcon className="w-3.5 h-3.5 text-blue-600" /> Foto Awal Mulai Lembur
                     </span>
                     {viewDetail.initialProofUrl ? (
-                      <div className="border rounded-xl overflow-hidden h-36 bg-gray-100">
-                        <img src={viewDetail.initialProofUrl} alt="Awal Lembur" className="w-full h-full object-cover" />
+                      <div className="border rounded-xl overflow-hidden h-40 bg-slate-900/5 flex items-center justify-center">
+                        <img src={viewDetail.initialProofUrl} alt="Awal Lembur" className="w-full h-full object-contain" />
                       </div>
                     ) : (
-                      <div className="border border-dashed rounded-xl h-36 flex items-center justify-center text-gray-400 italic">
+                      <div className="border border-dashed rounded-xl h-40 flex items-center justify-center text-gray-400 italic">
                         Belum diupload
                       </div>
                     )}
@@ -1459,8 +1459,8 @@ export default function AdminOvertimePage() {
                       <ImageIcon className="w-3.5 h-3.5 text-emerald-600" /> Foto Hasil Selesai Lembur
                     </span>
                     {viewDetail.finalProofUrl ? (
-                      <div className="border rounded-xl overflow-hidden h-36 bg-gray-100">
-                        <img src={viewDetail.finalProofUrl} alt="Hasil Selesai Lembur" className="w-full h-full object-cover" />
+                      <div className="border rounded-xl overflow-hidden h-40 bg-slate-900/5 flex items-center justify-center">
+                        <img src={viewDetail.finalProofUrl} alt="Hasil Selesai Lembur" className="w-full h-full object-contain" />
                       </div>
                     ) : (
                       <div className="border border-dashed rounded-xl h-36 flex items-center justify-center text-gray-400 italic">

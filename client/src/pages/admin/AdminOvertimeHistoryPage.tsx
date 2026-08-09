@@ -582,7 +582,7 @@ export default function AdminOvertimeHistoryPage() {
                                         <ImageIcon className="w-3.5 h-3.5 text-gray-500" /> 2. Foto Awal Lembur
                                     </div>
                                     {viewDetail.initialProofUrl ? (
-                                        <img src={resolveFileUrl(viewDetail.initialProofUrl)} alt="Foto Awal" className="h-28 w-full object-cover rounded-lg border border-gray-200" />
+                                        <img src={resolveFileUrl(viewDetail.initialProofUrl)} alt="Foto Awal" className="h-32 w-full object-contain bg-slate-900/5 rounded-lg border border-gray-200" />
                                     ) : (
                                         <div className="h-28 bg-gray-100 rounded-lg flex items-center justify-center text-gray-400 text-xs italic border border-dashed">
                                             Belum diupload
@@ -596,7 +596,7 @@ export default function AdminOvertimeHistoryPage() {
                                         <ImageIcon className="w-3.5 h-3.5 text-emerald-600" /> 3. Dokumentasi Hasil
                                     </div>
                                     {viewDetail.finalProofUrl ? (
-                                        <img src={resolveFileUrl(viewDetail.finalProofUrl)} alt="Foto Hasil" className="h-28 w-full object-cover rounded-lg border border-gray-200" />
+                                        <img src={resolveFileUrl(viewDetail.finalProofUrl)} alt="Foto Hasil" className="h-32 w-full object-contain bg-slate-900/5 rounded-lg border border-gray-200" />
                                     ) : (
                                         <div className="h-28 bg-gray-100 rounded-lg flex items-center justify-center text-gray-400 text-xs italic border border-dashed">
                                             Belum diupload / Ongoing
