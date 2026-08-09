@@ -386,67 +386,218 @@ export default function AdminOvertimePage() {
   const pendingCount = overtimesList?.filter(o => o.employeeApproval === 'pending').length || 0;
   const completedCount = overtimesList?.filter(o => o.status === 'completed').length || 0;
 
-  const handlePrintSpl = (item: any) => {
-    const printWindow = window.open("", "_blank");
-    if (!printWindow) return;
-
+  const handlePrintSpl = async (item: any) => {
     const empName = item.fullName || "Karyawan";
     const empNik = item.nik || "-";
     const empPos = item.position || "Operator / Staf";
+    const empBranch = item.branch || namaPt;
     const { rangeStr, durationStr } = formatOvertimeRange(item.startTime, item.endTime);
+    const splNo = item.splNumber || `SPL/MIP/${format(new Date(item.createdAt || new Date()), 'yyyyMMdd')}/${String(item.id || '001').padStart(3, '0')}`;
+    const otDateStr = item.date ? format(new Date(item.date), "EEEE, d MMMM yyyy", { locale: id }) : "-";
+    const startHhMm = item.startTime ? format(new Date(item.startTime), "HH:mm") : "-";
+    const endHhMm = item.endTime ? format(new Date(item.endTime), "HH:mm") : (item.status === "ongoing" ? "Berlangsung" : "-");
+    const publishedAt = format(new Date(item.createdAt || new Date()), "EEEE, d MMMM yyyy, 'pukul' HH.mm 'WIB'", { locale: id });
 
-    const htmlContent = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="utf-8">
-        <title>SURAT PERINTAH LEMBUR - ${empName}</title>
-        <style>
-          body { font-family: 'Times New Roman', serif; padding: 40px; color: #000; line-height: 1.5; }
-          .header { display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid #000; padding-bottom: 15px; margin-bottom: 20px; }
-          .company-name { font-size: 20px; font-weight: bold; text-transform: uppercase; }
-          .title { text-align: center; font-size: 16px; font-weight: bold; margin-bottom: 20px; text-decoration: underline; }
-          table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-          td { padding: 6px 0; vertical-align: top; }
-          .label { width: 180px; font-weight: bold; }
-          .colon { width: 20px; font-weight: bold; text-align: center; }
-          .sig-container { display: flex; justify-content: space-between; margin-top: 50px; text-align: center; }
-          .sig-box { width: 200px; }
-          .sig-line { margin-top: 60px; border-top: 1px solid #000; font-weight: bold; }
-        </style>
-      </head>
-      <body>
-        <div class="header">
-          <div>
-            <div class="company-name">${namaPt}</div>
-            <div style="font-size: 11px; color: #555;">Sistem Manajemen Kehadiran & Lembur Terintegrasi</div>
-          </div>
+    const logoUrl = (config?.logoUrl && config.logoUrl !== "/logo_elok_buah.jpg") ? config.logoUrl : "/icon-192.png";
+    const alamatPt = config?.alamatPt || "";
+
+    let logoDataUrl = "";
+    try {
+      const logoRes = await fetch(logoUrl);
+      const logoBlob = await logoRes.blob();
+      logoDataUrl = await new Promise<string>((resolve) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = () => resolve("");
+        reader.readAsDataURL(logoBlob);
+      });
+    } catch (_) {}
+
+    let statusLabel = "MENUNGGU KONFIRMASI";
+    let statusColor = "#b45309";
+    let statusBg = "#fefce8";
+    let statusDesc = "Penugasan lembur telah diterbitkan dan sedang menunggu respon persetujuan dari karyawan.";
+    if (item.employeeApproval === "approved") {
+      statusLabel = "DISETUJUI KARYAWAN";
+      statusColor = "#15803d";
+      statusBg = "#f0fdf4";
+      statusDesc = "Instruksi lembur telah disetujui dan dikonfirmasi oleh karyawan yang bersangkutan.";
+    } else if (item.employeeApproval === "rejected") {
+      statusLabel = "IZIN TIDAK LEMBUR";
+      statusColor = "#b91c1c";
+      statusBg = "#fef2f2";
+      statusDesc = `Karyawan mengajukan izin tidak dapat melaksanakan lembur${item.rejectionReason ? `: "${item.rejectionReason}"` : "."}`;
+    }
+
+    const htmlContent = `<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=794, initial-scale=0.45, maximum-scale=5.0, user-scalable=yes">
+  <title>Surat Perintah Lembur - ${namaPt}</title>
+  <style>
+    @page { size: A4; margin: 8mm; }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0; padding: 0;
+      background: #525659;
+      min-height: 100vh;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      color: #1e293b;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+    }
+    .page-wrapper { padding: 16px; width: 100%; display: flex; justify-content: center; }
+    .card {
+      width: 760px; min-width: 760px;
+      background: #ffffff;
+      border-radius: 8px;
+      padding: 24px 28px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+      box-sizing: border-box;
+      margin: 0 auto;
+    }
+    /* Kop Surat */
+    .letterhead { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+    .logo-img { height: 50px; max-width: 140px; object-fit: contain; flex-shrink: 0; }
+    .company-block { text-align: right; flex-grow: 1; margin-left: 15px; }
+    .company-block h1 { font-size: 19px; font-weight: 900; text-transform: uppercase; margin: 0 0 2px 0; color: #0f172a; letter-spacing: 0.5px; }
+    .company-block .alamat { font-size: 11px; color: #475569; line-height: 1.3; }
+    .hr-thick { border: none; border-top: 2.5px solid #0f172a; margin: 6px 0 2px; }
+    .hr-thin { border: none; border-top: 1px solid #cbd5e1; margin-bottom: 14px; }
+    /* Judul */
+    .doc-title { text-align: center; margin: 12px 0 4px 0; }
+    .doc-title h2 { margin: 0 0 4px 0; font-size: 16px; font-weight: 900; color: #1e40af; text-transform: uppercase; text-decoration: underline; letter-spacing: 1px; }
+    .doc-no { text-align: center; font-size: 12px; font-weight: 700; color: #374151; margin-bottom: 14px; }
+    /* Pembuka */
+    .opening-text { font-size: 11.5px; text-align: justify; margin-bottom: 12px; line-height: 1.5; color: #334155; background: #f8fafc; padding: 8px 12px; border-radius: 6px; border-left: 3px solid #0f172a; }
+    /* Seksi */
+    .section-title { background: #eff6ff; color: #1e40af; font-weight: 800; padding: 5px 12px; font-size: 11px; text-transform: uppercase; border-left: 4px solid #2563eb; border-radius: 3px; margin: 14px 0 8px 0; }
+    /* Tabel */
+    table { width: 100%; border-collapse: collapse; margin-bottom: 10px; font-size: 11.5px; }
+    th, td { border: 1px solid #cbd5e1; padding: 6px 10px; text-align: left; vertical-align: top; }
+    th { background: #f8fafc; font-weight: 700; color: #334155; width: 30%; }
+    /* Status */
+    .status-section { margin: 14px 0; text-align: center; }
+    .status-badge { display: inline-block; border: 2px solid ${statusColor}; color: ${statusColor}; background: ${statusBg}; padding: 5px 18px; font-size: 13px; font-weight: 900; border-radius: 4px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px; }
+    .status-desc { font-size: 10.5px; font-style: italic; color: #4b5563; max-width: 500px; margin: 0 auto; line-height: 1.3; }
+    /* Penutup */
+    .closing-text { font-size: 11.5px; text-align: justify; margin-bottom: 20px; line-height: 1.5; color: #334155; }
+    /* TTD */
+    .signature-section { display: flex; justify-content: center; gap: 80px; margin-top: 30px; }
+    .sig-box { text-align: center; width: 200px; }
+    .sig-label { font-size: 12px; margin-bottom: 60px; }
+    .sig-name { font-size: 12px; font-weight: 900; text-transform: uppercase; border-top: 1.5px solid #000; padding-top: 3px; display: inline-block; min-width: 150px; }
+    .sig-desc { font-size: 11px; color: #4b5563; margin-top: 2px; }
+    /* Footer */
+    .footer { margin-top: 16px; text-align: center; font-size: 9.5px; color: #94a3b8; border-top: 1px solid #e2e8f0; padding-top: 8px; }
+    /* Print btn */
+    .btn-wrap { text-align: center; margin-top: 16px; }
+    .print-btn { display: inline-flex; align-items: center; gap: 8px; background: #1e40af; color: #fff; border: none; padding: 9px 22px; border-radius: 6px; font-size: 12px; font-weight: 700; cursor: pointer; letter-spacing: 0.3px; }
+    .print-btn:hover { background: #1d4ed8; }
+    @media print {
+      html, body { background: white; }
+      .page-wrapper { padding: 0; }
+      .card { border: none; padding: 0; box-shadow: none; width: 100%; min-width: unset; }
+      .btn-wrap { display: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page-wrapper">
+    <div class="card">
+
+      <!-- Kop Surat -->
+      <div class="letterhead">
+        ${logoDataUrl ? `<img src="${logoDataUrl}" class="logo-img" alt="Logo Perusahaan" />` : ""}
+        <div class="company-block">
+          <h1>${namaPt}</h1>
+          ${alamatPt ? `<div class="alamat">${alamatPt}</div>` : `<div class="alamat">Sistem Manajemen Kehadiran &amp; Tenaga Kerja Digital</div>`}
         </div>
-        <div class="title">SURAT PERINTAH LEMBUR (SPL)</div>
-        <div style="font-size: 12px; font-weight: bold; text-align: right; margin-bottom: 15px;">No: ${item.splNumber || `SPL/MIP/${format(new Date(), 'yyyyMMdd')}/001`}</div>
-        <p>Berdasarkan kebutuhan operasional perusahaan, dengan ini Manajer HRD memberikan instruksi lembur kepada:</p>
-        <table>
-          <tr><td class="label">Nama Karyawan</td><td class="colon">:</td><td><strong>${empName}</strong></td></tr>
-          <tr><td class="label">NIK Karyawan</td><td class="colon">:</td><td>${empNik}</td></tr>
-          <tr><td class="label">Jabatan / Bagian</td><td class="colon">:</td><td>${empPos}</td></tr>
-          <tr><td class="label">Periode Lembur</td><td class="colon">:</td><td><strong>${rangeStr}</strong></td></tr>
-          <tr><td class="label">Estimasi Durasi</td><td class="colon">:</td><td><strong>${durationStr}</strong></td></tr>
-          <tr><td class="label">Uraian Pekerjaan</td><td class="colon">:</td><td>${item.description || 'Pekerjaan Lembur'}</td></tr>
-          <tr><td class="label">Status Persetujuan</td><td class="colon">:</td><td><strong>${item.employeeApproval === 'approved' ? 'DISETUJUI KARYAWAN' : item.employeeApproval === 'rejected' ? 'DITOLAK / IZIN TIDAK LEMBUR' : 'MENUNGGU KONFIRMASI'}</strong></td></tr>
-        </table>
-        <p>Demikian Surat Perintah Lembur ini diterbitkan untuk dilaksanakan sebagaimana mestinya dengan penuh tanggung jawab.</p>
-        <div class="sig-container">
-          <div class="sig-box"><p>Pemberi Tugas,</p><div class="sig-line">SUPER ADMIN HRD</div></div>
-          <div class="sig-box"><p>Penerima Tugas,</p><div class="sig-line">${empName}</div></div>
+      </div>
+      <hr class="hr-thick" />
+      <hr class="hr-thin" />
+
+      <!-- Judul Dokumen -->
+      <div class="doc-title">
+        <h2>SURAT PERINTAH LEMBUR (SPL)</h2>
+      </div>
+      <div class="doc-no">Nomor: ${splNo}</div>
+
+      <!-- Paragraf pembuka -->
+      <div class="opening-text">
+        Dengan ini Manajemen / Pimpinan <strong>${namaPt}</strong> memberikan Perintah Kerja Lembur kepada Tenaga Kerja / Penerima Perintah tersebut di bawah ini untuk melaksanakan tugas/pekerjaan lembur sesuai dengan rincian instruksi berikut:
+      </div>
+
+      <!-- Seksi I: Identitas Karyawan -->
+      <div class="section-title">I. IDENTITAS TENAGA KERJA / PENERIMA PERINTAH</div>
+      <table>
+        <tr><th>Nama Karyawan</th><td><strong style="font-size:12px; color:#0f172a;">${empName}</strong></td></tr>
+        <tr><th>Nomor Induk Karyawan (NIK)</th><td><strong>${empNik}</strong></td></tr>
+        <tr><th>Jabatan / Posisi</th><td>${empPos}</td></tr>
+        <tr><th>Cabang / Unit Kerja</th><td>${empBranch}</td></tr>
+      </table>
+
+      <!-- Seksi II: Rincian Penugasan -->
+      <div class="section-title">II. RINCIAN INSTRUKSI PENUGASAN LEMBUR</div>
+      <table>
+        <tr><th>Tanggal Diterbitkan</th><td>${publishedAt}</td></tr>
+        <tr><th>Hari &amp; Tanggal Lembur</th><td><strong>${otDateStr}</strong></td></tr>
+        <tr><th>Waktu Lembur</th><td><strong style="color:#ea580c;">${startHhMm} s.d. ${endHhMm} WIB</strong></td></tr>
+        <tr><th>Estimasi Durasi</th><td><strong>${durationStr}</strong></td></tr>
+        <tr><th>Uraian Tugas / Instruksi</th><td><em>"${item.description || "Pelaksanaan Pekerjaan Lembur Operasional"}"</em></td></tr>
+      </table>
+
+      <!-- Status Persetujuan -->
+      <div class="status-section">
+        <div style="font-size:11px; font-weight:700; text-transform:uppercase; margin-bottom:6px; color:#374151;">Status Persetujuan Karyawan</div>
+        <div class="status-badge">${statusLabel}</div><br>
+        <span class="status-desc">(${statusDesc})</span>
+      </div>
+
+      <!-- Penutup -->
+      <p class="closing-text">
+        Demikian Surat Perintah Lembur (SPL) ini diterbitkan melalui Sistem Manajemen Kehadiran &amp; Tenaga Kerja Digital <strong>${namaPt}</strong> untuk dilaksanakan sebagaimana mestinya dengan penuh tanggung jawab.
+      </p>
+
+      <!-- Tanda Tangan -->
+      <div class="signature-section">
+        <div class="sig-box">
+          <div class="sig-label">Pemberi Tugas,</div>
+          <div class="sig-name">SUPER ADMIN HRD</div>
+          <div class="sig-desc">Manajemen HRD</div>
         </div>
-        <script>
-          window.onload = function() { window.print(); }
-        </script>
-      </body>
-      </html>
-    `;
-    printWindow.document.write(htmlContent);
-    printWindow.document.close();
+        <div class="sig-box">
+          <div class="sig-label">Penerima Tugas,</div>
+          <div class="sig-name">${empName.toUpperCase()}</div>
+          <div class="sig-desc">Karyawan</div>
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div class="footer">
+        Dokumen Surat Perintah Lembur ini secara otomatis dibuat resmi dan sah melalui Sistem Informasi Absensi ${namaPt}.
+      </div>
+
+      <!-- Tombol Cetak (tersembunyi saat print) -->
+      <div class="btn-wrap">
+        <button class="print-btn" onclick="window.print()">🖨️ Cetak / Simpan PDF</button>
+      </div>
+
+    </div>
+  </div>
+  <script>
+    window.onload = function() {
+      setTimeout(function() { window.print(); }, 500);
+    };
+  </script>
+</body>
+</html>`;
+
+    const blob = new Blob([htmlContent], { type: "text/html;charset=utf-8" });
+    const blobUrl = URL.createObjectURL(blob);
+    window.open(blobUrl, "_blank");
   };
 
   return (
