@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { User, Attendance } from "@shared/schema";
+import { User, Attendance, Shift } from "@shared/schema";
 import { format, subMonths, addMonths, isSameMonth, setDate, isAfter, isBefore, isEqual, startOfWeek, endOfWeek, startOfDay, endOfDay, subDays, addDays } from "date-fns";
 import { id } from "date-fns/locale";
 import React, { useState, useEffect, Fragment } from "react";
@@ -157,6 +157,10 @@ export default function RecapPage() {
 
     const { data: allOvertimes } = useQuery<any[]>({
         queryKey: ["/api/admin/overtimes"],
+    });
+
+    const { data: allShifts } = useQuery<Shift[]>({
+        queryKey: ["/api/shifts"],
     });
 
     const [showOvertimeInput, setShowOvertimeInput] = useState(false);
@@ -1766,11 +1770,21 @@ export default function RecapPage() {
                                     <SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="-">Belum Tercatat (Default)</SelectItem>
-                                        <SelectItem value="Shift 1">Shift 1 (07:00 - 17:00)</SelectItem>
-                                        <SelectItem value="Shift 2 (Middle)">Shift 2 (Middle) (11:00 - 21:00)</SelectItem>
-                                        <SelectItem value="Shift 3">Shift 3 (13:00 - 23:00)</SelectItem>
-                                        <SelectItem value="Long Shift">Long Shift (07:00 - 23:00)</SelectItem>
-                                        <SelectItem value="Kasir Long Shift">Kasir Long Shift (11:00 - 23:00)</SelectItem>
+                                        {allShifts && allShifts.length > 0 ? (
+                                            allShifts.map((s) => (
+                                                <SelectItem key={s.id} value={s.name}>
+                                                    {s.name} ({s.checkInTime} - {s.checkOutTime})
+                                                </SelectItem>
+                                            ))
+                                        ) : (
+                                            <>
+                                                <SelectItem value="Shift 1">Shift 1 (07:00 - 17:00)</SelectItem>
+                                                <SelectItem value="Shift 2 (Middle)">Shift 2 (Middle) (11:00 - 21:00)</SelectItem>
+                                                <SelectItem value="Shift 3">Shift 3 (13:00 - 23:00)</SelectItem>
+                                                <SelectItem value="Long Shift">Long Shift (07:00 - 23:00)</SelectItem>
+                                                <SelectItem value="Kasir Long Shift">Kasir Long Shift (11:00 - 23:00)</SelectItem>
+                                            </>
+                                        )}
                                     </SelectContent>
                                 </Select>
                             </div>
