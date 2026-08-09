@@ -1790,44 +1790,40 @@ export default function RecapPage() {
                             </div>
                         </div>
                         <div className="grid grid-cols-2 gap-4">
-                            <Input type="text" maxLength={5} value={manualEntry.checkIn} onChange={(e) => {
-                                let val = e.target.value.replace(/\D/g, '');
-                                if (val.length > 4) val = val.substring(0, 4);
-                                let h = val.substring(0, 2); let m = val.substring(2, 4);
-                                if (h.length === 2 && parseInt(h) > 23) h = '23';
-                                if (m.length === 2 && parseInt(m) > 59) m = '59';
-                                let formatted = h; if (val.length >= 2) formatted += (val.length > 2 || e.target.value.includes(':')) ? ':' + m : '';
-                                setManualEntry(prev => ({ ...prev, checkIn: formatted }));
-                            }} placeholder="Masuk (HH:MM)" />
-                            <Input type="text" maxLength={5} value={manualEntry.checkOut} onChange={(e) => {
-                                let val = e.target.value.replace(/\D/g, '');
-                                if (val.length > 4) val = val.substring(0, 4);
-                                let h = val.substring(0, 2); let m = val.substring(2, 4);
-                                if (h.length === 2 && parseInt(h) > 23) h = '23';
-                                if (m.length === 2 && parseInt(m) > 59) m = '59';
-                                let formatted = h; if (val.length >= 2) formatted += (val.length > 2 || e.target.value.includes(':')) ? ':' + m : '';
-                                setManualEntry(prev => ({ ...prev, checkOut: formatted }));
-                            }} placeholder="Pulang (HH:MM)" />
+                            <div className="space-y-1">
+                                <Label className="text-[11px] text-slate-700 font-semibold block">Masuk (24 Jam)</Label>
+                                <TimePicker24h
+                                    value={manualEntry.checkIn}
+                                    onChange={(val) => setManualEntry(prev => ({ ...prev, checkIn: val }))}
+                                    placeholder="Masuk (07:00)"
+                                />
+                            </div>
+                            <div className="space-y-1">
+                                <Label className="text-[11px] text-slate-700 font-semibold block">Pulang (24 Jam)</Label>
+                                <TimePicker24h
+                                    value={manualEntry.checkOut}
+                                    onChange={(val) => setManualEntry(prev => ({ ...prev, checkOut: val }))}
+                                    placeholder="Pulang (17:00)"
+                                />
+                            </div>
                         </div>
                         <div className="grid grid-cols-2 gap-4">
-                            <Input type="text" maxLength={5} value={manualEntry.breakStart} onChange={(e) => {
-                                let val = e.target.value.replace(/\D/g, '');
-                                if (val.length > 4) val = val.substring(0, 4);
-                                let h = val.substring(0, 2); let m = val.substring(2, 4);
-                                if (h.length === 2 && parseInt(h) > 23) h = '23';
-                                if (m.length === 2 && parseInt(m) > 59) m = '59';
-                                let formatted = h; if (val.length >= 2) formatted += (val.length > 2 || e.target.value.includes(':')) ? ':' + m : '';
-                                setManualEntry(prev => ({ ...prev, breakStart: formatted }));
-                            }} placeholder="Mulai Istirahat (HH:MM)" />
-                            <Input type="text" maxLength={5} value={manualEntry.breakEnd} onChange={(e) => {
-                                let val = e.target.value.replace(/\D/g, '');
-                                if (val.length > 4) val = val.substring(0, 4);
-                                let h = val.substring(0, 2); let m = val.substring(2, 4);
-                                if (h.length === 2 && parseInt(h) > 23) h = '23';
-                                if (m.length === 2 && parseInt(m) > 59) m = '59';
-                                let formatted = h; if (val.length >= 2) formatted += (val.length > 2 || e.target.value.includes(':')) ? ':' + m : '';
-                                setManualEntry(prev => ({ ...prev, breakEnd: formatted }));
-                            }} placeholder="Selesai Istirahat (HH:MM)" />
+                            <div className="space-y-1">
+                                <Label className="text-[11px] text-slate-700 font-semibold block">Mulai Istirahat (24 Jam)</Label>
+                                <TimePicker24h
+                                    value={manualEntry.breakStart}
+                                    onChange={(val) => setManualEntry(prev => ({ ...prev, breakStart: val }))}
+                                    placeholder="Mulai Istirahat (12:00)"
+                                />
+                            </div>
+                            <div className="space-y-1">
+                                <Label className="text-[11px] text-slate-700 font-semibold block">Selesai Istirahat (24 Jam)</Label>
+                                <TimePicker24h
+                                    value={manualEntry.breakEnd}
+                                    onChange={(val) => setManualEntry(prev => ({ ...prev, breakEnd: val }))}
+                                    placeholder="Selesai Istirahat (13:00)"
+                                />
+                            </div>
                         </div>
                         <Select value={manualEntry.status} onValueChange={(v) => setManualEntry(prev => ({ ...prev, status: v }))}>
                             <SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger>
