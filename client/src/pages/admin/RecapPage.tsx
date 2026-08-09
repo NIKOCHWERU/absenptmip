@@ -568,13 +568,14 @@ export default function RecapPage() {
           <td class="col-note">${keterangan}${lateNote}</td>
         </tr>`;
 
-            // Baris Lembur jika Super Admin & ada lembur di record ini
+            // Baris Lembur jika Super Admin & ada lembur yang sudah dimulai (punya bukti awal)
             if (user?.role === "superadmin") {
                 const ot = allOvertimes?.find(o => o.attendanceId === row.id);
-                if (ot) {
+                if (ot && ot.initialProofUrl) {
                     const otStart = ot.startTime ? format(new Date(ot.startTime), "HH:mm") : "-";
-                    const otEnd = ot.endTime ? format(new Date(ot.endTime), "HH:mm") : (ot.status === "ongoing" ? "Berlangsung" : "-");
-                    const otMins = (ot.startTime && ot.endTime) ? Math.round((new Date(ot.endTime).getTime() - new Date(ot.startTime).getTime()) / 60000) : 0;
+                    const isCompleted = ot.status === "completed" && !!ot.finalProofUrl;
+                    const otEnd = isCompleted && ot.endTime ? format(new Date(ot.endTime), "HH:mm") : "Berlangsung";
+                    const otMins = (isCompleted && ot.startTime && ot.endTime) ? Math.round((new Date(ot.endTime).getTime() - new Date(ot.startTime).getTime()) / 60000) : 0;
                     rowHtml += `<tr style="background-color: #fff7ed;">
                       <td class="col-no"><span style="color:#ea580c;font-weight:bold;">↳</span></td>
                       <td class="col-date" style="font-size:9.5px;color:#c2410c;font-weight:bold;">LEMBUR (OVERTIME)</td>
@@ -583,9 +584,9 @@ export default function RecapPage() {
                       <td class="col-time t-dash">-</td>
                       <td class="col-time t-dash">-</td>
                       <td class="col-time" style="color:#c2410c;font-weight:bold;">${otEnd}</td>
-                      <td class="col-work" style="color:#9a3412;font-weight:bold;">${otMins > 0 ? formatDuration(otMins) : 'Berlangsung'}</td>
+                      <td class="col-work" style="color:#9a3412;font-weight:bold;">${isCompleted && otMins > 0 ? formatDuration(otMins) : 'Berlangsung'}</td>
                       <td class="col-brk">-</td>
-                      <td class="col-stat"><span style="background:#ffedd5;color:#c2410c;padding:2px 6px;border-radius:4px;font-weight:bold;font-size:9px;">LEMBUR</span></td>
+                      <td class="col-stat"><span style="background:#ffedd5;color:#c2410c;padding:2px 6px;border-radius:4px;font-weight:bold;font-size:9px;">${isCompleted ? 'SELESAI' : 'BERLANGSUNG'}</span></td>
                       <td class="col-note" style="color:#9a3412;font-style:italic;">${ot.description || 'Pekerjaan Lembur'}</td>
                     </tr>`;
                 }
@@ -629,14 +630,16 @@ export default function RecapPage() {
                             userSummary.breakdown.push(`<span style="color:#dc2626;font-weight:600;">${dateStr}</span> : <span style="color:#b91c1c;">Absensi belum lengkap</span>`);
                         }
 
-                        // hitung lembur per hari jika ada
+                        // hitung lembur per hari jika ada (hanya jika sudah selesai dan ada bukti akhir)
                         if (user?.role === "superadmin") {
                             dayRecords.forEach(r => {
                                 const ot = allOvertimes?.find(o => o.attendanceId === r.id);
-                                if (ot && ot.startTime && ot.endTime) {
+                                if (ot && ot.initialProofUrl && ot.status === "completed" && ot.finalProofUrl && ot.startTime && ot.endTime) {
                                     const otMins = Math.round((new Date(ot.endTime).getTime() - new Date(ot.startTime).getTime()) / 60000);
-                                    userSummary.totalOtMins += otMins;
-                                    userSummary.breakdown.push(`<span style="color:#c2410c;font-weight:700;">↳ Lembur ( Overtime ) ${dateStr}</span> : ${format(new Date(ot.startTime), "HH.mm")} - ${format(new Date(ot.endTime), "HH.mm")} (${formatDuration(otMins)}) - ${ot.description || 'Pekerjaan Lembur'}`);
+                                    if (otMins > 0) {
+                                        userSummary.totalOtMins += otMins;
+                                        userSummary.breakdown.push(`<span style="color:#c2410c;font-weight:700;">↳ Lembur ( Overtime ) ${dateStr}</span> : ${format(new Date(ot.startTime), "HH.mm")} - ${format(new Date(ot.endTime), "HH.mm")} (${formatDuration(otMins)}) - ${ot.description || 'Pekerjaan Lembur'}`);
+                                    }
                                 }
                             });
                         }
@@ -867,10 +870,11 @@ export default function RecapPage() {
 
             if (user?.role === "superadmin") {
                 const ot = allOvertimes?.find(o => o.attendanceId === row.id);
-                if (ot) {
+                if (ot && ot.initialProofUrl) {
                     const otStart = ot.startTime ? format(new Date(ot.startTime), "HH:mm") : "-";
-                    const otEnd = ot.endTime ? format(new Date(ot.endTime), "HH:mm") : (ot.status === "ongoing" ? "Berlangsung" : "-");
-                    const otMins = (ot.startTime && ot.endTime) ? Math.round((new Date(ot.endTime).getTime() - new Date(ot.startTime).getTime()) / 60000) : 0;
+                    const isCompleted = ot.status === "completed" && !!ot.finalProofUrl;
+                    const otEnd = isCompleted && ot.endTime ? format(new Date(ot.endTime), "HH:mm") : "Berlangsung";
+                    const otMins = (isCompleted && ot.startTime && ot.endTime) ? Math.round((new Date(ot.endTime).getTime() - new Date(ot.startTime).getTime()) / 60000) : 0;
                     rowHtml += `<tr style="background-color: #fff7ed;">
                       <td class="col-no"><span style="color:#ea580c;font-weight:bold;">↳</span></td>
                       <td class="col-date" style="font-size:9.5px;color:#c2410c;font-weight:bold;">LEMBUR (OVERTIME)</td>
@@ -879,9 +883,9 @@ export default function RecapPage() {
                       <td class="col-time t-dash">-</td>
                       <td class="col-time t-dash">-</td>
                       <td class="col-time" style="color:#c2410c;font-weight:bold;">${otEnd}</td>
-                      <td class="col-work" style="color:#9a3412;font-weight:bold;">${otMins > 0 ? formatDuration(otMins) : 'Berlangsung'}</td>
+                      <td class="col-work" style="color:#9a3412;font-weight:bold;">${isCompleted && otMins > 0 ? formatDuration(otMins) : 'Berlangsung'}</td>
                       <td class="col-brk">-</td>
-                      <td class="col-stat"><span style="background:#ffedd5;color:#c2410c;padding:2px 6px;border-radius:4px;font-weight:bold;font-size:9px;">LEMBUR</span></td>
+                      <td class="col-stat"><span style="background:#ffedd5;color:#c2410c;padding:2px 6px;border-radius:4px;font-weight:bold;font-size:9px;">${isCompleted ? 'SELESAI' : 'BERLANGSUNG'}</span></td>
                       <td class="col-note" style="color:#9a3412;font-style:italic;">${ot.description || 'Pekerjaan Lembur'}</td>
                     </tr>`;
                 }
@@ -927,10 +931,12 @@ export default function RecapPage() {
                 if (user?.role === "superadmin") {
                     dayRecords.forEach(r => {
                         const ot = allOvertimes?.find(o => o.attendanceId === r.id);
-                        if (ot && ot.startTime && ot.endTime) {
+                        if (ot && ot.initialProofUrl && ot.status === "completed" && ot.finalProofUrl && ot.startTime && ot.endTime) {
                             const otMins = Math.round((new Date(ot.endTime).getTime() - new Date(ot.startTime).getTime()) / 60000);
-                            userSummary.totalOtMins += otMins;
-                            userSummary.breakdown.push(`<span style="color:#c2410c;font-weight:700;">↳ Lembur ( Overtime ) ${dateStr}</span> : ${format(new Date(ot.startTime), "HH.mm")} - ${format(new Date(ot.endTime), "HH.mm")} (${formatDuration(otMins)}) - ${ot.description || 'Pekerjaan Lembur'}`);
+                            if (otMins > 0) {
+                                userSummary.totalOtMins += otMins;
+                                userSummary.breakdown.push(`<span style="color:#c2410c;font-weight:700;">↳ Lembur ( Overtime ) ${dateStr}</span> : ${format(new Date(ot.startTime), "HH.mm")} - ${format(new Date(ot.endTime), "HH.mm")} (${formatDuration(otMins)}) - ${ot.description || 'Pekerjaan Lembur'}`);
+                            }
                         }
                     });
                 }
@@ -1528,13 +1534,14 @@ export default function RecapPage() {
                                                 </td>
                                             </tr>
 
-                                            {/* Sub-baris Lembur jika Super Admin & ada data lembur */}
+                                            {/* Sub-baris Lembur jika Super Admin & ada data lembur yang sudah dikirim bukti awal */}
                                             {user?.role === "superadmin" && (() => {
                                                 const ot = allOvertimes?.find(o => o.attendanceId === row.id);
-                                                if (!ot) return null;
+                                                if (!ot || !ot.initialProofUrl) return null;
                                                 const otStart = ot.startTime ? safeFormatDate(ot.startTime, "HH:mm") : "-";
-                                                const otEnd = ot.endTime ? safeFormatDate(ot.endTime, "HH:mm") : (ot.status === "ongoing" ? "Berlangsung" : "-");
-                                                const otDurationMins = (ot.startTime && ot.endTime) 
+                                                const isCompleted = ot.status === "completed" && !!ot.finalProofUrl;
+                                                const otEnd = isCompleted && ot.endTime ? safeFormatDate(ot.endTime, "HH:mm") : "Berlangsung";
+                                                const otDurationMins = (isCompleted && ot.startTime && ot.endTime) 
                                                     ? Math.round((new Date(ot.endTime).getTime() - new Date(ot.startTime).getTime()) / 60000)
                                                     : 0;
 
@@ -1552,12 +1559,12 @@ export default function RecapPage() {
                                                         <td className="px-6 py-3 text-center text-xs text-slate-300">-</td>
                                                         <td className="px-6 py-3 text-center font-mono font-bold text-orange-700 text-xs">{otEnd}</td>
                                                         <td className="px-6 py-3 font-extrabold text-orange-900 text-xs">
-                                                            {otDurationMins > 0 ? formatDuration(otDurationMins) : "Berlangsung"}
+                                                            {isCompleted && otDurationMins > 0 ? formatDuration(otDurationMins) : "Berlangsung"}
                                                         </td>
                                                         <td className="px-6 py-3 text-center text-xs text-slate-300">-</td>
                                                         <td className="px-6 py-3 text-center">
                                                             <span className="px-2 py-0.5 rounded text-[10px] font-extrabold uppercase bg-orange-100 text-orange-800 border border-orange-200">
-                                                                {ot.status === "completed" ? "Selesai" : "Berlangsung"}
+                                                                {isCompleted ? "Selesai" : "Berlangsung"}
                                                             </span>
                                                         </td>
                                                         <td className="px-6 py-3 text-xs text-slate-600 italic truncate max-w-[180px]">

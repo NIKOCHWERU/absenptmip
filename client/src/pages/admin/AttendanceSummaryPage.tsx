@@ -141,8 +141,8 @@ export default function AttendanceSummaryPage() {
         const permission = empAttendance.filter(a => a.status === 'permission').length;
         const off = empAttendance.filter(a => a.status === 'off').length;
 
-        // Lembur calculation:
-        const empOvertimes = allOvertimes?.filter(o => o.userId === emp.id && isDateInRange(new Date(o.date))) || [];
+        // Lembur calculation: hanya hitung jika sudah mulai lembur (ada foto bukti awal)
+        const empOvertimes = allOvertimes?.filter(o => o.userId === emp.id && isDateInRange(new Date(o.date)) && !!o.initialProofUrl) || [];
         const overtimeCount = empOvertimes.length;
 
         // Alpha calculation:

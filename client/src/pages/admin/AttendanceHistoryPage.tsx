@@ -1631,12 +1631,13 @@ export default function AttendanceHistoryPage() {
                                                          </td>
                                                      </tr>
 
-                                                     {/* Sub-baris Foto Lembur jika ada lembur pada tanggal ini */}
+                                                     {/* Sub-baris Foto Lembur jika ada lembur yang sudah dikirim bukti awal */}
                                                      {(() => {
                                                          const ot = allOvertimes?.find(o => o.attendanceId === record.id);
-                                                         if (!ot) return null;
+                                                         if (!ot || !ot.initialProofUrl) return null;
                                                          const otStart = ot.startTime ? format(new Date(ot.startTime), "HH:mm") : "-";
-                                                         const otEnd = ot.endTime ? format(new Date(ot.endTime), "HH:mm") : (ot.status === "ongoing" ? "Berlangsung" : "-");
+                                                         const isCompleted = ot.status === "completed" && !!ot.finalProofUrl;
+                                                         const otEnd = isCompleted && ot.endTime ? format(new Date(ot.endTime), "HH:mm") : "Berlangsung";
 
                                                          return (
                                                              <tr key={`ot-photo-${record.id}`} className="bg-orange-50/40 border-b border-orange-100">
@@ -1669,7 +1670,7 @@ export default function AttendanceHistoryPage() {
                                                                  </td>
                                                                  <td className="px-6 py-4 align-top">
                                                                      <span className="px-2 py-1 rounded text-[10px] font-bold uppercase bg-orange-100 text-orange-800 border border-orange-200">
-                                                                         {ot.status === "completed" ? "Selesai & Verified" : "Berlangsung"}
+                                                                         {isCompleted ? "Selesai & Verified" : "Berlangsung"}
                                                                      </span>
                                                                  </td>
                                                              </tr>
