@@ -436,6 +436,13 @@ export default function AdminOvertimePage() {
   const completedCount = overtimesList?.filter(o => o.status === 'completed').length || 0;
 
   const handlePrintSpl = async (item: any) => {
+    if (item.splDocumentUrl && item.splDocumentUrl.includes('spl_official_')) {
+      const docPath = item.splDocumentUrl.startsWith('/') ? item.splDocumentUrl : `/uploads/${item.splDocumentUrl}`;
+      const printUrl = docPath.includes('?') ? `${docPath}&print=1` : `${docPath}?print=1`;
+      window.open(printUrl, "_blank");
+      return;
+    }
+
     const empName = item.fullName || "Karyawan";
     const empNik = item.nik || "-";
     const empPos = item.position || "Operator / Staf";
@@ -605,13 +612,13 @@ export default function AdminOvertimePage() {
         ${item.initialProofUrl ? `
           <div style="flex: 1; min-width: 180px; border: 1px solid #cbd5e1; border-radius: 8px; text-align: center; padding: 8px; background: #f8fafc;">
             <div style="font-size: 10px; font-weight: bold; color: #2563eb; margin-bottom: 5px;">📷 BUKTI FOTO AWAL LEMBUR</div>
-            <img src="${item.initialProofUrl}" style="max-width: 100%; max-height: 180px; border-radius: 6px; object-fit: contain;" />
+            <img src="${resolveFileUrl(item.initialProofUrl)}" style="max-width: 100%; max-height: 180px; border-radius: 6px; object-fit: contain;" />
           </div>
         ` : ''}
         ${item.finalProofUrl ? `
           <div style="flex: 1; min-width: 180px; border: 1px solid #cbd5e1; border-radius: 8px; text-align: center; padding: 8px; background: #f8fafc;">
             <div style="font-size: 10px; font-weight: bold; color: #16a34a; margin-bottom: 5px;">📷 BUKTI FOTO SELESAI LEMBUR</div>
-            <img src="${item.finalProofUrl}" style="max-width: 100%; max-height: 180px; border-radius: 6px; object-fit: contain;" />
+            <img src="${resolveFileUrl(item.finalProofUrl)}" style="max-width: 100%; max-height: 180px; border-radius: 6px; object-fit: contain;" />
             ${item.finalDescription ? `<div style="font-size: 10px; color: #475569; font-style: italic; margin-top: 4px;">"${item.finalDescription}"</div>` : ''}
           </div>
         ` : ''}
@@ -657,8 +664,31 @@ export default function AdminOvertimePage() {
     </div>
   </div>
   <script>
+    function waitForImagesAndPrint() {
+      var imgs = Array.from(document.getElementsByTagName('img'));
+      if (imgs.length === 0) {
+        setTimeout(function() { window.print(); }, 400);
+        return;
+      }
+      var loaded = 0;
+      function checkDone() {
+        loaded++;
+        if (loaded >= imgs.length) {
+          setTimeout(function() { window.print(); }, 400);
+        }
+      }
+      imgs.forEach(function(img) {
+        if (img.complete && img.naturalWidth !== 0) {
+          checkDone();
+        } else {
+          img.addEventListener('load', checkDone);
+          img.addEventListener('error', checkDone);
+        }
+      });
+      setTimeout(function() { window.print(); }, 3000);
+    }
     window.onload = function() {
-      setTimeout(function() { window.print(); }, 500);
+      waitForImagesAndPrint();
     };
   </script>
 </body>

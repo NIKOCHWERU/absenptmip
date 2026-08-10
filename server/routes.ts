@@ -82,6 +82,15 @@ async function getCompanyConfigs() {
   }
 }
 
+function formatImageUrl(url: string | null | undefined): string {
+  if (!url) return '';
+  if (url.startsWith('data:') || url.startsWith('http://') || url.startsWith('https://')) return url;
+  if (url.startsWith('/api/') || url.startsWith('/uploads/')) return url;
+  if (url.length > 15 && !url.includes('/')) return `/api/gdrive-img/${url}`;
+  if (!url.startsWith('/')) return `/api/images/${url}`;
+  return url;
+}
+
 async function generateAndSaveSplDocument(data: {
   splNumber: string;
   employeeName: string;
@@ -186,7 +195,7 @@ async function generateAndSaveSplDocument(data: {
     <div class="card">
       <!-- Kop Surat Resmi Dynamic dari Setting App -->
       <div class="letterhead">
-        ${company.logoUrl ? `<img src="${company.logoUrl}" class="logo-img" alt="Logo Perusahaan" onerror="this.style.display='none'" />` : ''}
+        ${company.logoUrl ? `<img src="${formatImageUrl(company.logoUrl)}" class="logo-img" alt="Logo Perusahaan" onerror="this.style.display='none'" />` : ''}
         <div class="company-block">
           <h1>${company.namaPt}</h1>
           ${company.alamatPt ? `<div class="alamat">${company.alamatPt}</div>` : ''}
@@ -195,7 +204,7 @@ async function generateAndSaveSplDocument(data: {
       <hr class="hr-thick" />
       <hr class="hr-thin" />
 
-    <!-- Judul Dokumen (Nomor Surat Dihapus Sesuai Permintaan) -->
+    <!-- Judul Dokumen -->
     <div class="doc-title">
       <h2>SURAT PERINTAH LEMBUR (SPL)</h2>
     </div>
@@ -204,7 +213,7 @@ async function generateAndSaveSplDocument(data: {
       Dengan ini Manajemen / Pimpinan <strong>${company.namaPt}</strong> memberikan Perintah Kerja Lembur kepada Tenaga Kerja / Penerima Perintah tersebut di bawah ini untuk melaksanakan tugas/pekerjaan lembur sesuai dengan rincian instruksi berikut:
     </div>
 
-    <!-- Data Karyawan (Formatted Title Case) -->
+    <!-- Data Karyawan -->
     <div class="section-title">I. IDENTITAS TENAGA KERJA / PENERIMA PERINTAH</div>
     <table>
       <tr><th>Nama Karyawan</th><td><strong style="font-size: 12px; color: #0f172a;">${toTitleCase(data.employeeName)}</strong></td></tr>
@@ -227,25 +236,25 @@ async function generateAndSaveSplDocument(data: {
       ${refItems.map((item, idx) => `
         <div class="ref-card">
           <p class="ref-caption">📷 ${item.caption || `Panduan #${idx + 1}`}</p>
-          <img src="${item.url}" alt="Gambar Referensi ${idx + 1}">
+          <img src="${formatImageUrl(item.url)}" alt="Gambar Referensi ${idx + 1}">
         </div>
       `).join('')}
     </div>
     ` : ''}
 
-    ${data.initialProofUrl || data.finalProofUrl ? `
+    ${(data.initialProofUrl || data.finalProofUrl) ? `
     <div class="section-title">${refItems.length > 0 ? 'IV' : 'III'}. BUKTI DOKUMENTASI FOTO KARYAWAN</div>
     <div class="proof-grid">
       ${data.initialProofUrl ? `
         <div class="proof-card">
           <p style="font-weight:bold; font-size:9.5px; margin:0 0 3px 0; color:#1e40af;">Bukti Awal Lembur</p>
-          <img src="${data.initialProofUrl}" alt="Bukti Awal">
+          <img src="${formatImageUrl(data.initialProofUrl)}" alt="Bukti Awal">
         </div>
       ` : ''}
       ${data.finalProofUrl ? `
         <div class="proof-card">
           <p style="font-weight:bold; font-size:9.5px; margin:0 0 3px 0; color:#16a34a;">Bukti Selesai Lembur</p>
-          <img src="${data.finalProofUrl}" alt="Bukti Selesai">
+          <img src="${formatImageUrl(data.finalProofUrl)}" alt="Bukti Selesai">
           ${data.finalDescription ? `<p style="font-size:9px; color:#475569; margin:2px 0 0 0;"><em>"${data.finalDescription}"</em></p>` : ''}
         </div>
       ` : ''}
@@ -258,12 +267,37 @@ async function generateAndSaveSplDocument(data: {
   </div>
  </div>
   <script>
-    window.onload = function() {
-      if (window.location.search.includes('print=1') || window.location.search.includes('download=1')) {
-        setTimeout(function() {
-          window.print();
-        }, 300);
+    function waitForImagesAndPrint() {
+      var imgs = Array.from(document.getElementsByTagName('img'));
+      if (imgs.length === 0) {
+        doPrint();
+        return;
       }
+      var loaded = 0;
+      function checkDone() {
+        loaded++;
+        if (loaded >= imgs.length) {
+          doPrint();
+        }
+      }
+      function doPrint() {
+        if (window.location.search.includes('print=1') || window.location.search.includes('download=1')) {
+          setTimeout(function() { window.print(); }, 400);
+        }
+      }
+      imgs.forEach(function(img) {
+        if (img.complete && img.naturalWidth !== 0) {
+          checkDone();
+        } else {
+          img.addEventListener('load', checkDone);
+          img.addEventListener('error', checkDone);
+        }
+      });
+      setTimeout(doPrint, 3000);
+    }
+
+    window.onload = function() {
+      waitForImagesAndPrint();
     };
   </script>
 </body>
@@ -274,17 +308,13 @@ async function generateAndSaveSplDocument(data: {
 
   if (isDriveConfigured) {
     try {
+      const cleanName = data.employeeName.replace(/[^a-zA-Z0-9]/g, '_');
       const driveFilename = `${cleanName}_${safeFormatDate(data.date, "yyyy-MM-dd")}_SuratPerintahLembur_${cleanSplNum}.html`;
       const fileBuffer = fs.readFileSync(filePath);
-      const driveRes = await uploadFile(fileBuffer, driveFilename, "text/html", "Lembur");
-      if (driveRes?.fileId) {
-        return driveRes.fileId;
-      }
+      await uploadFile(fileBuffer, driveFilename, "text/html", "Lembur");
     } catch (err: any) {
       console.error("GDrive upload for SPL document failed, using local path:", err.message);
     }
-  }
-
   return localUrl;
 }
 
