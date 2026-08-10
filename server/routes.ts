@@ -404,7 +404,7 @@ async function autoCloseExpiredSessions(userId: number) {
   return;
 }
 
-export function getAdminDate(): string {
+function getAdminDate(): string {
   const now = new Date();
   const jakartaTime = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Jakarta" }));
   const hours = jakartaTime.getHours();
