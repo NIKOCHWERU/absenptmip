@@ -91,6 +91,8 @@ const generatePdfBlobFromHtml = async (htmlContent: string, pdfFileName: string)
             container.parentNode.removeChild(container);
         }
     }
+};
+
 const safeFormatDate = (dateVal: any, formatStr: string, options?: any) => {
     try {
         if (!dateVal) return "";
