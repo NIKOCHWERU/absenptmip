@@ -110,6 +110,40 @@ function checkIsOvertimePast(splDateVal: any, endTimeVal: any): boolean {
     }
 }
 
+function checkIsBeforeStartTime(splDateVal: any, startTimeVal: any): boolean {
+    if (!startTimeVal) return false;
+    try {
+        let dateStr = "";
+        if (typeof splDateVal === "string") {
+            dateStr = splDateVal.split("T")[0];
+        } else if (splDateVal instanceof Date) {
+            dateStr = splDateVal.toISOString().split("T")[0];
+        } else {
+            const now = new Date();
+            dateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+        }
+
+        let startHhMm = "00:00";
+        if (typeof startTimeVal === "string") {
+            if (startTimeVal.length === 5) {
+                startHhMm = startTimeVal;
+            } else if (startTimeVal.includes("T")) {
+                startHhMm = startTimeVal.split("T")[1]?.substring(0, 5) || "00:00";
+            }
+        } else if (startTimeVal instanceof Date) {
+            startHhMm = `${String(startTimeVal.getHours()).padStart(2, '0')}:${String(startTimeVal.getMinutes()).padStart(2, '0')}`;
+        }
+
+        const [yr, mo, dy] = dateStr.split("-").map(Number);
+        const [hh, mm] = startHhMm.split(":").map(Number);
+
+        const startDateTime = new Date(yr, mo - 1, dy, hh, mm, 0);
+        return new Date().getTime() < (startDateTime.getTime() - 60000);
+    } catch (err) {
+        return false;
+    }
+}
+
 // Helper component for Shift Selection Modal
 function ShiftModal({
     open,
@@ -1499,9 +1533,51 @@ export default function EmployeeDashboard() {
                                                         <Button
                                                             type="button"
                                                             onClick={() => {
-                                                                setStartOvertimeNotes(spl.description || "");
-                                                                setStartOvertimePhoto(null);
-                                                                setIsStartOvertimeReportOpen(true);
+                                                                const isBefore = checkIsBeforeStartTime(spl.date || spl.overtimeDate, spl.startTime);
+                                                                const startTimeStr = spl.startTime ? (spl.startTime.length === 5 ? spl.startTime : safeFormatDate(spl.startTime, "HH:mm")) : "-";
+
+                                                                const executeStart = async () => {
+                                                                    if (spl.initialProofUrl) {
+                                                                        try {
+                                                                            setIsSubmittingOvertime(true);
+                                                                            const formData = new FormData();
+                                                                            formData.append("initialProofUrl", spl.initialProofUrl);
+                                                                            if (spl.description) formData.append("description", spl.description);
+
+                                                                            const res = await fetch("/api/attendance/overtime/start", {
+                                                                                method: "POST",
+                                                                                body: formData
+                                                                            });
+                                                                            if (!res.ok) {
+                                                                                const err = await res.json();
+                                                                                throw new Error(err.message || "Gagal mulai lembur");
+                                                                            }
+                                                                            toast({ title: "Laporan Awal Lembur Terkirim!", description: "Sesi lembur Anda telah berjalan." });
+                                                                            refetchOvertimeToday();
+                                                                        } catch (err: any) {
+                                                                            toast({ title: "Gagal Mulai Lembur", description: err.message, variant: "destructive" });
+                                                                        } finally {
+                                                                            setIsSubmittingOvertime(false);
+                                                                        }
+                                                                    } else {
+                                                                        setStartOvertimeNotes(spl.description || "");
+                                                                        setStartOvertimePhoto(null);
+                                                                        setIsStartOvertimeReportOpen(true);
+                                                                    }
+                                                                };
+
+                                                                if (isBefore) {
+                                                                    setConfirmDialog({
+                                                                        open: true,
+                                                                        title: "Ingin Memulai Lembur Sekarang?",
+                                                                        description: `Jam penugasan lembur Anda dijadwalkan pukul ${startTimeStr} WIB. Apakah Anda yakin ingin memulai lembur sekarang?`,
+                                                                        confirmLabel: "Ya, Mulai Lembur Sekarang",
+                                                                        confirmClass: "bg-emerald-600 hover:bg-emerald-700 text-white font-bold",
+                                                                        onConfirm: executeStart
+                                                                    });
+                                                                } else {
+                                                                    executeStart();
+                                                                }
                                                             }}
                                                             className="w-full h-11 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs gap-2 shadow-lg shadow-emerald-600/30 animate-pulse"
                                                         >
