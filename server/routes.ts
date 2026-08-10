@@ -2170,6 +2170,8 @@ export function registerRoutes(app: Express) {
           }
         } else {
           attendanceId = attRecord[0].id;
+        }
+
         // Cancel any previous uncompleted overtimes for this attendanceId to prevent stale ongoing state
         await db.update(overtimes)
           .set({ status: "cancelled", employeeApproval: "rejected", rejectionReason: "Digantikan oleh penugasan SPL baru" })
