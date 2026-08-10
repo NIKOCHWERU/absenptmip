@@ -504,6 +504,35 @@ export default function EmployeeDashboard() {
         }
     };
 
+    const handleDirectApproveSpl = async (splItem?: any) => {
+        const targetOt = splItem || activeOvertimeToday;
+        if (!targetOt) return;
+
+        try {
+            setIsSubmittingApproveSpl(true);
+            const res = await fetch("/api/attendance/overtime/respond", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    overtimeId: targetOt.id,
+                    action: "approve"
+                })
+            });
+            if (!res.ok) {
+                const errData = await res.json().catch(() => ({}));
+                throw new Error(errData.message || "Gagal menyetujui lembur");
+            }
+            setIsSplNoticeModalOpen(false);
+            setIsApproveSplModalOpen(false);
+            refetchOvertimeToday();
+            toast({ title: "Penugasan Lembur Disetujui!", description: "Status lembur telah disetujui. Klik 'Mulai Lembur Sekarang' saat Anda akan memulai lembur." });
+        } catch (err: any) {
+            toast({ title: "Gagal", description: err.message, variant: "destructive" });
+        } finally {
+            setIsSubmittingApproveSpl(false);
+        }
+    };
+
     // Form States for Mulai Lembur & Selesai Lembur Reports
     const [isStartOvertimeReportOpen, setIsStartOvertimeReportOpen] = useState(false);
     const [startOvertimePhoto, setStartOvertimePhoto] = useState<string | null>(null);
@@ -2235,15 +2264,11 @@ export default function EmployeeDashboard() {
                                             Tolak
                                         </Button>
                                         <Button
-                                            onClick={() => {
-                                                setIsSplNoticeModalOpen(false);
-                                                setApproveSplDescription(activeOvertimeToday.description || "");
-                                                setApproveSplPhoto(null);
-                                                setIsApproveSplModalOpen(true);
-                                            }}
+                                            disabled={isSubmittingApproveSpl}
+                                            onClick={() => handleDirectApproveSpl(activeOvertimeToday)}
                                             className="h-12 rounded-2xl bg-primary hover:bg-primary/90 text-white font-bold text-xs shadow-md shadow-primary/20"
                                         >
-                                            Setujui
+                                            {isSubmittingApproveSpl ? "Memproses..." : "Setujui"}
                                         </Button>
                                     </div>
                                 )}
