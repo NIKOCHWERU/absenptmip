@@ -310,8 +310,8 @@ export default function AdminOvertimeHistoryPage() {
   <div class="signature-section">
     <div class="sig-box">
       <p class="sig-label">Pemberi Tugas,</p>
-      <div class="sig-name">SUPER ADMIN</div>
-      <p class="sig-desc">Staff HRD</p>
+      <div class="sig-name">HRM</div>
+      <p class="sig-desc">Manajemen HRD</p>
     </div>
     <div class="sig-box">
       <p class="sig-label">Penerima Tugas,</p>

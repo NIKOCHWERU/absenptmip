@@ -565,7 +565,7 @@ export default function AdminOvertimePage() {
       <div class="signature-section">
         <div class="sig-box">
           <div class="sig-label">Pemberi Tugas,</div>
-          <div class="sig-name">SUPER ADMIN HRD</div>
+          <div class="sig-name">HRM</div>
           <div class="sig-desc">Manajemen HRD</div>
         </div>
         <div class="sig-box">
