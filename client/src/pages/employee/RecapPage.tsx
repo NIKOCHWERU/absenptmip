@@ -1,16 +1,52 @@
 import { useAuth } from "@/hooks/use-auth";
 import { useMonthlyAttendance } from "@/hooks/use-monthly-attendance";
+import { useQuery } from "@tanstack/react-query";
 import { BottomNav } from "@/components/BottomNav";
 import { CompanyHeader } from "@/components/CompanyHeader";
 import { AttendanceCalendar } from "@/components/AttendanceCalendar";
 import { useState } from "react";
 import { format, subMonths, addMonths, startOfWeek, endOfWeek, isWithinInterval, subWeeks, addWeeks, subDays, addDays } from "date-fns";
 import { id } from "date-fns/locale";
-import { Loader2, Calendar, Clock, MapPin, Coffee, LogOut, X, LayoutGrid, Calendar as CalendarIcon } from "lucide-react";
+import { Loader2, Calendar, Clock, MapPin, Coffee, LogOut, X, LayoutGrid, Calendar as CalendarIcon, Zap } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import type { Attendance } from "@shared/schema";
 import { calculateDailyTotal, formatDuration } from "@/lib/attendance";
+import { resolveFileUrl } from "@/lib/utils";
+
+function checkIsOvertimePast(splDateVal: any, endTimeVal: any): boolean {
+  if (!splDateVal) return false;
+  try {
+    let dateStr = "";
+    if (typeof splDateVal === "string") {
+      dateStr = splDateVal.split("T")[0];
+    } else if (splDateVal instanceof Date) {
+      dateStr = splDateVal.toISOString().split("T")[0];
+    } else {
+      return false;
+    }
+
+    let endHhMm = "23:59";
+    if (endTimeVal) {
+      if (typeof endTimeVal === "string") {
+        if (endTimeVal.length === 5) {
+          endHhMm = endTimeVal;
+        } else if (endTimeVal.includes("T")) {
+          endHhMm = endTimeVal.split("T")[1]?.substring(0, 5) || "23:59";
+        }
+      } else if (endTimeVal instanceof Date) {
+        endHhMm = `${String(endTimeVal.getHours()).padStart(2, '0')}:${String(endTimeVal.getMinutes()).padStart(2, '0')}`;
+      }
+    }
+
+    const [yr, mo, dy] = dateStr.split("-").map(Number);
+    const [hh, mm] = endHhMm.split(":").map(Number);
+    const endDateTime = new Date(yr, mo - 1, dy, hh, mm, 59);
+    return new Date().getTime() > endDateTime.getTime();
+  } catch (err) {
+    return false;
+  }
+}
 
 export default function RecapPage() {
   const { user } = useAuth();
@@ -23,6 +59,10 @@ export default function RecapPage() {
   const [weekDate, setWeekDate] = useState(new Date());
   const [selectedRecord, setSelectedRecord] = useState<Attendance | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const { data: myOvertimes } = useQuery<any[]>({
+    queryKey: ["/api/employee/overtimes/my-spl"],
+  });
 
   // Fetch for current display month or custom range
   const monthStr = format(reportType === 'daily' ? targetDate : currentDate, 'yyyy-MM');
@@ -400,6 +440,82 @@ export default function RecapPage() {
                   </p>
                 </div>
               )}
+
+              {/* Riwayat Lembur Karyawan Pada Tanggal Terpilih */}
+              {(() => {
+                const selectedDateStr = selectedRecord ? format(new Date(selectedRecord.date), 'yyyy-MM-dd') : '';
+                const dateOvertimes = myOvertimes?.filter((ot: any) => {
+                  if (!ot) return false;
+                  const otDate = ot.date ? format(new Date(ot.date), 'yyyy-MM-dd') : (ot.startTime ? format(new Date(ot.startTime), 'yyyy-MM-dd') : '');
+                  return otDate === selectedDateStr;
+                }) || [];
+
+                if (dateOvertimes.length === 0) return null;
+
+                return (
+                  <div className="space-y-3 pt-3 border-t border-gray-100">
+                    <div className="flex items-center gap-1.5 text-xs font-black text-orange-600 uppercase tracking-wider">
+                      <Zap className="w-3.5 h-3.5 fill-orange-500" /> Riwayat Lembur ({dateOvertimes.length})
+                    </div>
+                    {dateOvertimes.map((ot: any) => {
+                      const startStr = ot.startTime ? (typeof ot.startTime === 'string' && ot.startTime.length === 5 ? ot.startTime : format(new Date(ot.startTime), 'HH:mm')) : '-';
+                      const endStr = ot.endTime ? (typeof ot.endTime === 'string' && ot.endTime.length === 5 ? ot.endTime : format(new Date(ot.endTime), 'HH:mm')) : (ot.status === 'ongoing' ? 'Berlangsung' : '-');
+                      const isPastOt = checkIsOvertimePast(ot.date || ot.startTime, ot.endTime) && ot.status !== 'completed' && ot.status !== 'ongoing';
+
+                      return (
+                        <div key={ot.id} className="bg-orange-50/60 border border-orange-200/80 rounded-2xl p-3 space-y-2 text-xs">
+                          <div className="flex justify-between items-center">
+                            <span className="font-bold text-orange-950">{ot.splNumber || 'Surat Perintah Lembur'}</span>
+                            <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full ${
+                              ot.status === 'completed' ? 'bg-emerald-100 text-emerald-800' :
+                              ot.status === 'ongoing' ? 'bg-blue-100 text-blue-800' :
+                              isPastOt ? 'bg-red-100 text-red-800' :
+                              ot.employeeApproval === 'approved' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+                            }`}>
+                              {ot.status === 'completed' ? 'Selesai Lembur' :
+                               ot.status === 'ongoing' ? 'Sedang Berlangsung' :
+                               isPastOt ? 'Melewatkan Lembur' :
+                               ot.employeeApproval === 'approved' ? 'Disetujui' : 'Menunggu'}
+                            </span>
+                          </div>
+
+                          <p className="font-bold text-gray-700">
+                            Waktu Lembur: <span className="text-orange-700 font-extrabold">{startStr} – {endStr} WIB</span>
+                          </p>
+
+                          {ot.description && (
+                            <p className="text-[11px] text-gray-600 italic bg-white p-2 rounded-xl border border-orange-100">
+                              "{ot.description}"
+                            </p>
+                          )}
+
+                          {/* Foto Bukti Lembur */}
+                          {(ot.initialProofUrl || ot.finalProofUrl) && (
+                            <div className="grid grid-cols-2 gap-2 pt-1">
+                              {ot.initialProofUrl && (
+                                <div className="text-center bg-white p-1.5 rounded-xl border border-gray-200">
+                                  <p className="text-[9px] font-bold text-blue-600 mb-1">Foto Awal</p>
+                                  <img src={resolveFileUrl(ot.initialProofUrl)} alt="Foto Awal" className="w-full h-20 object-cover rounded-lg" />
+                                </div>
+                              )}
+                              {ot.finalProofUrl && (
+                                <div className="text-center bg-white p-1.5 rounded-xl border border-gray-200">
+                                  <p className="text-[9px] font-bold text-emerald-600 mb-1">Foto Selesai</p>
+                                  <img src={resolveFileUrl(ot.finalProofUrl)} alt="Foto Selesai" className="w-full h-20 object-cover rounded-lg" />
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          {ot.finalDescription && (
+                            <p className="text-[10px] text-gray-500 italic">Catatan Akhir: "{ot.finalDescription}"</p>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
 
               <div className="pt-4">
                 <Button className="w-full rounded-xl" onClick={() => setIsModalOpen(false)}>

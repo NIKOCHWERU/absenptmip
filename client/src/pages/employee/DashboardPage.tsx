@@ -600,7 +600,11 @@ export default function EmployeeDashboard() {
             }
             setIsStartOvertimeReportOpen(false);
             toast({ title: "Laporan Awal Lembur Terkirim!", description: "Sesi lembur Anda telah berjalan." });
-            refetchOvertimeToday();
+            queryClient.invalidateQueries({ queryKey: ["/api/attendance/overtime/today"] });
+            queryClient.invalidateQueries({ queryKey: ["/api/employee/overtimes/my-spl"] });
+            await queryClient.refetchQueries({ queryKey: ["/api/attendance/overtime/today"] });
+            await queryClient.refetchQueries({ queryKey: ["/api/employee/overtimes/my-spl"] });
+            await refetchOvertimeToday();
         } catch (err: any) {
             toast({ title: "Gagal Mulai Lembur", description: err.message, variant: "destructive" });
         } finally {
@@ -1582,7 +1586,11 @@ export default function EmployeeDashboard() {
                                                                                 throw new Error(err.message || "Gagal mulai lembur");
                                                                             }
                                                                             toast({ title: "Laporan Awal Lembur Terkirim!", description: "Sesi lembur Anda telah berjalan." });
-                                                                            refetchOvertimeToday();
+                                                                            queryClient.invalidateQueries({ queryKey: ["/api/attendance/overtime/today"] });
+                                                                            queryClient.invalidateQueries({ queryKey: ["/api/employee/overtimes/my-spl"] });
+                                                                            await queryClient.refetchQueries({ queryKey: ["/api/attendance/overtime/today"] });
+                                                                            await queryClient.refetchQueries({ queryKey: ["/api/employee/overtimes/my-spl"] });
+                                                                            await refetchOvertimeToday();
                                                                         } catch (err: any) {
                                                                             toast({ title: "Gagal Mulai Lembur", description: err.message, variant: "destructive" });
                                                                         } finally {
