@@ -2170,7 +2170,15 @@ export function registerRoutes(app: Express) {
           }
         } else {
           attendanceId = attRecord[0].id;
-        }
+        // Cancel any previous uncompleted overtimes for this attendanceId to prevent stale ongoing state
+        await db.update(overtimes)
+          .set({ status: "cancelled", employeeApproval: "rejected", rejectionReason: "Digantikan oleh penugasan SPL baru" })
+          .where(
+            and(
+              eq(overtimes.attendanceId, attendanceId),
+              ne(overtimes.status, "completed")
+            )
+          );
 
         const splNum = `SPL/MIP/${date.replace(/-/g, '')}/${Math.floor(1000 + Math.random() * 9000)}`;
 
@@ -3725,9 +3733,20 @@ export function registerRoutes(app: Express) {
   app.delete('/api/admin/attendance/:id', isAdmin, async (req: Request, res: Response) => {
     const id = parseInt(req.params.id);
     try {
-      // First delete associated overtimes if any
-      await db.delete(overtimes).where(eq(overtimes.attendanceId, id));
-      // Then delete attendance record
+      const [attRecord] = await db.select().from(attendance).where(eq(attendance.id, id)).limit(1);
+      if (attRecord) {
+        await db.delete(overtimes).where(
+          or(
+            eq(overtimes.attendanceId, id),
+            and(
+              eq(overtimes.attendanceId, id),
+              eq(attendance.userId, attRecord.userId)
+            )
+          )
+        );
+      } else {
+        await db.delete(overtimes).where(eq(overtimes.attendanceId, id));
+      }
       await db.delete(attendance).where(eq(attendance.id, id));
       res.json({ message: "Data absensi berhasil dihapus", id });
     } catch (e: any) {

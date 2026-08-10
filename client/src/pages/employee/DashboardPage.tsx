@@ -393,7 +393,7 @@ export default function EmployeeDashboard() {
     // Overtime State & Queries
     const { data: activeOvertimeToday, refetch: refetchOvertimeToday } = useQuery<any>({
         queryKey: ["/api/attendance/overtime/today"],
-        refetchInterval: 5000,
+        refetchInterval: 3000,
     });
 
     const { data: pendingMissedData, refetch: refetchPendingMissed } = useQuery<any>({

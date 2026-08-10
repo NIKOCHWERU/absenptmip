@@ -1634,8 +1634,8 @@ export default function RecapPage() {
                                             {/* Sub-baris Lembur jika ada data lembur yang Disetujui, Berlangsung, atau Selesai */}
                                             {(() => {
                                                 const rowDateStr = safeFormatDate(row.date, "yyyy-MM-dd");
-                                                const ot = allOvertimes?.find(o => {
-                                                    if (!o) return false;
+                                                const matchedOvertimes = (allOvertimes || []).filter(o => {
+                                                    if (!o || o.employeeApproval === "rejected" || o.status === "cancelled") return false;
                                                     if (o.attendanceId === row.id) return true;
                                                     if (o.userId === row.userId) {
                                                         const otDateStr = o.date ? safeFormatDate(o.date, "yyyy-MM-dd") : (o.startTime ? safeFormatDate(o.startTime, "yyyy-MM-dd") : "");
@@ -1644,9 +1644,15 @@ export default function RecapPage() {
                                                     return false;
                                                 });
 
-                                                if (!ot || ot.employeeApproval === "rejected" || ot.status === "cancelled") return null;
+                                                if (matchedOvertimes.length === 0) return null;
 
-                                                const isOngoing = ot.status === "ongoing" || (ot.employeeApproval === "approved" && ot.status !== "completed");
+                                                // Sort descending by id to pick the newest active assignment
+                                                matchedOvertimes.sort((a, b) => (b.id || 0) - (a.id || 0));
+                                                const ot = matchedOvertimes[0];
+
+                                                const isPendingApproval = ot.employeeApproval === "pending" || (!ot.employeeApproval && ot.status === "pending");
+                                                const isOngoing = ot.status === "ongoing";
+                                                const isApprovedNotStarted = ot.employeeApproval === "approved" && ot.status !== "completed" && ot.status !== "ongoing";
                                                 const hasFinished = ot.status === "completed";
 
                                                 const otStart = ot.startTime ? safeFormatDate(ot.startTime, "HH:mm") : "-";
@@ -1657,12 +1663,15 @@ export default function RecapPage() {
                                                     : 0;
                                                 const otDurationStr = (hasFinished && otDurationMins > 0) ? formatDuration(otDurationMins) : (isOngoing ? "Sedang Lembur" : "-");
 
-                                                let statusLabel = "DISETUJUI / BERLANGSUNG";
-                                                let statusClass = "bg-orange-100 text-orange-800 border-orange-200 animate-pulse";
+                                                let statusLabel = "MENUNGGU KONFIRMASI";
+                                                let statusClass = "bg-yellow-100 text-yellow-800 border-yellow-200 animate-pulse";
 
-                                                if (ot.status === "ongoing") {
+                                                if (isOngoing) {
                                                     statusLabel = "SEDANG BERLANGSUNG";
                                                     statusClass = "bg-blue-100 text-blue-800 border-blue-200 animate-pulse";
+                                                } else if (isApprovedNotStarted) {
+                                                    statusLabel = "DISETUJUI (BELUM MULAI)";
+                                                    statusClass = "bg-orange-100 text-orange-800 border-orange-200";
                                                 } else if (ot.isAutoCompleted) {
                                                     statusLabel = "SELESAI OTOMATIS";
                                                     statusClass = "bg-amber-100 text-amber-800 border-amber-300";
