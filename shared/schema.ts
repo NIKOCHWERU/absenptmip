@@ -97,6 +97,8 @@ export const overtimes = mysqlTable("overtimes", {
   rejectionProofUrl: varchar("rejection_proof_url", { length: 512 }),
   splNumber: varchar("spl_number", { length: 100 }),
   assignedBy: int("assigned_by"),
+  isAutoCompleted: boolean("is_auto_completed").default(false),
+  missedReason: text("missed_reason"),
   createdAt: timestamp("created_at").defaultNow(),
 }, (table) => ({
   attendanceIdx: index("idx_overtimes_attendance_id").on(table.attendanceId),

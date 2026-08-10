@@ -11,7 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
 import { 
-  Plus, Calendar, Clock, User as UserIcon, Eye, Printer, Trash2, Check, X, FileText, Send, Upload, ArrowLeft, Image as ImageIcon, CheckCircle, ShieldCheck, AlertCircle, Zap, Search, Filter, Pencil, RefreshCw
+  Plus, Calendar, Clock, User as UserIcon, Eye, Printer, Trash2, Check, X, FileText, Send, Upload, ArrowLeft, Image as ImageIcon, CheckCircle, ShieldCheck, AlertCircle, AlertTriangle, Zap, Search, Filter, Pencil, RefreshCw
 } from "lucide-react";
 import { User } from "@shared/schema";
 import { TimePicker24h } from "@/components/TimePicker24h";
@@ -827,7 +827,9 @@ export default function AdminOvertimePage() {
                         <td className="px-6 py-4">
                           <span
                             className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-lg border whitespace-nowrap flex items-center gap-1 w-fit ${
-                              req.status === "completed"
+                              req.isAutoCompleted
+                                ? "text-amber-700 bg-amber-50 border-amber-300"
+                                : req.status === "completed"
                                 ? "text-emerald-700 bg-emerald-50 border-emerald-200"
                                 : req.status === "cancelled"
                                 ? "text-gray-500 bg-gray-50 border-gray-200"
@@ -836,7 +838,9 @@ export default function AdminOvertimePage() {
                                 : "text-amber-700 bg-amber-50 border-amber-200"
                             }`}
                           >
-                            {req.status === "completed" ? (
+                            {req.isAutoCompleted ? (
+                              <><AlertTriangle className="w-3 h-3 text-amber-600" /> Selesai Otomatis</>
+                            ) : req.status === "completed" ? (
                               <><ShieldCheck className="w-3 h-3 text-emerald-600" /> Selesai & Verified</>
                             ) : req.status === "cancelled" ? (
                               <><X className="w-3 h-3 text-gray-500" /> Dibatalkan</>
@@ -851,6 +855,11 @@ export default function AdminOvertimePage() {
                         {/* Column 6: Uraian Pekerjaan */}
                         <td className="px-6 py-4 max-w-[180px]">
                           <p className="text-gray-600 line-clamp-2 italic text-xs leading-relaxed">"{req.description || '-'}"</p>
+                          {req.missedReason && (
+                            <p className="text-[11px] font-semibold text-amber-700 bg-amber-50 p-1.5 rounded-md mt-1 border border-amber-200">
+                              ⚠️ Alasan Melewatkan: "{req.missedReason}"
+                            </p>
+                          )}
                         </td>
 
                         {/* Column 7: Aksi Admin */}

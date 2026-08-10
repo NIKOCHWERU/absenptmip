@@ -362,6 +362,41 @@ export default function EmployeeDashboard() {
         refetchInterval: 5000,
     });
 
+    const { data: pendingMissedData, refetch: refetchPendingMissed } = useQuery<any>({
+        queryKey: ["/api/attendance/overtime/pending-missed"],
+    });
+
+    const [missedReasonText, setMissedReasonText] = useState("");
+    const [isSubmittingMissedReason, setIsSubmittingMissedReason] = useState(false);
+
+    const handleSubmitMissedReason = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!pendingMissedData?.pendingMissed?.id || !missedReasonText.trim()) return;
+
+        try {
+            setIsSubmittingMissedReason(true);
+            const res = await fetch("/api/attendance/overtime/submit-missed-reason", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    overtimeId: pendingMissedData.pendingMissed.id,
+                    missedReason: missedReasonText.trim()
+                })
+            });
+            if (!res.ok) {
+                const err = await res.json();
+                throw new Error(err.message || "Gagal menyimpan alasan");
+            }
+            toast({ title: "Berhasil!", description: "Keterangan melewatkan lembur telah disimpan." });
+            setMissedReasonText("");
+            refetchPendingMissed();
+        } catch (err: any) {
+            toast({ title: "Gagal", description: err.message, variant: "destructive" });
+        } finally {
+            setIsSubmittingMissedReason(false);
+        }
+    };
+
     const { data: mySplList } = useQuery<any[]>({
         queryKey: ["/api/employee/overtimes/my-spl"],
     });
@@ -1796,6 +1831,50 @@ export default function EmployeeDashboard() {
                             Batalkan
                         </Button>
                     </div>
+                </DialogContent>
+            </Dialog>
+
+            {/* Modal Peringatan Anda Melewatkan Lembur */}
+            <Dialog open={!!pendingMissedData?.pendingMissed} onOpenChange={() => {}}>
+                <DialogContent className="rounded-3xl max-w-sm md:max-w-md bg-white p-6 shadow-2xl [&>button]:hidden">
+                    <DialogHeader>
+                        <div className="mx-auto w-14 h-14 rounded-full bg-amber-100 flex items-center justify-center mb-3">
+                            <AlertTriangle className="w-7 h-7 text-amber-600" />
+                        </div>
+                        <DialogTitle className="text-center text-xl font-black text-gray-900">
+                            Anda Melewatkan Lembur
+                        </DialogTitle>
+                        <DialogDescription className="text-center text-xs text-gray-600 pt-1 leading-relaxed">
+                            Sesi lembur Anda pada tanggal{" "}
+                            <strong className="text-gray-900 font-bold">
+                                {safeFormatDate(pendingMissedData?.pendingMissed?.date, "EEEE, d MMMM yyyy")}
+                            </strong>{" "}
+                            telah diselesaikan secara otomatis oleh sistem karena belum mengakhiri atau belum mengunggah bukti akhir lembur.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <form onSubmit={handleSubmitMissedReason} className="space-y-4 pt-3">
+                        <div className="space-y-1.5">
+                            <label className="text-xs font-bold text-gray-700 block">
+                                Alasan / Keterangan Melewatkan Lembur <span className="text-red-500">*</span>
+                            </label>
+                            <Textarea
+                                required
+                                rows={3}
+                                placeholder="Contoh: HP kehabisan baterai / mati lampu / lupa absen akhir..."
+                                value={missedReasonText}
+                                onChange={(e) => setMissedReasonText(e.target.value)}
+                                className="rounded-2xl border-gray-200 text-xs focus:border-amber-500 focus:ring-amber-500"
+                            />
+                        </div>
+                        <Button
+                            type="submit"
+                            disabled={isSubmittingMissedReason || !missedReasonText.trim()}
+                            className="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-2xl h-11 text-xs shadow-lg shadow-amber-500/20"
+                        >
+                            {isSubmittingMissedReason ? "Menyimpan..." : "Kirim Alasan & Lanjutkan Absensi"}
+                        </Button>
+                    </form>
                 </DialogContent>
             </Dialog>
 

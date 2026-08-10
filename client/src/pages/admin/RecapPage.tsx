@@ -1587,12 +1587,18 @@ export default function RecapPage() {
                                                 let statusLabel = "SEDANG BERLANGSUNG";
                                                 let statusClass = "bg-orange-100 text-orange-800 border-orange-200";
 
-                                                if (hasFinished) {
+                                                if (ot.isAutoCompleted) {
+                                                    statusLabel = "SELESAI OTOMATIS";
+                                                    statusClass = "bg-amber-100 text-amber-800 border-amber-300";
+                                                } else if (hasFinished) {
                                                     statusLabel = "SELESAI";
                                                     statusClass = "bg-emerald-100 text-emerald-800 border-emerald-200";
                                                 }
 
-                                                const noteText = ot.description || "Lembur pekerjaan";
+                                                let noteText = ot.description || "Lembur pekerjaan";
+                                                if (ot.missedReason) {
+                                                    noteText += ` (Alasan Melewatkan: "${ot.missedReason}")`;
+                                                }
 
                                                 return (
                                                     <tr key={`ot-${row.id}`} className="bg-orange-50/50 border-b border-orange-100 hover:bg-orange-50 transition-colors">

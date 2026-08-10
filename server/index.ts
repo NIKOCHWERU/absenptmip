@@ -287,6 +287,8 @@ async function runAutoMigrations() {
     await checkAndAddColumn("resignations", "status", "ENUM('pending', 'approved', 'rejected') DEFAULT 'pending'");
     await checkAndAddColumn("mutations", "status", "ENUM('pending', 'approved', 'rejected') DEFAULT 'pending'");
     await checkAndAddColumn("overtimes", "rejection_proof_url", "VARCHAR(512) NULL");
+    await checkAndAddColumn("overtimes", "is_auto_completed", "BOOLEAN DEFAULT FALSE");
+    await checkAndAddColumn("overtimes", "missed_reason", "TEXT NULL");
     try {
       await conn.query("ALTER TABLE overtimes MODIFY COLUMN status ENUM('pending', 'ongoing', 'completed', 'cancelled') DEFAULT 'pending'");
       await conn.query("ALTER TABLE overtimes MODIFY COLUMN employee_approval ENUM('pending', 'approved', 'rejected') DEFAULT 'pending'");

@@ -1037,6 +1037,25 @@ export function registerRoutes(app: Express) {
       await autoCloseExpiredSessions((req.user as any).id);
       const files = req.files as { [fieldname: string]: Express.Multer.File[] };
       const userId = (req.user as any).id;
+
+      // Check if user has an un-explained auto-closed overtime from previous days
+      const unclosedMissed = await db.select({ id: overtimes.id, date: attendance.date })
+        .from(overtimes)
+        .innerJoin(attendance, eq(overtimes.attendanceId, attendance.id))
+        .where(and(
+          eq(attendance.userId, userId),
+          eq(overtimes.isAutoCompleted, true),
+          or(isNull(overtimes.missedReason), eq(overtimes.missedReason, ""))
+        ))
+        .limit(1);
+
+      if (unclosedMissed.length > 0) {
+        return res.status(400).json({
+          message: "Anda melewatkan lembur pada sesi sebelumnya. Harap isi alasan/keterangan terlebih dahulu.",
+          requiresMissedReason: true,
+          overtimeId: unclosedMissed[0].id
+        });
+      }
       
       const {
         shiftId,
@@ -1852,6 +1871,105 @@ export function registerRoutes(app: Express) {
     }
   });
 
+  // Endpoint untuk mengecek apakah ada lembur yang selesai otomatis dan belum diisi alasannya
+  app.get("/api/attendance/overtime/pending-missed", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const userId = Number((req.user as any)?.id || (req.session as any)?.userId);
+      const adminDate = getAdminDate();
+
+      // Auto-close past unclosed overtimes for this user
+      const pastUnclosed = await db.select({
+        id: overtimes.id
+      })
+      .from(overtimes)
+      .innerJoin(attendance, eq(overtimes.attendanceId, attendance.id))
+      .where(and(
+        eq(attendance.userId, userId),
+        ne(overtimes.status, "completed"),
+        ne(overtimes.status, "cancelled"),
+        sql`DATE(${attendance.date}) < ${adminDate}`
+      ));
+
+      for (const ot of pastUnclosed) {
+        await db.update(overtimes).set({
+          endTime: new Date(),
+          status: "completed",
+          isAutoCompleted: true,
+          finalDescription: "Lembur selesai otomatis oleh sistem (melewatkan absen akhir lembur)."
+        }).where(eq(overtimes.id, ot.id));
+      }
+
+      // Fetch pending missed overtime without missedReason
+      const pendingMissed = await db.select({
+        id: overtimes.id,
+        attendanceId: overtimes.attendanceId,
+        startTime: overtimes.startTime,
+        endTime: overtimes.endTime,
+        description: overtimes.description,
+        finalDescription: overtimes.finalDescription,
+        splNumber: overtimes.splNumber,
+        date: attendance.date
+      })
+      .from(overtimes)
+      .innerJoin(attendance, eq(overtimes.attendanceId, attendance.id))
+      .where(and(
+        eq(attendance.userId, userId),
+        eq(overtimes.isAutoCompleted, true),
+        or(
+          isNull(overtimes.missedReason),
+          eq(overtimes.missedReason, "")
+        )
+      ))
+      .orderBy(desc(overtimes.id))
+      .limit(1);
+
+      if (pendingMissed.length > 0) {
+        return res.json({ pendingMissed: pendingMissed[0] });
+      }
+
+      res.json({ pendingMissed: null });
+    } catch (e: any) {
+      console.error("Fetch pending missed overtime error:", e);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Endpoint untuk menyimpan alasan melewatkan lembur dari karyawan
+  app.post("/api/attendance/overtime/submit-missed-reason", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const userId = Number((req.user as any)?.id || (req.session as any)?.userId);
+      const { overtimeId, missedReason } = req.body;
+
+      if (!overtimeId || !missedReason || !missedReason.trim()) {
+        return res.status(400).json({ message: "Alasan / keterangan melewatkan lembur wajib diisi." });
+      }
+
+      const otRecord = await db.select({
+        id: overtimes.id
+      })
+      .from(overtimes)
+      .innerJoin(attendance, eq(overtimes.attendanceId, attendance.id))
+      .where(and(
+        eq(overtimes.id, Number(overtimeId)),
+        eq(attendance.userId, userId)
+      ))
+      .limit(1);
+
+      if (otRecord.length === 0) {
+        return res.status(404).json({ message: "Data lembur tidak ditemukan" });
+      }
+
+      await db.update(overtimes).set({
+        missedReason: missedReason.trim()
+      }).where(eq(overtimes.id, Number(overtimeId)));
+
+      res.json({ message: "Alasan melewatkan lembur berhasil disimpan" });
+    } catch (e: any) {
+      console.error("Submit missed reason error:", e);
+      res.status(500).json({ message: e.message || "Internal server error" });
+    }
+  });
+
   // Endpoint Admin Fetch All Overtimes (Daftar Lembur Real)
   app.get("/api/admin/overtimes", isAuthenticated, isAdmin, async (req: Request, res: Response) => {
     try {
@@ -1868,6 +1986,8 @@ export function registerRoutes(app: Express) {
         status: overtimes.status,
         employeeApproval: overtimes.employeeApproval,
         rejectionReason: overtimes.rejectionReason,
+        isAutoCompleted: overtimes.isAutoCompleted,
+        missedReason: overtimes.missedReason,
         splNumber: overtimes.splNumber,
         assignedBy: overtimes.assignedBy,
         createdAt: overtimes.createdAt,
