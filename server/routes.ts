@@ -1663,18 +1663,22 @@ export function registerRoutes(app: Express) {
 
         let updatedSplDocUrl = splUrl;
         if (pendingOt[0].splNumber) {
-          updatedSplDocUrl = await generateAndSaveSplDocument({
-            splNumber: pendingOt[0].splNumber,
-            employeeName: user[0].fullName || "Karyawan",
-            employeeNik: user[0].username,
-            employeePosition: user[0].position,
-            employeeBranch: user[0].branch,
-            date: safeFormatDate(pendingOt[0].startTime, "yyyy-MM-dd"),
-            startTime: safeFormatDate(pendingOt[0].startTime, "HH:mm"),
-            endTime: pendingOt[0].endTime ? safeFormatDate(pendingOt[0].endTime, "HH:mm") : "Selesai",
-            description: description || pendingOt[0].description || "Lembur",
-            initialProofUrl: initialProofUrl
-          });
+          try {
+            updatedSplDocUrl = await generateAndSaveSplDocument({
+              splNumber: pendingOt[0].splNumber,
+              employeeName: user[0].fullName || "Karyawan",
+              employeeNik: user[0].username,
+              employeePosition: user[0].position,
+              employeeBranch: user[0].branch,
+              date: safeFormatDate(pendingOt[0].startTime, "yyyy-MM-dd"),
+              startTime: safeFormatDate(pendingOt[0].startTime, "HH:mm"),
+              endTime: pendingOt[0].endTime ? safeFormatDate(pendingOt[0].endTime, "HH:mm") : "Selesai",
+              description: description || pendingOt[0].description || "Lembur",
+              initialProofUrl: initialProofUrl
+            });
+          } catch (docErr) {
+            console.error("Failed to generate SPL doc on start:", docErr);
+          }
         }
 
         await db.update(overtimes).set({

@@ -433,6 +433,7 @@ export default function EmployeeDashboard() {
 
     const { data: mySplList } = useQuery<any[]>({
         queryKey: ["/api/employee/overtimes/my-spl"],
+        refetchInterval: 3000,
     });
 
     const [isSplNoticeModalOpen, setIsSplNoticeModalOpen] = useState(false);
@@ -524,6 +525,14 @@ export default function EmployeeDashboard() {
             }
             setIsSplNoticeModalOpen(false);
             setIsApproveSplModalOpen(false);
+            queryClient.setQueryData(["/api/attendance/overtime/today"], (old: any) => {
+                if (!old) return old;
+                return { ...old, employeeApproval: "approved", status: "assigned" };
+            });
+            queryClient.setQueryData(["/api/employee/overtimes/my-spl"], (old: any[] | undefined) => {
+                if (!Array.isArray(old)) return old;
+                return old.map((ot: any) => ot.id === targetOt.id ? { ...ot, employeeApproval: "approved", status: "assigned" } : ot);
+            });
             queryClient.invalidateQueries({ queryKey: ["/api/attendance/overtime/today"] });
             queryClient.invalidateQueries({ queryKey: ["/api/employee/overtimes/my-spl"] });
             await queryClient.refetchQueries({ queryKey: ["/api/attendance/overtime/today"] });
@@ -603,6 +612,15 @@ export default function EmployeeDashboard() {
                 throw new Error(err.message || "Gagal mulai lembur");
             }
             setIsStartOvertimeReportOpen(false);
+            const nowIso = new Date().toISOString();
+            queryClient.setQueryData(["/api/attendance/overtime/today"], (old: any) => {
+                if (!old) return { status: "ongoing", startTime: nowIso, employeeApproval: "approved" };
+                return { ...old, status: "ongoing", startTime: nowIso, employeeApproval: "approved" };
+            });
+            queryClient.setQueryData(["/api/employee/overtimes/my-spl"], (old: any[] | undefined) => {
+                if (!Array.isArray(old)) return old;
+                return old.map((ot: any) => (ot.status !== 'completed' && ot.status !== 'cancelled') ? { ...ot, status: "ongoing", startTime: nowIso, employeeApproval: "approved" } : ot);
+            });
             toast({ title: "Laporan Awal Lembur Terkirim!", description: "Sesi lembur Anda telah berjalan." });
             queryClient.invalidateQueries({ queryKey: ["/api/attendance/overtime/today"] });
             queryClient.invalidateQueries({ queryKey: ["/api/employee/overtimes/my-spl"] });
@@ -641,7 +659,20 @@ export default function EmployeeDashboard() {
                 throw new Error(err.message || "Gagal mengakhiri lembur");
             }
             setIsEndOvertimeReportOpen(false);
+            const nowIso = new Date().toISOString();
+            queryClient.setQueryData(["/api/attendance/overtime/today"], (old: any) => {
+                if (!old) return old;
+                return { ...old, status: "completed", endTime: nowIso };
+            });
+            queryClient.setQueryData(["/api/employee/overtimes/my-spl"], (old: any[] | undefined) => {
+                if (!Array.isArray(old)) return old;
+                return old.map((ot: any) => ot.status === 'ongoing' ? { ...ot, status: "completed", endTime: nowIso } : ot);
+            });
             toast({ title: "Laporan Selesai Lembur Terkirim!", description: "Sesi lembur Anda telah diakhiri dan diperbarui di daftar admin." });
+            queryClient.invalidateQueries({ queryKey: ["/api/attendance/overtime/today"] });
+            queryClient.invalidateQueries({ queryKey: ["/api/employee/overtimes/my-spl"] });
+            await queryClient.refetchQueries({ queryKey: ["/api/attendance/overtime/today"] });
+            await queryClient.refetchQueries({ queryKey: ["/api/employee/overtimes/my-spl"] });
             refetchOvertimeToday();
         } catch (err: any) {
             toast({ title: "Gagal Mengakhiri Lembur", description: err.message, variant: "destructive" });
@@ -1589,6 +1620,15 @@ export default function EmployeeDashboard() {
                                                                                 const err = await res.json();
                                                                                 throw new Error(err.message || "Gagal mulai lembur");
                                                                             }
+                                                                            const nowIso = new Date().toISOString();
+                                                                            queryClient.setQueryData(["/api/attendance/overtime/today"], (old: any) => {
+                                                                                if (!old) return { status: "ongoing", startTime: nowIso, employeeApproval: "approved" };
+                                                                                return { ...old, status: "ongoing", startTime: nowIso, employeeApproval: "approved" };
+                                                                            });
+                                                                            queryClient.setQueryData(["/api/employee/overtimes/my-spl"], (old: any[] | undefined) => {
+                                                                                if (!Array.isArray(old)) return old;
+                                                                                return old.map((ot: any) => (ot.id === spl.id || (ot.status !== 'completed' && ot.status !== 'cancelled')) ? { ...ot, status: "ongoing", startTime: nowIso, employeeApproval: "approved" } : ot);
+                                                                            });
                                                                             toast({ title: "Laporan Awal Lembur Terkirim!", description: "Sesi lembur Anda telah berjalan." });
                                                                             queryClient.invalidateQueries({ queryKey: ["/api/attendance/overtime/today"] });
                                                                             queryClient.invalidateQueries({ queryKey: ["/api/employee/overtimes/my-spl"] });
