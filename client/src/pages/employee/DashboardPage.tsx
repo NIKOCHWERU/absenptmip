@@ -454,8 +454,13 @@ export default function EmployeeDashboard() {
                     description: approveSplDescription
                 })
             });
-            if (!res.ok) throw new Error("Gagal menyetujui lembur");
+            if (!res.ok) {
+                const errData = await res.json().catch(() => ({}));
+                throw new Error(errData.message || "Gagal menyetujui lembur");
+            }
             setIsApproveSplModalOpen(false);
+            setApproveSplPhoto(null);
+            setApproveSplDescription("");
             refetchOvertimeToday();
             toast({ title: "Penugasan Lembur Disetujui!", description: "Status lembur telah disetujui." });
         } catch (err: any) {

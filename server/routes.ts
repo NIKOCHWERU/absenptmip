@@ -1623,9 +1623,13 @@ export function registerRoutes(app: Express) {
 
       if (pendingOt.length > 0) {
         const splUrl = files?.splPhoto?.[0] ? await processSingleUpload(files.splPhoto[0], "overtimeSPL", user[0].fullName) : pendingOt[0].splDocumentUrl;
-        const initialProofUrl = files?.initialProofPhoto?.[0]
+        let initialProofUrl = files?.initialProofPhoto?.[0]
           ? await processSingleUpload(files.initialProofPhoto[0], "overtimeInitial", user[0].fullName)
           : (req.body.initialProofUrl || pendingOt[0].initialProofUrl || null);
+
+        if (initialProofUrl && typeof initialProofUrl === 'string' && initialProofUrl.startsWith('data:image')) {
+          initialProofUrl = await processSingleUpload(undefined, "overtimeInitial", user[0].fullName, undefined, initialProofUrl);
+        }
 
         let updatedSplDocUrl = splUrl;
         if (pendingOt[0].splNumber) {
@@ -1656,9 +1660,13 @@ export function registerRoutes(app: Express) {
       }
 
       const splUrl = files?.splPhoto?.[0] ? await processSingleUpload(files.splPhoto[0], "overtimeSPL", user[0].fullName) : null;
-      const initialProofUrl = files?.initialProofPhoto?.[0]
+      let initialProofUrl = files?.initialProofPhoto?.[0]
         ? await processSingleUpload(files.initialProofPhoto[0], "overtimeInitial", user[0].fullName)
         : (req.body.initialProofUrl || null);
+
+      if (initialProofUrl && typeof initialProofUrl === 'string' && initialProofUrl.startsWith('data:image')) {
+        initialProofUrl = await processSingleUpload(undefined, "overtimeInitial", user[0].fullName, undefined, initialProofUrl);
+      }
 
       await db.insert(overtimes).values({
         attendanceId: activeSession.id,
@@ -1712,9 +1720,13 @@ export function registerRoutes(app: Express) {
       }
 
       const activeOt = ongoingOvertimes[0];
-      const finalProofUrl = files?.finalProofPhoto?.[0]
+      let finalProofUrl = files?.finalProofPhoto?.[0]
         ? await processSingleUpload(files.finalProofPhoto[0], "overtimeFinal", user[0].fullName)
         : (req.body.finalProofUrl || null);
+
+      if (finalProofUrl && typeof finalProofUrl === 'string' && finalProofUrl.startsWith('data:image')) {
+        finalProofUrl = await processSingleUpload(undefined, "overtimeFinal", user[0].fullName, undefined, finalProofUrl);
+      }
 
       let updatedSplDocUrl = activeOt.splDocumentUrl;
       if (activeOt.splNumber) {
@@ -1815,21 +1827,32 @@ export function registerRoutes(app: Express) {
       const ot = await db.select().from(overtimes).where(eq(overtimes.id, Number(overtimeId))).limit(1);
       if (ot.length === 0) return res.status(404).json({ message: "Data lembur tidak ditemukan" });
 
+      const userName = req.user ? ((req.user as any).fullName || (req.user as any).username) : "Karyawan";
+
       if (action === "approve") {
-        const { initialProofUrl, description } = req.body;
+        let { initialProofUrl, description } = req.body;
         const updateData: any = {
           employeeApproval: "approved"
         };
-        if (initialProofUrl) updateData.initialProofUrl = initialProofUrl;
+        if (initialProofUrl) {
+          if (typeof initialProofUrl === 'string' && initialProofUrl.startsWith('data:image')) {
+            initialProofUrl = await processSingleUpload(undefined, "overtimeInitial", userName, undefined, initialProofUrl);
+          }
+          updateData.initialProofUrl = initialProofUrl;
+        }
         if (description) updateData.description = description;
 
         await db.update(overtimes).set(updateData).where(eq(overtimes.id, Number(overtimeId)));
         return res.json({ message: "Penugasan lembur telah disetujui." });
       } else if (action === "reject") {
+        let finalRejectionProof = rejectionProofUrl || null;
+        if (finalRejectionProof && typeof finalRejectionProof === 'string' && finalRejectionProof.startsWith('data:image')) {
+          finalRejectionProof = await processSingleUpload(undefined, "overtimeInitial", userName, undefined, finalRejectionProof);
+        }
         await db.update(overtimes).set({
           employeeApproval: "rejected",
           rejectionReason: rejectionReason || "Karyawan mengajukan izin tidak lembur",
-          rejectionProofUrl: rejectionProofUrl || null,
+          rejectionProofUrl: finalRejectionProof,
           status: "cancelled"
         }).where(eq(overtimes.id, Number(overtimeId)));
         return res.json({ message: "Permohonan izin tidak lembur telah dikirim" });
@@ -1837,7 +1860,7 @@ export function registerRoutes(app: Express) {
       res.status(400).json({ message: "Aksi tidak valid" });
     } catch (e: any) {
       console.error("Overtime respond error:", e);
-      res.status(500).json({ message: "Internal server error" });
+      res.status(500).json({ message: e.message || "Internal server error" });
     }
   });
 
