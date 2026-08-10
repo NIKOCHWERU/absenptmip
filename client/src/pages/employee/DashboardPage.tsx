@@ -524,7 +524,11 @@ export default function EmployeeDashboard() {
             }
             setIsSplNoticeModalOpen(false);
             setIsApproveSplModalOpen(false);
-            refetchOvertimeToday();
+            queryClient.invalidateQueries({ queryKey: ["/api/attendance/overtime/today"] });
+            queryClient.invalidateQueries({ queryKey: ["/api/employee/overtimes/my-spl"] });
+            await queryClient.refetchQueries({ queryKey: ["/api/attendance/overtime/today"] });
+            await queryClient.refetchQueries({ queryKey: ["/api/employee/overtimes/my-spl"] });
+            await refetchOvertimeToday();
             toast({ title: "Penugasan Lembur Disetujui!", description: "Status lembur telah disetujui. Klik 'Mulai Lembur Sekarang' saat Anda akan memulai lembur." });
         } catch (err: any) {
             toast({ title: "Gagal", description: err.message, variant: "destructive" });
@@ -724,9 +728,9 @@ export default function EmployeeDashboard() {
             typeof activeOvertimeToday === "object" &&
             !Array.isArray(activeOvertimeToday) &&
             activeOvertimeToday.id &&
-            (activeOvertimeToday.employeeApproval === "pending" ||
-             activeOvertimeToday.status === "pending" ||
-             !activeOvertimeToday.employeeApproval)
+            (activeOvertimeToday.employeeApproval === "pending" || !activeOvertimeToday.employeeApproval) &&
+            activeOvertimeToday.employeeApproval !== "approved" &&
+            activeOvertimeToday.employeeApproval !== "rejected"
         ) {
             const isPast = checkIsOvertimePast(
                 activeOvertimeToday.overtimeDate || activeOvertimeToday.date || activeOvertimeToday.startTime,

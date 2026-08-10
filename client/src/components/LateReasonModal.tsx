@@ -93,19 +93,29 @@ export function LateReasonModal({ isOpen, onClose, onSubmit, expectedTime = "07:
 
     return (
         <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-            <DialogContent className="max-w-full w-full h-[100dvh] sm:max-w-2xl sm:h-auto bg-white border-none sm:border-zinc-200 text-zinc-900 sm:rounded-3xl p-0 overflow-hidden flex flex-col">
-                <DialogHeader className="space-y-3 p-6 pb-0">
-                    <DialogTitle className="text-2xl font-black text-center text-red-600 tracking-tight uppercase">
+            <DialogContent className="max-w-md w-full bg-white border border-zinc-200 text-zinc-900 rounded-3xl p-6 overflow-hidden flex flex-col max-h-[90vh]">
+                <DialogHeader className="space-y-1.5 pb-1">
+                    <DialogTitle className="text-xl font-black text-center text-red-600 tracking-tight uppercase">
                         Anda Terlambat
                     </DialogTitle>
-                    <DialogDescription className="text-sm text-zinc-500 text-center font-medium leading-relaxed">
+                    <DialogDescription className="text-xs text-zinc-500 text-center font-medium leading-relaxed">
                         Batas waktu pukul {expectedTime} telah terlewati. <br />
                         Mohon sampaikan alasan keterlambatan Anda di bawah ini.
                     </DialogDescription>
                 </DialogHeader>
 
-                <div className="flex-1 overflow-y-auto px-6 py-4 flex flex-row gap-4">
-                    <div className="flex-1 space-y-2">
+                <div className="flex-1 overflow-y-auto py-2 flex flex-col gap-4">
+                    <div className="space-y-1.5">
+                        <label className="text-xs font-bold uppercase tracking-wider text-zinc-400 ml-1">Keterangan Alasan <span className="text-red-500">*</span></label>
+                        <Textarea
+                            placeholder="Contoh: Terjebak macet parah, ada kendala pada kendaraan, kepentingan mendesak, dll."
+                            className="bg-zinc-50 border-zinc-200 text-zinc-900 w-full min-h-[90px] rounded-2xl focus:ring-red-500 focus:border-red-500 transition-all placeholder:text-zinc-400 text-xs p-3 resize-none font-medium"
+                            value={reason}
+                            onChange={(e) => setReason(e.target.value)}
+                        />
+                    </div>
+
+                    <div className="space-y-1.5">
                         <label className="text-xs font-bold uppercase tracking-wider text-zinc-400 ml-1">Bukti Foto (Opsional)</label>
                         <div className="relative aspect-video bg-zinc-50 rounded-2xl border-2 border-dashed border-zinc-200 flex flex-col items-center justify-center overflow-hidden transition-all hover:border-red-200 group">
                             {capturedPhoto ? (
@@ -114,7 +124,7 @@ export function LateReasonModal({ isOpen, onClose, onSubmit, expectedTime = "07:
                                     <Button
                                         size="icon"
                                         variant="destructive"
-                                        className="absolute top-3 right-3 rounded-full shadow-lg"
+                                        className="absolute top-3 right-3 rounded-full shadow-lg h-8 w-8"
                                         onClick={() => setCapturedPhoto(null)}
                                     >
                                         <X className="h-4 w-4" />
@@ -127,7 +137,7 @@ export function LateReasonModal({ isOpen, onClose, onSubmit, expectedTime = "07:
                                         <Button
                                             size="icon"
                                             variant="secondary"
-                                            className="rounded-full shadow-lg bg-white/50 backdrop-blur-md hover:bg-white/80"
+                                            className="rounded-full shadow-lg bg-white/50 backdrop-blur-md hover:bg-white/80 h-8 w-8"
                                             onClick={toggleCamera}
                                         >
                                             <SwitchCamera className="h-4 w-4 text-black" />
@@ -135,43 +145,43 @@ export function LateReasonModal({ isOpen, onClose, onSubmit, expectedTime = "07:
                                         <Button
                                             size="icon"
                                             variant="destructive"
-                                            className="rounded-full shadow-lg"
+                                            className="rounded-full shadow-lg h-8 w-8"
                                             onClick={stopCamera}
                                         >
                                             <X className="h-4 w-4" />
                                         </Button>
                                     </div>
                                     <Button
-                                        className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full bg-red-600 hover:bg-red-700 shadow-xl px-8"
-                                        size="lg"
+                                        className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full bg-red-600 hover:bg-red-700 shadow-xl px-6 h-9 text-xs font-bold"
+                                        size="sm"
                                         onClick={capturePhoto}
                                     >
                                         Ambil Foto
                                     </Button>
                                 </>
                             ) : (
-                                <div className="text-center space-y-3 p-6 flex flex-col items-center">
-                                    <div className="p-4 bg-white shadow-sm rounded-2xl inline-block group-hover:scale-110 transition-transform">
-                                        <Camera className="h-7 w-7 text-zinc-300" />
+                                <div className="text-center space-y-2 p-4 flex flex-col items-center">
+                                    <div className="p-3 bg-white shadow-sm rounded-2xl inline-block group-hover:scale-105 transition-transform">
+                                        <Camera className="h-6 w-6 text-zinc-300" />
                                     </div>
                                     <p className="text-[11px] text-zinc-400 font-medium">Opsional: Lampirkan bukti foto jika diperlukan</p>
-                                    <div className="flex flex-col w-full gap-2">
+                                    <div className="flex gap-2 w-full pt-1">
                                         <Button
                                             variant="outline"
                                             size="sm"
-                                            className="border-zinc-200 hover:bg-zinc-100 rounded-xl px-4 font-semibold gap-2 w-full"
+                                            className="border-zinc-200 hover:bg-zinc-100 rounded-xl px-3 font-semibold gap-1.5 flex-1 text-xs h-9"
                                             onClick={() => startCamera()}
                                         >
-                                            <Camera className="h-4 w-4" />
+                                            <Camera className="h-3.5 w-3.5" />
                                             Buka Kamera
                                         </Button>
                                         <Button
                                             variant="outline"
                                             size="sm"
-                                            className="border-zinc-200 hover:bg-zinc-100 rounded-xl px-4 font-semibold gap-2 w-full"
+                                            className="border-zinc-200 hover:bg-zinc-100 rounded-xl px-3 font-semibold gap-1.5 flex-1 text-xs h-9"
                                             onClick={() => document.getElementById('gallery-upload')?.click()}
                                         >
-                                            <RefreshCw className="h-4 w-4" />
+                                            <RefreshCw className="h-3.5 w-3.5" />
                                             Pilih Galeri
                                         </Button>
                                         <input
@@ -195,31 +205,21 @@ export function LateReasonModal({ isOpen, onClose, onSubmit, expectedTime = "07:
                             )}
                         </div>
                     </div>
-
-                    <div className="flex-1 space-y-2 h-full flex flex-col">
-                        <label className="text-xs font-bold uppercase tracking-wider text-zinc-400 ml-1">Keterangan Alasan</label>
-                        <Textarea
-                            placeholder="Contoh: Terjebak macet parah, ada kendala pada kendaraan, kepentingan mendesak, dll."
-                            className="bg-zinc-50 border-zinc-100 text-zinc-900 flex-1 min-h-[150px] sm:min-h-full rounded-2xl focus:ring-red-500 focus:border-red-500 transition-all placeholder:text-zinc-300 resize-none"
-                            value={reason}
-                            onChange={(e) => setReason(e.target.value)}
-                        />
-                    </div>
                 </div>
 
-                <DialogFooter className="flex flex-col gap-3 p-6 pt-2">
+                <DialogFooter className="flex flex-col gap-2 pt-3 border-t border-zinc-100 mt-2">
                     <Button
-                        variant="ghost"
-                        className="w-full text-zinc-400 hover:text-red-600 hover:bg-red-50 font-bold rounded-2xl h-12 order-2 sm:order-1"
-                        onClick={onClose}
-                    >
-                        Batalkan
-                    </Button>
-                    <Button
-                        className="w-full bg-red-600 hover:bg-red-700 text-white font-bold rounded-2xl h-14 shadow-lg shadow-red-100 text-base order-1 sm:order-2"
+                        className="w-full bg-red-600 hover:bg-red-700 text-white font-bold rounded-2xl h-12 shadow-md shadow-red-100 text-sm"
                         onClick={handleSubmit}
                     >
                         Simpan & Masuk Sesi
+                    </Button>
+                    <Button
+                        variant="ghost"
+                        className="w-full text-zinc-400 hover:text-red-600 hover:bg-red-50 font-bold rounded-2xl h-9 text-xs"
+                        onClick={onClose}
+                    >
+                        Batalkan
                     </Button>
                 </DialogFooter>
             </DialogContent>

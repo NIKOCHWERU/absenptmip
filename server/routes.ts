@@ -1862,7 +1862,8 @@ export function registerRoutes(app: Express) {
       if (action === "approve") {
         let { initialProofUrl, description } = req.body;
         const updateData: any = {
-          employeeApproval: "approved"
+          employeeApproval: "approved",
+          status: "assigned"
         };
         if (initialProofUrl) {
           if (typeof initialProofUrl === 'string' && initialProofUrl.startsWith('data:image')) {
