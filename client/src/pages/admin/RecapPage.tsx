@@ -157,6 +157,7 @@ export default function RecapPage() {
 
     const { data: allOvertimes } = useQuery<any[]>({
         queryKey: ["/api/admin/overtimes"],
+        refetchInterval: 3000,
     });
 
     const { data: allShifts } = useQuery<Shift[]>({
@@ -1574,25 +1575,39 @@ export default function RecapPage() {
                                                 </td>
                                             </tr>
 
-                                            {/* Sub-baris Lembur jika Super Admin & ada data lembur yang SUDAH SETUJU & SUDAH MULAI */}
-                                            {user?.role === "superadmin" && (() => {
-                                                const ot = allOvertimes?.find(o => o.attendanceId === row.id);
-                                                if (!ot || ot.employeeApproval !== "approved" || !ot.initialProofUrl) return null;
+                                            {/* Sub-baris Lembur jika ada data lembur yang Disetujui, Berlangsung, atau Selesai */}
+                                            {(() => {
+                                                const rowDateStr = safeFormatDate(row.date, "yyyy-MM-dd");
+                                                const ot = allOvertimes?.find(o => {
+                                                    if (!o) return false;
+                                                    if (o.attendanceId === row.id) return true;
+                                                    if (o.userId === row.userId) {
+                                                        const otDateStr = o.date ? safeFormatDate(o.date, "yyyy-MM-dd") : (o.startTime ? safeFormatDate(o.startTime, "yyyy-MM-dd") : "");
+                                                        return otDateStr === rowDateStr;
+                                                    }
+                                                    return false;
+                                                });
 
-                                                const hasFinished = ot.status === "completed" && !!ot.finalProofUrl;
+                                                if (!ot || ot.employeeApproval === "rejected" || ot.status === "cancelled") return null;
+
+                                                const isOngoing = ot.status === "ongoing" || (ot.employeeApproval === "approved" && ot.status !== "completed");
+                                                const hasFinished = ot.status === "completed";
 
                                                 const otStart = ot.startTime ? safeFormatDate(ot.startTime, "HH:mm") : "-";
-                                                const otEnd = hasFinished && ot.endTime ? safeFormatDate(ot.endTime, "HH:mm") : "-";
+                                                const otEnd = hasFinished && ot.endTime ? safeFormatDate(ot.endTime, "HH:mm") : (isOngoing ? "Berlangsung" : "-");
 
                                                 const otDurationMins = (hasFinished && ot.startTime && ot.endTime) 
                                                     ? Math.round((new Date(ot.endTime).getTime() - new Date(ot.startTime).getTime()) / 60000)
                                                     : 0;
-                                                const otDurationStr = (hasFinished && otDurationMins > 0) ? formatDuration(otDurationMins) : "-";
+                                                const otDurationStr = (hasFinished && otDurationMins > 0) ? formatDuration(otDurationMins) : (isOngoing ? "Sedang Lembur" : "-");
 
-                                                let statusLabel = "SEDANG BERLANGSUNG";
-                                                let statusClass = "bg-orange-100 text-orange-800 border-orange-200";
+                                                let statusLabel = "DISETUJUI / BERLANGSUNG";
+                                                let statusClass = "bg-orange-100 text-orange-800 border-orange-200 animate-pulse";
 
-                                                if (ot.isAutoCompleted) {
+                                                if (ot.status === "ongoing") {
+                                                    statusLabel = "SEDANG BERLANGSUNG";
+                                                    statusClass = "bg-blue-100 text-blue-800 border-blue-200 animate-pulse";
+                                                } else if (ot.isAutoCompleted) {
                                                     statusLabel = "SELESAI OTOMATIS";
                                                     statusClass = "bg-amber-100 text-amber-800 border-amber-300";
                                                 } else if (hasFinished) {
@@ -1606,7 +1621,7 @@ export default function RecapPage() {
                                                 }
 
                                                 return (
-                                                    <tr key={`ot-${row.id}`} className="bg-orange-50/50 border-b border-orange-100 hover:bg-orange-50 transition-colors">
+                                                    <tr key={`ot-${row.id}`} className="bg-orange-50/60 border-b border-orange-100 hover:bg-orange-50 transition-colors">
                                                         <td className="px-6 py-3 font-bold text-orange-600 text-xs text-right">↳</td>
                                                         <td className="px-6 py-3">
                                                             <div className="flex items-center gap-2">
