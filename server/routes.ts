@@ -1635,22 +1635,21 @@ export function registerRoutes(app: Express) {
         await db.update(attendance).set({ checkOut: checkOutDate }).where(eq(attendance.id, activeSession.id));
       }
 
-      // Check if overtime record exists for this user (pending or assigned)
-      const pendingOt = await db.select({
-        id: overtimes.id,
-        splDocumentUrl: overtimes.splDocumentUrl,
-        initialProofUrl: overtimes.initialProofUrl,
-        description: overtimes.description
-      })
-      .from(overtimes)
-      .innerJoin(attendance, eq(overtimes.attendanceId, attendance.id))
-      .where(and(
-        eq(attendance.userId, userId),
-        ne(overtimes.status, "cancelled"),
-        ne(overtimes.status, "completed")
-      ))
-      .orderBy(desc(overtimes.id))
-      .limit(1);
+      const userAttRecords = await db.select({ id: attendance.id }).from(attendance).where(eq(attendance.userId, userId));
+      const userAttIds = userAttRecords.map(a => a.id);
+
+      let pendingOt: any[] = [];
+      if (userAttIds.length > 0) {
+        pendingOt = await db.select()
+          .from(overtimes)
+          .where(and(
+            inArray(overtimes.attendanceId, userAttIds),
+            ne(overtimes.status, "cancelled"),
+            ne(overtimes.status, "completed")
+          ))
+          .orderBy(desc(overtimes.id))
+          .limit(1);
+      }
 
       if (pendingOt.length > 0) {
         const splUrl = files?.splPhoto?.[0] ? await processSingleUpload(files.splPhoto[0], "overtimeSPL", user[0].fullName) : pendingOt[0].splDocumentUrl;
