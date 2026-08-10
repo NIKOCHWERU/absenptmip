@@ -9,6 +9,7 @@ import { users, shifts, attendance, leaveRequests, complaints, complaintPhotos, 
 import { eq, ne, and, or, gte, lte, desc, sql, isNotNull, isNull, inArray } from "drizzle-orm";
 
 import { isAuthenticated, isAdmin, isSuperAdmin, hashPassword } from "./auth.js";
+import { uploadFile, isDriveConfigured, buildDriveFilename, DriveFolder, downloadFileStream } from "./services/googleDrive.js";
 
 // Configure web-push
 const vapidPublicKey = process.env.VAPID_PUBLIC_KEY || "";
@@ -317,8 +318,6 @@ async function generateAndSaveSplDocument(data: {
     }
   return localUrl;
 }
-
-import { uploadFile, isDriveConfigured, buildDriveFilename, DriveFolder, downloadFileStream } from "./services/googleDrive.js";
 
 async function processSingleUpload(
   file: Express.Multer.File | undefined,
