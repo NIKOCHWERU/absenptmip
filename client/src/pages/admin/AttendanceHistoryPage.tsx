@@ -211,6 +211,10 @@ export default function AttendanceHistoryPage() {
         const emp = getEmployee(att.userId);
         if (!emp) return false;
 
+        // Sembunyikan jika belum mulai absen (checkIn null) & bukan izin/sakit/cuti/off resmi
+        const hasStartedAttendance = !!att.checkIn || ['sick', 'permission', 'cuti', 'off'].includes(att.status || '');
+        if (!hasStartedAttendance) return false;
+
         // Name Filter
         if (searchName && !emp.fullName.toLowerCase().includes(searchName.toLowerCase())) return false;
 

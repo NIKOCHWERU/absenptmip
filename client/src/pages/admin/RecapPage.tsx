@@ -201,6 +201,11 @@ export default function RecapPage() {
 
     const filteredRecords = allAttendance?.filter(att => {
         if (!getUserName(att.userId)) return false;
+
+        // Sembunyikan jika belum mulai absen (checkIn null) & bukan izin/sakit/cuti/off resmi
+        const hasStartedAttendance = !!att.checkIn || ['sick', 'permission', 'cuti', 'off'].includes(att.status || '');
+        if (!hasStartedAttendance) return false;
+
         const attDate = new Date(att.date);
         const d = new Date(attDate);
         d.setHours(0, 0, 0, 0);
