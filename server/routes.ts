@@ -316,6 +316,8 @@ async function generateAndSaveSplDocument(data: {
     } catch (err: any) {
       console.error("GDrive upload for SPL document failed, using local path:", err.message);
     }
+  }
+
   return localUrl;
 }
 
