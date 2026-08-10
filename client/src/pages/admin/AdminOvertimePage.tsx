@@ -131,9 +131,13 @@ export default function AdminOvertimePage() {
   const [manualStatus, setManualStatus] = useState<string>("completed");
 
   // Form Fields — Edit Lembur Admin
-  const [editStartTime, setEditStartTime] = useState<string>("");
-  const [editEndTime, setEditEndTime] = useState<string>("");
+  const [editDate, setEditDate] = useState<string>(format(new Date(), "yyyy-MM-dd"));
+  const [editStartTime, setEditStartTime] = useState<string>("17:00");
+  const [editEndTime, setEditEndTime] = useState<string>("20:30");
   const [editTask, setEditTask] = useState<string>("");
+  const [editRefRows, setEditRefRows] = useState<{ id: string; file: File | null; caption: string }[]>([
+    { id: "1", file: null, caption: "" }
+  ]);
   const [editFinalTask, setEditFinalTask] = useState<string>("");
   const [editStatus, setEditStatus] = useState<string>("completed");
   const [editApproval, setEditApproval] = useState<string>("approved");
@@ -278,16 +282,47 @@ export default function AdminOvertimePage() {
   const editMutation = useMutation({
     mutationFn: async () => {
       if (!editItem) return;
+
+      const validRows = editRefRows.filter(r => r.file !== null);
+      let uploadedRefItems: { url: string; caption?: string }[] = [];
+      if (validRows.length > 0) {
+        for (let i = 0; i < validRows.length; i++) {
+          const row = validRows[i];
+          if (row.file) {
+            const formData = new FormData();
+            formData.append("photo", row.file);
+            formData.append("type", "overtimeSPL");
+            const resUpload = await fetch("/api/upload-direct", { method: "POST", body: formData });
+            if (resUpload.ok) {
+              const uData = await resUpload.json();
+              uploadedRefItems.push({ url: uData.url, caption: row.caption || `Gambar Referensi #${i + 1}` });
+            }
+          }
+        }
+      }
+
+      const startIso = `${editDate}T${editStartTime}:00+07:00`;
+      let endIso: string | null = null;
+      if (editEndTime) {
+        let tempEnd = new Date(`${editDate}T${editEndTime}:00+07:00`);
+        let tempStart = new Date(startIso);
+        if (tempEnd < tempStart) {
+          tempEnd.setDate(tempEnd.getDate() + 1);
+        }
+        endIso = tempEnd.toISOString();
+      }
+
       const res = await fetch(`/api/admin/overtimes/${editItem.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          startTime: editStartTime ? new Date(editStartTime).toISOString() : editItem.startTime,
-          endTime: editEndTime ? new Date(editEndTime).toISOString() : null,
+          startTime: new Date(startIso).toISOString(),
+          endTime: endIso,
           description: editTask,
           finalDescription: editFinalTask,
           status: editStatus,
-          employeeApproval: editApproval
+          employeeApproval: editApproval,
+          referenceItems: uploadedRefItems.length > 0 ? uploadedRefItems : undefined
         })
       });
       if (!res.ok) throw new Error("Gagal memperbarui data lembur");
@@ -335,12 +370,26 @@ export default function AdminOvertimePage() {
 
   const handleOpenEdit = (item: any) => {
     setEditItem(item);
-    setEditStartTime(item.startTime ? format(new Date(item.startTime), "yyyy-MM-dd'T'HH:mm") : "");
-    setEditEndTime(item.endTime ? format(new Date(item.endTime), "yyyy-MM-dd'T'HH:mm") : "");
+
+    let dateStr = format(new Date(), "yyyy-MM-dd");
+    if (item.date) {
+      dateStr = format(new Date(item.date), "yyyy-MM-dd");
+    } else if (item.startTime) {
+      dateStr = format(new Date(item.startTime), "yyyy-MM-dd");
+    }
+    setEditDate(dateStr);
+
+    const startHhMm = item.startTime ? format(new Date(item.startTime), "HH:mm") : "17:00";
+    setEditStartTime(startHhMm);
+
+    const endHhMm = item.endTime ? format(new Date(item.endTime), "HH:mm") : "20:30";
+    setEditEndTime(endHhMm);
+
     setEditTask(item.description || "");
     setEditFinalTask(item.finalDescription || "");
-    setEditStatus(item.status || "completed");
+    setEditStatus(item.status || "pending");
     setEditApproval(item.employeeApproval || "approved");
+    setEditRefRows([{ id: "1", file: null, caption: "" }]);
   };
 
   const toggleSort = (field: string) => {
@@ -548,6 +597,26 @@ export default function AdminOvertimePage() {
         <tr><th>Estimasi Durasi</th><td><strong>${durationStr}</strong></td></tr>
         <tr><th>Uraian Tugas / Instruksi</th><td><em>"${item.description || "Pelaksanaan Pekerjaan Lembur Operasional"}"</em></td></tr>
       </table>
+
+      ${(item.initialProofUrl || item.finalProofUrl) ? `
+      <!-- Seksi III: Bukti Dokumentasi Foto Karyawan -->
+      <div class="section-title">III. BUKTI DOKUMENTASI FOTO KARYAWAN</div>
+      <div style="display: flex; gap: 15px; flex-wrap: wrap; margin-bottom: 15px;">
+        ${item.initialProofUrl ? `
+          <div style="flex: 1; min-width: 180px; border: 1px solid #cbd5e1; border-radius: 8px; text-align: center; padding: 8px; background: #f8fafc;">
+            <div style="font-size: 10px; font-weight: bold; color: #2563eb; margin-bottom: 5px;">📷 BUKTI FOTO AWAL LEMBUR</div>
+            <img src="${item.initialProofUrl}" style="max-width: 100%; max-height: 180px; border-radius: 6px; object-fit: contain;" />
+          </div>
+        ` : ''}
+        ${item.finalProofUrl ? `
+          <div style="flex: 1; min-width: 180px; border: 1px solid #cbd5e1; border-radius: 8px; text-align: center; padding: 8px; background: #f8fafc;">
+            <div style="font-size: 10px; font-weight: bold; color: #16a34a; margin-bottom: 5px;">📷 BUKTI FOTO SELESAI LEMBUR</div>
+            <img src="${item.finalProofUrl}" style="max-width: 100%; max-height: 180px; border-radius: 6px; object-fit: contain;" />
+            ${item.finalDescription ? `<div style="font-size: 10px; color: #475569; font-style: italic; margin-top: 4px;">"${item.finalDescription}"</div>` : ''}
+          </div>
+        ` : ''}
+      </div>
+      ` : ''}
 
       <!-- Status Persetujuan -->
       <div class="status-section">
@@ -1437,8 +1506,11 @@ export default function AdminOvertimePage() {
       {/* ========================================================================= */}
       {/* MODAL POPUP 3: EDIT DATA LEMBUR ADMIN                                     */}
       {/* ========================================================================= */}
+      {/* ========================================================================= */}
+      {/* MODAL 3: EDIT DATA PENUGASAN LEMBUR (SAMAKAN DENGAN FORM PENUGASAN LEMBUR) */}
+      {/* ========================================================================= */}
       <Dialog open={!!editItem} onOpenChange={(open) => !open && setEditItem(null)}>
-        <DialogContent className="sm:max-w-md rounded-2xl p-6 bg-white shadow-2xl">
+        <DialogContent className="sm:max-w-xl rounded-2xl p-6 bg-white shadow-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader className="border-b pb-3">
             <DialogTitle className="text-lg font-black text-gray-900 flex items-center gap-2">
               <Pencil className="w-5 h-5 text-amber-600" /> Edit Data Penugasan Lembur
@@ -1450,49 +1522,193 @@ export default function AdminOvertimePage() {
 
           {editItem && (
             <form onSubmit={(e) => { e.preventDefault(); editMutation.mutate(); }} className="space-y-4 pt-2 text-xs">
-              <div className="p-3 bg-gray-50 rounded-xl border border-gray-100">
-                <span className="font-bold text-gray-900 block">{editItem.fullName}</span>
-                <span className="text-[10px] text-gray-400 font-mono">NIK: {editItem.nik} | {editItem.splNumber || "SPL Resmi"}</span>
+              {/* Info Karyawan */}
+              <div className="p-3.5 bg-amber-50/70 border border-amber-200/80 rounded-2xl flex items-center justify-between">
+                <div>
+                  <span className="font-extrabold text-gray-900 text-sm block">{editItem.fullName}</span>
+                  <span className="text-[11px] text-gray-500 font-mono">NIK: {editItem.nik} | Jabatan: {editItem.position || "-"}</span>
+                </div>
+                <span className="text-xs font-black text-amber-700 bg-amber-200/70 px-2.5 py-1 rounded-lg font-mono">
+                  {editItem.splNumber || "SPL Resmi"}
+                </span>
               </div>
 
-              <div className="space-y-1.5">
-                <label className="font-bold text-gray-700">Waktu Mulai</label>
-                <Input
-                  type="datetime-local"
-                  value={editStartTime}
-                  onChange={(e) => setEditStartTime(e.target.value)}
-                  className="h-10 rounded-xl border-gray-200 text-xs"
-                />
+              {/* Field 1: Tanggal & Waktu 24 Jam */}
+              <div className="space-y-4">
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-gray-700">Tanggal Lembur</label>
+                    {editDate && (
+                      <span className="text-[11px] font-black text-primary bg-primary/10 px-2 py-0.5 rounded-md">
+                        Format DD/MM/YYYY: {format(new Date(editDate), "dd/MM/yyyy", { locale: id })}
+                      </span>
+                    )}
+                  </div>
+                  <Input
+                    type="date"
+                    value={editDate}
+                    onChange={(e) => setEditDate(e.target.value)}
+                    className="rounded-xl border-gray-200 h-10 text-xs font-medium"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-gray-700 block">Jam Mulai (24 Jam)</label>
+                    <TimePicker24h
+                      value={editStartTime}
+                      onChange={(val) => setEditStartTime(val)}
+                      placeholder="17:00"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-gray-700 block">Estimasi Selesai (24 Jam)</label>
+                    <TimePicker24h
+                      value={editEndTime}
+                      onChange={(val) => setEditEndTime(val)}
+                      placeholder="20:30"
+                    />
+                  </div>
+                </div>
+
+                {/* Dynamic Overtime Estimate Banner */}
+                {editDate && editStartTime && editEndTime && (() => {
+                  const calc = calculateOvertimeEstimatedDuration(editDate, editStartTime, editEndTime);
+                  return (
+                    <div className="p-3.5 bg-orange-50/80 border border-orange-200 rounded-2xl space-y-1 mt-2">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="font-extrabold text-orange-900 uppercase tracking-wide flex items-center gap-1.5">
+                          <Zap className="w-4 h-4 text-orange-500 fill-orange-500" /> Estimasi Durasi Lembur
+                        </span>
+                        <span className="font-black text-xs text-orange-700 bg-orange-200/80 px-2.5 py-0.5 rounded-full">
+                          ⚡ {calc.text}
+                        </span>
+                      </div>
+                      <p className="text-xs text-orange-900 font-bold pt-1">
+                        Periode: <span className="font-mono text-xs">{calc.displayRange}</span>
+                      </p>
+                      {calc.isNextDay && (
+                        <p className="text-[11px] text-orange-600 font-semibold italic">
+                          * Lembur melewati tengah malam dan berakhir pada hari berikutnya ({calc.formattedEnd}).
+                        </p>
+                      )}
+                    </div>
+                  );
+                })()}
               </div>
 
+              {/* Field 2: Uraian Pekerjaan */}
               <div className="space-y-1.5">
-                <label className="font-bold text-gray-700">Waktu Selesai</label>
-                <Input
-                  type="datetime-local"
-                  value={editEndTime}
-                  onChange={(e) => setEditEndTime(e.target.value)}
-                  className="h-10 rounded-xl border-gray-200 text-xs"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="font-bold text-gray-700">Uraian Instruksi Awal</label>
+                <label className="text-xs font-bold text-gray-700">Uraian Pekerjaan Lembur *</label>
                 <Textarea
+                  placeholder="Contoh: Perbaikan Mesin Production Line & Maintenance Listrik..."
                   value={editTask}
                   onChange={(e) => setEditTask(e.target.value)}
-                  className="rounded-xl border-gray-200 text-xs min-h-[60px]"
+                  className="rounded-xl border-gray-200 min-h-[90px] text-xs leading-relaxed"
                 />
               </div>
 
+              {/* Field 3: Tabel Dynamic Upload Gambar Referensi */}
+              <div className="space-y-2 pt-1">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-gray-800">
+                    Upload Gambar Referensi / Panduan Kerja (Opsional)
+                  </label>
+                  <span className="text-[10px] text-gray-400">Multi Upload + Keterangan</span>
+                </div>
+
+                <div className="border border-gray-200 rounded-2xl overflow-hidden bg-white shadow-sm">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead className="bg-orange-50/80 border-b border-orange-100 text-orange-950 font-bold">
+                      <tr>
+                        <th className="p-2.5 w-1/2">Upload Gambar</th>
+                        <th className="p-2.5 w-1/2">Keterangan</th>
+                        <th className="p-2.5 w-10 text-center">Aksi</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {editRefRows.map((row, idx) => (
+                        <tr key={row.id} className="hover:bg-gray-50/50">
+                          <td className="p-2.5">
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="file"
+                                accept="image/*"
+                                id={`edit-ref-file-${row.id}`}
+                                className="hidden"
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0] || null;
+                                  setEditRefRows(prev => prev.map(r => r.id === row.id ? { ...r, file } : r));
+                                }}
+                              />
+                              <label
+                                htmlFor={`edit-ref-file-${row.id}`}
+                                className="cursor-pointer px-3 py-1.5 rounded-xl border border-dashed border-orange-300 bg-orange-50/50 hover:bg-orange-100/50 text-[11px] font-bold text-orange-800 flex items-center gap-1.5 shrink-0"
+                              >
+                                <Upload className="w-3.5 h-3.5 text-orange-600" />
+                                {row.file ? "Ganti File" : "Pilih File"}
+                              </label>
+                              {row.file && (
+                                <span className="text-[10px] font-medium text-gray-600 truncate max-w-[120px]" title={row.file.name}>
+                                  {row.file.name}
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="p-2.5">
+                            <Input
+                              type="text"
+                              placeholder={`Contoh: Panduan Pekerjaan #${idx + 1}...`}
+                              value={row.caption}
+                              onChange={(e) => {
+                                const caption = e.target.value;
+                                setEditRefRows(prev => prev.map(r => r.id === row.id ? { ...r, caption } : r));
+                              }}
+                              className="h-8 rounded-lg text-xs border-gray-200"
+                            />
+                          </td>
+                          <td className="p-2.5 text-center">
+                            {editRefRows.length > 1 && (
+                              <button
+                                type="button"
+                                onClick={() => setEditRefRows(prev => prev.filter(r => r.id !== row.id))}
+                                className="text-red-500 hover:text-red-700 p-1"
+                                title="Hapus Baris"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  <div className="p-2 bg-gray-50/70 border-t border-gray-100 flex justify-end">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={() => setEditRefRows(prev => [...prev, { id: String(Date.now()), file: null, caption: "" }])}
+                      className="h-7 text-[11px] font-bold text-orange-600 hover:text-orange-700 hover:bg-orange-50 gap-1 px-2.5 rounded-lg"
+                    >
+                      <Plus className="w-3.5 h-3.5" /> Tambah Baris Gambar
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Field 4: Laporan Hasil Pekerjaan */}
               <div className="space-y-1.5">
-                <label className="font-bold text-gray-700">Laporan Hasil Pekerjaan</label>
+                <label className="text-xs font-bold text-gray-700">Laporan Hasil Pekerjaan (Jika Ada)</label>
                 <Textarea
+                  placeholder="Keterangan hasil pekerjaan lembur yang dilaporkan..."
                   value={editFinalTask}
                   onChange={(e) => setEditFinalTask(e.target.value)}
                   className="rounded-xl border-gray-200 text-xs min-h-[60px]"
                 />
               </div>
 
+              {/* Field 5: Status & Respon */}
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <label className="font-bold text-gray-700">Status Lembur</label>
