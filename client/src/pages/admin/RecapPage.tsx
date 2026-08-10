@@ -200,11 +200,23 @@ export default function RecapPage() {
         return users?.find(u => u.id === userId)?.fullName || null;
     };
 
-    const filteredRecords = allAttendance?.filter(att => {
+    const filteredRecords = (allAttendance || []).filter(att => {
         if (!getUserName(att.userId)) return false;
 
-        // Sembunyikan jika belum mulai absen (checkIn null) & bukan izin/sakit/cuti/off resmi
-        const hasStartedAttendance = !!att.checkIn || ['sick', 'permission', 'cuti', 'off'].includes(att.status || '');
+        const attDateStr = safeFormatDate(att.date, "yyyy-MM-dd");
+
+        const hasOvertime = allOvertimes?.some(o => {
+            if (!o) return false;
+            if (o.attendanceId === att.id) return true;
+            if (o.userId === att.userId) {
+                const otDateStr = o.date ? safeFormatDate(o.date, "yyyy-MM-dd") : (o.startTime ? safeFormatDate(o.startTime, "yyyy-MM-dd") : "");
+                return otDateStr === attDateStr;
+            }
+            return false;
+        });
+
+        // Tampilkan jika sudah absen (checkIn ada), ATAU izin/sakit/cuti/off, ATAU ada penugasan lembur (termasuk sedang berlangsung)
+        const hasStartedAttendance = !!att.checkIn || ['sick', 'permission', 'cuti', 'off'].includes(att.status || '') || hasOvertime;
         if (!hasStartedAttendance) return false;
 
         const attDate = new Date(att.date);
@@ -215,9 +227,46 @@ export default function RecapPage() {
         const e = new Date(endDate);
         e.setHours(23, 59, 59, 999);
         return (isAfter(d, s) || isEqual(d, s)) && (isBefore(d, e) || isEqual(d, e));
-    }) || [];
+    });
 
-    const processedData = filteredRecords
+    // Inject overtimes that might not have a matching attendance record in allAttendance
+    const overtimesWithoutAtt = (allOvertimes || []).filter(ot => {
+        if (!ot || ot.employeeApproval === "rejected" || ot.status === "cancelled") return false;
+        const otDateStr = ot.date ? safeFormatDate(ot.date, "yyyy-MM-dd") : (ot.startTime ? safeFormatDate(ot.startTime, "yyyy-MM-dd") : "");
+        if (!otDateStr) return false;
+
+        const targetUserId = ot.userId || (ot.attendance ? ot.attendance.userId : undefined);
+        if (!targetUserId || !getUserName(targetUserId)) return false;
+
+        const alreadyExists = filteredRecords.some(att => 
+            att.userId === targetUserId && safeFormatDate(att.date, "yyyy-MM-dd") === otDateStr
+        );
+        if (alreadyExists) return false;
+
+        const d = new Date(otDateStr);
+        d.setHours(0, 0, 0, 0);
+        const s = new Date(startDate);
+        s.setHours(0, 0, 0, 0);
+        const e = new Date(endDate);
+        e.setHours(23, 59, 59, 999);
+        return (isAfter(d, s) || isEqual(d, s)) && (isBefore(d, e) || isEqual(d, e));
+    }).map(ot => {
+        const targetUserId = ot.userId || (ot.attendance ? ot.attendance.userId : undefined);
+        const otDateStr = ot.date ? safeFormatDate(ot.date, "yyyy-MM-dd") : (ot.startTime ? safeFormatDate(ot.startTime, "yyyy-MM-dd") : "");
+        return {
+            id: `ot-synth-${ot.id}`,
+            userId: targetUserId,
+            date: ot.startTime || ot.date || `${otDateStr}T08:00:00`,
+            status: "present",
+            checkIn: null,
+            checkOut: null,
+            isSynthetic: true
+        } as any;
+    });
+
+    const combinedRecords = [...filteredRecords, ...overtimesWithoutAtt];
+
+    const processedData = combinedRecords
         .filter(att => {
             const name = (getUserName(att.userId) || '').toLowerCase();
             return name.includes(searchName.toLowerCase());
