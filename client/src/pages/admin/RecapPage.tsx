@@ -91,6 +91,21 @@ const generatePdfBlobFromHtml = async (htmlContent: string, pdfFileName: string)
             container.parentNode.removeChild(container);
         }
     }
+const safeFormatDate = (dateVal: any, formatStr: string, options?: any) => {
+    try {
+        if (!dateVal) return "";
+        let d: Date;
+        if (typeof dateVal === "string" && dateVal.length === 10 && dateVal.includes("-")) {
+            const [y, m, day] = dateVal.split("-").map(Number);
+            d = new Date(y, m - 1, day, 12, 0, 0);
+        } else {
+            d = new Date(dateVal);
+        }
+        if (isNaN(d.getTime())) return "";
+        return format(d, formatStr, { locale: id, ...options });
+    } catch (e) {
+        return "";
+    }
 };
 
 export default function RecapPage() {
@@ -307,16 +322,6 @@ export default function RecapPage() {
         }
     };
 
-    const safeFormatDate = (dateVal: any, formatStr: string, options?: any) => {
-        try {
-            if (!dateVal) return "";
-            const d = new Date(dateVal);
-            if (isNaN(d.getTime())) return "";
-            return format(d, formatStr, options);
-        } catch (e) {
-            return "";
-        }
-    };
 
     const dailyTotals = new Map<string, { mins: number; complete: boolean }>();
     processedData.forEach(row => {
