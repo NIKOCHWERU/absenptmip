@@ -1233,7 +1233,7 @@ export function registerRoutes(app: Express) {
 
       const activeSession = todaySessions[0];
       if (activeSession.breakStart) {
-        return res.status(400).json({ message: "Istirahat sudah dimulai pada sesi ini" });
+        return res.json({ message: "Mulai istirahat sudah tercatat", alreadyStarted: true });
       }
 
       const fullName = (req.user as any).fullName || (req.user as any).username;
@@ -1285,7 +1285,7 @@ export function registerRoutes(app: Express) {
         return res.status(400).json({ message: "Istirahat belum dimulai" });
       }
       if (activeSession.breakEnd) {
-        return res.status(400).json({ message: "Istirahat sudah diakhiri pada sesi ini" });
+        return res.json({ message: "Istirahat sudah diakhiri", alreadyEnded: true });
       }
 
       const fullName = (req.user as any).fullName || (req.user as any).username;

@@ -123,16 +123,6 @@ export function CameraModal({ open, onClose, onCapture, locationAddress, allowCa
 
     // Kompres ke JPEG 65% untuk menjaga ukuran file tetap kecil
     const dataUrl = canvas.toDataURL("image/jpeg", 0.65);
-    if (!allowCaption) {
-      // Instantly confirm
-      try {
-        await onCapture(dataUrl, "");
-      } catch (err) {
-        console.error("Auto confirm failed", err);
-      }
-      return;
-    }
-
     setCapturedPhoto(dataUrl);
     setCameraState("captured");
   };
@@ -237,6 +227,11 @@ export function CameraModal({ open, onClose, onCapture, locationAddress, allowCa
               >
                 <X className="w-6 h-6" />
               </Button>
+              {cameraState === "captured" && (
+                <div className="bg-black/60 text-white text-xs font-bold px-3.5 py-1.5 rounded-full backdrop-blur-md border border-white/20 shadow-lg">
+                  🔍 Preview Hasil Foto
+                </div>
+              )}
               {cameraState === "active" && (
                 <Button
                   variant="ghost"
@@ -281,10 +276,10 @@ export function CameraModal({ open, onClose, onCapture, locationAddress, allowCa
                 className="flex flex-col gap-2 text-white hover:bg-white/10 h-auto py-2"
                 onClick={handleRetake}
               >
-                <div className="w-14 h-14 rounded-full bg-white/10 flex items-center justify-center">
+                <div className="w-14 h-14 rounded-full bg-white/10 flex items-center justify-center border border-white/20">
                   <RefreshCw className="w-6 h-6" />
                 </div>
-                <span className="text-xs font-medium">Ulangi</span>
+                <span className="text-xs font-semibold">Ambil Ulang</span>
               </Button>
 
               <Button
@@ -293,13 +288,13 @@ export function CameraModal({ open, onClose, onCapture, locationAddress, allowCa
                 className="flex flex-col gap-2 text-white hover:bg-white/10 h-auto py-2"
                 onClick={handleConfirm}
               >
-                <div className="w-20 h-20 rounded-full bg-green-500 flex items-center justify-center shadow-lg shadow-green-500/30">
+                <div className="w-20 h-20 rounded-full bg-emerald-500 flex items-center justify-center shadow-lg shadow-emerald-500/40">
                   {isSubmitting
-                    ? <RefreshCw className="w-10 h-10 animate-spin" />
-                    : <Check className="w-10 h-10" />}
+                    ? <RefreshCw className="w-10 h-10 animate-spin text-white" />
+                    : <Check className="w-10 h-10 text-white" />}
                 </div>
-                <span className="text-xs font-medium">
-                  {isSubmitting ? "Mengirim..." : "Gunakan Foto"}
+                <span className="text-xs font-extrabold text-emerald-400">
+                  {isSubmitting ? "Mengirim..." : "Kirim Foto"}
                 </span>
               </Button>
             </div>

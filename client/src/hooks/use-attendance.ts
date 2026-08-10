@@ -27,6 +27,14 @@ export function useAttendance() {
 
   const clockOutMutation = useMutation({
     mutationFn: async (data: { location: string; checkInPhoto: string }) => {
+      const nowIso = new Date().toISOString();
+      queryClient.setQueryData(["/api/attendance/today"], (old: any) => {
+        if (!old) return old;
+        if (Array.isArray(old)) {
+          return old.map(s => !s.checkOut ? { ...s, checkOut: nowIso, checkOutPhoto: data.checkInPhoto } : s);
+        }
+        return { ...old, checkOut: nowIso, checkOutPhoto: data.checkInPhoto };
+      });
       await apiRequest("POST", "/api/attendance/clock-out", data);
     },
     onSuccess: () => {
@@ -37,19 +45,37 @@ export function useAttendance() {
 
   const breakStartMutation = useMutation({
     mutationFn: async (data: { location: string; checkInPhoto: string }) => {
+      const nowIso = new Date().toISOString();
+      queryClient.setQueryData(["/api/attendance/today"], (old: any) => {
+        if (!old) return old;
+        if (Array.isArray(old)) {
+          return old.map(s => !s.checkOut ? { ...s, breakStart: nowIso, breakStartPhoto: data.checkInPhoto } : s);
+        }
+        return { ...old, breakStart: nowIso, breakStartPhoto: data.checkInPhoto };
+      });
       await apiRequest("POST", "/api/attendance/break-start", data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/attendance/today"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/attendance"] });
     }
   });
 
   const breakEndMutation = useMutation({
     mutationFn: async (data: { location: string; checkInPhoto: string }) => {
+      const nowIso = new Date().toISOString();
+      queryClient.setQueryData(["/api/attendance/today"], (old: any) => {
+        if (!old) return old;
+        if (Array.isArray(old)) {
+          return old.map(s => (!s.checkOut && s.breakStart) ? { ...s, breakEnd: nowIso, breakEndPhoto: data.checkInPhoto } : s);
+        }
+        return { ...old, breakEnd: nowIso, breakEndPhoto: data.checkInPhoto };
+      });
       await apiRequest("POST", "/api/attendance/break-end", data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/attendance/today"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/attendance"] });
     }
   });
 
