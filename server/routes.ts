@@ -3739,20 +3739,7 @@ export function registerRoutes(app: Express) {
   app.delete('/api/admin/attendance/:id', isAdmin, async (req: Request, res: Response) => {
     const id = parseInt(req.params.id);
     try {
-      const [attRecord] = await db.select().from(attendance).where(eq(attendance.id, id)).limit(1);
-      if (attRecord) {
-        await db.delete(overtimes).where(
-          or(
-            eq(overtimes.attendanceId, id),
-            and(
-              eq(overtimes.attendanceId, id),
-              eq(attendance.userId, attRecord.userId)
-            )
-          )
-        );
-      } else {
-        await db.delete(overtimes).where(eq(overtimes.attendanceId, id));
-      }
+      await db.delete(overtimes).where(eq(overtimes.attendanceId, id));
       await db.delete(attendance).where(eq(attendance.id, id));
       res.json({ message: "Data absensi berhasil dihapus", id });
     } catch (e: any) {
