@@ -1219,6 +1219,7 @@ export function registerRoutes(app: Express) {
         .where(
           and(
             eq(attendance.userId, userId),
+            isNotNull(attendance.checkIn),
             or(
               sql`DATE(${attendance.date}) = ${adminDate}`,
               isNull(attendance.checkOut)
@@ -1231,7 +1232,7 @@ export function registerRoutes(app: Express) {
         return res.status(400).json({ message: "Anda belum melakukan absen masuk hari ini" });
       }
 
-      const activeSession = todaySessions[0];
+      const activeSession = todaySessions.find(s => s.checkIn !== null && s.checkOut === null) || todaySessions[0];
       if (activeSession.breakStart) {
         return res.json({ message: "Mulai istirahat sudah tercatat", alreadyStarted: true });
       }
@@ -1268,6 +1269,7 @@ export function registerRoutes(app: Express) {
         .where(
           and(
             eq(attendance.userId, userId),
+            isNotNull(attendance.checkIn),
             or(
               sql`DATE(${attendance.date}) = ${adminDate}`,
               isNull(attendance.checkOut)
@@ -1280,7 +1282,7 @@ export function registerRoutes(app: Express) {
         return res.status(400).json({ message: "Anda belum masuk hari ini" });
       }
 
-      const activeSession = todaySessions[0];
+      const activeSession = todaySessions.find(s => s.checkIn !== null && s.checkOut === null) || todaySessions[0];
       if (!activeSession.breakStart) {
         return res.status(400).json({ message: "Istirahat belum dimulai" });
       }
@@ -1320,6 +1322,7 @@ export function registerRoutes(app: Express) {
         .where(
           and(
             eq(attendance.userId, userId),
+            isNotNull(attendance.checkIn),
             or(
               sql`DATE(${attendance.date}) = ${adminDate}`,
               isNull(attendance.checkOut)
@@ -1332,7 +1335,7 @@ export function registerRoutes(app: Express) {
         return res.status(400).json({ message: "Anda belum masuk hari ini" });
       }
 
-      const activeSession = todaySessions[0];
+      const activeSession = todaySessions.find(s => s.checkIn !== null && s.checkOut === null) || todaySessions[0];
       if (activeSession.checkOut) {
         return res.status(400).json({ message: "Sesi absensi aktif sudah melakukan checkout" });
       }

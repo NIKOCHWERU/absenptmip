@@ -1313,25 +1313,39 @@ export default function EmployeeDashboard() {
             );
         }
 
-        // --- IN PROGRESS: waiting for break start (skip if break feature is disabled) ---
+        // --- IN PROGRESS: waiting for break start or clock out (if break feature active & not on break & not break ended) ---
         if (isBreakFeatureActive && !isBreak && !hasBreakEnded) {
             return (
-                <Button
-                    onClick={() => startAttendanceFlow(breakStart, "Selamat Istirahat")}
-                    disabled={isLoading}
-                    className="w-full h-14 rounded-xl bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white font-semibold shadow-blue-200 shadow-lg text-lg"
-                >
-                    {isLoading ? <Loader2 className="animate-spin mr-2" /> : (
-                        <>
-                            <Coffee className="mr-2 h-5 w-5" />
-                            Mulai Istirahat
-                        </>
-                    )}
-                </Button>
+                <div className="flex flex-col gap-3 w-full">
+                    <Button
+                        onClick={() => startAttendanceFlow(breakStart, "Selamat Istirahat")}
+                        disabled={isLoading}
+                        className="w-full h-14 rounded-xl bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white font-semibold shadow-blue-200 shadow-lg text-lg"
+                    >
+                        {isLoading ? <Loader2 className="animate-spin mr-2" /> : (
+                            <>
+                                <Coffee className="mr-2 h-5 w-5" />
+                                Mulai Istirahat
+                            </>
+                        )}
+                    </Button>
+                    <Button
+                        onClick={handleClockOutClick}
+                        disabled={isLoading}
+                        className="w-full h-14 rounded-xl bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-white font-bold shadow-red-200 shadow-lg text-lg"
+                    >
+                        {isLoading ? <Loader2 className="animate-spin mr-2" /> : (
+                            <>
+                                <LogOut className="mr-2 h-5 w-5" />
+                                Absen Pulang
+                            </>
+                        )}
+                    </Button>
+                </div>
             );
         }
 
-        // --- IN BREAK: waiting for break end (skip if break feature is disabled) ---
+        // --- IN BREAK: waiting for break end ---
         if (isBreakFeatureActive && isBreak && !hasBreakEnded) {
             return (
                 <Button
@@ -1349,7 +1363,7 @@ export default function EmployeeDashboard() {
             );
         }
 
-        // --- READY TO CLOCK OUT (If break feature is active, check hasBreakEnded. Otherwise, just check hasCheckedIn and not hasCheckedOut) ---
+        // --- READY TO CLOCK OUT (If break feature is active and break has ended, or break feature is inactive) ---
         if (hasCheckedIn && (!isBreakFeatureActive || hasBreakEnded) && !hasCheckedOut) {
             return (
                 <Button
