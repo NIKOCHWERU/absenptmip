@@ -81,6 +81,14 @@ export function useAttendance() {
 
   const permitMutation = useMutation({
     mutationFn: async (data: { type: "sick" | "permission" | "off"; notes: string; checkInPhoto?: string | null; location?: string }) => {
+      const nowIso = new Date().toISOString();
+      queryClient.setQueryData(["/api/attendance/today"], (old: any) => {
+        if (!old) return old;
+        if (Array.isArray(old)) {
+          return old.map(s => !s.checkOut ? { ...s, status: data.type, notes: data.notes, checkOut: nowIso, permitExitAt: nowIso } : s);
+        }
+        return { ...old, status: data.type, notes: data.notes, checkOut: nowIso, permitExitAt: nowIso };
+      });
       await apiRequest("POST", "/api/attendance/permit", data);
     },
     onSuccess: () => {

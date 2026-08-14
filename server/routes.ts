@@ -1365,13 +1365,14 @@ export function registerRoutes(app: Express) {
     const labelType = type === 'sick' ? 'Sakit' : type === 'off' ? 'Libur' : 'Izin';
 
     try {
-      // Get all sessions today to find the active one
+      // Get all sessions today to find the active work session
       const todaySessions = await db
         .select()
         .from(attendance)
         .where(
           and(
             eq(attendance.userId, userId),
+            isNotNull(attendance.checkIn),
             or(
               sql`DATE(${attendance.date}) = ${adminDate}`,
               isNull(attendance.checkOut)
@@ -1380,7 +1381,7 @@ export function registerRoutes(app: Express) {
         )
         .orderBy(attendance.sessionNumber);
 
-      const activeSession = todaySessions.find(s => !s.checkOut);
+      const activeSession = todaySessions.find(s => s.checkIn !== null && s.checkOut === null) || todaySessions.find(s => !s.checkOut);
 
       const fullName = (req.user as any).fullName || (req.user as any).username;
       const photoFileId = await processSingleUpload(req.file, "clockIn", fullName, undefined, checkInPhoto);
