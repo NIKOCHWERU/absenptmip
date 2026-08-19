@@ -524,11 +524,20 @@ export default function RecapPage() {
             return `${y}-${m}-${d}`;
         };
 
+        const formatTimeDot = (dateVal: any): string => {
+            if (!dateVal) return "-";
+            try {
+                return format(new Date(dateVal), "HH.mm");
+            } catch (_) {
+                return "-";
+            }
+        };
+
         const formatHHMM = (minutes: number): string => {
             if (minutes <= 0) return "-";
             const h = String(Math.floor(minutes / 60)).padStart(2, '0');
             const m = String(minutes % 60).padStart(2, '0');
-            return `${h}:${m}`;
+            return `${h}.${m}`;
         };
 
         const normalisasiStatus = (status: string | null | undefined): string => {
@@ -605,7 +614,6 @@ export default function RecapPage() {
                             <tr>
                                 <td class="date-column">${formatTanggalIndo(dateObj)}</td>
                                 <td class="tidak-absen">TIDAK ABSEN</td>
-                                <td class="no-photo">-</td>
                             </tr>
                         `;
                     } else {
@@ -618,16 +626,16 @@ export default function RecapPage() {
                         if (statusNorm === "SAKIT") jumlahSakit++;
                         if (statusNorm === "IZIN") jumlahIzin++;
 
-                        const masuk = rec.checkIn ? format(new Date(rec.checkIn), "HH:mm") : "-";
-                        const pulang = rec.checkOut ? format(new Date(rec.checkOut), "HH:mm") : "-";
+                        const masuk = formatTimeDot(rec.checkIn);
+                        const pulang = formatTimeDot(rec.checkOut);
 
-                        const istirahatStart = rec.breakStart ? format(new Date(rec.breakStart), "HH:mm") : null;
-                        const istirahatEnd = rec.breakEnd ? format(new Date(rec.breakEnd), "HH:mm") : null;
+                        const istirahatStart = formatTimeDot(rec.breakStart);
+                        const istirahatEnd = formatTimeDot(rec.breakEnd);
                         let istirahatText = "";
-                        if (istirahatStart && istirahatEnd) {
-                            istirahatText = `${istirahatStart} s/d ${istirahatEnd}`;
-                        } else if (istirahatStart) {
-                            istirahatText = `${istirahatStart} s/d -`;
+                        if (istirahatStart !== "-" && istirahatEnd !== "-") {
+                            istirahatText = `<strong>${istirahatStart} sampai ${istirahatEnd}</strong>`;
+                        } else if (istirahatStart !== "-") {
+                            istirahatText = `<strong>${istirahatStart} sampai -</strong>`;
                         }
 
                         const { netWorkMins } = calculateDailyTotal(dayRecords);
@@ -646,19 +654,19 @@ export default function RecapPage() {
 
                         if (masuk !== "-" || pulang !== "-") {
                             cellHtml += `
-                                <div class="jam">Jam: ${escapeHTML(masuk)} s/d ${escapeHTML(pulang)}</div>
+                                <div class="jam">Jam: <strong>${escapeHTML(masuk)} sampai ${escapeHTML(pulang)}</strong></div>
                             `;
                         }
 
                         if (istirahatText) {
                             cellHtml += `
-                                <div class="jam-istirahat">Istirahat: ${escapeHTML(istirahatText)}</div>
+                                <div class="jam-istirahat">Istirahat: ${istirahatText}</div>
                             `;
                         }
 
                         if (jamKerjaStr) {
                             cellHtml += `
-                                <div class="jam-kerja">Jam kerja: ${escapeHTML(jamKerjaStr)}</div>
+                                <div class="jam-kerja">Jam kerja: <strong>${escapeHTML(jamKerjaStr)}</strong></div>
                             `;
                         }
 
@@ -676,36 +684,10 @@ export default function RecapPage() {
 
                         cellHtml += `</td>`;
 
-                        // Column 3: Bukti Foto
-                        const photoList: { url: string; label: string }[] = [];
-                        if (rec.checkInPhoto) photoList.push({ url: rec.checkInPhoto, label: "Masuk" });
-                        if (rec.breakStartPhoto) photoList.push({ url: rec.breakStartPhoto, label: "Istirahat" });
-                        if (rec.breakEndPhoto) photoList.push({ url: rec.breakEndPhoto, label: "Selesai Ist" });
-                        if (rec.checkOutPhoto) photoList.push({ url: rec.checkOutPhoto, label: "Pulang" });
-                        if ((rec as any).lateReasonPhoto) photoList.push({ url: (rec as any).lateReasonPhoto, label: "Bukti Telat" });
-
-                        let photoCellHtml = "";
-                        if (photoList.length > 0) {
-                            photoCellHtml = `<div class="photo-grid">` +
-                                photoList.map(p => {
-                                    const src = imageCache[p.url] || p.url;
-                                    return `
-                                        <div class="photo-item">
-                                            <img src="${escapeHTML(src)}" class="photo-img" alt="${escapeHTML(p.label)}" loading="lazy" />
-                                            <span class="photo-label">${escapeHTML(p.label)}</span>
-                                        </div>
-                                    `;
-                                }).join("") +
-                                `</div>`;
-                        } else {
-                            photoCellHtml = `<span class="no-photo">-</span>`;
-                        }
-
                         isiBaris += `
                             <tr>
                                 <td class="date-column">${formatTanggalIndo(dateObj)}</td>
                                 ${cellHtml}
-                                <td>${photoCellHtml}</td>
                             </tr>
                         `;
                     }
@@ -770,9 +752,8 @@ export default function RecapPage() {
                         <table class="attendance-table">
                             <thead>
                                 <tr>
-                                    <th style="width: 20%;">TANGGAL</th>
-                                    <th style="width: 48%;">KEHADIRAN</th>
-                                    <th style="width: 32%;">BUKTI FOTO</th>
+                                    <th style="width: 32%;">TANGGAL</th>
+                                    <th style="width: 68%;">KEHADIRAN</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -838,11 +819,6 @@ export default function RecapPage() {
         .jam-kerja { color: #475569; margin-top: 1px; }
         .alasan-telat { color: #dc2626; margin-top: 1px; font-size: 6pt; }
         .keterangan { color: #64748b; margin-top: 1px; font-size: 6pt; }
-        .photo-grid { display: flex; flex-wrap: wrap; gap: 3px; align-items: center; }
-        .photo-item { display: flex; flex-direction: column; align-items: center; border: 1px solid #cbd5e1; border-radius: 2px; padding: 1px; background: #ffffff; width: 34px; }
-        .photo-img { width: 30px; height: 28px; object-fit: cover; border-radius: 1px; }
-        .photo-label { font-size: 4.8pt; font-weight: bold; color: #475569; margin-top: 1px; text-transform: uppercase; text-align: center; line-height: 1; white-space: nowrap; }
-        .no-photo { color: #94a3b8; font-size: 6.5pt; text-align: center; display: block; }
         .print-container { position: fixed; top: 15px; right: 15px; z-index: 9999; }
         .print-button { border: none; padding: 10px 18px; background: #111827; color: white; border-radius: 4px; cursor: pointer; font-size: 14px; }
         .print-button:hover { background: #374151; }
@@ -855,9 +831,6 @@ export default function RecapPage() {
             .report { width: 100% !important; max-width: none !important; min-height: auto !important; margin: 0 !important; padding: 2mm 4mm !important; box-shadow: none !important; page-break-after: always !important; page-break-inside: avoid !important; }
             .attendance-table th { padding: 2px 4px !important; font-size: 6.5pt !important; }
             .attendance-table td { padding: 1.5px 4px !important; font-size: 6pt !important; line-height: 1.15 !important; }
-            .photo-item { width: 30px !important; padding: 1px !important; }
-            .photo-img { width: 26px !important; height: 24px !important; }
-            .photo-label { font-size: 4.5pt !important; }
         }
     </style>
 </head>
