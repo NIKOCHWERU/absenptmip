@@ -481,6 +481,7 @@ export default function RecapPage() {
         processedData,
         startDate,
         endDate,
+        imageCache = {},
         isPdf = false
     }: {
         docTitle: string;
@@ -493,6 +494,7 @@ export default function RecapPage() {
         processedData: any[];
         startDate: Date;
         endDate: Date;
+        imageCache?: Record<string, string>;
         isPdf?: boolean;
     }) => {
         const escapeHTML = (value: any): string => {
@@ -603,6 +605,7 @@ export default function RecapPage() {
                             <tr>
                                 <td class="date-column">${formatTanggalIndo(dateObj)}</td>
                                 <td class="tidak-absen">TIDAK ABSEN</td>
+                                <td class="no-photo">-</td>
                             </tr>
                         `;
                     } else {
@@ -673,10 +676,36 @@ export default function RecapPage() {
 
                         cellHtml += `</td>`;
 
+                        // Column 3: Bukti Foto
+                        const photoList: { url: string; label: string }[] = [];
+                        if (rec.checkInPhoto) photoList.push({ url: rec.checkInPhoto, label: "Masuk" });
+                        if (rec.breakStartPhoto) photoList.push({ url: rec.breakStartPhoto, label: "Istirahat" });
+                        if (rec.breakEndPhoto) photoList.push({ url: rec.breakEndPhoto, label: "Selesai Ist" });
+                        if (rec.checkOutPhoto) photoList.push({ url: rec.checkOutPhoto, label: "Pulang" });
+                        if ((rec as any).lateReasonPhoto) photoList.push({ url: (rec as any).lateReasonPhoto, label: "Bukti Telat" });
+
+                        let photoCellHtml = "";
+                        if (photoList.length > 0) {
+                            photoCellHtml = `<div class="photo-grid">` +
+                                photoList.map(p => {
+                                    const src = imageCache[p.url] || p.url;
+                                    return `
+                                        <div class="photo-item">
+                                            <img src="${escapeHTML(src)}" class="photo-img" alt="${escapeHTML(p.label)}" loading="lazy" />
+                                            <span class="photo-label">${escapeHTML(p.label)}</span>
+                                        </div>
+                                    `;
+                                }).join("") +
+                                `</div>`;
+                        } else {
+                            photoCellHtml = `<span class="no-photo">-</span>`;
+                        }
+
                         isiBaris += `
                             <tr>
                                 <td class="date-column">${formatTanggalIndo(dateObj)}</td>
                                 ${cellHtml}
+                                <td>${photoCellHtml}</td>
                             </tr>
                         `;
                     }
@@ -741,8 +770,9 @@ export default function RecapPage() {
                         <table class="attendance-table">
                             <thead>
                                 <tr>
-                                    <th class="date-column">TANGGAL</th>
-                                    <th>KEHADIRAN</th>
+                                    <th style="width: 20%;">TANGGAL</th>
+                                    <th style="width: 48%;">KEHADIRAN</th>
+                                    <th style="width: 32%;">BUKTI FOTO</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -774,11 +804,11 @@ export default function RecapPage() {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>${escapeHTML(docTitle)}</title>
     <style>
-        @page { size: A4 portrait; margin: 4mm 6mm 4mm 6mm; }
+        @page { size: A4 landscape; margin: 4mm 6mm 4mm 6mm; }
         * { box-sizing: border-box; }
         html, body { margin: 0; padding: 0; }
         body { background: #eeeeee; color: #111827; font-family: Arial, Helvetica, sans-serif; font-size: 7.5pt; }
-        .report { width: 100%; max-width: 800px; margin: 10px auto; padding: 10px 14px; background: #ffffff; page-break-after: always; page-break-inside: avoid; }
+        .report { width: 100%; max-width: 1050px; margin: 8px auto; padding: 8px 12px; background: #ffffff; page-break-after: always; page-break-inside: avoid; }
         .report:last-child { page-break-after: auto; }
         .letterhead { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; min-height: 34px; }
         .logo-img { height: 34px; max-width: 100px; object-fit: contain; flex-shrink: 0; }
@@ -807,7 +837,7 @@ export default function RecapPage() {
         .attendance-table th { background: #e5e7eb; border: 1px solid #9ca3af; padding: 3px 4px; text-align: left; font-size: 6.8pt; font-weight: bold; }
         .attendance-table td { border: 1px solid #d1d5db; padding: 2px 4px; vertical-align: middle; font-size: 6.8pt; line-height: 1.2; }
         .attendance-table tbody tr:nth-child(even) { background: #fafafa; }
-        .date-column { width: 34%; font-weight: bold; }
+        .date-column { font-weight: bold; }
         .status-hadir { color: #166534; font-weight: bold; }
         .status-telat { color: #9a3412; font-weight: bold; }
         .status-sakit { color: #1d4ed8; font-weight: bold; }
@@ -821,8 +851,13 @@ export default function RecapPage() {
         .jam-kerja { color: #4b5563; margin-top: 1px; }
         .alasan-telat { color: #dc2626; margin-top: 1px; font-size: 6.2pt; }
         .keterangan { color: #6b7280; margin-top: 1px; font-size: 6.2pt; }
+        .photo-grid { display: flex; flex-wrap: wrap; gap: 3px; align-items: center; }
+        .photo-item { display: flex; flex-direction: column; align-items: center; border: 1px solid #cbd5e1; border-radius: 2px; padding: 1px; background: #ffffff; width: 38px; }
+        .photo-img { width: 34px; height: 32px; object-fit: cover; border-radius: 1px; }
+        .photo-label { font-size: 5pt; font-weight: bold; color: #475569; margin-top: 1px; text-transform: uppercase; text-align: center; line-height: 1; white-space: nowrap; }
+        .no-photo { color: #94a3b8; font-size: 6.5pt; text-align: center; display: block; }
         .signature { display: flex; justify-content: space-between; margin-top: 8px; text-align: center; font-size: 7.5pt; page-break-inside: avoid; }
-        .signature-box { width: 38%; }
+        .signature-box { width: 30%; }
         .signature-space { height: 20px; }
         .signature-name { border-top: 1px solid #374151; padding-top: 2px; font-weight: bold; }
         .print-container { position: fixed; top: 15px; right: 15px; z-index: 9999; }
@@ -831,12 +866,15 @@ export default function RecapPage() {
         .footer { margin-top: 8px; font-size: 7pt; color: #94a3b8; border-top: 1px dashed #cbd5e1; padding-top: 3px; text-align: center; }
         @media screen { body { padding: 12px; } .report { box-shadow: 0 2px 10px rgba(0, 0, 0, .12); } }
         @media print {
-            @page { size: A4 portrait; margin: 4mm 6mm 4mm 6mm; }
+            @page { size: A4 landscape; margin: 4mm 6mm 4mm 6mm; }
             body { background: white; padding: 0; margin: 0; font-size: 6.8pt; }
             .print-container, .footer { display: none !important; }
             .report { width: 100% !important; max-width: none !important; min-height: auto !important; margin: 0 !important; padding: 2mm 4mm !important; box-shadow: none !important; page-break-after: always !important; page-break-inside: avoid !important; }
             .attendance-table th { padding: 2px 4px !important; font-size: 6.5pt !important; }
             .attendance-table td { padding: 1.5px 4px !important; font-size: 6.2pt !important; line-height: 1.15 !important; }
+            .photo-item { width: 32px !important; padding: 1px !important; }
+            .photo-img { width: 28px !important; height: 26px !important; }
+            .photo-label { font-size: 4.5pt !important; }
             .signature { margin-top: 6px !important; }
             .signature-space { height: 16px !important; }
         }
@@ -881,6 +919,41 @@ export default function RecapPage() {
             });
         } catch (_) { }
 
+        const imageCache: Record<string, string> = {};
+        const uniquePhotoUrls = new Set<string>();
+        processedData.forEach(r => {
+            if (r.checkInPhoto) uniquePhotoUrls.add(r.checkInPhoto);
+            if (r.breakStartPhoto) uniquePhotoUrls.add(r.breakStartPhoto);
+            if (r.breakEndPhoto) uniquePhotoUrls.add(r.breakEndPhoto);
+            if (r.checkOutPhoto) uniquePhotoUrls.add(r.checkOutPhoto);
+            if ((r as any).lateReasonPhoto) uniquePhotoUrls.add((r as any).lateReasonPhoto);
+        });
+
+        const urlArray = Array.from(uniquePhotoUrls);
+        await Promise.all(urlArray.map(async (url) => {
+            if (!url) return;
+            if (url.startsWith('data:')) {
+                imageCache[url] = url;
+                return;
+            }
+            try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 4000);
+                const res = await fetch(url, { signal: controller.signal });
+                clearTimeout(timeoutId);
+                if (res.ok) {
+                    const blob = await res.blob();
+                    const b64 = await new Promise<string>((resolve) => {
+                        const reader = new FileReader();
+                        reader.onload = () => resolve(reader.result as string);
+                        reader.onerror = () => resolve('');
+                        reader.readAsDataURL(blob);
+                    });
+                    if (b64) imageCache[url] = b64;
+                }
+            } catch (_) {}
+        }));
+
         const html = buildRecapReportHtml({
             docTitle: fileName,
             periodStr,
@@ -892,6 +965,7 @@ export default function RecapPage() {
             processedData,
             startDate,
             endDate,
+            imageCache,
             isPdf: false
         });
 
@@ -943,6 +1017,41 @@ export default function RecapPage() {
                 });
             } catch (_) {}
 
+            const imageCache: Record<string, string> = {};
+            const uniquePhotoUrls = new Set<string>();
+            processedData.forEach(r => {
+                if (r.checkInPhoto) uniquePhotoUrls.add(r.checkInPhoto);
+                if (r.breakStartPhoto) uniquePhotoUrls.add(r.breakStartPhoto);
+                if (r.breakEndPhoto) uniquePhotoUrls.add(r.breakEndPhoto);
+                if (r.checkOutPhoto) uniquePhotoUrls.add(r.checkOutPhoto);
+                if ((r as any).lateReasonPhoto) uniquePhotoUrls.add((r as any).lateReasonPhoto);
+            });
+
+            const urlArray = Array.from(uniquePhotoUrls);
+            await Promise.all(urlArray.map(async (url) => {
+                if (!url) return;
+                if (url.startsWith('data:')) {
+                    imageCache[url] = url;
+                    return;
+                }
+                try {
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 4000);
+                    const res = await fetch(url, { signal: controller.signal });
+                    clearTimeout(timeoutId);
+                    if (res.ok) {
+                        const blob = await res.blob();
+                        const b64 = await new Promise<string>((resolve) => {
+                            const reader = new FileReader();
+                            reader.onload = () => resolve(reader.result as string);
+                            reader.onerror = () => resolve('');
+                            reader.readAsDataURL(blob);
+                        });
+                        if (b64) imageCache[url] = b64;
+                    }
+                } catch (_) {}
+            }));
+
             const html = buildRecapReportHtml({
                 docTitle: pdfFileName,
                 periodStr,
@@ -954,6 +1063,7 @@ export default function RecapPage() {
                 processedData,
                 startDate,
                 endDate,
+                imageCache,
                 isPdf: true
             });
 
@@ -961,7 +1071,7 @@ export default function RecapPage() {
             container.style.position = 'fixed';
             container.style.left = '-9999px';
             container.style.top = '0';
-            container.style.width = '800px';
+            container.style.width = '1050px';
             container.style.backgroundColor = '#ffffff';
             container.innerHTML = html;
             document.body.appendChild(container);
@@ -974,11 +1084,11 @@ export default function RecapPage() {
 
             const html2pdfLib = await loadHtml2Pdf();
             const opt = {
-                margin: [8, 8, 8, 8],
+                margin: [5, 5, 5, 5],
                 filename: pdfFileName,
                 image: { type: 'jpeg', quality: 0.98 },
-                html2canvas: { scale: 2, useCORS: true, logging: false, windowWidth: 800, letterRendering: true },
-                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait', compress: true },
+                html2canvas: { scale: 2, useCORS: true, logging: false, windowWidth: 1050, letterRendering: true },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape', compress: true },
                 pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
             };
             await html2pdfLib().set(opt).from(container).save();
