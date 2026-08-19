@@ -779,19 +779,6 @@ export default function RecapPage() {
                                 ${isiBaris}
                             </tbody>
                         </table>
-
-                        <div class="signature">
-                            <div class="signature-box">
-                                Diperiksa oleh,
-                                <div class="signature-space"></div>
-                                <div class="signature-name">Penanggung Jawab</div>
-                            </div>
-                            <div class="signature-box">
-                                Karyawan,
-                                <div class="signature-space"></div>
-                                <div class="signature-name">${escapeHTML(empName)}</div>
-                            </div>
-                        </div>
                     </section>
                 `;
             });
@@ -804,39 +791,39 @@ export default function RecapPage() {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>${escapeHTML(docTitle)}</title>
     <style>
-        @page { size: A4 landscape; margin: 4mm 6mm 4mm 6mm; }
+        @page { size: A4 landscape; margin: 8mm 12mm 8mm 12mm; }
         * { box-sizing: border-box; }
         html, body { margin: 0; padding: 0; }
-        body { background: #eeeeee; color: #111827; font-family: Arial, Helvetica, sans-serif; font-size: 7.5pt; }
-        .report { width: 100%; max-width: 1050px; margin: 8px auto; padding: 8px 12px; background: #ffffff; page-break-after: always; page-break-inside: avoid; }
+        body { background: #eeeeee; color: #0f172a; font-family: Arial, Helvetica, sans-serif; font-size: 7.5pt; }
+        .report { width: 100%; max-width: 1050px; margin: 10px auto; padding: 10px 14px; background: #ffffff; page-break-after: always; page-break-inside: avoid; }
         .report:last-child { page-break-after: auto; }
-        .letterhead { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; min-height: 34px; }
-        .logo-img { height: 34px; max-width: 100px; object-fit: contain; flex-shrink: 0; }
+        .letterhead { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; min-height: 36px; }
+        .logo-img { height: 36px; max-width: 110px; object-fit: contain; flex-shrink: 0; }
         .company-block { text-align: right; flex-grow: 1; margin-left: 12px; }
-        .company-block h1 { font-size: 14px; font-weight: bold; text-transform: uppercase; margin-bottom: 1px; letter-spacing: 0.5px; }
+        .company-block h1 { font-size: 15px; font-weight: bold; text-transform: uppercase; margin-bottom: 1px; letter-spacing: 0.5px; }
         .company-block .alamat { font-size: 8.5px; font-weight: normal; color: #334155; line-height: 1.2; margin-top: 1px; }
-        .hr-thick { border: none; border-top: 2px solid #111827; margin: 3px 0 1px; }
+        .hr-thick { border: none; border-top: 2px solid #0f172a; margin: 3px 0 1px; }
         .hr-thin { border: none; border-top: 1px solid #cbd5e1; margin-bottom: 6px; }
-        .header { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 1.5px solid #111827; padding-bottom: 3px; margin-bottom: 6px; }
+        .header { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 1.5px solid #0f172a; padding-bottom: 3px; margin-bottom: 6px; }
         .header-left { text-align: left; }
         .header-right { text-align: right; }
-        .company { margin-bottom: 1px; font-size: 7.5pt; font-weight: bold; letter-spacing: 1px; color: #374151; }
-        .title { margin: 0; font-size: 10pt; font-weight: bold; color: #111827; }
-        .period { margin: 1px 0 0; color: #6b7280; font-size: 7.5pt; }
-        .employee-name { margin: 0 0 1px; font-size: 11pt; font-weight: bold; text-transform: uppercase; color: #111827; }
-        .employee-nik { font-size: 7.5pt; color: #4b5563; margin-bottom: 1px; }
-        .report-number { color: #6b7280; font-size: 7pt; }
-        .summary { display: flex; width: 100%; margin-bottom: 6px; border: 1px solid #cbd5e1; background: #fafafa; }
-        .summary-item { flex: 1; padding: 3px 4px; border-right: 1px solid #cbd5e1; text-align: center; }
+        .company { margin-bottom: 1px; font-size: 7pt; font-weight: bold; letter-spacing: 1px; color: #475569; }
+        .title { margin: 0; font-size: 9.5pt; font-weight: 800; color: #0f172a; }
+        .period { margin: 1px 0 0; color: #475569; font-size: 7pt; }
+        .employee-name { margin: 0 0 1px; font-size: 10.5pt; font-weight: 800; text-transform: uppercase; color: #0f172a; }
+        .employee-nik { font-size: 7pt; color: #475569; margin-bottom: 1px; }
+        .report-number { color: #64748b; font-size: 6.5pt; }
+        .summary { display: flex; width: 100%; margin-bottom: 6px; border: 1px solid #cbd5e1; background: #f8fafc; }
+        .summary-item { flex: 1; padding: 2.5px 4px; border-right: 1px solid #cbd5e1; text-align: center; }
         .summary-item:last-child { border-right: none; }
         .summary-item-highlight { background: #f0fdf4; }
-        .summary-label { display: block; margin-bottom: 1px; color: #6b7280; font-size: 6.5pt; text-transform: uppercase; }
-        .summary-value { font-size: 8.5pt; font-weight: bold; color: #111827; }
+        .summary-label { display: block; margin-bottom: 1px; color: #64748b; font-size: 6pt; text-transform: uppercase; }
+        .summary-value { font-size: 8pt; font-weight: bold; color: #0f172a; }
         .summary-value-work { color: #166534; font-weight: 800; }
         .attendance-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
-        .attendance-table th { background: #e5e7eb; border: 1px solid #9ca3af; padding: 3px 4px; text-align: left; font-size: 6.8pt; font-weight: bold; }
-        .attendance-table td { border: 1px solid #d1d5db; padding: 2px 4px; vertical-align: middle; font-size: 6.8pt; line-height: 1.2; }
-        .attendance-table tbody tr:nth-child(even) { background: #fafafa; }
+        .attendance-table th { background: #f1f5f9; border: 1px solid #94a3b8; padding: 3px 4px; text-align: left; font-size: 6.8pt; font-weight: 800; text-transform: uppercase; }
+        .attendance-table td { border: 1px solid #cbd5e1; padding: 2px 4px; vertical-align: middle; font-size: 6.5pt; line-height: 1.2; }
+        .attendance-table tbody tr:nth-child(even) { background: #f8fafc; }
         .date-column { font-weight: bold; }
         .status-hadir { color: #166534; font-weight: bold; }
         .status-telat { color: #9a3412; font-weight: bold; }
@@ -846,37 +833,31 @@ export default function RecapPage() {
         .status-alpha { color: #991b1b; font-weight: bold; }
         .status-lain { color: #374151; font-weight: bold; }
         .tidak-absen { background: #fff1f2 !important; color: #991b1b; font-weight: bold; text-align: center; letter-spacing: .4px; padding: 2px 4px !important; }
-        .jam { color: #374151; margin-top: 1px; }
+        .jam { color: #334155; margin-top: 1px; }
         .jam-istirahat { color: #d97706; margin-top: 1px; font-weight: 500; }
-        .jam-kerja { color: #4b5563; margin-top: 1px; }
-        .alasan-telat { color: #dc2626; margin-top: 1px; font-size: 6.2pt; }
-        .keterangan { color: #6b7280; margin-top: 1px; font-size: 6.2pt; }
+        .jam-kerja { color: #475569; margin-top: 1px; }
+        .alasan-telat { color: #dc2626; margin-top: 1px; font-size: 6pt; }
+        .keterangan { color: #64748b; margin-top: 1px; font-size: 6pt; }
         .photo-grid { display: flex; flex-wrap: wrap; gap: 3px; align-items: center; }
-        .photo-item { display: flex; flex-direction: column; align-items: center; border: 1px solid #cbd5e1; border-radius: 2px; padding: 1px; background: #ffffff; width: 38px; }
-        .photo-img { width: 34px; height: 32px; object-fit: cover; border-radius: 1px; }
-        .photo-label { font-size: 5pt; font-weight: bold; color: #475569; margin-top: 1px; text-transform: uppercase; text-align: center; line-height: 1; white-space: nowrap; }
+        .photo-item { display: flex; flex-direction: column; align-items: center; border: 1px solid #cbd5e1; border-radius: 2px; padding: 1px; background: #ffffff; width: 34px; }
+        .photo-img { width: 30px; height: 28px; object-fit: cover; border-radius: 1px; }
+        .photo-label { font-size: 4.8pt; font-weight: bold; color: #475569; margin-top: 1px; text-transform: uppercase; text-align: center; line-height: 1; white-space: nowrap; }
         .no-photo { color: #94a3b8; font-size: 6.5pt; text-align: center; display: block; }
-        .signature { display: flex; justify-content: space-between; margin-top: 8px; text-align: center; font-size: 7.5pt; page-break-inside: avoid; }
-        .signature-box { width: 30%; }
-        .signature-space { height: 20px; }
-        .signature-name { border-top: 1px solid #374151; padding-top: 2px; font-weight: bold; }
         .print-container { position: fixed; top: 15px; right: 15px; z-index: 9999; }
         .print-button { border: none; padding: 10px 18px; background: #111827; color: white; border-radius: 4px; cursor: pointer; font-size: 14px; }
         .print-button:hover { background: #374151; }
         .footer { margin-top: 8px; font-size: 7pt; color: #94a3b8; border-top: 1px dashed #cbd5e1; padding-top: 3px; text-align: center; }
         @media screen { body { padding: 12px; } .report { box-shadow: 0 2px 10px rgba(0, 0, 0, .12); } }
         @media print {
-            @page { size: A4 landscape; margin: 4mm 6mm 4mm 6mm; }
-            body { background: white; padding: 0; margin: 0; font-size: 6.8pt; }
+            @page { size: A4 landscape; margin: 6mm 10mm 6mm 10mm; }
+            body { background: white; padding: 0; margin: 0; font-size: 6.5pt; }
             .print-container, .footer { display: none !important; }
             .report { width: 100% !important; max-width: none !important; min-height: auto !important; margin: 0 !important; padding: 2mm 4mm !important; box-shadow: none !important; page-break-after: always !important; page-break-inside: avoid !important; }
             .attendance-table th { padding: 2px 4px !important; font-size: 6.5pt !important; }
-            .attendance-table td { padding: 1.5px 4px !important; font-size: 6.2pt !important; line-height: 1.15 !important; }
-            .photo-item { width: 32px !important; padding: 1px !important; }
-            .photo-img { width: 28px !important; height: 26px !important; }
+            .attendance-table td { padding: 1.5px 4px !important; font-size: 6pt !important; line-height: 1.15 !important; }
+            .photo-item { width: 30px !important; padding: 1px !important; }
+            .photo-img { width: 26px !important; height: 24px !important; }
             .photo-label { font-size: 4.5pt !important; }
-            .signature { margin-top: 6px !important; }
-            .signature-space { height: 16px !important; }
         }
     </style>
 </head>
