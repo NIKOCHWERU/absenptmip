@@ -616,13 +616,20 @@ export default function RecapPage() {
                         const masuk = rec.checkIn ? format(new Date(rec.checkIn), "HH:mm") : "-";
                         const pulang = rec.checkOut ? format(new Date(rec.checkOut), "HH:mm") : "-";
 
+                        const istirahatStart = rec.breakStart ? format(new Date(rec.breakStart), "HH:mm") : null;
+                        const istirahatEnd = rec.breakEnd ? format(new Date(rec.breakEnd), "HH:mm") : null;
+                        let istirahatText = "";
+                        if (istirahatStart && istirahatEnd) {
+                            istirahatText = `${istirahatStart} s/d ${istirahatEnd}`;
+                        } else if (istirahatStart) {
+                            istirahatText = `${istirahatStart} s/d -`;
+                        }
+
                         const { netWorkMins } = calculateDailyTotal(dayRecords);
                         const jamKerjaStr = netWorkMins > 0 ? formatHHMM(netWorkMins) : "";
 
-                        let keterangan = rec.notes ? rec.notes : "";
-                        if (!keterangan && statusNorm === "TELAT") {
-                            keterangan = rec.lateReason ? `Terlambat (${rec.lateReason})` : "Terlambat";
-                        }
+                        const lateReasonStr = rec.lateReason || (rec as any).late_reason || "";
+                        const notesStr = rec.notes || "";
 
                         let cellHtml = `
                             <td>
@@ -631,7 +638,13 @@ export default function RecapPage() {
 
                         if (masuk !== "-" || pulang !== "-") {
                             cellHtml += `
-                                <div class="jam">${escapeHTML(masuk)} s/d ${escapeHTML(pulang)}</div>
+                                <div class="jam">Jam: ${escapeHTML(masuk)} s/d ${escapeHTML(pulang)}</div>
+                            `;
+                        }
+
+                        if (istirahatText) {
+                            cellHtml += `
+                                <div class="jam-istirahat">Istirahat: ${escapeHTML(istirahatText)}</div>
                             `;
                         }
 
@@ -641,9 +654,15 @@ export default function RecapPage() {
                             `;
                         }
 
-                        if (keterangan && keterangan !== "-") {
+                        if (lateReasonStr) {
                             cellHtml += `
-                                <div class="keterangan">${escapeHTML(keterangan)}</div>
+                                <div class="alasan-telat"><strong>Alasan Telat:</strong> ${escapeHTML(lateReasonStr)}</div>
+                            `;
+                        }
+
+                        if (notesStr) {
+                            cellHtml += `
+                                <div class="keterangan">${escapeHTML(notesStr)}</div>
                             `;
                         }
 
@@ -739,35 +758,35 @@ export default function RecapPage() {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>${escapeHTML(docTitle)}</title>
     <style>
-        @page { size: A4 portrait; margin: 14mm 15mm 15mm 15mm; }
+        @page { size: A4 portrait; margin: 6mm 8mm 6mm 8mm; }
         * { box-sizing: border-box; }
         html, body { margin: 0; padding: 0; }
-        body { background: #eeeeee; color: #111827; font-family: Arial, Helvetica, sans-serif; font-size: 10pt; }
-        .report { width: 100%; max-width: 800px; min-height: 267mm; margin: 20px auto; padding: 20px; background: #ffffff; page-break-after: always; }
+        body { background: #eeeeee; color: #111827; font-family: Arial, Helvetica, sans-serif; font-size: 8.5pt; }
+        .report { width: 100%; max-width: 800px; margin: 10px auto; padding: 12px 16px; background: #ffffff; page-break-after: always; page-break-inside: avoid; }
         .report:last-child { page-break-after: auto; }
-        .letterhead { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; min-height: 50px; }
-        .logo-img { height: 50px; max-width: 140px; object-fit: contain; flex-shrink: 0; }
-        .company-block { text-align: right; flex-grow: 1; margin-left: 20px; }
-        .company-block h1 { font-size: 22px; font-weight: bold; text-transform: uppercase; margin-bottom: 4px; letter-spacing: 0.5px; }
-        .company-block .alamat { font-size: 12px; font-weight: normal; color: #334155; line-height: 1.4; margin-top: 4px; }
-        .hr-thick { border: none; border-top: 2px solid #111827; margin: 6px 0 2px; }
-        .hr-thin { border: none; border-top: 1px solid #cbd5e1; margin-bottom: 12px; }
-        .header { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2px solid #111827; padding-bottom: 8px; margin-bottom: 12px; }
-        .company { margin-bottom: 4px; font-size: 9pt; font-weight: bold; letter-spacing: 1px; }
-        .title { margin: 0; font-size: 14pt; font-weight: bold; }
-        .employee-name { margin: 5px 0 3px; font-size: 16pt; font-weight: bold; text-transform: uppercase; }
-        .period { margin: 0; color: #6b7280; font-size: 9pt; }
+        .letterhead { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; min-height: 40px; }
+        .logo-img { height: 40px; max-width: 120px; object-fit: contain; flex-shrink: 0; }
+        .company-block { text-align: right; flex-grow: 1; margin-left: 15px; }
+        .company-block h1 { font-size: 16px; font-weight: bold; text-transform: uppercase; margin-bottom: 2px; letter-spacing: 0.5px; }
+        .company-block .alamat { font-size: 10px; font-weight: normal; color: #334155; line-height: 1.3; margin-top: 2px; }
+        .hr-thick { border: none; border-top: 2px solid #111827; margin: 4px 0 2px; }
+        .hr-thin { border: none; border-top: 1px solid #cbd5e1; margin-bottom: 8px; }
+        .header { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 1.5px solid #111827; padding-bottom: 4px; margin-bottom: 8px; }
+        .company { margin-bottom: 2px; font-size: 8pt; font-weight: bold; letter-spacing: 1px; }
+        .title { margin: 0; font-size: 12pt; font-weight: bold; }
+        .employee-name { margin: 3px 0 2px; font-size: 13pt; font-weight: bold; text-transform: uppercase; }
+        .period { margin: 0; color: #6b7280; font-size: 8.5pt; }
         .report-number { color: #6b7280; font-size: 8pt; }
-        .summary { display: flex; width: 100%; margin-bottom: 12px; border: 1px solid #cbd5e1; }
-        .summary-item { flex: 1; padding: 8px 10px; border-right: 1px solid #cbd5e1; }
+        .summary { display: flex; width: 100%; margin-bottom: 8px; border: 1px solid #cbd5e1; }
+        .summary-item { flex: 1; padding: 4px 6px; border-right: 1px solid #cbd5e1; }
         .summary-item:last-child { border-right: none; }
-        .summary-label { display: block; margin-bottom: 3px; color: #6b7280; font-size: 7.5pt; text-transform: uppercase; }
-        .summary-value { font-size: 10.5pt; font-weight: bold; }
+        .summary-label { display: block; margin-bottom: 2px; color: #6b7280; font-size: 7pt; text-transform: uppercase; }
+        .summary-value { font-size: 9.5pt; font-weight: bold; }
         .attendance-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
-        .attendance-table th { background: #e5e7eb; border: 1px solid #9ca3af; padding: 7px; text-align: left; font-size: 8.5pt; font-weight: bold; }
-        .attendance-table td { border: 1px solid #d1d5db; padding: 7px 8px; vertical-align: middle; }
+        .attendance-table th { background: #e5e7eb; border: 1px solid #9ca3af; padding: 4px 5px; text-align: left; font-size: 7.5pt; font-weight: bold; }
+        .attendance-table td { border: 1px solid #d1d5db; padding: 3px 5px; vertical-align: middle; font-size: 7.5pt; line-height: 1.25; }
         .attendance-table tbody tr:nth-child(even) { background: #fafafa; }
-        .date-column { width: 38%; font-weight: bold; }
+        .date-column { width: 34%; font-weight: bold; }
         .status-hadir { color: #166534; font-weight: bold; }
         .status-telat { color: #9a3412; font-weight: bold; }
         .status-sakit { color: #1d4ed8; font-weight: bold; }
@@ -775,20 +794,22 @@ export default function RecapPage() {
         .status-cuti { color: #0f766e; font-weight: bold; }
         .status-alpha { color: #991b1b; font-weight: bold; }
         .status-lain { color: #374151; font-weight: bold; }
-        .tidak-absen { background: #fff1f2 !important; color: #991b1b; font-weight: bold; text-align: center; letter-spacing: .4px; }
-        .jam { color: #374151; margin-top: 2px; }
-        .jam-kerja { color: #6b7280; margin-top: 2px; font-size: 8.5pt; }
-        .keterangan { color: #6b7280; margin-top: 3px; font-size: 8pt; }
-        .signature { display: flex; justify-content: space-between; margin-top: 20px; text-align: center; font-size: 8.5pt; }
+        .tidak-absen { background: #fff1f2 !important; color: #991b1b; font-weight: bold; text-align: center; letter-spacing: .4px; padding: 3px 5px !important; }
+        .jam { color: #374151; margin-top: 1px; }
+        .jam-istirahat { color: #d97706; margin-top: 1px; font-weight: 500; }
+        .jam-kerja { color: #4b5563; margin-top: 1px; }
+        .alasan-telat { color: #dc2626; margin-top: 1px; font-size: 7pt; }
+        .keterangan { color: #6b7280; margin-top: 1px; font-size: 7pt; }
+        .signature { display: flex; justify-content: space-between; margin-top: 10px; text-align: center; font-size: 8pt; page-break-inside: avoid; }
         .signature-box { width: 38%; }
-        .signature-space { height: 35px; }
-        .signature-name { border-top: 1px solid #374151; padding-top: 4px; font-weight: bold; }
+        .signature-space { height: 26px; }
+        .signature-name { border-top: 1px solid #374151; padding-top: 2px; font-weight: bold; }
         .print-container { position: fixed; top: 15px; right: 15px; z-index: 9999; }
         .print-button { border: none; padding: 10px 18px; background: #111827; color: white; border-radius: 4px; cursor: pointer; font-size: 14px; }
         .print-button:hover { background: #374151; }
-        .footer { margin-top: 18px; font-size: 8.5px; color: #94a3b8; border-top: 1px dashed #cbd5e1; padding-top: 8px; text-align: center; }
-        @media screen { body { padding: 20px; } .report { box-shadow: 0 2px 10px rgba(0, 0, 0, .12); } }
-        @media print { body { background: white; padding: 0; } .print-container { display: none !important; } .report { width: 100%; max-width: none; min-height: auto; margin: 0; padding: 0; box-shadow: none; } .attendance-table tr { page-break-inside: avoid; } }
+        .footer { margin-top: 10px; font-size: 7.5pt; color: #94a3b8; border-top: 1px dashed #cbd5e1; padding-top: 4px; text-align: center; }
+        @media screen { body { padding: 15px; } .report { box-shadow: 0 2px 10px rgba(0, 0, 0, .12); } }
+        @media print { body { background: white; padding: 0; } .print-container { display: none !important; } .report { width: 100%; max-width: none; min-height: auto; margin: 0; padding: 0; box-shadow: none; page-break-after: always; page-break-inside: avoid; } .attendance-table tr { page-break-inside: avoid; } }
     </style>
 </head>
 <body>
