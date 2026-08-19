@@ -758,33 +758,33 @@ export default function RecapPage() {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>${escapeHTML(docTitle)}</title>
     <style>
-        @page { size: A4 portrait; margin: 6mm 8mm 6mm 8mm; }
+        @page { size: A4 portrait; margin: 4mm 6mm 4mm 6mm; }
         * { box-sizing: border-box; }
         html, body { margin: 0; padding: 0; }
-        body { background: #eeeeee; color: #111827; font-family: Arial, Helvetica, sans-serif; font-size: 8.5pt; }
-        .report { width: 100%; max-width: 800px; margin: 10px auto; padding: 12px 16px; background: #ffffff; page-break-after: always; page-break-inside: avoid; }
+        body { background: #eeeeee; color: #111827; font-family: Arial, Helvetica, sans-serif; font-size: 8pt; }
+        .report { width: 100%; max-width: 800px; margin: 10px auto; padding: 10px 14px; background: #ffffff; page-break-after: always; page-break-inside: avoid; }
         .report:last-child { page-break-after: auto; }
-        .letterhead { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; min-height: 40px; }
-        .logo-img { height: 40px; max-width: 120px; object-fit: contain; flex-shrink: 0; }
-        .company-block { text-align: right; flex-grow: 1; margin-left: 15px; }
-        .company-block h1 { font-size: 16px; font-weight: bold; text-transform: uppercase; margin-bottom: 2px; letter-spacing: 0.5px; }
-        .company-block .alamat { font-size: 10px; font-weight: normal; color: #334155; line-height: 1.3; margin-top: 2px; }
-        .hr-thick { border: none; border-top: 2px solid #111827; margin: 4px 0 2px; }
-        .hr-thin { border: none; border-top: 1px solid #cbd5e1; margin-bottom: 8px; }
-        .header { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 1.5px solid #111827; padding-bottom: 4px; margin-bottom: 8px; }
-        .company { margin-bottom: 2px; font-size: 8pt; font-weight: bold; letter-spacing: 1px; }
-        .title { margin: 0; font-size: 12pt; font-weight: bold; }
-        .employee-name { margin: 3px 0 2px; font-size: 13pt; font-weight: bold; text-transform: uppercase; }
-        .period { margin: 0; color: #6b7280; font-size: 8.5pt; }
-        .report-number { color: #6b7280; font-size: 8pt; }
-        .summary { display: flex; width: 100%; margin-bottom: 8px; border: 1px solid #cbd5e1; }
-        .summary-item { flex: 1; padding: 4px 6px; border-right: 1px solid #cbd5e1; }
+        .letterhead { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; min-height: 36px; }
+        .logo-img { height: 36px; max-width: 110px; object-fit: contain; flex-shrink: 0; }
+        .company-block { text-align: right; flex-grow: 1; margin-left: 12px; }
+        .company-block h1 { font-size: 15px; font-weight: bold; text-transform: uppercase; margin-bottom: 1px; letter-spacing: 0.5px; }
+        .company-block .alamat { font-size: 9.5px; font-weight: normal; color: #334155; line-height: 1.25; margin-top: 1px; }
+        .hr-thick { border: none; border-top: 2px solid #111827; margin: 3px 0 1px; }
+        .hr-thin { border: none; border-top: 1px solid #cbd5e1; margin-bottom: 6px; }
+        .header { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 1.5px solid #111827; padding-bottom: 3px; margin-bottom: 6px; }
+        .company { margin-bottom: 1px; font-size: 7.5pt; font-weight: bold; letter-spacing: 1px; }
+        .title { margin: 0; font-size: 11pt; font-weight: bold; }
+        .employee-name { margin: 2px 0 1px; font-size: 12pt; font-weight: bold; text-transform: uppercase; }
+        .period { margin: 0; color: #6b7280; font-size: 8pt; }
+        .report-number { color: #6b7280; font-size: 7.5pt; }
+        .summary { display: flex; width: 100%; margin-bottom: 6px; border: 1px solid #cbd5e1; }
+        .summary-item { flex: 1; padding: 3px 5px; border-right: 1px solid #cbd5e1; }
         .summary-item:last-child { border-right: none; }
-        .summary-label { display: block; margin-bottom: 2px; color: #6b7280; font-size: 7pt; text-transform: uppercase; }
-        .summary-value { font-size: 9.5pt; font-weight: bold; }
+        .summary-label { display: block; margin-bottom: 1px; color: #6b7280; font-size: 6.5pt; text-transform: uppercase; }
+        .summary-value { font-size: 9pt; font-weight: bold; }
         .attendance-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
-        .attendance-table th { background: #e5e7eb; border: 1px solid #9ca3af; padding: 4px 5px; text-align: left; font-size: 7.5pt; font-weight: bold; }
-        .attendance-table td { border: 1px solid #d1d5db; padding: 3px 5px; vertical-align: middle; font-size: 7.5pt; line-height: 1.25; }
+        .attendance-table th { background: #e5e7eb; border: 1px solid #9ca3af; padding: 3px 4px; text-align: left; font-size: 7pt; font-weight: bold; }
+        .attendance-table td { border: 1px solid #d1d5db; padding: 2px 4px; vertical-align: middle; font-size: 7pt; line-height: 1.2; }
         .attendance-table tbody tr:nth-child(even) { background: #fafafa; }
         .date-column { width: 34%; font-weight: bold; }
         .status-hadir { color: #166534; font-weight: bold; }
@@ -794,22 +794,31 @@ export default function RecapPage() {
         .status-cuti { color: #0f766e; font-weight: bold; }
         .status-alpha { color: #991b1b; font-weight: bold; }
         .status-lain { color: #374151; font-weight: bold; }
-        .tidak-absen { background: #fff1f2 !important; color: #991b1b; font-weight: bold; text-align: center; letter-spacing: .4px; padding: 3px 5px !important; }
+        .tidak-absen { background: #fff1f2 !important; color: #991b1b; font-weight: bold; text-align: center; letter-spacing: .4px; padding: 2px 4px !important; }
         .jam { color: #374151; margin-top: 1px; }
         .jam-istirahat { color: #d97706; margin-top: 1px; font-weight: 500; }
         .jam-kerja { color: #4b5563; margin-top: 1px; }
-        .alasan-telat { color: #dc2626; margin-top: 1px; font-size: 7pt; }
-        .keterangan { color: #6b7280; margin-top: 1px; font-size: 7pt; }
-        .signature { display: flex; justify-content: space-between; margin-top: 10px; text-align: center; font-size: 8pt; page-break-inside: avoid; }
+        .alasan-telat { color: #dc2626; margin-top: 1px; font-size: 6.5pt; }
+        .keterangan { color: #6b7280; margin-top: 1px; font-size: 6.5pt; }
+        .signature { display: flex; justify-content: space-between; margin-top: 8px; text-align: center; font-size: 7.5pt; page-break-inside: avoid; }
         .signature-box { width: 38%; }
-        .signature-space { height: 26px; }
+        .signature-space { height: 22px; }
         .signature-name { border-top: 1px solid #374151; padding-top: 2px; font-weight: bold; }
         .print-container { position: fixed; top: 15px; right: 15px; z-index: 9999; }
         .print-button { border: none; padding: 10px 18px; background: #111827; color: white; border-radius: 4px; cursor: pointer; font-size: 14px; }
         .print-button:hover { background: #374151; }
-        .footer { margin-top: 10px; font-size: 7.5pt; color: #94a3b8; border-top: 1px dashed #cbd5e1; padding-top: 4px; text-align: center; }
-        @media screen { body { padding: 15px; } .report { box-shadow: 0 2px 10px rgba(0, 0, 0, .12); } }
-        @media print { body { background: white; padding: 0; } .print-container { display: none !important; } .report { width: 100%; max-width: none; min-height: auto; margin: 0; padding: 0; box-shadow: none; page-break-after: always; page-break-inside: avoid; } .attendance-table tr { page-break-inside: avoid; } }
+        .footer { margin-top: 8px; font-size: 7pt; color: #94a3b8; border-top: 1px dashed #cbd5e1; padding-top: 3px; text-align: center; }
+        @media screen { body { padding: 12px; } .report { box-shadow: 0 2px 10px rgba(0, 0, 0, .12); } }
+        @media print {
+            @page { size: A4 portrait; margin: 4mm 6mm 4mm 6mm; }
+            body { background: white; padding: 0; margin: 0; font-size: 7pt; }
+            .print-container, .footer { display: none !important; }
+            .report { width: 100% !important; max-width: none !important; min-height: auto !important; margin: 0 !important; padding: 2mm 4mm !important; box-shadow: none !important; page-break-after: always !important; page-break-inside: avoid !important; }
+            .attendance-table th { padding: 2px 4px !important; font-size: 6.8pt !important; }
+            .attendance-table td { padding: 1.5px 4px !important; font-size: 6.5pt !important; line-height: 1.15 !important; }
+            .signature { margin-top: 6px !important; }
+            .signature-space { height: 18px !important; }
+        }
     </style>
 </head>
 <body>
