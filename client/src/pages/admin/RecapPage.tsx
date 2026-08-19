@@ -581,11 +581,13 @@ export default function RecapPage() {
         } else {
             employeeList.forEach((emp, empIdx) => {
                 const empName = (emp.fullName || '').toUpperCase();
+                const empNik = emp.nik || emp.username || '';
                 let jumlahHadir = 0;
                 let jumlahTelat = 0;
                 let jumlahTidakAbsen = 0;
                 let jumlahSakit = 0;
                 let jumlahIzin = 0;
+                let totalMinsEmp = 0;
 
                 let isiBaris = "";
 
@@ -626,6 +628,9 @@ export default function RecapPage() {
                         }
 
                         const { netWorkMins } = calculateDailyTotal(dayRecords);
+                        if (netWorkMins > 0) {
+                            totalMinsEmp += netWorkMins;
+                        }
                         const jamKerjaStr = netWorkMins > 0 ? formatHHMM(netWorkMins) : "";
 
                         const lateReasonStr = rec.lateReason || (rec as any).late_reason || "";
@@ -677,6 +682,10 @@ export default function RecapPage() {
                     }
                 });
 
+                const totalHours = Math.floor(totalMinsEmp / 60);
+                const totalMinsRem = totalMinsEmp % 60;
+                const totalJamKerjaStr = totalMinsEmp > 0 ? `${totalHours}j ${totalMinsRem}m` : "-";
+
                 reportsHtml += `
                     <section class="report">
                         <div class="letterhead">
@@ -690,13 +699,16 @@ export default function RecapPage() {
                         <hr class="hr-thin" />
 
                         <header class="header">
-                            <div>
+                            <div class="header-left">
                                 <div class="company">${escapeHTML(singkatanPt)}</div>
                                 <h1 class="title">LAPORAN KEHADIRAN TENAGA KERJA</h1>
-                                <h2 class="employee-name">${escapeHTML(empName)}</h2>
                                 <p class="period">Periode ${escapeHTML(periodStr)}</p>
                             </div>
-                            <div class="report-number">No. ${empIdx + 1}</div>
+                            <div class="header-right">
+                                <h2 class="employee-name">${escapeHTML(empName)}</h2>
+                                ${empNik ? `<div class="employee-nik">NIK: ${escapeHTML(empNik)}</div>` : ''}
+                                <div class="report-number">No. ${empIdx + 1}</div>
+                            </div>
                         </header>
 
                         <div class="summary">
@@ -719,6 +731,10 @@ export default function RecapPage() {
                             <div class="summary-item">
                                 <span class="summary-label">Izin</span>
                                 <span class="summary-value">${jumlahIzin} hari</span>
+                            </div>
+                            <div class="summary-item summary-item-highlight">
+                                <span class="summary-label">Total Jam Kerja</span>
+                                <span class="summary-value summary-value-work">${totalJamKerjaStr}</span>
                             </div>
                         </div>
 
@@ -761,30 +777,35 @@ export default function RecapPage() {
         @page { size: A4 portrait; margin: 4mm 6mm 4mm 6mm; }
         * { box-sizing: border-box; }
         html, body { margin: 0; padding: 0; }
-        body { background: #eeeeee; color: #111827; font-family: Arial, Helvetica, sans-serif; font-size: 8pt; }
+        body { background: #eeeeee; color: #111827; font-family: Arial, Helvetica, sans-serif; font-size: 7.5pt; }
         .report { width: 100%; max-width: 800px; margin: 10px auto; padding: 10px 14px; background: #ffffff; page-break-after: always; page-break-inside: avoid; }
         .report:last-child { page-break-after: auto; }
-        .letterhead { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; min-height: 36px; }
-        .logo-img { height: 36px; max-width: 110px; object-fit: contain; flex-shrink: 0; }
+        .letterhead { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; min-height: 34px; }
+        .logo-img { height: 34px; max-width: 100px; object-fit: contain; flex-shrink: 0; }
         .company-block { text-align: right; flex-grow: 1; margin-left: 12px; }
-        .company-block h1 { font-size: 15px; font-weight: bold; text-transform: uppercase; margin-bottom: 1px; letter-spacing: 0.5px; }
-        .company-block .alamat { font-size: 9.5px; font-weight: normal; color: #334155; line-height: 1.25; margin-top: 1px; }
+        .company-block h1 { font-size: 14px; font-weight: bold; text-transform: uppercase; margin-bottom: 1px; letter-spacing: 0.5px; }
+        .company-block .alamat { font-size: 8.5px; font-weight: normal; color: #334155; line-height: 1.2; margin-top: 1px; }
         .hr-thick { border: none; border-top: 2px solid #111827; margin: 3px 0 1px; }
         .hr-thin { border: none; border-top: 1px solid #cbd5e1; margin-bottom: 6px; }
         .header { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 1.5px solid #111827; padding-bottom: 3px; margin-bottom: 6px; }
-        .company { margin-bottom: 1px; font-size: 7.5pt; font-weight: bold; letter-spacing: 1px; }
-        .title { margin: 0; font-size: 11pt; font-weight: bold; }
-        .employee-name { margin: 2px 0 1px; font-size: 12pt; font-weight: bold; text-transform: uppercase; }
-        .period { margin: 0; color: #6b7280; font-size: 8pt; }
-        .report-number { color: #6b7280; font-size: 7.5pt; }
-        .summary { display: flex; width: 100%; margin-bottom: 6px; border: 1px solid #cbd5e1; }
-        .summary-item { flex: 1; padding: 3px 5px; border-right: 1px solid #cbd5e1; }
+        .header-left { text-align: left; }
+        .header-right { text-align: right; }
+        .company { margin-bottom: 1px; font-size: 7.5pt; font-weight: bold; letter-spacing: 1px; color: #374151; }
+        .title { margin: 0; font-size: 10pt; font-weight: bold; color: #111827; }
+        .period { margin: 1px 0 0; color: #6b7280; font-size: 7.5pt; }
+        .employee-name { margin: 0 0 1px; font-size: 11pt; font-weight: bold; text-transform: uppercase; color: #111827; }
+        .employee-nik { font-size: 7.5pt; color: #4b5563; margin-bottom: 1px; }
+        .report-number { color: #6b7280; font-size: 7pt; }
+        .summary { display: flex; width: 100%; margin-bottom: 6px; border: 1px solid #cbd5e1; background: #fafafa; }
+        .summary-item { flex: 1; padding: 3px 4px; border-right: 1px solid #cbd5e1; text-align: center; }
         .summary-item:last-child { border-right: none; }
+        .summary-item-highlight { background: #f0fdf4; }
         .summary-label { display: block; margin-bottom: 1px; color: #6b7280; font-size: 6.5pt; text-transform: uppercase; }
-        .summary-value { font-size: 9pt; font-weight: bold; }
+        .summary-value { font-size: 8.5pt; font-weight: bold; color: #111827; }
+        .summary-value-work { color: #166534; font-weight: 800; }
         .attendance-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
-        .attendance-table th { background: #e5e7eb; border: 1px solid #9ca3af; padding: 3px 4px; text-align: left; font-size: 7pt; font-weight: bold; }
-        .attendance-table td { border: 1px solid #d1d5db; padding: 2px 4px; vertical-align: middle; font-size: 7pt; line-height: 1.2; }
+        .attendance-table th { background: #e5e7eb; border: 1px solid #9ca3af; padding: 3px 4px; text-align: left; font-size: 6.8pt; font-weight: bold; }
+        .attendance-table td { border: 1px solid #d1d5db; padding: 2px 4px; vertical-align: middle; font-size: 6.8pt; line-height: 1.2; }
         .attendance-table tbody tr:nth-child(even) { background: #fafafa; }
         .date-column { width: 34%; font-weight: bold; }
         .status-hadir { color: #166534; font-weight: bold; }
@@ -798,11 +819,11 @@ export default function RecapPage() {
         .jam { color: #374151; margin-top: 1px; }
         .jam-istirahat { color: #d97706; margin-top: 1px; font-weight: 500; }
         .jam-kerja { color: #4b5563; margin-top: 1px; }
-        .alasan-telat { color: #dc2626; margin-top: 1px; font-size: 6.5pt; }
-        .keterangan { color: #6b7280; margin-top: 1px; font-size: 6.5pt; }
+        .alasan-telat { color: #dc2626; margin-top: 1px; font-size: 6.2pt; }
+        .keterangan { color: #6b7280; margin-top: 1px; font-size: 6.2pt; }
         .signature { display: flex; justify-content: space-between; margin-top: 8px; text-align: center; font-size: 7.5pt; page-break-inside: avoid; }
         .signature-box { width: 38%; }
-        .signature-space { height: 22px; }
+        .signature-space { height: 20px; }
         .signature-name { border-top: 1px solid #374151; padding-top: 2px; font-weight: bold; }
         .print-container { position: fixed; top: 15px; right: 15px; z-index: 9999; }
         .print-button { border: none; padding: 10px 18px; background: #111827; color: white; border-radius: 4px; cursor: pointer; font-size: 14px; }
@@ -811,13 +832,13 @@ export default function RecapPage() {
         @media screen { body { padding: 12px; } .report { box-shadow: 0 2px 10px rgba(0, 0, 0, .12); } }
         @media print {
             @page { size: A4 portrait; margin: 4mm 6mm 4mm 6mm; }
-            body { background: white; padding: 0; margin: 0; font-size: 7pt; }
+            body { background: white; padding: 0; margin: 0; font-size: 6.8pt; }
             .print-container, .footer { display: none !important; }
             .report { width: 100% !important; max-width: none !important; min-height: auto !important; margin: 0 !important; padding: 2mm 4mm !important; box-shadow: none !important; page-break-after: always !important; page-break-inside: avoid !important; }
-            .attendance-table th { padding: 2px 4px !important; font-size: 6.8pt !important; }
-            .attendance-table td { padding: 1.5px 4px !important; font-size: 6.5pt !important; line-height: 1.15 !important; }
+            .attendance-table th { padding: 2px 4px !important; font-size: 6.5pt !important; }
+            .attendance-table td { padding: 1.5px 4px !important; font-size: 6.2pt !important; line-height: 1.15 !important; }
             .signature { margin-top: 6px !important; }
-            .signature-space { height: 18px !important; }
+            .signature-space { height: 16px !important; }
         }
     </style>
 </head>
