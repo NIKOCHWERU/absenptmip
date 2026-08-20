@@ -17,6 +17,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/hooks/use-auth";
 import { TimePicker24h } from "@/components/TimePicker24h";
+import { resolveFileUrl } from "@/lib/utils";
 
 const loadHtml2Pdf = () => {
     return new Promise<any>((resolve, reject) => {
@@ -666,10 +667,15 @@ export default function RecapPage() {
                     if (photoList.length > 0) {
                         photoCellHtml = `<div class="photo-grid">` +
                             photoList.map(p => {
-                                const src = imageCache[p.url] || p.url;
+                                const rawUrl = p.url;
+                                const resolved = resolveFileUrl(rawUrl);
+                                const fullUrl = resolved.startsWith('http')
+                                    ? resolved
+                                    : `${window.location.origin}${resolved.startsWith('/') ? '' : '/'}${resolved}`;
+                                const src = imageCache[rawUrl] || imageCache[resolved] || imageCache[fullUrl] || fullUrl;
                                 return `
                                     <div class="photo-item">
-                                        <img src="${escapeHTML(src)}" class="photo-img" alt="${escapeHTML(p.label)}" loading="lazy" />
+                                        <img src="${escapeHTML(src)}" class="photo-img" alt="${escapeHTML(p.label)}" loading="eager" />
                                         <span class="photo-label">${escapeHTML(p.label)}</span>
                                     </div>
                                 `;
