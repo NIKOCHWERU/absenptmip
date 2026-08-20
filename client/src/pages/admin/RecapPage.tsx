@@ -950,91 +950,138 @@ export default function RecapPage() {
         }
 
         const fileName = `LAPORAN ABSENSI TENAGA KERJA ${singkatanPt} - ${periodStr}.html`;
-        let logoDataUrl = '';
+        setIsExporting(true);
+        setExportProgress("Memuat logo & gambar absensi...");
         try {
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 5000);
-            const logoToUse = config?.logoUrl || '/icon-192.png';
-            const logoRes = await fetch(logoToUse, { signal: controller.signal });
-            clearTimeout(timeoutId);
-            
-            const logoBlob = await logoRes.blob();
-            logoDataUrl = await new Promise<string>((resolve) => {
-                const reader = new FileReader();
-                reader.onload = () => resolve(reader.result as string);
-                reader.onerror = () => resolve('');
-                reader.readAsDataURL(logoBlob);
-            });
-        } catch (_) { }
-
-        const imageCache: Record<string, string> = {};
-        const uniquePhotoUrls = new Set<string>();
-        processedData.forEach(r => {
-            if (r.checkInPhoto) uniquePhotoUrls.add(r.checkInPhoto);
-            if (r.breakStartPhoto) uniquePhotoUrls.add(r.breakStartPhoto);
-            if (r.breakEndPhoto) uniquePhotoUrls.add(r.breakEndPhoto);
-            if (r.checkOutPhoto) uniquePhotoUrls.add(r.checkOutPhoto);
-            if ((r as any).lateReasonPhoto) uniquePhotoUrls.add((r as any).lateReasonPhoto);
-        });
-        (allOvertimes || []).forEach(ot => {
-            if (ot.initialProofUrl) uniquePhotoUrls.add(ot.initialProofUrl);
-            if (ot.finalProofUrl) uniquePhotoUrls.add(ot.finalProofUrl);
-        });
-
-        const urlArray = Array.from(uniquePhotoUrls);
-        await Promise.all(urlArray.map(async (url) => {
-            if (!url) return;
-            if (url.startsWith('data:')) {
-                imageCache[url] = url;
-                return;
-            }
+            let logoDataUrl = '';
             try {
                 const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 4000);
-                const res = await fetch(url, { signal: controller.signal });
+                const timeoutId = setTimeout(() => controller.abort(), 5000);
+                const logoToUse = config?.logoUrl || '/icon-192.png';
+                const logoRes = await fetch(logoToUse, { signal: controller.signal });
                 clearTimeout(timeoutId);
-                if (res.ok) {
-                    const blob = await res.blob();
-                    const b64 = await new Promise<string>((resolve) => {
-                        const reader = new FileReader();
-                        reader.onload = () => resolve(reader.result as string);
-                        reader.onerror = () => resolve('');
-                        reader.readAsDataURL(blob);
-                    });
-                    if (b64) imageCache[url] = b64;
+                
+                const logoBlob = await logoRes.blob();
+                logoDataUrl = await new Promise<string>((resolve) => {
+                    const reader = new FileReader();
+                    reader.onload = () => resolve(reader.result as string);
+                    reader.onerror = () => resolve('');
+                    reader.readAsDataURL(logoBlob);
+                });
+            } catch (_) { }
+
+            const imageCache: Record<string, string> = {};
+            const uniquePhotoUrls = new Set<string>();
+            processedData.forEach(r => {
+                if (r.checkInPhoto) uniquePhotoUrls.add(r.checkInPhoto);
+                if (r.breakStartPhoto) uniquePhotoUrls.add(r.breakStartPhoto);
+                if (r.breakEndPhoto) uniquePhotoUrls.add(r.breakEndPhoto);
+                if (r.checkOutPhoto) uniquePhotoUrls.add(r.checkOutPhoto);
+                if ((r as any).lateReasonPhoto) uniquePhotoUrls.add((r as any).lateReasonPhoto);
+            });
+            (allOvertimes || []).forEach(ot => {
+                if (ot.initialProofUrl) uniquePhotoUrls.add(ot.initialProofUrl);
+                if (ot.finalProofUrl) uniquePhotoUrls.add(ot.finalProofUrl);
+            });
+
+            const urlArray = Array.from(uniquePhotoUrls);
+            
+            // Function to fetch single image as base64 with retries and absolute url fallback
+            const fetchSingleImageBase64 = async (rawUrl: string, retries = 2) => {
+                if (!rawUrl) return;
+                if (rawUrl.startsWith('data:')) {
+                    imageCache[rawUrl] = rawUrl;
+                    return;
                 }
-            } catch (_) {}
-        }));
 
-        const html = buildRecapReportHtml({
-            docTitle: fileName,
-            periodStr,
-            namaPt,
-            singkatanPt,
-            alamatPt,
-            logoDataUrl,
-            usersList: users || [],
-            processedData,
-            startDate,
-            endDate,
-            imageCache,
-            isPdf: false
-        });
+                const resolved = resolveFileUrl(rawUrl);
+                if (!resolved) return;
 
-        const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
-        const blobUrl = URL.createObjectURL(blob);
-        
-        const a = document.createElement('a');
-        a.style.display = 'none';
-        a.href = blobUrl;
-        a.download = fileName;
-        document.body.appendChild(a);
-        a.click();
-        
-        setTimeout(() => {
-            document.body.removeChild(a);
-            URL.revokeObjectURL(blobUrl);
-        }, 5000);
+                const fullUrl = resolved.startsWith('http')
+                    ? resolved
+                    : `${window.location.origin}${resolved.startsWith('/') ? '' : '/'}${resolved}`;
+
+                if (imageCache[rawUrl]) return;
+
+                for (let i = 0; i <= retries; i++) {
+                    try {
+                        const controller = new AbortController();
+                        const timeoutId = setTimeout(() => controller.abort(), 6000);
+                        const res = await fetch(fullUrl, { signal: controller.signal });
+                        clearTimeout(timeoutId);
+
+                        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                        const blob = await res.blob();
+                        const b64 = await new Promise<string>((resolve) => {
+                            const reader = new FileReader();
+                            reader.onload = () => resolve(reader.result as string);
+                            reader.onerror = () => resolve('');
+                            reader.readAsDataURL(blob);
+                        });
+                        if (b64 && b64.startsWith('data:image')) {
+                            imageCache[rawUrl] = b64;
+                            imageCache[resolved] = b64;
+                            imageCache[fullUrl] = b64;
+                            return;
+                        }
+                    } catch (e) {
+                        console.warn(`Preload image attempt ${i + 1} failed for ${fullUrl}:`, e);
+                        if (i === retries) {
+                            imageCache[rawUrl] = fullUrl;
+                            imageCache[resolved] = fullUrl;
+                        } else {
+                            await new Promise(r => setTimeout(r, 400));
+                        }
+                    }
+                }
+            };
+
+            // Download in chunks of 8 parallel requests to avoid overwhelming the server
+            const chunkSize = 8;
+            for (let i = 0; i < urlArray.length; i += chunkSize) {
+                const chunk = urlArray.slice(i, i + chunkSize);
+                setExportProgress(`Memuat gambar absensi (${Math.min(i + chunkSize, urlArray.length)}/${urlArray.length})...`);
+                await Promise.all(chunk.map(url => fetchSingleImageBase64(url)));
+            }
+
+            setExportProgress("Menyusun berkas HTML...");
+            const html = buildRecapReportHtml({
+                docTitle: fileName,
+                periodStr,
+                namaPt,
+                singkatanPt,
+                alamatPt,
+                logoDataUrl,
+                usersList: users || [],
+                processedData,
+                startDate,
+                endDate,
+                imageCache,
+                isPdf: false
+            });
+
+            const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+            const blobUrl = URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = blobUrl;
+            a.download = fileName;
+            document.body.appendChild(a);
+            a.click();
+            
+            setTimeout(() => {
+                document.body.removeChild(a);
+                URL.revokeObjectURL(blobUrl);
+            }, 5000);
+
+            toast({ title: "✅ Rekap HTML Berhasil Diunduh", description: "Seluruh foto absensi & lembur telah dimuat penuh." });
+        } catch (e: any) {
+            toast({ title: "Gagal Export HTML", description: e.message, variant: "destructive" });
+        } finally {
+            setIsExporting(false);
+            setExportProgress("");
+        }
     };
 
     const handleExportPdf = async () => {
@@ -1052,6 +1099,7 @@ export default function RecapPage() {
         const todayStamp = format(new Date(), "dd-MM-yyyy");
         const pdfFileName = `LAPORAN REKAP ABSENSI TENAGA KERJA ${singkatanPt} - ${periodStr} (${todayStamp}).pdf`;
         setIsExporting(true);
+        setExportProgress("Memuat logo & gambar absensi untuk PDF...");
         try {
             let logoDataUrl = '';
             try {
@@ -1084,18 +1132,31 @@ export default function RecapPage() {
             });
 
             const urlArray = Array.from(uniquePhotoUrls);
-            await Promise.all(urlArray.map(async (url) => {
-                if (!url) return;
-                if (url.startsWith('data:')) {
-                    imageCache[url] = url;
+            
+            const fetchSingleImageBase64 = async (rawUrl: string, retries = 2) => {
+                if (!rawUrl) return;
+                if (rawUrl.startsWith('data:')) {
+                    imageCache[rawUrl] = rawUrl;
                     return;
                 }
-                try {
-                    const controller = new AbortController();
-                    const timeoutId = setTimeout(() => controller.abort(), 4000);
-                    const res = await fetch(url, { signal: controller.signal });
-                    clearTimeout(timeoutId);
-                    if (res.ok) {
+
+                const resolved = resolveFileUrl(rawUrl);
+                if (!resolved) return;
+
+                const fullUrl = resolved.startsWith('http')
+                    ? resolved
+                    : `${window.location.origin}${resolved.startsWith('/') ? '' : '/'}${resolved}`;
+
+                if (imageCache[rawUrl]) return;
+
+                for (let i = 0; i <= retries; i++) {
+                    try {
+                        const controller = new AbortController();
+                        const timeoutId = setTimeout(() => controller.abort(), 6000);
+                        const res = await fetch(fullUrl, { signal: controller.signal });
+                        clearTimeout(timeoutId);
+
+                        if (!res.ok) throw new Error(`HTTP ${res.status}`);
                         const blob = await res.blob();
                         const b64 = await new Promise<string>((resolve) => {
                             const reader = new FileReader();
@@ -1103,11 +1164,32 @@ export default function RecapPage() {
                             reader.onerror = () => resolve('');
                             reader.readAsDataURL(blob);
                         });
-                        if (b64) imageCache[url] = b64;
+                        if (b64 && b64.startsWith('data:image')) {
+                            imageCache[rawUrl] = b64;
+                            imageCache[resolved] = b64;
+                            imageCache[fullUrl] = b64;
+                            return;
+                        }
+                    } catch (e) {
+                        console.warn(`Preload image attempt ${i + 1} failed for ${fullUrl}:`, e);
+                        if (i === retries) {
+                            imageCache[rawUrl] = fullUrl;
+                            imageCache[resolved] = fullUrl;
+                        } else {
+                            await new Promise(r => setTimeout(r, 400));
+                        }
                     }
-                } catch (_) {}
-            }));
+                }
+            };
 
+            const chunkSize = 8;
+            for (let i = 0; i < urlArray.length; i += chunkSize) {
+                const chunk = urlArray.slice(i, i + chunkSize);
+                setExportProgress(`Memuat gambar absensi (${Math.min(i + chunkSize, urlArray.length)}/${urlArray.length})...`);
+                await Promise.all(chunk.map(url => fetchSingleImageBase64(url)));
+            }
+
+            setExportProgress("Menyusun dokumen PDF...");
             const html = buildRecapReportHtml({
                 docTitle: pdfFileName,
                 periodStr,
@@ -1155,6 +1237,7 @@ export default function RecapPage() {
             toast({ title: "Gagal Export PDF", description: e.message, variant: "destructive" });
         } finally {
             setIsExporting(false);
+            setExportProgress("");
         }
     };
 
