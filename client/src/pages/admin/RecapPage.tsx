@@ -608,12 +608,58 @@ export default function RecapPage() {
                         r => r.userId === emp.id && format(new Date(r.date), "yyyy-MM-dd") === dateIso
                     );
 
+                    // Overtime records for this employee on this date
+                    const empOvertimes = (allOvertimes || []).filter(ot => {
+                        if (!ot || ot.status === 'cancelled') return false;
+                        const targetUserId = ot.userId || (ot.attendance ? ot.attendance.userId : undefined);
+                        if (Number(targetUserId) !== Number(emp.id)) return false;
+                        const otDateStr = ot.date ? safeFormatDate(ot.date, "yyyy-MM-dd") : (ot.startTime ? safeFormatDate(ot.startTime, "yyyy-MM-dd") : "");
+                        return otDateStr === dateIso;
+                    });
+
+                    let overtimeCellHtml = "";
+                    if (empOvertimes.length > 0) {
+                        overtimeCellHtml = empOvertimes.map(ot => {
+                            const startStr = formatTimeDot(ot.startTime);
+                            const endStr = ot.endTime ? formatTimeDot(ot.endTime) : (ot.status === 'ongoing' ? 'Berlangsung' : '-');
+                            
+                            let durStr = "";
+                            if (ot.startTime && ot.endTime) {
+                                const mins = Math.round((new Date(ot.endTime).getTime() - new Date(ot.startTime).getTime()) / 60000);
+                                if (mins > 0) {
+                                    const h = Math.floor(mins / 60);
+                                    const m = mins % 60;
+                                    durStr = h > 0 ? (m > 0 ? `${h}j ${m}m` : `${h}j`) : `${m}m`;
+                                }
+                            }
+
+                            const descStr = ot.description || ot.finalDescription || "";
+                            const statusLabel = ot.employeeApproval === 'approved' ? 'Disetujui' : (ot.employeeApproval === 'rejected' ? 'Izin' : 'Pending');
+
+                            let cell = `<div class="overtime-item">`;
+                            if (startStr !== "-" || endStr !== "-") {
+                                cell += `<div class="jam-lembur">Jam: <strong>${escapeHTML(startStr)} sampai ${escapeHTML(endStr)}</strong> ${durStr ? `<span class="durasi-lembur">(${durStr})</span>` : ''}</div>`;
+                            } else {
+                                cell += `<div class="jam-lembur"><strong>Lembur</strong> ${durStr ? `<span class="durasi-lembur">(${durStr})</span>` : ''}</div>`;
+                            }
+                            if (descStr) {
+                                cell += `<div class="desc-lembur">${escapeHTML(descStr)}</div>`;
+                            }
+                            cell += `<div class="status-lembur">Status: <strong>${escapeHTML(statusLabel)}</strong></div>`;
+                            cell += `</div>`;
+                            return cell;
+                        }).join("");
+                    } else {
+                        overtimeCellHtml = `<span class="no-overtime">-</span>`;
+                    }
+
                     if (dayRecords.length === 0) {
                         jumlahTidakAbsen++;
                         isiBaris += `
                             <tr>
                                 <td class="date-column">${formatTanggalIndo(dateObj)}</td>
                                 <td class="tidak-absen">TIDAK ABSEN</td>
+                                <td>${overtimeCellHtml}</td>
                             </tr>
                         `;
                     } else {
@@ -688,6 +734,7 @@ export default function RecapPage() {
                             <tr>
                                 <td class="date-column">${formatTanggalIndo(dateObj)}</td>
                                 ${cellHtml}
+                                <td>${overtimeCellHtml}</td>
                             </tr>
                         `;
                     }
@@ -752,8 +799,9 @@ export default function RecapPage() {
                         <table class="attendance-table">
                             <thead>
                                 <tr>
-                                    <th style="width: 32%;">TANGGAL</th>
-                                    <th style="width: 68%;">KEHADIRAN</th>
+                                    <th style="width: 24%;">TANGGAL</th>
+                                    <th style="width: 46%;">KEHADIRAN</th>
+                                    <th style="width: 30%;">LEMBUR ( OVERTIME )</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -819,6 +867,13 @@ export default function RecapPage() {
         .jam-kerja { color: #475569; margin-top: 1px; }
         .alasan-telat { color: #dc2626; margin-top: 1px; font-size: 6pt; }
         .keterangan { color: #64748b; margin-top: 1px; font-size: 6pt; }
+        .overtime-item { margin-bottom: 2px; }
+        .overtime-item:last-child { margin-bottom: 0; }
+        .jam-lembur { color: #c2410c; font-size: 6.3pt; }
+        .durasi-lembur { color: #15803d; font-weight: bold; margin-left: 2px; }
+        .desc-lembur { color: #475569; font-size: 6pt; font-style: italic; }
+        .status-lembur { color: #64748b; font-size: 5.8pt; }
+        .no-overtime { color: #94a3b8; font-size: 6.5pt; text-align: center; display: block; }
         .print-container { position: fixed; top: 15px; right: 15px; z-index: 9999; }
         .print-button { border: none; padding: 10px 18px; background: #111827; color: white; border-radius: 4px; cursor: pointer; font-size: 14px; }
         .print-button:hover { background: #374151; }
