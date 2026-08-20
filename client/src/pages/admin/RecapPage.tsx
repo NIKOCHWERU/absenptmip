@@ -602,6 +602,7 @@ export default function RecapPage() {
                 let jumlahSakit = 0;
                 let jumlahIzin = 0;
                 let totalMinsEmp = 0;
+                let totalOtMinsEmp = 0;
 
                 let isiBaris = "";
 
@@ -617,6 +618,16 @@ export default function RecapPage() {
                         if (Number(targetUserId) !== Number(emp.id)) return false;
                         const otDateStr = ot.date ? safeFormatDate(ot.date, "yyyy-MM-dd") : (ot.startTime ? safeFormatDate(ot.startTime, "yyyy-MM-dd") : "");
                         return otDateStr === dateIso;
+                    });
+
+                    // Accumulate total overtime minutes for summary
+                    empOvertimes.forEach(ot => {
+                        if (ot.startTime && ot.endTime) {
+                            const mins = Math.round((new Date(ot.endTime).getTime() - new Date(ot.startTime).getTime()) / 60000);
+                            if (mins > 0) {
+                                totalOtMinsEmp += mins;
+                            }
+                        }
                     });
 
                     let overtimeTextHtml = "";
@@ -783,6 +794,10 @@ export default function RecapPage() {
                 const totalMinsRem = totalMinsEmp % 60;
                 const totalJamKerjaStr = totalMinsEmp > 0 ? `${totalHours} jam ${totalMinsRem} menit` : "-";
 
+                const totalOtHours = Math.floor(totalOtMinsEmp / 60);
+                const totalOtMinsRem = totalOtMinsEmp % 60;
+                const totalJamLemburStr = totalOtMinsEmp > 0 ? `${totalOtHours} jam ${totalOtMinsRem} menit` : "-";
+
                 reportsHtml += `
                     <section class="report">
                         <div class="letterhead">
@@ -832,6 +847,10 @@ export default function RecapPage() {
                             <div class="summary-item summary-item-highlight">
                                 <span class="summary-label">Total Jam Kerja</span>
                                 <span class="summary-value summary-value-work">${totalJamKerjaStr}</span>
+                            </div>
+                            <div class="summary-item summary-item-overtime">
+                                <span class="summary-label">Total Jam Lembur</span>
+                                <span class="summary-value summary-value-overtime">${totalJamLemburStr}</span>
                             </div>
                         </div>
 
@@ -885,9 +904,11 @@ export default function RecapPage() {
         .summary-item { flex: 1; padding: 2.5px 4px; border-right: 1px solid #cbd5e1; text-align: center; }
         .summary-item:last-child { border-right: none; }
         .summary-item-highlight { background: #f0fdf4; }
+        .summary-item-overtime { background: #fff7ed; }
         .summary-label { display: block; margin-bottom: 1px; color: #64748b; font-size: 6pt; text-transform: uppercase; }
         .summary-value { font-size: 8pt; font-weight: bold; color: #0f172a; }
         .summary-value-work { color: #166534; font-weight: 800; }
+        .summary-value-overtime { color: #c2410c; font-weight: 800; }
         .attendance-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
         .attendance-table th { background: #f1f5f9; border: 1px solid #94a3b8; padding: 3px 4px; text-align: left; font-size: 6.8pt; font-weight: 800; text-transform: uppercase; }
         .attendance-table td { border: 1px solid #cbd5e1; padding: 2px 4px; vertical-align: middle; font-size: 6.5pt; line-height: 1.2; }
