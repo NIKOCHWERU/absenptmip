@@ -1,19 +1,18 @@
 import { db } from "./db.js";
-import { attendance, shifts } from "../shared/schema.js";
+import { attendance, shifts, overtimes } from "../shared/schema.js";
 import { eq, isNull, and, sql } from "drizzle-orm";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
 
-// Jalankan pengecekan setiap 5 menit
-const CHECK_INTERVAL = 5 * 60 * 1000;
+// Jalankan pengecekan setiap 1 menit agar tepat waktu pada +10 menit setelah shift
+const CHECK_INTERVAL = 1 * 60 * 1000;
 
 export function startAutoCheckoutScheduler() {
-  console.log("Starting Auto-Checkout Scheduler...");
+  console.log("Starting Auto-Checkout Scheduler (Frequency: 1 min, Limit: Shift End + 10 mins)...");
   
   setInterval(async () => {
     try {
       const now = new Date();
-      // Only process if time is past midnight? We should check all active sessions.
       
       // Ambil absensi yang belum checkout dan memiliki shift
       const activeSessions = await db.select({
@@ -34,12 +33,12 @@ export function startAutoCheckoutScheduler() {
         const checkInTime = row.att.checkIn ? new Date(row.att.checkIn) : null;
         if (!checkInTime) continue;
 
-        // Parse checkOutTime string (e.g. "17:00")
+        // Parse checkOutTime string (misal: "17:00")
         const [outHourStr, outMinStr] = row.shift.checkOutTime.split(":");
         const outHour = parseInt(outHourStr);
         const outMin = parseInt(outMinStr);
         
-        // Buat objek waktu checkout yang mengikat ke WIB (+07:00) untuk menghindari offset timezone VPS
+        // Buat objek waktu checkout shift dalam WIB (+07:00)
         const year = checkInTime.getFullYear();
         const month = checkInTime.getMonth();
         const dateNum = checkInTime.getDate();
@@ -52,17 +51,34 @@ export function startAutoCheckoutScheduler() {
           shiftEnd.setDate(shiftEnd.getDate() + 1);
         }
 
-        // Tambah 10 menit setelah jam pulang shift
+        // Tepat 10 menit setelah jam pulang shift (misal: Shift 17.00 -> 17.10)
         const autoCheckoutTimeLimit = new Date(shiftEnd.getTime() + 10 * 60 * 1000);
 
-        // Jika waktu sekarang melebihi limit +10 menit setelah jam pulang, lakukan auto-checkout
+        // Jika waktu sekarang sudah mencapai atau melebihi limit +10 menit setelah jam pulang shift
         if (now >= autoCheckoutTimeLimit) {
-          // Waktu checkout dicatat maksimal 10 menit setelah jam pulang shift
+          // Pengecekan: Jika karyawan memiliki agenda lembur aktif hari ini, jangan auto checkout shift reguler
+          const activeOt = await db.select()
+            .from(overtimes)
+            .where(
+              and(
+                eq(overtimes.userId, row.att.userId),
+                sql`DATE(${overtimes.date}) = DATE(${row.att.date})`,
+                sql`${overtimes.status} != 'cancelled'`
+              )
+            );
+
+          if (activeOt.length > 0) {
+            // Karyawan sedang lembur, abaikan auto-checkout shift reguler
+            continue;
+          }
+
+          // Waktu checkout otomatis dicatat tepat 10 menit setelah jam pulang shift (misal: 17:10)
           const checkoutRecordedTime = new Date(shiftEnd.getTime() + 10 * 60 * 1000);
+          const timeLabel = format(checkoutRecordedTime, "HH:mm");
           
           const newNotes = row.att.notes 
-            ? row.att.notes + "\n(Otomatis absen pulang oleh sistem)"
-            : "(Otomatis absen pulang oleh sistem)";
+            ? row.att.notes + `\n(Otomatis absen pulang oleh sistem pada jam ${timeLabel})`
+            : `(Otomatis absen pulang oleh sistem pada jam ${timeLabel})`;
 
           await db.update(attendance)
             .set({
@@ -71,7 +87,7 @@ export function startAutoCheckoutScheduler() {
             })
             .where(eq(attendance.id, row.att.id));
             
-          console.log(`Auto-checkout applied for attendance ID ${row.att.id} (User: ${row.att.userId})`);
+          console.log(`Auto-checkout applied for attendance ID ${row.att.id} (User: ${row.att.userId}) at ${timeLabel}`);
         }
       }
     } catch (err) {
