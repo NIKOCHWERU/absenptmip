@@ -108,10 +108,23 @@ export function calculateDailyTotal(records: Attendance[]): {
         if (record.checkIn && record.checkOut) {
             const start = normalizeTime(record.checkIn, baseDate)!;
             let end = normalizeTime(record.checkOut, baseDate)!;
-            // Handle overnight wrap (e.g. 21:00 to 02:00 next day)
-            // If the checkout time is numerically earlier than checkin on the same normalized day,
-            // it means it must be the following calendar day.
             if (end < start) end += 86400000; 
+
+            // Cap work end time to shift end time if shift is provided so regular Jam Kerja strictly excludes overtime
+            const shiftObj = (record as any).shift;
+            if (shiftObj && shiftObj.checkOutTime) {
+                const [sOutHour, sOutMin] = shiftObj.checkOutTime.split(":").map(Number);
+                const shiftEndObj = new Date(baseDate);
+                shiftEndObj.setHours(sOutHour, sOutMin, 0, 0);
+                let shiftEndMs = shiftEndObj.getTime();
+                const [sInHour] = (shiftObj.checkInTime || "08:00").split(":").map(Number);
+                if (sInHour > sOutHour) shiftEndMs += 86400000;
+
+                if (end > shiftEndMs) {
+                    end = Math.max(start, shiftEndMs);
+                }
+            }
+
             workIntervals.push({ start, end });
         }
 
