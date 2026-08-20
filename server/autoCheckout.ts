@@ -52,13 +52,13 @@ export function startAutoCheckoutScheduler() {
           shiftEnd.setDate(shiftEnd.getDate() + 1);
         }
 
-        // Tambah 90 menit = 1.5 jam
-        const autoCheckoutTimeLimit = new Date(shiftEnd.getTime() + 90 * 60 * 1000);
+        // Tambah 10 menit setelah jam pulang shift
+        const autoCheckoutTimeLimit = new Date(shiftEnd.getTime() + 10 * 60 * 1000);
 
-        // Jika waktu sekarang melebihi limit +90 menit, lakukan auto-checkout
+        // Jika waktu sekarang melebihi limit +10 menit setelah jam pulang, lakukan auto-checkout
         if (now >= autoCheckoutTimeLimit) {
-          // Checkout dengan waktu exactly 1 jam setelah shift pulang
-          const checkoutRecordedTime = new Date(shiftEnd.getTime() + 60 * 60 * 1000);
+          // Waktu checkout dicatat maksimal 10 menit setelah jam pulang shift
+          const checkoutRecordedTime = new Date(shiftEnd.getTime() + 10 * 60 * 1000);
           
           const newNotes = row.att.notes 
             ? row.att.notes + "\n(Otomatis absen pulang oleh sistem)"

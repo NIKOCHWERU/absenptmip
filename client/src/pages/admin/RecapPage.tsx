@@ -533,11 +533,13 @@ export default function RecapPage() {
             }
         };
 
-        const formatHHMM = (minutes: number): string => {
+        const formatJamKerjaIndo = (minutes: number): string => {
             if (minutes <= 0) return "-";
-            const h = String(Math.floor(minutes / 60)).padStart(2, '0');
-            const m = String(minutes % 60).padStart(2, '0');
-            return `${h}.${m}`;
+            const h = Math.floor(minutes / 60);
+            const m = minutes % 60;
+            if (h > 0 && m > 0) return `${h} jam ${m} menit`;
+            if (h > 0) return `${h} jam 0 menit`;
+            return `${m} menit`;
         };
 
         const normalisasiStatus = (status: string | null | undefined): string => {
@@ -608,7 +610,6 @@ export default function RecapPage() {
                         r => r.userId === emp.id && format(new Date(r.date), "yyyy-MM-dd") === dateIso
                     );
 
-                    // Overtime records for this employee on this date
                     const empOvertimes = (allOvertimes || []).filter(ot => {
                         if (!ot || ot.status === 'cancelled') return false;
                         const targetUserId = ot.userId || (ot.attendance ? ot.attendance.userId : undefined);
@@ -617,40 +618,65 @@ export default function RecapPage() {
                         return otDateStr === dateIso;
                     });
 
-                    let overtimeCellHtml = "";
+                    let overtimeTextHtml = "";
                     if (empOvertimes.length > 0) {
-                        overtimeCellHtml = empOvertimes.map(ot => {
+                        overtimeTextHtml = empOvertimes.map(ot => {
                             const startStr = formatTimeDot(ot.startTime);
                             const endStr = ot.endTime ? formatTimeDot(ot.endTime) : (ot.status === 'ongoing' ? 'Berlangsung' : '-');
-                            
                             let durStr = "";
                             if (ot.startTime && ot.endTime) {
                                 const mins = Math.round((new Date(ot.endTime).getTime() - new Date(ot.startTime).getTime()) / 60000);
                                 if (mins > 0) {
                                     const h = Math.floor(mins / 60);
                                     const m = mins % 60;
-                                    durStr = h > 0 ? (m > 0 ? `${h}j ${m}m` : `${h}j`) : `${m}m`;
+                                    durStr = h > 0 ? (m > 0 ? `${h} jam ${m} menit` : `${h} jam`) : `${m} menit`;
                                 }
                             }
-
                             const descStr = ot.description || ot.finalDescription || "";
                             const statusLabel = ot.employeeApproval === 'approved' ? 'Disetujui' : (ot.employeeApproval === 'rejected' ? 'Izin' : 'Pending');
 
-                            let cell = `<div class="overtime-item">`;
-                            if (startStr !== "-" || endStr !== "-") {
-                                cell += `<div class="jam-lembur">Jam: <strong>${escapeHTML(startStr)} sampai ${escapeHTML(endStr)}</strong> ${durStr ? `<span class="durasi-lembur">(${durStr})</span>` : ''}</div>`;
-                            } else {
-                                cell += `<div class="jam-lembur"><strong>Lembur</strong> ${durStr ? `<span class="durasi-lembur">(${durStr})</span>` : ''}</div>`;
-                            }
+                            let block = `<div class="lembur-block">`;
+                            block += `<div class="lembur-title">Lembur: <strong>${escapeHTML(startStr)} sampai ${escapeHTML(endStr)}</strong> ${durStr ? `<span class="lembur-durasi">(${durStr})</span>` : ''}</div>`;
                             if (descStr) {
-                                cell += `<div class="desc-lembur">${escapeHTML(descStr)}</div>`;
+                                block += `<div class="lembur-desc">Keterangan: ${escapeHTML(descStr)}</div>`;
                             }
-                            cell += `<div class="status-lembur">Status: <strong>${escapeHTML(statusLabel)}</strong></div>`;
-                            cell += `</div>`;
-                            return cell;
+                            block += `<div class="lembur-status">Status Lembur: <strong>${escapeHTML(statusLabel)}</strong></div>`;
+                            block += `</div>`;
+                            return block;
                         }).join("");
+                    }
+
+                    const photoList: { url: string; label: string }[] = [];
+                    
+                    if (dayRecords.length > 0) {
+                        const rec = dayRecords[0];
+                        if (rec.checkInPhoto) photoList.push({ url: rec.checkInPhoto, label: "Absen Masuk" });
+                        if (rec.breakStartPhoto) photoList.push({ url: rec.breakStartPhoto, label: "Istirahat" });
+                        if (rec.breakEndPhoto) photoList.push({ url: rec.breakEndPhoto, label: "Selesai Ist" });
+                        if (rec.checkOutPhoto) photoList.push({ url: rec.checkOutPhoto, label: "Absen Pulang" });
+                        if ((rec as any).lateReasonPhoto) photoList.push({ url: (rec as any).lateReasonPhoto, label: "Bukti Telat" });
+                    }
+
+                    empOvertimes.forEach(ot => {
+                        if (ot.initialProofUrl) photoList.push({ url: ot.initialProofUrl, label: "Awal Lembur" });
+                        if (ot.finalProofUrl) photoList.push({ url: ot.finalProofUrl, label: "Hasil Lembur" });
+                    });
+
+                    let photoCellHtml = "";
+                    if (photoList.length > 0) {
+                        photoCellHtml = `<div class="photo-grid">` +
+                            photoList.map(p => {
+                                const src = imageCache[p.url] || p.url;
+                                return `
+                                    <div class="photo-item">
+                                        <img src="${escapeHTML(src)}" class="photo-img" alt="${escapeHTML(p.label)}" loading="lazy" />
+                                        <span class="photo-label">${escapeHTML(p.label)}</span>
+                                    </div>
+                                `;
+                            }).join("") +
+                            `</div>`;
                     } else {
-                        overtimeCellHtml = `<span class="no-overtime">-</span>`;
+                        photoCellHtml = `<span class="no-photo">-</span>`;
                     }
 
                     if (dayRecords.length === 0) {
@@ -658,8 +684,11 @@ export default function RecapPage() {
                         isiBaris += `
                             <tr>
                                 <td class="date-column">${formatTanggalIndo(dateObj)}</td>
-                                <td class="tidak-absen">TIDAK ABSEN</td>
-                                <td>${overtimeCellHtml}</td>
+                                <td>
+                                    <div class="tidak-absen">TIDAK ABSEN</div>
+                                    ${overtimeTextHtml}
+                                </td>
+                                <td>${photoCellHtml}</td>
                             </tr>
                         `;
                     } else {
@@ -688,7 +717,7 @@ export default function RecapPage() {
                         if (netWorkMins > 0) {
                             totalMinsEmp += netWorkMins;
                         }
-                        const jamKerjaStr = netWorkMins > 0 ? formatHHMM(netWorkMins) : "";
+                        const jamKerjaStr = netWorkMins > 0 ? formatJamKerjaIndo(netWorkMins) : "";
 
                         const lateReasonStr = rec.lateReason || (rec as any).late_reason || "";
                         const notesStr = rec.notes || "";
@@ -728,13 +757,17 @@ export default function RecapPage() {
                             `;
                         }
 
+                        if (overtimeTextHtml) {
+                            cellHtml += overtimeTextHtml;
+                        }
+
                         cellHtml += `</td>`;
 
                         isiBaris += `
                             <tr>
                                 <td class="date-column">${formatTanggalIndo(dateObj)}</td>
                                 ${cellHtml}
-                                <td>${overtimeCellHtml}</td>
+                                <td>${photoCellHtml}</td>
                             </tr>
                         `;
                     }
@@ -742,7 +775,7 @@ export default function RecapPage() {
 
                 const totalHours = Math.floor(totalMinsEmp / 60);
                 const totalMinsRem = totalMinsEmp % 60;
-                const totalJamKerjaStr = totalMinsEmp > 0 ? `${totalHours}j ${totalMinsRem}m` : "-";
+                const totalJamKerjaStr = totalMinsEmp > 0 ? `${totalHours} jam ${totalMinsRem} menit` : "-";
 
                 reportsHtml += `
                     <section class="report">
@@ -799,9 +832,9 @@ export default function RecapPage() {
                         <table class="attendance-table">
                             <thead>
                                 <tr>
-                                    <th style="width: 24%;">TANGGAL</th>
-                                    <th style="width: 46%;">KEHADIRAN</th>
-                                    <th style="width: 30%;">LEMBUR ( OVERTIME )</th>
+                                    <th style="width: 18%;">TANGGAL</th>
+                                    <th style="width: 44%;">KEHADIRAN & LEMBUR</th>
+                                    <th style="width: 38%;">BUKTI FOTO ( ABSEN & LEMBUR )</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -861,19 +894,22 @@ export default function RecapPage() {
         .status-cuti { color: #0f766e; font-weight: bold; }
         .status-alpha { color: #991b1b; font-weight: bold; }
         .status-lain { color: #374151; font-weight: bold; }
-        .tidak-absen { background: #fff1f2 !important; color: #991b1b; font-weight: bold; text-align: center; letter-spacing: .4px; padding: 2px 4px !important; }
+        .tidak-absen { color: #991b1b; font-weight: bold; letter-spacing: .4px; margin-bottom: 2px; }
         .jam { color: #334155; margin-top: 1px; }
         .jam-istirahat { color: #d97706; margin-top: 1px; font-weight: 500; }
         .jam-kerja { color: #475569; margin-top: 1px; }
         .alasan-telat { color: #dc2626; margin-top: 1px; font-size: 6pt; }
         .keterangan { color: #64748b; margin-top: 1px; font-size: 6pt; }
-        .overtime-item { margin-bottom: 2px; }
-        .overtime-item:last-child { margin-bottom: 0; }
-        .jam-lembur { color: #c2410c; font-size: 6.3pt; }
-        .durasi-lembur { color: #15803d; font-weight: bold; margin-left: 2px; }
-        .desc-lembur { color: #475569; font-size: 6pt; font-style: italic; }
-        .status-lembur { color: #64748b; font-size: 5.8pt; }
-        .no-overtime { color: #94a3b8; font-size: 6.5pt; text-align: center; display: block; }
+        .lembur-block { border-top: 1px dashed #cbd5e1; margin-top: 3px; padding-top: 2px; }
+        .lembur-title { color: #c2410c; font-size: 6.2pt; }
+        .lembur-durasi { color: #15803d; font-weight: bold; margin-left: 2px; }
+        .lembur-desc { color: #475569; font-size: 6pt; font-style: italic; }
+        .lembur-status { color: #64748b; font-size: 5.8pt; }
+        .photo-grid { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+        .photo-item { display: flex; flex-direction: column; align-items: center; border: 1px solid #cbd5e1; border-radius: 3px; padding: 2px; background: #ffffff; width: 54px; }
+        .photo-img { width: 48px; height: 44px; object-fit: cover; border-radius: 2px; }
+        .photo-label { font-size: 5.2pt; font-weight: bold; color: #334155; margin-top: 1.5px; text-transform: uppercase; text-align: center; line-height: 1; white-space: nowrap; }
+        .no-photo { color: #94a3b8; font-size: 6.5pt; text-align: center; display: block; }
         .print-container { position: fixed; top: 15px; right: 15px; z-index: 9999; }
         .print-button { border: none; padding: 10px 18px; background: #111827; color: white; border-radius: 4px; cursor: pointer; font-size: 14px; }
         .print-button:hover { background: #374151; }
@@ -886,6 +922,9 @@ export default function RecapPage() {
             .report { width: 100% !important; max-width: none !important; min-height: auto !important; margin: 0 !important; padding: 2mm 4mm !important; box-shadow: none !important; page-break-after: always !important; page-break-inside: avoid !important; }
             .attendance-table th { padding: 2px 4px !important; font-size: 6.5pt !important; }
             .attendance-table td { padding: 1.5px 4px !important; font-size: 6pt !important; line-height: 1.15 !important; }
+            .photo-item { width: 48px !important; padding: 1.5px !important; }
+            .photo-img { width: 43px !important; height: 40px !important; }
+            .photo-label { font-size: 4.8pt !important; }
         }
     </style>
 </head>
@@ -936,6 +975,10 @@ export default function RecapPage() {
             if (r.breakEndPhoto) uniquePhotoUrls.add(r.breakEndPhoto);
             if (r.checkOutPhoto) uniquePhotoUrls.add(r.checkOutPhoto);
             if ((r as any).lateReasonPhoto) uniquePhotoUrls.add((r as any).lateReasonPhoto);
+        });
+        (allOvertimes || []).forEach(ot => {
+            if (ot.initialProofUrl) uniquePhotoUrls.add(ot.initialProofUrl);
+            if (ot.finalProofUrl) uniquePhotoUrls.add(ot.finalProofUrl);
         });
 
         const urlArray = Array.from(uniquePhotoUrls);
@@ -1034,6 +1077,10 @@ export default function RecapPage() {
                 if (r.breakEndPhoto) uniquePhotoUrls.add(r.breakEndPhoto);
                 if (r.checkOutPhoto) uniquePhotoUrls.add(r.checkOutPhoto);
                 if ((r as any).lateReasonPhoto) uniquePhotoUrls.add((r as any).lateReasonPhoto);
+            });
+            (allOvertimes || []).forEach(ot => {
+                if (ot.initialProofUrl) uniquePhotoUrls.add(ot.initialProofUrl);
+                if (ot.finalProofUrl) uniquePhotoUrls.add(ot.finalProofUrl);
             });
 
             const urlArray = Array.from(uniquePhotoUrls);
