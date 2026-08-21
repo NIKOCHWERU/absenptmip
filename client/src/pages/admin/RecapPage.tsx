@@ -1017,9 +1017,53 @@ export default function RecapPage() {
                 if (ot.finalProofUrl) uniquePhotoUrls.add(ot.finalProofUrl);
             });
 
+const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quality = 0.75): Promise<string> => {
+    return new Promise((resolve) => {
+        const img = new Image();
+        const url = URL.createObjectURL(blob);
+        img.onload = () => {
+            URL.revokeObjectURL(url);
+            let width = img.width;
+            let height = img.height;
+            if (width > height) {
+                if (width > maxW) {
+                    height = Math.round((height * maxW) / width);
+                    width = maxW;
+                }
+            } else {
+                if (height > maxH) {
+                    width = Math.round((width * maxH) / height);
+                    height = maxH;
+                }
+            }
+
+            const canvas = document.createElement('canvas');
+            canvas.width = Math.max(1, width);
+            canvas.height = Math.max(1, height);
+            const ctx = canvas.getContext('2d');
+            if (!ctx) {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result as string);
+                reader.onerror = () => resolve('');
+                reader.readAsDataURL(blob);
+                return;
+            }
+
+            ctx.drawImage(img, 0, 0, width, height);
+            const dataUrl = canvas.toDataURL('image/jpeg', quality);
+            resolve(dataUrl);
+        };
+        img.onerror = () => {
+            URL.revokeObjectURL(url);
+            resolve('');
+        };
+        img.src = url;
+    });
+};
+
             const urlArray = Array.from(uniquePhotoUrls);
             
-            // Function to fetch single image as base64 with retries and absolute url fallback
+            // Function to fetch single image as lightweight base64 thumbnail with retries and absolute url fallback
             const fetchSingleImageBase64 = async (rawUrl: string, retries = 2) => {
                 if (!rawUrl) return;
                 if (rawUrl.startsWith('data:')) {
@@ -1045,12 +1089,7 @@ export default function RecapPage() {
 
                         if (!res.ok) throw new Error(`HTTP ${res.status}`);
                         const blob = await res.blob();
-                        const b64 = await new Promise<string>((resolve) => {
-                            const reader = new FileReader();
-                            reader.onload = () => resolve(reader.result as string);
-                            reader.onerror = () => resolve('');
-                            reader.readAsDataURL(blob);
-                        });
+                        const b64 = await compressBlobToThumbnailBase64(blob, 160, 140, 0.75);
                         if (b64 && b64.startsWith('data:image')) {
                             imageCache[rawUrl] = b64;
                             imageCache[resolved] = b64;
@@ -1191,12 +1230,7 @@ export default function RecapPage() {
 
                         if (!res.ok) throw new Error(`HTTP ${res.status}`);
                         const blob = await res.blob();
-                        const b64 = await new Promise<string>((resolve) => {
-                            const reader = new FileReader();
-                            reader.onload = () => resolve(reader.result as string);
-                            reader.onerror = () => resolve('');
-                            reader.readAsDataURL(blob);
-                        });
+                        const b64 = await compressBlobToThumbnailBase64(blob, 160, 140, 0.75);
                         if (b64 && b64.startsWith('data:image')) {
                             imageCache[rawUrl] = b64;
                             imageCache[resolved] = b64;
