@@ -195,7 +195,10 @@ export default function AdminEmployeeList() {
     };
 
     const filteredEmployees = employees.filter(emp => {
-        const isResign = emp.employmentStatus === 'Resign';
+        const isResign = emp.employmentStatus === 'Resign' || 
+                         (emp as any).isResigned || 
+                         (emp as any).status === 'resign' || 
+                         resignations.some((r: any) => r.userId === emp.id);
         if (activeTab === 'aktif' && isResign) return false;
         if (activeTab === 'resign' && !isResign) return false;
 

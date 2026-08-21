@@ -359,12 +359,18 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         refetchInterval: 5000,
     });
 
+    const { data: resignationsListNotif } = useQuery<any[]>({
+        queryKey: ["/api/admin/resignations"],
+        refetchInterval: 5000,
+    });
+
     const pendingLeaveCount = leaveRequests?.filter((r) => r.status === 'pending').length || 0;
     const pendingComplaintsCount = complaintsStats?.pendingCount || 0;
     const pendingVerificationCount = unverifiedEmployees?.filter((e) => e.registrationStatus === 'pending').length || 0;
     const activeOvertimeReportCount = overtimesListNotif?.filter((o) => o.status === 'ongoing' || (o.status === 'completed' && !o.verified)).length || 0;
+    const pendingResignCount = resignationsListNotif?.filter((r) => r.status === 'pending').length || 0;
 
-    const totalNotifications = pendingLeaveCount + pendingComplaintsCount + pendingVerificationCount + activeOvertimeReportCount;
+    const totalNotifications = pendingLeaveCount + pendingComplaintsCount + pendingVerificationCount + activeOvertimeReportCount + pendingResignCount;
 
     const [viewedCount, setViewedCount] = useState(() => {
         const stored = localStorage.getItem("admin_notif_count");
@@ -447,11 +453,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                             title: "Resign",
                             url: "#resign",
                             icon: UserMinus,
+                            badge: pendingResignCount,
                             items: [
                                 {
                                     title: "Manajemen Resign",
                                     url: "/admin/resign-management",
                                     icon: UserMinus,
+                                    badge: pendingResignCount,
                                 },
                                 {
                                     title: "Riwayat Resign",
@@ -698,7 +706,22 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                                              )}
                                          </div>
                                          <div className="max-h-[300px] overflow-y-auto divide-y divide-gray-50">
-                                             {pendingComplaintsCount > 0 ? (
+                                              {pendingResignCount > 0 ? (
+                                                  <div 
+                                                      onClick={() => { setLocation("/admin/resign-management"); setNotifOpen(false); }}
+                                                      className="px-4 py-3 hover:bg-gray-50 cursor-pointer flex gap-3 items-start"
+                                                  >
+                                                      <div className="w-8 h-8 rounded-full bg-red-100 text-red-600 flex items-center justify-center shrink-0 mt-0.5">
+                                                          <UserMinus className="w-4 h-4" />
+                                                      </div>
+                                                      <div>
+                                                          <p className="text-xs font-bold text-gray-700">Pengajuan Resign Karyawan</p>
+                                                          <p className="text-[10px] text-gray-500 mt-0.5">Ada {pendingResignCount} pengajuan resign baru yang memerlukan tindakan.</p>
+                                                      </div>
+                                                  </div>
+                                              ) : null}
+
+                                              {pendingComplaintsCount > 0 ? (
                                                  <div 
                                                      onClick={() => { setLocation("/admin/complaints"); setNotifOpen(false); }}
                                                      className="px-4 py-3 hover:bg-gray-50 cursor-pointer flex gap-3 items-start"

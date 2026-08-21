@@ -3377,9 +3377,8 @@ export function registerRoutes(app: Express) {
       
       await db.insert(resignations).values(newResignation);
 
-      if (newResignation.status === 'approved') {
-         await db.update(users).set({ registrationStatus: "rejected" }).where(eq(users.id, Number(userId)));
-      }
+      // Otomatis ubah status keaktifan tenaga kerja menjadi Resign
+      await db.update(users).set({ employmentStatus: "Resign" }).where(eq(users.id, Number(userId)));
 
       res.status(201).json({ message: docUrl ? "Data Resign disetujui" : "Pengajuan Resign berhasil dicatat (Menunggu Persetujuan Super Admin)" });
     } catch (err: any) {
@@ -3405,11 +3404,6 @@ export function registerRoutes(app: Express) {
           return res.status(403).json({ message: "Hanya Super Admin yang dapat menyetujui pengajuan" });
         }
         updates.status = status;
-        
-        // If approved, update user status to rejected (inactive)
-        if (status === 'approved') {
-           await db.update(users).set({ registrationStatus: "rejected" }).where(eq(users.id, existing.userId));
-        }
       }
 
       if (req.file) {
@@ -3423,11 +3417,30 @@ export function registerRoutes(app: Express) {
 
       await db.update(resignations).set(updates).where(eq(resignations.id, targetId));
       
-      if (updates.status === 'approved') {
-         await db.update(users).set({ registrationStatus: "rejected" }).where(eq(users.id, existing.userId));
-      }
+      // Ubah status keaktifan tenaga kerja menjadi Resign
+      await db.update(users).set({ employmentStatus: "Resign" }).where(eq(users.id, existing.userId));
 
       res.json({ message: "Data Resign berhasil diperbarui" });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.delete("/api/admin/resignations/:id", isAdmin, async (req: Request, res: Response) => {
+    const targetId = Number(req.params.id);
+    try {
+      const [existing] = await db.select().from(resignations).where(eq(resignations.id, targetId)).limit(1);
+      if (!existing) return res.status(404).json({ message: "Data tidak ditemukan" });
+
+      await db.delete(resignations).where(eq(resignations.id, targetId));
+      
+      // Jika tidak ada data resignasi lain untuk user ini, pulihkan status keaktifan ke Kontrak
+      const remaining = await db.select().from(resignations).where(eq(resignations.userId, existing.userId));
+      if (remaining.length === 0) {
+        await db.update(users).set({ employmentStatus: "Kontrak" }).where(eq(users.id, existing.userId));
+      }
+
+      res.json({ message: "Data Resign berhasil dihapus. Status keaktifan tenaga kerja dipulihkan." });
     } catch (err: any) {
       res.status(500).json({ message: err.message });
     }
