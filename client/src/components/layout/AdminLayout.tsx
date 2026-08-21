@@ -364,27 +364,50 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         refetchInterval: 5000,
     });
 
-    const pendingLeaveCount = leaveRequests?.filter((r) => r.status === 'pending').length || 0;
-    const pendingComplaintsCount = complaintsStats?.pendingCount || 0;
-    const pendingVerificationCount = unverifiedEmployees?.filter((e) => e.registrationStatus === 'pending').length || 0;
-    const activeOvertimeReportCount = overtimesListNotif?.filter((o) => o.status === 'ongoing' || (o.status === 'completed' && !o.verified)).length || 0;
-    const pendingResignCount = resignationsListNotif?.filter((r) => r.status === 'pending').length || 0;
-
-    const totalNotifications = pendingLeaveCount + pendingComplaintsCount + pendingVerificationCount + activeOvertimeReportCount + pendingResignCount;
-
-    const [viewedCount, setViewedCount] = useState(() => {
-        const stored = localStorage.getItem("admin_notif_count");
-        return stored ? parseInt(stored, 10) : 0;
+    const [readTimestamps, setReadTimestamps] = useState<Record<string, number>>(() => {
+        try {
+            const saved = localStorage.getItem("admin_notif_read_timestamps");
+            return saved ? JSON.parse(saved) : {};
+        } catch (_) {
+            return {};
+        }
     });
 
-    useEffect(() => {
-        if (totalNotifications < viewedCount) {
-            setViewedCount(totalNotifications);
-            localStorage.setItem("admin_notif_count", totalNotifications.toString());
-        }
-    }, [totalNotifications, viewedCount]);
+    const markCategoryAsRead = (categoryKey: string) => {
+        setReadTimestamps(prev => {
+            const next = { ...prev, [categoryKey]: Date.now() };
+            localStorage.setItem("admin_notif_read_timestamps", JSON.stringify(next));
+            return next;
+        });
+    };
 
-    const hasUnread = totalNotifications > viewedCount;
+    useEffect(() => {
+        if (location.startsWith("/admin/resign")) {
+            markCategoryAsRead("resign");
+        } else if (location.startsWith("/admin/leave")) {
+            markCategoryAsRead("leave");
+        } else if (location.startsWith("/admin/overtime")) {
+            markCategoryAsRead("overtime");
+        } else if (location.startsWith("/admin/verification")) {
+            markCategoryAsRead("verification");
+        } else if (location.startsWith("/admin/complaint")) {
+            markCategoryAsRead("complaint");
+        }
+    }, [location]);
+
+    const resignLastRead = readTimestamps["resign"] || 0;
+    const leaveLastRead = readTimestamps["leave"] || 0;
+    const overtimeLastRead = readTimestamps["overtime"] || 0;
+    const verificationLastRead = readTimestamps["verification"] || 0;
+    const complaintLastRead = readTimestamps["complaint"] || 0;
+
+    const pendingLeaveCount = leaveRequests?.filter((r: any) => r.status === 'pending' && (!r.createdAt || new Date(r.createdAt).getTime() > leaveLastRead)).length || 0;
+    const pendingComplaintsCount = (complaintLastRead > 0) ? 0 : (complaintsStats?.pendingCount || 0);
+    const pendingVerificationCount = unverifiedEmployees?.filter((e) => e.registrationStatus === 'pending' && (!e.createdAt || new Date(e.createdAt).getTime() > verificationLastRead)).length || 0;
+    const activeOvertimeReportCount = overtimesListNotif?.filter((o) => (o.status === 'ongoing' || (o.status === 'completed' && !o.verified)) && (!o.createdAt || new Date(o.createdAt).getTime() > overtimeLastRead)).length || 0;
+    const pendingResignCount = resignationsListNotif?.filter((r) => r.status === 'pending' && (!r.createdAt || new Date(r.createdAt).getTime() > resignLastRead)).length || 0;
+
+    const totalNotifications = pendingLeaveCount + pendingComplaintsCount + pendingVerificationCount + activeOvertimeReportCount + pendingResignCount;
 
     // Close header dropdown on click outside
     useEffect(() => {
@@ -676,112 +699,107 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
                         {/* Right Area */}
                         <div className="flex items-center gap-2 sm:gap-4">
-                             {/* Notifications Bell */}
-                             <div className="relative" ref={notifRef}>
-                                 <button
-                                     onClick={() => {
-                                         const nextState = !notifOpen;
-                                         setNotifOpen(nextState);
-                                         if (nextState) {
-                                             setViewedCount(totalNotifications);
-                                             localStorage.setItem("admin_notif_count", totalNotifications.toString());
-                                         }
-                                     }}
-                                     className="relative flex items-center justify-center w-10 h-10 rounded-full border border-gray-100 bg-gray-50 hover:bg-gray-100 text-gray-600 transition-all hover:scale-105 active:scale-95 focus:outline-none cursor-pointer"
-                                 >
-                                     <Bell className="w-5 h-5" />
-                                     {hasUnread && (
-                                         <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white shadow-sm animate-pulse">
-                                             {totalNotifications - viewedCount}
-                                         </span>
-                                     )}
-                                 </button>
+                              {/* Notifications Bell */}
+                              <div className="relative" ref={notifRef}>
+                                  <button
+                                      onClick={() => {
+                                          setNotifOpen(!notifOpen);
+                                      }}
+                                      className="relative flex items-center justify-center w-10 h-10 rounded-full border border-gray-100 bg-gray-50 hover:bg-gray-100 text-gray-600 transition-all hover:scale-105 active:scale-95 focus:outline-none cursor-pointer"
+                                  >
+                                      <Bell className="w-5 h-5" />
+                                      {totalNotifications > 0 && (
+                                          <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-extrabold text-white shadow-sm animate-pulse">
+                                              {totalNotifications}
+                                          </span>
+                                      )}
+                                  </button>
 
-                                 {notifOpen && (
-                                     <div className="absolute right-0 mt-2 w-80 bg-white rounded-2xl border border-gray-100 shadow-xl z-50 py-2 overflow-hidden">
-                                         <div className="px-4 py-2 border-b border-gray-50 flex items-center justify-between">
-                                             <span className="font-bold text-gray-800 text-sm">Notifikasi Masuk</span>
-                                             {totalNotifications > 0 && (
-                                                 <span className="bg-red-100 text-red-700 text-[10px] font-bold px-2 py-0.5 rounded-full">
-                                                     {totalNotifications} Baru
-                                                 </span>
-                                             )}
-                                         </div>
-                                         <div className="max-h-[300px] overflow-y-auto divide-y divide-gray-50">
-                                              {pendingResignCount > 0 ? (
+                                  {notifOpen && (
+                                      <div className="absolute right-0 mt-2 w-80 bg-white rounded-2xl border border-gray-100 shadow-xl z-50 py-2 overflow-hidden">
+                                          <div className="px-4 py-2 border-b border-gray-50 flex items-center justify-between">
+                                              <span className="font-bold text-gray-800 text-sm">Notifikasi Masuk</span>
+                                              {totalNotifications > 0 && (
+                                                  <span className="bg-red-100 text-red-700 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                                                      {totalNotifications} Baru
+                                                  </span>
+                                              )}
+                                          </div>
+                                          <div className="max-h-[300px] overflow-y-auto divide-y divide-gray-50">
+                                               {pendingResignCount > 0 ? (
+                                                   <div 
+                                                       onClick={() => { markCategoryAsRead("resign"); setLocation("/admin/resign-management"); setNotifOpen(false); }}
+                                                       className="px-4 py-3 hover:bg-gray-50 cursor-pointer flex gap-3 items-start"
+                                                   >
+                                                       <div className="w-8 h-8 rounded-full bg-red-100 text-red-600 flex items-center justify-center shrink-0 mt-0.5">
+                                                           <UserMinus className="w-4 h-4" />
+                                                       </div>
+                                                       <div>
+                                                           <p className="text-xs font-bold text-gray-700">Pengajuan Resign Karyawan</p>
+                                                           <p className="text-[10px] text-gray-500 mt-0.5">Ada {pendingResignCount} pengajuan resign baru yang memerlukan tindakan.</p>
+                                                       </div>
+                                                   </div>
+                                               ) : null}
+
+                                               {pendingComplaintsCount > 0 ? (
                                                   <div 
-                                                      onClick={() => { setLocation("/admin/resign-management"); setNotifOpen(false); }}
-                                                      className="px-4 py-3 hover:bg-gray-50 cursor-pointer flex gap-3 items-start"
-                                                  >
-                                                      <div className="w-8 h-8 rounded-full bg-red-100 text-red-600 flex items-center justify-center shrink-0 mt-0.5">
-                                                          <UserMinus className="w-4 h-4" />
-                                                      </div>
-                                                      <div>
-                                                          <p className="text-xs font-bold text-gray-700">Pengajuan Resign Karyawan</p>
-                                                          <p className="text-[10px] text-gray-500 mt-0.5">Ada {pendingResignCount} pengajuan resign baru yang memerlukan tindakan.</p>
-                                                      </div>
-                                                  </div>
-                                              ) : null}
-
-                                              {pendingComplaintsCount > 0 ? (
-                                                 <div 
-                                                     onClick={() => { setLocation("/admin/complaints"); setNotifOpen(false); }}
-                                                     className="px-4 py-3 hover:bg-gray-50 cursor-pointer flex gap-3 items-start"
-                                                 >
-                                                     <div className="w-8 h-8 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center shrink-0 mt-0.5">
-                                                         <MessageSquare className="w-4 h-4" />
-                                                     </div>
-                                                     <div>
-                                                         <p className="text-xs font-bold text-gray-700">Pengaduan Tenaga Kerja</p>
-                                                         <p className="text-[10px] text-gray-500 mt-0.5">Ada {pendingComplaintsCount} pengaduan baru yang memerlukan tanggapan.</p>
-                                                     </div>
-                                                 </div>
-                                             ) : null}
-
-                                             {pendingLeaveCount > 0 ? (
-                                                 <div 
-                                                     onClick={() => { setLocation("/admin/leaves"); setNotifOpen(false); }}
-                                                     className="px-4 py-3 hover:bg-gray-50 cursor-pointer flex gap-3 items-start"
-                                                 >
-                                                     <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center shrink-0 mt-0.5">
-                                                         <Calendar className="w-4 h-4" />
-                                                     </div>
-                                                     <div>
-                                                         <p className="text-xs font-bold text-gray-700">Pengajuan Cuti Karyawan</p>
-                                                         <p className="text-[10px] text-gray-500 mt-0.5">Ada {pendingLeaveCount} pengajuan cuti baru menunggu persetujuan Anda.</p>
-                                                     </div>
-                                                 </div>
-                                             ) : null}
-
-                                              {activeOvertimeReportCount > 0 ? (
-                                                  <div 
-                                                      onClick={() => { setLocation("/admin/overtime-management"); setNotifOpen(false); }}
+                                                      onClick={() => { markCategoryAsRead("complaint"); setLocation("/admin/complaints"); setNotifOpen(false); }}
                                                       className="px-4 py-3 hover:bg-gray-50 cursor-pointer flex gap-3 items-start"
                                                   >
                                                       <div className="w-8 h-8 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center shrink-0 mt-0.5">
-                                                          <Clock className="w-4 h-4" />
+                                                          <MessageSquare className="w-4 h-4" />
                                                       </div>
                                                       <div>
-                                                          <p className="text-xs font-bold text-gray-700">Laporan Lembur Masuk</p>
-                                                          <p className="text-[10px] text-gray-500 mt-0.5">Ada {activeOvertimeReportCount} sesi lembur berjalan / laporan hasil lembur yang perlu ditinjau.</p>
+                                                          <p className="text-xs font-bold text-gray-700">Pengaduan Tenaga Kerja</p>
+                                                          <p className="text-[10px] text-gray-500 mt-0.5">Ada {pendingComplaintsCount} pengaduan baru yang memerlukan tanggapan.</p>
                                                       </div>
                                                   </div>
                                               ) : null}
 
-                                             {pendingVerificationCount > 0 ? (
-                                                 <div 
-                                                     onClick={() => { setLocation("/admin/verification"); setNotifOpen(false); }}
-                                                     className="px-4 py-3 hover:bg-gray-50 cursor-pointer flex gap-3 items-start"
-                                                 >
-                                                     <div className="w-8 h-8 rounded-full bg-green-100 text-green-600 flex items-center justify-center shrink-0 mt-0.5">
-                                                         <Users className="w-4 h-4" />
-                                                     </div>
-                                                     <div>
-                                                         <p className="text-xs font-bold text-gray-700">Verifikasi Registrasi Baru</p>
-                                                         <p className="text-[10px] text-gray-500 mt-0.5">Ada {pendingVerificationCount} registrasi akun karyawan baru menunggu verifikasi.</p>
-                                                     </div>
-                                                 </div>
-                                             ) : null}
+                                              {pendingLeaveCount > 0 ? (
+                                                  <div 
+                                                      onClick={() => { markCategoryAsRead("leave"); setLocation("/admin/leaves"); setNotifOpen(false); }}
+                                                      className="px-4 py-3 hover:bg-gray-50 cursor-pointer flex gap-3 items-start"
+                                                  >
+                                                      <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center shrink-0 mt-0.5">
+                                                          <Calendar className="w-4 h-4" />
+                                                      </div>
+                                                      <div>
+                                                          <p className="text-xs font-bold text-gray-700">Pengajuan Cuti Karyawan</p>
+                                                          <p className="text-[10px] text-gray-500 mt-0.5">Ada {pendingLeaveCount} pengajuan cuti baru menunggu persetujuan Anda.</p>
+                                                      </div>
+                                                  </div>
+                                              ) : null}
+
+                                               {activeOvertimeReportCount > 0 ? (
+                                                   <div 
+                                                       onClick={() => { markCategoryAsRead("overtime"); setLocation("/admin/overtime-management"); setNotifOpen(false); }}
+                                                       className="px-4 py-3 hover:bg-gray-50 cursor-pointer flex gap-3 items-start"
+                                                   >
+                                                       <div className="w-8 h-8 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center shrink-0 mt-0.5">
+                                                           <Clock className="w-4 h-4" />
+                                                       </div>
+                                                       <div>
+                                                           <p className="text-xs font-bold text-gray-700">Laporan Lembur Masuk</p>
+                                                           <p className="text-[10px] text-gray-500 mt-0.5">Ada {activeOvertimeReportCount} sesi lembur berjalan / laporan hasil lembur yang perlu ditinjau.</p>
+                                                       </div>
+                                                   </div>
+                                               ) : null}
+
+                                              {pendingVerificationCount > 0 ? (
+                                                  <div 
+                                                      onClick={() => { markCategoryAsRead("verification"); setLocation("/admin/verification"); setNotifOpen(false); }}
+                                                      className="px-4 py-3 hover:bg-gray-50 cursor-pointer flex gap-3 items-start"
+                                                  >
+                                                      <div className="w-8 h-8 rounded-full bg-green-100 text-green-600 flex items-center justify-center shrink-0 mt-0.5">
+                                                          <Users className="w-4 h-4" />
+                                                      </div>
+                                                      <div>
+                                                          <p className="text-xs font-bold text-gray-700">Verifikasi Registrasi Baru</p>
+                                                          <p className="text-[10px] text-gray-500 mt-0.5">Ada {pendingVerificationCount} registrasi akun karyawan baru menunggu verifikasi.</p>
+                                                      </div>
+                                                  </div>
+                                              ) : null}
 
                                              {totalNotifications === 0 && (
                                                  <div className="py-8 text-center text-xs text-gray-400">
