@@ -215,7 +215,7 @@ function SidebarMenuLink({ item, location }: { item: NavLink; location: string }
                 {item.icon && <item.icon className="h-5 w-5 shrink-0" />}
                 <span>{item.title}</span>
                 {item.badge !== undefined && item.badge > 0 && (
-                    <span className="ml-auto bg-primary text-white text-[10px] px-2 py-0.5 rounded-full font-bold">
+                    <span className="ml-auto bg-red-500 text-white text-[10px] px-2 py-0.5 rounded-full font-black shadow-xs animate-pulse">
                         {item.badge}
                     </span>
                 )}
@@ -243,7 +243,7 @@ function SidebarMenuCollapsible({ item, location }: { item: NavCollapsible; loca
                         {item.icon && <item.icon className="h-5 w-5 shrink-0" />}
                         <span>{item.title}</span>
                         {item.badge !== undefined && item.badge > 0 && (
-                            <span className="ml-auto mr-1 bg-primary text-white text-[10px] px-2 py-0.5 rounded-full font-bold">
+                            <span className="ml-auto mr-1 bg-red-500 text-white text-[10px] px-2 py-0.5 rounded-full font-black shadow-xs animate-pulse">
                                 {item.badge}
                             </span>
                         )}
@@ -264,7 +264,7 @@ function SidebarMenuCollapsible({ item, location }: { item: NavCollapsible; loca
                                         {subItem.icon && <subItem.icon className="h-4 w-4 shrink-0" />}
                                         <span>{subItem.title}</span>
                                         {subItem.badge !== undefined && subItem.badge > 0 && (
-                                            <span className="ml-auto bg-primary text-white text-[10px] px-2 py-0.5 rounded-full font-bold">
+                                            <span className="ml-auto bg-red-500 text-white text-[10px] px-2 py-0.5 rounded-full font-black shadow-xs animate-pulse">
                                                 {subItem.badge}
                                             </span>
                                         )}
@@ -296,7 +296,7 @@ function SidebarMenuCollapsedDropdown({ item, location }: { item: NavCollapsible
                         {item.icon && <item.icon className="h-5 w-5 shrink-0" />}
                         <span>{item.title}</span>
                         {item.badge !== undefined && item.badge > 0 && (
-                            <span className="absolute top-1.5 right-1.5 flex h-2 w-2 rounded-full bg-primary ring-2 ring-white animate-pulse" />
+                            <span className="absolute top-1.5 right-1.5 flex h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-white animate-pulse" />
                         )}
                     </SidebarMenuButton>
                 </DropdownMenuTrigger>
@@ -316,7 +316,7 @@ function SidebarMenuCollapsedDropdown({ item, location }: { item: NavCollapsible
                                 {subItem.icon && <subItem.icon className="h-4 w-4 shrink-0" />}
                                 <span>{subItem.title}</span>
                                 {subItem.badge !== undefined && subItem.badge > 0 && (
-                                    <span className="ml-auto bg-primary text-white text-[10px] px-2 py-0.5 rounded-full font-bold">
+                                    <span className="ml-auto bg-red-500 text-white text-[10px] px-2 py-0.5 rounded-full font-black shadow-xs animate-pulse">
                                         {subItem.badge}
                                     </span>
                                 )}
@@ -532,11 +532,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                         title: "Kelola Lembur",
                         url: "#overtime",
                         icon: Clock,
+                        badge: activeOvertimeReportCount,
                         items: [
                             {
                                 title: "Pengajuan Lembur (SPL)",
                                 url: "/admin/overtime-management",
                                 icon: Clock,
+                                badge: activeOvertimeReportCount,
                             },
                             {
                                 title: "Riwayat Lembur",
