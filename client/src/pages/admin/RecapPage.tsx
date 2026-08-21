@@ -882,7 +882,7 @@ export default function RecapPage() {
         * { box-sizing: border-box; }
         html, body { margin: 0; padding: 0; }
         body { background: #eeeeee; color: #0f172a; font-family: Arial, Helvetica, sans-serif; font-size: 7.5pt; }
-        .report { width: 100%; max-width: 1050px; margin: 10px auto; padding: 10px 14px; background: #ffffff; page-break-after: always; page-break-inside: avoid; }
+        .report { width: 100%; max-width: 1050px; margin: 10px auto; padding: 10px 14px; background: #ffffff; page-break-after: always; page-break-inside: auto; break-inside: auto; }
         .report:last-child { page-break-after: auto; }
         .letterhead { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; min-height: 36px; }
         .logo-img { height: 36px; max-width: 110px; object-fit: contain; flex-shrink: 0; }
@@ -891,7 +891,7 @@ export default function RecapPage() {
         .company-block .alamat { font-size: 8.5px; font-weight: normal; color: #334155; line-height: 1.2; margin-top: 1px; }
         .hr-thick { border: none; border-top: 2px solid #0f172a; margin: 3px 0 1px; }
         .hr-thin { border: none; border-top: 1px solid #cbd5e1; margin-bottom: 6px; }
-        .header { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 1.5px solid #0f172a; padding-bottom: 3px; margin-bottom: 6px; }
+        .header { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 1.5px solid #0f172a; padding-bottom: 3px; margin-bottom: 6px; page-break-inside: avoid; }
         .header-left { text-align: left; }
         .header-right { text-align: right; }
         .company { margin-bottom: 1px; font-size: 7pt; font-weight: bold; letter-spacing: 1px; color: #475569; }
@@ -900,7 +900,7 @@ export default function RecapPage() {
         .employee-name { margin: 0 0 1px; font-size: 10.5pt; font-weight: 800; text-transform: uppercase; color: #0f172a; }
         .employee-nik { font-size: 7pt; color: #475569; margin-bottom: 1px; }
         .report-number { color: #64748b; font-size: 6.5pt; }
-        .summary { display: flex; width: 100%; margin-bottom: 6px; border: 1px solid #cbd5e1; background: #f8fafc; }
+        .summary { display: flex; width: 100%; margin-bottom: 6px; border: 1px solid #cbd5e1; background: #f8fafc; page-break-inside: avoid; }
         .summary-item { flex: 1; padding: 2.5px 4px; border-right: 1px solid #cbd5e1; text-align: center; }
         .summary-item:last-child { border-right: none; }
         .summary-item-highlight { background: #f0fdf4; }
@@ -909,9 +909,11 @@ export default function RecapPage() {
         .summary-value { font-size: 8pt; font-weight: bold; color: #0f172a; }
         .summary-value-work { color: #166534; font-weight: 800; }
         .summary-value-overtime { color: #c2410c; font-weight: 800; }
-        .attendance-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
-        .attendance-table th { background: #f1f5f9; border: 1px solid #94a3b8; padding: 3px 4px; text-align: left; font-size: 6.8pt; font-weight: 800; text-transform: uppercase; }
-        .attendance-table td { border: 1px solid #cbd5e1; padding: 2px 4px; vertical-align: middle; font-size: 6.5pt; line-height: 1.2; }
+        .attendance-table { width: 100%; border-collapse: collapse; table-layout: fixed; page-break-inside: auto; break-inside: auto; }
+        .attendance-table thead { display: table-header-group; }
+        .attendance-table tbody tr { page-break-inside: avoid !important; break-inside: avoid !important; break-inside: avoid-page !important; }
+        .attendance-table th { background: #f1f5f9; border: 1px solid #94a3b8; padding: 3px 4px; text-align: left; font-size: 6.8pt; font-weight: 800; text-transform: uppercase; page-break-inside: avoid; }
+        .attendance-table td { border: 1px solid #cbd5e1; padding: 2px 4px; vertical-align: middle; font-size: 6.5pt; line-height: 1.2; page-break-inside: avoid !important; break-inside: avoid !important; }
         .attendance-table tbody tr:nth-child(even) { background: #f8fafc; }
         .date-column { font-weight: bold; }
         .status-hadir { color: #166534; font-weight: bold; }
@@ -932,8 +934,8 @@ export default function RecapPage() {
         .lembur-durasi { color: #15803d; font-weight: bold; margin-left: 2px; }
         .lembur-desc { color: #475569; font-size: 6pt; font-style: italic; }
         .lembur-status { color: #64748b; font-size: 5.8pt; }
-        .photo-grid { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
-        .photo-item { display: flex; flex-direction: column; align-items: center; border: 1px solid #cbd5e1; border-radius: 3px; padding: 2px; background: #ffffff; width: 54px; }
+        .photo-grid { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; page-break-inside: avoid !important; break-inside: avoid !important; }
+        .photo-item { display: flex; flex-direction: column; align-items: center; border: 1px solid #cbd5e1; border-radius: 3px; padding: 2px; background: #ffffff; width: 54px; page-break-inside: avoid !important; break-inside: avoid !important; }
         .photo-img { width: 48px; height: 44px; object-fit: cover; border-radius: 2px; }
         .photo-label { font-size: 5.2pt; font-weight: bold; color: #334155; margin-top: 1.5px; text-transform: uppercase; text-align: center; line-height: 1; white-space: nowrap; }
         .no-photo { color: #94a3b8; font-size: 6.5pt; text-align: center; display: block; }
@@ -946,10 +948,14 @@ export default function RecapPage() {
             @page { size: A4 landscape; margin: 6mm 10mm 6mm 10mm; }
             body { background: white; padding: 0; margin: 0; font-size: 6.5pt; }
             .print-container, .footer { display: none !important; }
-            .report { width: 100% !important; max-width: none !important; min-height: auto !important; margin: 0 !important; padding: 2mm 4mm !important; box-shadow: none !important; page-break-after: always !important; page-break-inside: avoid !important; }
+            .report { width: 100% !important; max-width: none !important; min-height: auto !important; margin: 0 !important; padding: 2mm 4mm !important; box-shadow: none !important; page-break-after: always !important; page-break-inside: auto !important; break-inside: auto !important; }
+            .attendance-table { page-break-inside: auto !important; break-inside: auto !important; }
+            .attendance-table thead { display: table-header-group !important; }
+            .attendance-table tbody tr { page-break-inside: avoid !important; break-inside: avoid !important; break-inside: avoid-page !important; }
             .attendance-table th { padding: 2px 4px !important; font-size: 6.5pt !important; }
-            .attendance-table td { padding: 1.5px 4px !important; font-size: 6pt !important; line-height: 1.15 !important; }
-            .photo-item { width: 48px !important; padding: 1.5px !important; }
+            .attendance-table td { padding: 1.5px 4px !important; font-size: 6pt !important; line-height: 1.15 !important; page-break-inside: avoid !important; break-inside: avoid !important; }
+            .photo-grid { page-break-inside: avoid !important; break-inside: avoid !important; }
+            .photo-item { width: 48px !important; padding: 1.5px !important; page-break-inside: avoid !important; break-inside: avoid !important; }
             .photo-img { width: 43px !important; height: 40px !important; }
             .photo-label { font-size: 4.8pt !important; }
         }
@@ -1254,7 +1260,7 @@ export default function RecapPage() {
                 image: { type: 'jpeg', quality: 0.98 },
                 html2canvas: { scale: 2, useCORS: true, logging: false, windowWidth: 1050, letterRendering: true },
                 jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape', compress: true },
-                pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+                pagebreak: { mode: ['css', 'legacy'], avoid: ['tr', '.attendance-table tbody tr', '.summary', '.header', '.photo-item'] }
             };
             await html2pdfLib().set(opt).from(container).save();
             document.body.removeChild(container);
