@@ -61,8 +61,7 @@ export function startAutoCheckoutScheduler() {
             .from(overtimes)
             .where(
               and(
-                eq(overtimes.userId, row.att.userId),
-                sql`DATE(${overtimes.date}) = DATE(${row.att.date})`,
+                eq(overtimes.attendanceId, row.att.id),
                 sql`${overtimes.status} != 'cancelled'`
               )
             );
