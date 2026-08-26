@@ -3345,6 +3345,8 @@ export function registerRoutes(app: Express) {
           user: {
             fullName: users.fullName,
             nik: users.nik,
+            branch: users.branch,
+            position: users.position,
           },
         })
         .from(resignations)

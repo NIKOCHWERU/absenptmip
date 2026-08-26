@@ -63,8 +63,11 @@ export default function InfoPage() {
     }
   };
 
+  const { data: config } = useQuery<any>({ queryKey: ["/api/config"] });
+  const namaPt = config?.namaPt || import.meta.env.VITE_NAMA_PT || "PT MEKANO INDUSTRIAL PRESISI";
+
   const handleShareWhatsApp = (announcement: Announcement) => {
-    const text = `📢 *${announcement.title}*\n\n${announcement.content}\n\n— PT ELOK JAYA ABADHI`;
+    const text = `📢 *${announcement.title}*\n\n${announcement.content}\n\n— ${namaPt.toUpperCase()}`;
     const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
     window.open(url, "_blank");
   };

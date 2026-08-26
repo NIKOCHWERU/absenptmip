@@ -10,7 +10,8 @@ import {
     Download,
     UserMinus,
     Clock,
-    Trash2
+    Trash2,
+    Printer
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,6 +24,7 @@ interface ResignationHistoryItem {
     userId: number;
     resignDate: string;
     reason: string;
+    status?: string;
     documentUrl: string | null;
     createdAt: string;
     user: {
@@ -39,9 +41,198 @@ export default function ResignHistoryPage() {
     const { toast } = useToast();
     const queryClient = useQueryClient();
 
+    const { data: config } = useQuery<any>({
+        queryKey: ["/api/config"],
+    });
+
+    const namaPt = config?.namaPt || import.meta.env.VITE_NAMA_PT || "PT MEKANO INDUSTRIAL PRESISI";
+    const singkatanPt = config?.singkatanPt || config?.namaPt || import.meta.env.VITE_SINGKATAN_PT || "PT MIP";
+    const alamatPt = config?.alamatPt || import.meta.env.VITE_ALAMAT_PT || "";
+    const logoUrl = config?.logoUrl && config.logoUrl !== "/logo_elok_buah.jpg" ? config.logoUrl : null;
+
     const { data: resignationsList = [], isLoading } = useQuery<ResignationHistoryItem[]>({
         queryKey: ["/api/admin/resignations"],
     });
+
+    const handlePrintReport = (items: ResignationHistoryItem[]) => {
+        const escapeHtml = (str: string) => (str || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+        const logoImgHtml = logoUrl ? `<img src="${logoUrl}" style="height:48px; max-width:140px; object-fit:contain;" />` : '';
+
+        const rowsHtml = items.map((r, index) => `
+            <tr>
+                <td style="text-align: center;">${index + 1}</td>
+                <td style="font-weight: bold;">${escapeHtml(r.user?.fullName || '-')}</td>
+                <td style="font-family: monospace;">${escapeHtml(r.user?.nik || '-')}</td>
+                <td>${escapeHtml(r.user?.position || '-')}</td>
+                <td>${escapeHtml(r.user?.branch || '-')}</td>
+                <td style="font-weight: bold;">${format(new Date(r.resignDate), "dd MMMM yyyy", { locale: id })}</td>
+                <td style="text-transform: uppercase; font-weight: bold; color: ${r.status === 'approved' ? '#166534' : r.status === 'rejected' ? '#991b1b' : '#d97706'};">
+                    ${r.status === 'approved' ? 'DISETUJUI' : r.status === 'rejected' ? 'DITOLAK' : 'MENUNGGU'}
+                </td>
+                <td>${escapeHtml(r.reason || '-')}</td>
+            </tr>
+        `).join('');
+
+        const html = `<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <title>LAPORAN RIWAYAT TENAGA KERJA RESIGN - ${escapeHtml(singkatanPt)}</title>
+    <style>
+        @page { size: A4 landscape; margin: 10mm; }
+        body { font-family: Arial, sans-serif; font-size: 8pt; color: #0f172a; margin: 0; padding: 15px; }
+        .letterhead { display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid #0f172a; padding-bottom: 8px; margin-bottom: 12px; }
+        .company-block h1 { font-size: 16px; margin: 0; text-transform: uppercase; font-weight: bold; }
+        .company-block p { font-size: 9px; margin: 2px 0 0; color: #475569; }
+        .title { text-align: center; margin: 15px 0 10px; }
+        .title h2 { font-size: 13pt; margin: 0; text-transform: uppercase; font-weight: 800; }
+        .title p { font-size: 8pt; color: #64748b; margin: 2px 0 0; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; table-layout: fixed; }
+        th { background: #f1f5f9; border: 1px solid #94a3b8; padding: 6px 8px; text-align: left; font-size: 7.5pt; font-weight: bold; text-transform: uppercase; }
+        td { border: 1px solid #cbd5e1; padding: 6px 8px; vertical-align: middle; font-size: 7.5pt; }
+        tr:nth-child(even) { background: #f8fafc; }
+        .footer-sig { display: flex; justify-content: space-between; margin-top: 40px; page-break-inside: avoid; }
+        .sig-box { text-align: center; width: 200px; }
+        .sig-line { margin-top: 55px; border-bottom: 1px solid #0f172a; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="letterhead">
+        <div>${logoImgHtml}</div>
+        <div class="company-block" style="text-align: right;">
+            <h1>${escapeHtml(namaPt)}</h1>
+            <p>${escapeHtml(alamatPt || "Sistem Informasi Manajemen Presensi & Tenaga Kerja")}</p>
+        </div>
+    </div>
+    <div class="title">
+        <h2>LAPORAN RIWAYAT TENAGA KERJA RESIGN</h2>
+        <p>Dicetak pada: ${format(new Date(), "dd MMMM yyyy, HH:mm", { locale: id })} WIB</p>
+    </div>
+    <table>
+        <thead>
+            <tr>
+                <th style="width: 5%;">NO</th>
+                <th style="width: 20%;">TENAGA KERJA</th>
+                <th style="width: 15%;">NIK</th>
+                <th style="width: 13%;">JABATAN</th>
+                <th style="width: 13%;">CABANG</th>
+                <th style="width: 13%;">TGL RESIGN</th>
+                <th style="width: 9%;">STATUS</th>
+                <th style="width: 12%;">ALASAN</th>
+            </tr>
+        </thead>
+        <tbody>
+            ${rowsHtml || `<tr><td colSpan="8" style="text-align:center;">Tidak ada riwayat resign</td></tr>`}
+        </tbody>
+    </table>
+    <div class="footer-sig">
+        <div class="sig-box">
+            <p>Diperiksa oleh,</p>
+            <div class="sig-line">Penanggung Jawab / HRD</div>
+        </div>
+        <div class="sig-box">
+            <p>Disetujui oleh,</p>
+            <div class="sig-line">Super Admin / Management</div>
+        </div>
+    </div>
+    <script>window.onload = function() { setTimeout(() => window.print(), 500); };</script>
+</body>
+</html>`;
+        const win = window.open("", "_blank");
+        if (win) {
+            win.document.write(html);
+            win.document.close();
+        }
+    };
+
+    const handlePrintSingleResign = (resign: ResignationHistoryItem) => {
+        const escapeHtml = (str: string) => (str || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+        const logoImgHtml = logoUrl ? `<img src="${logoUrl}" style="height:55px; max-width:160px; object-fit:contain;" />` : '';
+
+        const html = `<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <title>SURAT KETERANGAN RESIGN - ${escapeHtml(resign.user?.fullName || '')}</title>
+    <style>
+        @page { size: A4 portrait; margin: 15mm; }
+        body { font-family: Arial, sans-serif; font-size: 10pt; color: #0f172a; margin: 0; padding: 20px; line-height: 1.5; }
+        .letterhead { display: flex; align-items: center; justify-content: space-between; border-bottom: 3px double #0f172a; padding-bottom: 10px; margin-bottom: 20px; }
+        .company-block h1 { font-size: 18px; margin: 0; text-transform: uppercase; font-weight: bold; }
+        .company-block p { font-size: 9.5px; margin: 2px 0 0; color: #475569; }
+        .doc-title { text-align: center; margin: 25px 0 20px; }
+        .doc-title h2 { font-size: 14pt; margin: 0; text-transform: uppercase; font-weight: 800; text-decoration: underline; }
+        .doc-title p { font-size: 9pt; color: #64748b; margin-top: 3px; }
+        .info-table { width: 100%; border-collapse: collapse; margin: 15px 0 25px; }
+        .info-table td { padding: 6px 8px; vertical-align: top; font-size: 10pt; }
+        .info-table td.label { font-weight: bold; width: 180px; color: #334155; }
+        .box-reason { background: #f8fafc; border: 1px solid #cbd5e1; padding: 12px; border-radius: 6px; font-style: italic; margin-top: 5px; }
+        .footer-sig { display: flex; justify-content: space-between; margin-top: 60px; page-break-inside: avoid; }
+        .sig-box { text-align: center; width: 220px; }
+        .sig-line { margin-top: 70px; border-bottom: 1.5px solid #0f172a; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="letterhead">
+        <div>${logoImgHtml}</div>
+        <div class="company-block" style="text-align: right;">
+            <h1>${escapeHtml(namaPt)}</h1>
+            <p>${escapeHtml(alamatPt || "Sistem Informasi Manajemen Presensi & Tenaga Kerja")}</p>
+        </div>
+    </div>
+    <div class="doc-title">
+        <h2>SURAT KETERANGAN RESIGNASI TENAGA KERJA</h2>
+        <p>Ref: RESIGN-${resign.id}/${format(new Date(resign.resignDate), "yyyyMM", { locale: id })}</p>
+    </div>
+    <p>Dengan ini menerangkan bahwa data pengunduran diri tenaga kerja di bawah ini telah terverifikasi dan dicatat pada sistem resmi <strong>${escapeHtml(namaPt)}</strong>:</p>
+    <table class="info-table">
+        <tr>
+            <td class="label">Nama Lengkap</td>
+            <td>: <strong>${escapeHtml(resign.user?.fullName || '-')}</strong></td>
+        </tr>
+        <tr>
+            <td class="label">NIK</td>
+            <td>: ${escapeHtml(resign.user?.nik || '-')}</td>
+        </tr>
+        <tr>
+            <td class="label">Jabatan Terakhir</td>
+            <td>: ${escapeHtml(resign.user?.position || '-')}</td>
+        </tr>
+        <tr>
+            <td class="label">Cabang Terakhir</td>
+            <td>: ${escapeHtml(resign.user?.branch || '-')}</td>
+        </tr>
+        <tr>
+            <td class="label">Tanggal Efektif Resign</td>
+            <td>: <strong>${format(new Date(resign.resignDate), "EEEE, dd MMMM yyyy", { locale: id })}</strong></td>
+        </tr>
+        <tr>
+            <td class="label">Keterangan / Alasan</td>
+            <td>
+                <div class="box-reason">${escapeHtml(resign.reason || '-')}</div>
+            </td>
+        </tr>
+    </table>
+    <p>Demikian surat keterangan pencatatan resignasi ini diterbitkan untuk dipergunakan sebagaimana mestinya.</p>
+    <div class="footer-sig">
+        <div class="sig-box">
+            <p>Yang Mengajukan,</p>
+            <div class="sig-line">${escapeHtml(resign.user?.fullName || 'Karyawan')}</div>
+        </div>
+        <div class="sig-box">
+            <p>${escapeHtml(singkatanPt)}, ${format(new Date(), "dd MMMM yyyy", { locale: id })}<br/>Disetujui oleh,</p>
+            <div class="sig-line">Management / Super Admin</div>
+        </div>
+    </div>
+    <script>window.onload = function() { setTimeout(() => window.print(), 500); };</script>
+</body>
+</html>`;
+        const win = window.open("", "_blank");
+        if (win) {
+            win.document.write(html);
+            win.document.close();
+        }
+    };
 
     const deleteMutation = useMutation({
         mutationFn: async (id: number) => {
@@ -98,6 +289,14 @@ export default function ResignHistoryPage() {
                         <p className="text-sm text-gray-500">Timeline historis seluruh tenaga kerja yang telah resign dari perusahaan.</p>
                     </div>
                 </div>
+                <Button
+                    variant="outline"
+                    className="rounded-lg gap-2 cursor-pointer bg-white border-gray-200 text-gray-700 hover:bg-gray-50"
+                    onClick={() => handlePrintReport(filteredResignations)}
+                >
+                    <Printer className="w-4 h-4 text-primary" />
+                    Cetak Laporan Riwayat Resign
+                </Button>
             </div>
 
             {/* Filter and Search */}
@@ -168,6 +367,16 @@ export default function ResignHistoryPage() {
                                                         <Calendar className="w-3.5 h-3.5" />
                                                         Resign: {dateFormatted}
                                                     </span>
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        className="rounded-lg text-primary border-primary/20 hover:bg-primary/5 h-7 px-2 flex items-center gap-1 cursor-pointer text-xs font-bold"
+                                                        onClick={() => handlePrintSingleResign(item)}
+                                                        title="Cetak Surat Resignasi"
+                                                    >
+                                                        <Printer className="w-3.5 h-3.5" />
+                                                        Cetak
+                                                    </Button>
                                                     <Button
                                                         variant="outline"
                                                         size="sm"
