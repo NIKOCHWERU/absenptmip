@@ -1895,6 +1895,15 @@ export function registerRoutes(app: Express) {
           status: "cancelled"
         }).where(eq(overtimes.id, Number(overtimeId)));
         return res.json({ message: "Permohonan izin tidak lembur telah dikirim" });
+      } else if (action === "mark_missed") {
+        await db.update(overtimes).set({
+          employeeApproval: "approved",
+          status: "completed",
+          isAutoCompleted: true,
+          missedReason: req.body.missedReason || "Batas waktu lembur terlewat oleh karyawan",
+          finalDescription: "Lembur terlewat dan telah disimpan ke riwayat lembur."
+        }).where(eq(overtimes.id, Number(overtimeId)));
+        return res.json({ message: "Data lembur terlewat berhasil disimpan ke riwayat." });
       }
       res.status(400).json({ message: "Aksi tidak valid" });
     } catch (e: any) {

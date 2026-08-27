@@ -751,6 +751,34 @@ export default function EmployeeDashboard() {
         }
     };
 
+    const handleSaveMissedOvertime = async (overtimeId: number) => {
+        try {
+            const res = await fetch("/api/attendance/overtime/respond", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    overtimeId: overtimeId,
+                    action: "mark_missed",
+                    missedReason: "Batas waktu lembur terlewat oleh karyawan"
+                })
+            });
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                throw new Error(err.message || "Gagal menyimpan riwayat lembur");
+            }
+            setIsSplNoticeModalOpen(false);
+            queryClient.invalidateQueries({ queryKey: ["/api/attendance/overtime/today"] });
+            queryClient.invalidateQueries({ queryKey: ["/api/employee/overtimes/my-spl"] });
+            await refetchOvertimeToday();
+            toast({
+                title: "Tersimpan ke Riwayat Lembur",
+                description: "Data penugasan lembur yang terlewat telah disimpan di riwayat lembur."
+            });
+        } catch (err: any) {
+            toast({ title: "Gagal", description: err.message, variant: "destructive" });
+        }
+    };
+
     const lastOpenedOvertimeIdRef = useRef<number | null>(null);
 
     useEffect(() => {
@@ -763,13 +791,7 @@ export default function EmployeeDashboard() {
             activeOvertimeToday.employeeApproval !== "approved" &&
             activeOvertimeToday.employeeApproval !== "rejected"
         ) {
-            const isPast = checkIsOvertimePast(
-                activeOvertimeToday.overtimeDate || activeOvertimeToday.date || activeOvertimeToday.startTime,
-                activeOvertimeToday.endTime
-            );
-            if (!isPast) {
-                setIsSplNoticeModalOpen(true);
-            }
+            setIsSplNoticeModalOpen(true);
         }
     }, [activeOvertimeToday]);
 
@@ -1600,8 +1622,30 @@ export default function EmployeeDashboard() {
                                         )}
 
                                         {isPast ? (
-                                            <div className="bg-red-100/70 border border-red-200 rounded-xl p-3 text-red-900 text-xs font-semibold leading-relaxed">
-                                                ⚠️ Anda melewatkan lembur tanggal <strong className="underline">{toTitleCase(dateStr)}</strong> pukul <strong className="underline">{startTimeStr} – {endTimeStr} WIB</strong>.
+                                            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3.5 space-y-2">
+                                                <div className="flex items-center gap-1.5 font-black text-xs text-amber-800 uppercase tracking-wide">
+                                                    <AlertTriangle className="w-4 h-4 text-amber-600 animate-bounce" />
+                                                    Peringatan: Lembur Telah Terlewat
+                                                </div>
+                                                <p className="text-xs text-amber-900 font-medium leading-relaxed">
+                                                    Penugasan lembur tanggal <strong className="underline">{toTitleCase(dateStr)}</strong> pukul <strong className="underline">{startTimeStr} – {endTimeStr} WIB</strong> telah melewati batas waktu.
+                                                </p>
+                                                <div className="grid grid-cols-2 gap-2 pt-1">
+                                                    <Button
+                                                        type="button"
+                                                        onClick={() => setIsSplNoticeModalOpen(true)}
+                                                        className="h-9 rounded-xl bg-white border border-amber-300 text-amber-900 hover:bg-amber-100 font-bold text-xs"
+                                                    >
+                                                        Buka Form SPL
+                                                    </Button>
+                                                    <Button
+                                                        type="button"
+                                                        onClick={() => handleSaveMissedOvertime(spl.id)}
+                                                        className="h-9 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shadow-xs"
+                                                    >
+                                                        Simpan ke Riwayat
+                                                    </Button>
+                                                </div>
                                             </div>
                                         ) : (
                                             <>
@@ -2305,17 +2349,29 @@ export default function EmployeeDashboard() {
                                 </div>
 
                                 {isPastNotice ? (
-                                    <div className="bg-red-50 border border-red-200 rounded-2xl p-4 text-center space-y-2">
-                                        <p className="font-extrabold text-xs text-red-700 uppercase tracking-wide">⚠️ Lembur Telah Kadaluarsa</p>
-                                        <p className="text-xs font-semibold text-red-900 leading-relaxed">
-                                            Anda melewatkan lembur tanggal <strong className="underline">{toTitleCase(dateStr)}</strong> pukul <strong className="underline">{startTimeStr} – {endTimeStr} WIB</strong>.
+                                    <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 space-y-3">
+                                        <div className="flex items-center justify-center gap-1.5 text-xs font-black text-amber-800 uppercase tracking-wide">
+                                            <AlertTriangle className="w-4 h-4 text-amber-600 animate-bounce" />
+                                            Peringatan: Lembur Telah Terlewat
+                                        </div>
+                                        <p className="text-xs text-center font-medium text-amber-900 leading-relaxed">
+                                            Jadwal penugasan lembur ini (tanggal <strong className="underline">{toTitleCase(dateStr)}</strong> pukul <strong className="underline">{startTimeStr} – {endTimeStr} WIB</strong>) telah melewati batas waktu pelaksanaan.
                                         </p>
-                                        <Button
-                                            onClick={() => setIsSplNoticeModalOpen(false)}
-                                            className="w-full h-10 rounded-xl bg-gray-800 hover:bg-gray-900 text-white font-bold text-xs mt-2"
-                                        >
-                                            Tutup
-                                        </Button>
+                                        <div className="grid grid-cols-2 gap-2 pt-1">
+                                            <Button
+                                                variant="outline"
+                                                onClick={() => handleSaveMissedOvertime(activeOvertimeToday.id)}
+                                                className="h-11 rounded-2xl border-gray-300 text-gray-700 font-bold text-xs hover:bg-gray-100"
+                                            >
+                                                Keluar
+                                            </Button>
+                                            <Button
+                                                onClick={() => handleSaveMissedOvertime(activeOvertimeToday.id)}
+                                                className="h-11 rounded-2xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shadow-md shadow-amber-600/20"
+                                            >
+                                                Simpan ke Riwayat
+                                            </Button>
+                                        </div>
                                     </div>
                                 ) : (
                                     <div className="grid grid-cols-2 gap-3 pt-2">
