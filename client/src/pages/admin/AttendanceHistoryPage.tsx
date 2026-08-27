@@ -265,16 +265,24 @@ export default function AttendanceHistoryPage() {
         return getPhotoUrl(url);
     };
 
-    const parsePermitInfo = (notes: string | null) => {
+    const parsePermitInfo = (notes: string | null, checkOutTime?: Date | string | null) => {
         if (!notes) return { duration: 0, cleanNotes: null };
-        const match = notes.match(/\[DURATION:(\d+)\]/);
+        let clean = notes;
+        const match = clean.match(/\[DURATION:(\d+)\]/);
+        let duration = 0;
         if (match) {
-            return {
-                duration: parseInt(match[1]),
-                cleanNotes: notes.replace(/\[DURATION:\d+\]\s*/, '')
-            };
+            duration = parseInt(match[1]);
+            clean = clean.replace(/\[DURATION:\d+\]\s*/, '');
         }
-        return { duration: 0, cleanNotes: notes };
+
+        if (checkOutTime && clean.includes("Otomatis absen pulang oleh sistem pada jam")) {
+            try {
+                const formattedOut = format(new Date(checkOutTime), "HH:mm");
+                clean = clean.replace(/Otomatis absen pulang oleh sistem pada jam \d{2}:\d{2}/gi, `Otomatis absen pulang oleh sistem pada jam ${formattedOut}`);
+            } catch (_) {}
+        }
+
+        return { duration, cleanNotes: clean };
     };
 
     const handlePrev = () => {
@@ -1541,7 +1549,7 @@ export default function AttendanceHistoryPage() {
                                                                      </div>
 
                                                                      {(() => {
-                                                                         const { duration } = parsePermitInfo(record.notes);
+                                                                         const { duration } = parsePermitInfo(record.notes, record.checkOut);
                                                                          return duration > 0 && (
                                                                              <div className="flex justify-between w-32 pt-1 border-t border-gray-100 mt-1">
                                                                                  <span className="text-gray-500 font-bold">Izin:</span>
@@ -1604,7 +1612,7 @@ export default function AttendanceHistoryPage() {
                                                                  </span>
 
                                                                  {(() => {
-                                                                     const { duration, cleanNotes } = parsePermitInfo(record.notes);
+                                                                     const { duration, cleanNotes } = parsePermitInfo(record.notes, record.checkOut);
                                                                      return cleanNotes && (
                                                                          <p className="text-xs text-gray-600 whitespace-normal bg-gray-50 p-2 rounded border border-gray-100 w-full" style={{ wordBreak: 'break-word' }}>
                                                                              <span className="font-semibold block mb-0.5">Catatan:</span>

@@ -71,9 +71,15 @@ export function startAutoCheckoutScheduler() {
             continue;
           }
 
-          // Waktu checkout otomatis dicatat tepat 10 menit setelah jam pulang shift (misal: 17:10)
+          // Waktu checkout otomatis dicatat tepat 10 menit setelah jam pulang shift (misal: 17:10 WIB)
           const checkoutRecordedTime = new Date(shiftEnd.getTime() + 10 * 60 * 1000);
-          const timeLabel = format(checkoutRecordedTime, "HH:mm");
+          
+          // Hitung waktu tepat WIB (+07:00) independen dari timezone OS server
+          const wibMs = checkoutRecordedTime.getTime() + (7 * 60 * 60 * 1000);
+          const wibDate = new Date(wibMs);
+          const wibHours = String(wibDate.getUTCHours()).padStart(2, '0');
+          const wibMins = String(wibDate.getUTCMinutes()).padStart(2, '0');
+          const timeLabel = `${wibHours}:${wibMins}`;
           
           const newNotes = row.att.notes 
             ? row.att.notes + `\n(Otomatis absen pulang oleh sistem pada jam ${timeLabel})`
