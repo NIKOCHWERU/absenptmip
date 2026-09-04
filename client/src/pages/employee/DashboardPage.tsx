@@ -610,6 +610,10 @@ export default function EmployeeDashboard() {
 
     const handleStartOvertimeSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (!startOvertimePhoto) {
+            toast({ title: "Foto Awal Lembur Wajib!", description: "Silakan ambil foto bukti awal lembur menggunakan Kamera Live terlebih dahulu.", variant: "destructive" });
+            return;
+        }
         try {
             setIsSubmittingOvertime(true);
             const formData = new FormData();
@@ -657,6 +661,10 @@ export default function EmployeeDashboard() {
 
     const handleEndOvertimeSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (!endOvertimePhoto) {
+            toast({ title: "Foto Hasil Lembur Wajib!", description: "Silakan ambil foto bukti hasil lembur menggunakan Kamera Live terlebih dahulu.", variant: "destructive" });
+            return;
+        }
         try {
             setIsSubmittingOvertime(true);
             const formData = new FormData();
@@ -1683,47 +1691,10 @@ export default function EmployeeDashboard() {
                                                                 const isBefore = checkIsBeforeStartTime(spl.date || spl.overtimeDate, spl.startTime);
                                                                 const startTimeStr = spl.startTime ? (spl.startTime.length === 5 ? spl.startTime : safeFormatDate(spl.startTime, "HH:mm")) : "-";
 
-                                                                const executeStart = async () => {
-                                                                    if (spl.initialProofUrl) {
-                                                                        try {
-                                                                            setIsSubmittingOvertime(true);
-                                                                            const formData = new FormData();
-                                                                            formData.append("initialProofUrl", spl.initialProofUrl);
-                                                                            if (spl.description) formData.append("description", spl.description);
-
-                                                                            const res = await fetch("/api/attendance/overtime/start", {
-                                                                                method: "POST",
-                                                                                body: formData
-                                                                            });
-                                                                            if (!res.ok) {
-                                                                                const err = await res.json();
-                                                                                throw new Error(err.message || "Gagal mulai lembur");
-                                                                            }
-                                                                            const nowIso = new Date().toISOString();
-                                                                            queryClient.setQueryData(["/api/attendance/overtime/today"], (old: any) => {
-                                                                                if (!old) return { status: "ongoing", startTime: nowIso, employeeApproval: "approved" };
-                                                                                return { ...old, status: "ongoing", startTime: nowIso, employeeApproval: "approved" };
-                                                                            });
-                                                                            queryClient.setQueryData(["/api/employee/overtimes/my-spl"], (old: any[] | undefined) => {
-                                                                                if (!Array.isArray(old)) return old;
-                                                                                return old.map((ot: any) => (ot.id === spl.id || (ot.status !== 'completed' && ot.status !== 'cancelled')) ? { ...ot, status: "ongoing", startTime: nowIso, employeeApproval: "approved" } : ot);
-                                                                            });
-                                                                            toast({ title: "Laporan Awal Lembur Terkirim!", description: "Sesi lembur Anda telah berjalan." });
-                                                                            queryClient.invalidateQueries({ queryKey: ["/api/attendance/overtime/today"] });
-                                                                            queryClient.invalidateQueries({ queryKey: ["/api/employee/overtimes/my-spl"] });
-                                                                            await queryClient.refetchQueries({ queryKey: ["/api/attendance/overtime/today"] });
-                                                                            await queryClient.refetchQueries({ queryKey: ["/api/employee/overtimes/my-spl"] });
-                                                                            await refetchOvertimeToday();
-                                                                        } catch (err: any) {
-                                                                            toast({ title: "Gagal Mulai Lembur", description: err.message, variant: "destructive" });
-                                                                        } finally {
-                                                                            setIsSubmittingOvertime(false);
-                                                                        }
-                                                                    } else {
-                                                                        setStartOvertimeNotes(spl.description || "");
-                                                                        setStartOvertimePhoto(null);
-                                                                        setIsStartOvertimeReportOpen(true);
-                                                                    }
+                                                                const executeStart = () => {
+                                                                    setStartOvertimeNotes(spl.description || "");
+                                                                    setStartOvertimePhoto(null);
+                                                                    setIsStartOvertimeReportOpen(true);
                                                                 };
 
                                                                 if (isBefore) {

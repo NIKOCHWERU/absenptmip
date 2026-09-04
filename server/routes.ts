@@ -1659,10 +1659,14 @@ export function registerRoutes(app: Express) {
         const splUrl = files?.splPhoto?.[0] ? await processSingleUpload(files.splPhoto[0], "overtimeSPL", user[0].fullName) : pendingOt[0].splDocumentUrl;
         let initialProofUrl = files?.initialProofPhoto?.[0]
           ? await processSingleUpload(files.initialProofPhoto[0], "overtimeInitial", user[0].fullName)
-          : (req.body.initialProofUrl || pendingOt[0].initialProofUrl || null);
+          : (req.body.initialProofUrl || null);
 
         if (initialProofUrl && typeof initialProofUrl === 'string' && initialProofUrl.startsWith('data:image')) {
           initialProofUrl = await processSingleUpload(undefined, "overtimeInitial", user[0].fullName, undefined, initialProofUrl);
+        }
+
+        if (!initialProofUrl) {
+          return res.status(400).json({ message: "Foto bukti awal lembur wajib diambil menggunakan kamera live." });
         }
 
         let updatedSplDocUrl = splUrl;
@@ -1706,6 +1710,10 @@ export function registerRoutes(app: Express) {
         initialProofUrl = await processSingleUpload(undefined, "overtimeInitial", user[0].fullName, undefined, initialProofUrl);
       }
 
+      if (!initialProofUrl) {
+        return res.status(400).json({ message: "Foto bukti awal lembur wajib diambil menggunakan kamera live." });
+      }
+
       await db.insert(overtimes).values({
         attendanceId: activeSession.id,
         startTime: new Date(),
@@ -1732,7 +1740,6 @@ export function registerRoutes(app: Express) {
       const files = req.files as { [fieldname: string]: Express.Multer.File[] };
       const finalDescription = req.body.finalDescription;
       
-      // Find active overtime for this user (ongoing or approved pending completion)
       const ongoingOvertimes = await db.select({
         id: overtimes.id,
         attendanceId: overtimes.attendanceId,
@@ -1758,12 +1765,17 @@ export function registerRoutes(app: Express) {
       }
 
       const activeOt = ongoingOvertimes[0];
+
       let finalProofUrl = files?.finalProofPhoto?.[0]
         ? await processSingleUpload(files.finalProofPhoto[0], "overtimeFinal", user[0].fullName)
         : (req.body.finalProofUrl || null);
 
       if (finalProofUrl && typeof finalProofUrl === 'string' && finalProofUrl.startsWith('data:image')) {
         finalProofUrl = await processSingleUpload(undefined, "overtimeFinal", user[0].fullName, undefined, finalProofUrl);
+      }
+
+      if (!finalProofUrl) {
+        return res.status(400).json({ message: "Foto bukti hasil lembur wajib diambil menggunakan kamera live." });
       }
 
       let updatedSplDocUrl = activeOt.splDocumentUrl;
@@ -2298,7 +2310,7 @@ export function registerRoutes(app: Express) {
   app.put("/api/admin/overtimes/:id", isAuthenticated, isAdmin, async (req: Request, res: Response) => {
     try {
       const id = Number(req.params.id);
-      const { startTime, endTime, description, finalDescription, status, employeeApproval, splNumber } = req.body;
+      const { startTime, endTime, description, finalDescription, status, employeeApproval, splNumber, isAutoCompleted, missedReason } = req.body;
       const updateData: any = {};
       if (startTime) updateData.startTime = new Date(startTime);
       if (endTime !== undefined) updateData.endTime = endTime ? new Date(endTime) : null;
@@ -2307,6 +2319,8 @@ export function registerRoutes(app: Express) {
       if (status) updateData.status = status;
       if (employeeApproval) updateData.employeeApproval = employeeApproval;
       if (splNumber) updateData.splNumber = splNumber;
+      if (isAutoCompleted !== undefined) updateData.isAutoCompleted = isAutoCompleted;
+      if (missedReason !== undefined) updateData.missedReason = missedReason;
 
       await db.update(overtimes).set(updateData).where(eq(overtimes.id, id));
       res.json({ message: "Data lembur berhasil diperbarui" });
