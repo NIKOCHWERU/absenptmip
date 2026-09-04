@@ -275,10 +275,10 @@ export default function AttendanceHistoryPage() {
             clean = clean.replace(/\[DURATION:\d+\]\s*/, '');
         }
 
-        if (checkOutTime && clean.includes("Otomatis absen pulang oleh sistem pada jam")) {
+        if (checkOutTime && /otomatis absen pulang oleh sistem pada jam/i.test(clean)) {
             try {
                 const formattedOut = format(new Date(checkOutTime), "HH:mm");
-                clean = clean.replace(/Otomatis absen pulang oleh sistem pada jam \d{2}:\d{2}/gi, `Otomatis absen pulang oleh sistem pada jam ${formattedOut}`);
+                clean = clean.replace(/otomatis absen pulang oleh sistem pada jam \d{2}:\d{2}/gi, `Otomatis absen pulang oleh sistem pada jam ${formattedOut}`);
             } catch (_) {}
         }
 
@@ -527,7 +527,7 @@ export default function AttendanceHistoryPage() {
                     photosHtml = '<span style="color:#94a3b8;font-style:italic;font-size:9px;">Tidak ada bukti foto</span>';
                 }
 
-                const { duration, cleanNotes } = parsePermitInfo(r.notes);
+                const { duration, cleanNotes } = parsePermitInfo(r.notes, r.checkOut);
                 let extraNotes = '';
                 if (cleanNotes) extraNotes += `<div style="margin-top:2px;color:#475569;font-size:9.5px;line-height:1.3;"><b>Cat:\n</b> ${cleanNotes}</div>`;
                 if (sts === 'late' && (r as any).lateReason) extraNotes += `<div style="margin-top:2px;color:#c2410c;font-size:9.5px;line-height:1.3;"><b>Alasan Telat:\n</b> ${(r as any).lateReason}</div>`;
@@ -825,7 +825,7 @@ export default function AttendanceHistoryPage() {
                     photosHtml = '<span style="color:#94a3b8;font-style:italic;font-size:9px;">Tidak ada bukti foto</span>';
                 }
 
-                const { duration, cleanNotes } = parsePermitInfo(r.notes);
+                const { duration, cleanNotes } = parsePermitInfo(r.notes, r.checkOut);
                 let extraNotes = '';
                 if (cleanNotes) extraNotes += `<div style="margin-top:2px;color:#475569;font-size:9.5px;line-height:1.3;"><b>Cat:\n</b> ${cleanNotes}</div>`;
                 if (sts === 'late' && (r as any).lateReason) extraNotes += `<div style="margin-top:2px;color:#c2410c;font-size:9.5px;line-height:1.3;"><b>Alasan Telat:\n</b> ${(r as any).lateReason}</div>`;
@@ -1198,7 +1198,7 @@ export default function AttendanceHistoryPage() {
                 photosHtml = '<span style="color:#94a3b8;font-style:italic;font-size:9px;">Tidak ada bukti foto</span>';
             }
 
-            const { duration, cleanNotes } = parsePermitInfo(r.notes);
+            const { duration, cleanNotes } = parsePermitInfo(r.notes, r.checkOut);
             let extraNotes = '';
             if (cleanNotes) extraNotes += `<div style="margin-top:2px;color:#475569;font-size:9.5px;line-height:1.3;"><b>Cat:\n</b> ${cleanNotes}</div>`;
             if (sts === 'late' && (r as any).lateReason) extraNotes += `<div style="margin-top:2px;color:#c2410c;font-size:9.5px;line-height:1.3;"><b>Alasan Telat:\n</b> ${(r as any).lateReason}</div>`;

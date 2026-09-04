@@ -75,10 +75,8 @@ export function startAutoCheckoutScheduler() {
           const checkoutRecordedTime = new Date(shiftEnd.getTime() + 10 * 60 * 1000);
           
           // Hitung waktu tepat WIB (+07:00) independen dari timezone OS server
-          const wibMs = checkoutRecordedTime.getTime() + (7 * 60 * 60 * 1000);
-          const wibDate = new Date(wibMs);
-          const wibHours = String(wibDate.getUTCHours()).padStart(2, '0');
-          const wibMins = String(wibDate.getUTCMinutes()).padStart(2, '0');
+          const wibHours = String((checkoutRecordedTime.getUTCHours() + 7) % 24).padStart(2, '0');
+          const wibMins = String(checkoutRecordedTime.getUTCMinutes()).padStart(2, '0');
           const timeLabel = `${wibHours}:${wibMins}`;
           
           const newNotes = row.att.notes 

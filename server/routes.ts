@@ -1564,6 +1564,28 @@ export function registerRoutes(app: Express) {
     }
   });
 
+  app.get("/api/admin/fix-autocheckout-notes", async (req: Request, res: Response) => {
+    try {
+      const records = await db.select().from(attendance);
+      let updatedCount = 0;
+      for (const record of records) {
+        if (!record.checkOut || !record.notes || !/otomatis absen pulang oleh sistem pada jam/i.test(record.notes)) continue;
+        const outDate = new Date(record.checkOut);
+        const wibHours = String((outDate.getUTCHours() + 7) % 24).padStart(2, '0');
+        const wibMins = String(outDate.getUTCMinutes()).padStart(2, '0');
+        const formattedOut = `${wibHours}:${wibMins}`;
+        const newNotes = record.notes.replace(/otomatis absen pulang oleh sistem pada jam \d{2}:\d{2}/gi, `(Otomatis absen pulang oleh sistem pada jam ${formattedOut})`);
+        if (newNotes !== record.notes) {
+          await db.update(attendance).set({ notes: newNotes }).where(eq(attendance.id, record.id));
+          updatedCount++;
+        }
+      }
+      res.json({ message: "Fix autocheckout notes complete", updatedCount });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   // Helper untuk mengirim Push Notification ke user spesifik
   async function sendPushToUser(userId: number, payload: { title: string; body: string; url?: string }) {
     try {
