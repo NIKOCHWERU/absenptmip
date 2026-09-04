@@ -1883,7 +1883,7 @@ export function registerRoutes(app: Express) {
         let { initialProofUrl, description } = req.body;
         const updateData: any = {
           employeeApproval: "approved",
-          status: "assigned"
+          status: "pending"
         };
         if (initialProofUrl) {
           if (typeof initialProofUrl === 'string' && initialProofUrl.startsWith('data:image')) {

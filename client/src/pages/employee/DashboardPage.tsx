@@ -548,11 +548,11 @@ export default function EmployeeDashboard() {
             setIsApproveSplModalOpen(false);
             queryClient.setQueryData(["/api/attendance/overtime/today"], (old: any) => {
                 if (!old) return old;
-                return { ...old, employeeApproval: "approved", status: "assigned" };
+                return { ...old, employeeApproval: "approved", status: "pending" };
             });
             queryClient.setQueryData(["/api/employee/overtimes/my-spl"], (old: any[] | undefined) => {
                 if (!Array.isArray(old)) return old;
-                return old.map((ot: any) => ot.id === targetOt.id ? { ...ot, employeeApproval: "approved", status: "assigned" } : ot);
+                return old.map((ot: any) => ot.id === targetOt.id ? { ...ot, employeeApproval: "approved", status: "pending" } : ot);
             });
             queryClient.invalidateQueries({ queryKey: ["/api/attendance/overtime/today"] });
             queryClient.invalidateQueries({ queryKey: ["/api/employee/overtimes/my-spl"] });
