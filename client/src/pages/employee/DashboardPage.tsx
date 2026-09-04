@@ -730,8 +730,8 @@ export default function EmployeeDashboard() {
                 const photoFile = dataURLtoFile(photoDataUrl, `overtime_start_${Date.now()}.jpg`);
                 formData.append("initialProofPhoto", photoFile);
             }
-            if (caption) {
-                formData.append("description", caption);
+            if (caption || startOvertimeNotes) {
+                formData.append("description", caption || startOvertimeNotes);
             }
             const res = await fetch("/api/attendance/overtime/start", {
                 method: "POST",
@@ -742,8 +742,21 @@ export default function EmployeeDashboard() {
                 throw new Error(err.message || "Gagal mulai lembur");
             }
             setIsStartOvertimeCameraOpen(false);
-            toast({ title: "Lembur Dimulai!", description: "Sesi lembur Anda telah berjalan." });
-            refetchOvertimeToday();
+            const nowIso = new Date().toISOString();
+            queryClient.setQueryData(["/api/attendance/overtime/today"], (old: any) => {
+                if (!old) return { status: "ongoing", startTime: nowIso, employeeApproval: "approved" };
+                return { ...old, status: "ongoing", startTime: nowIso, employeeApproval: "approved" };
+            });
+            queryClient.setQueryData(["/api/employee/overtimes/my-spl"], (old: any[] | undefined) => {
+                if (!Array.isArray(old)) return old;
+                return old.map((ot: any) => (ot.status !== 'completed' && ot.status !== 'cancelled') ? { ...ot, status: "ongoing", startTime: nowIso, employeeApproval: "approved" } : ot);
+            });
+            toast({ title: "Laporan Awal Lembur Terkirim!", description: "Sesi lembur Anda telah berjalan." });
+            queryClient.invalidateQueries({ queryKey: ["/api/attendance/overtime/today"] });
+            queryClient.invalidateQueries({ queryKey: ["/api/employee/overtimes/my-spl"] });
+            await queryClient.refetchQueries({ queryKey: ["/api/attendance/overtime/today"] });
+            await queryClient.refetchQueries({ queryKey: ["/api/employee/overtimes/my-spl"] });
+            await refetchOvertimeToday();
         } catch (err: any) {
             toast({ title: "Gagal Mulai Lembur", description: err.message, variant: "destructive" });
         } finally {
@@ -759,8 +772,8 @@ export default function EmployeeDashboard() {
                 const photoFile = dataURLtoFile(photoDataUrl, `overtime_end_${Date.now()}.jpg`);
                 formData.append("finalProofPhoto", photoFile);
             }
-            if (caption) {
-                formData.append("finalDescription", caption);
+            if (caption || endOvertimeNotes) {
+                formData.append("finalDescription", caption || endOvertimeNotes);
             }
             const res = await fetch("/api/attendance/overtime/end", {
                 method: "POST",
@@ -771,7 +784,20 @@ export default function EmployeeDashboard() {
                 throw new Error(err.message || "Gagal mengakhiri lembur");
             }
             setIsEndOvertimeCameraOpen(false);
-            toast({ title: "Lembur Selesai!", description: "Sesi lembur Anda telah diakhiri dan menunggu verifikasi Admin." });
+            const nowIso = new Date().toISOString();
+            queryClient.setQueryData(["/api/attendance/overtime/today"], (old: any) => {
+                if (!old) return old;
+                return { ...old, status: "completed", endTime: nowIso };
+            });
+            queryClient.setQueryData(["/api/employee/overtimes/my-spl"], (old: any[] | undefined) => {
+                if (!Array.isArray(old)) return old;
+                return old.map((ot: any) => ot.status === 'ongoing' ? { ...ot, status: "completed", endTime: nowIso } : ot);
+            });
+            toast({ title: "Laporan Selesai Lembur Terkirim!", description: "Sesi lembur Anda telah diakhiri dan diperbarui di daftar admin." });
+            queryClient.invalidateQueries({ queryKey: ["/api/attendance/overtime/today"] });
+            queryClient.invalidateQueries({ queryKey: ["/api/employee/overtimes/my-spl"] });
+            await queryClient.refetchQueries({ queryKey: ["/api/attendance/overtime/today"] });
+            await queryClient.refetchQueries({ queryKey: ["/api/employee/overtimes/my-spl"] });
             refetchOvertimeToday();
         } catch (err: any) {
             toast({ title: "Gagal Mengakhiri Lembur", description: err.message, variant: "destructive" });
@@ -1468,6 +1494,7 @@ export default function EmployeeDashboard() {
                 onCapture={(photoDataUrl) => {
                     setStartOvertimePhoto(photoDataUrl);
                     setIsStartOvertimeCameraOpen(false);
+                    handleStartOvertimeCaptured(photoDataUrl);
                 }}
                 onClose={() => setIsStartOvertimeCameraOpen(false)}
                 locationAddress={locationAddress}
@@ -1480,6 +1507,7 @@ export default function EmployeeDashboard() {
                 onCapture={(photoDataUrl) => {
                     setEndOvertimePhoto(photoDataUrl);
                     setIsEndOvertimeCameraOpen(false);
+                    handleEndOvertimeCaptured(photoDataUrl);
                 }}
                 onClose={() => setIsEndOvertimeCameraOpen(false)}
                 locationAddress={locationAddress}
