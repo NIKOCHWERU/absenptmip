@@ -76,8 +76,22 @@ function LiveOvertimeTimer({ startTime }: { startTime: string | Date }) {
 }
 
 function checkIsOvertimePast(splDateVal: any, endTimeVal: any): boolean {
-    if (!splDateVal) return false;
+    if (!splDateVal && !endTimeVal) return false;
     try {
+        const now = new Date().getTime();
+
+        if (endTimeVal) {
+            if (endTimeVal instanceof Date) {
+                return now > endTimeVal.getTime();
+            }
+            if (typeof endTimeVal === "string" && (endTimeVal.includes("T") || endTimeVal.includes("Z"))) {
+                const endObj = new Date(endTimeVal);
+                if (!isNaN(endObj.getTime())) {
+                    return now > endObj.getTime();
+                }
+            }
+        }
+
         let dateStr = "";
         if (typeof splDateVal === "string") {
             dateStr = splDateVal.split("T")[0];
@@ -88,23 +102,22 @@ function checkIsOvertimePast(splDateVal: any, endTimeVal: any): boolean {
         }
 
         let endHhMm = "23:59";
-        if (endTimeVal) {
-            if (typeof endTimeVal === "string") {
-                if (endTimeVal.length === 5) {
-                    endHhMm = endTimeVal;
-                } else if (endTimeVal.includes("T")) {
-                    endHhMm = endTimeVal.split("T")[1]?.substring(0, 5) || "23:59";
-                }
-            } else if (endTimeVal instanceof Date) {
-                endHhMm = `${String(endTimeVal.getHours()).padStart(2, '0')}:${String(endTimeVal.getMinutes()).padStart(2, '0')}`;
+        if (typeof endTimeVal === "string" && endTimeVal.length === 5 && endTimeVal.includes(":")) {
+            endHhMm = endTimeVal;
+        } else if (typeof endTimeVal === "string" && endTimeVal.includes("T")) {
+            const dateParsed = new Date(endTimeVal);
+            if (!isNaN(dateParsed.getTime())) {
+                endHhMm = `${String(dateParsed.getHours()).padStart(2, '0')}:${String(dateParsed.getMinutes()).padStart(2, '0')}`;
             }
         }
 
         const [yr, mo, dy] = dateStr.split("-").map(Number);
         const [hh, mm] = endHhMm.split(":").map(Number);
-        
+
+        if (!yr || !mo || !dy || isNaN(hh) || isNaN(mm)) return false;
+
         const endDateTime = new Date(yr, mo - 1, dy, hh, mm, 59);
-        return new Date().getTime() > endDateTime.getTime();
+        return now > endDateTime.getTime();
     } catch (err) {
         return false;
     }
@@ -113,32 +126,40 @@ function checkIsOvertimePast(splDateVal: any, endTimeVal: any): boolean {
 function checkIsBeforeStartTime(splDateVal: any, startTimeVal: any): boolean {
     if (!startTimeVal) return false;
     try {
+        const now = new Date().getTime();
+
+        if (startTimeVal instanceof Date) {
+            return now < (startTimeVal.getTime() - 60000);
+        }
+        if (typeof startTimeVal === "string" && (startTimeVal.includes("T") || startTimeVal.includes("Z"))) {
+            const startObj = new Date(startTimeVal);
+            if (!isNaN(startObj.getTime())) {
+                return now < (startObj.getTime() - 60000);
+            }
+        }
+
         let dateStr = "";
         if (typeof splDateVal === "string") {
             dateStr = splDateVal.split("T")[0];
         } else if (splDateVal instanceof Date) {
             dateStr = splDateVal.toISOString().split("T")[0];
         } else {
-            const now = new Date();
-            dateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+            const currentDate = new Date();
+            dateStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(currentDate.getDate()).padStart(2, '0')}`;
         }
 
         let startHhMm = "00:00";
-        if (typeof startTimeVal === "string") {
-            if (startTimeVal.length === 5) {
-                startHhMm = startTimeVal;
-            } else if (startTimeVal.includes("T")) {
-                startHhMm = startTimeVal.split("T")[1]?.substring(0, 5) || "00:00";
-            }
-        } else if (startTimeVal instanceof Date) {
-            startHhMm = `${String(startTimeVal.getHours()).padStart(2, '0')}:${String(startTimeVal.getMinutes()).padStart(2, '0')}`;
+        if (typeof startTimeVal === "string" && startTimeVal.length === 5 && startTimeVal.includes(":")) {
+            startHhMm = startTimeVal;
         }
 
         const [yr, mo, dy] = dateStr.split("-").map(Number);
         const [hh, mm] = startHhMm.split(":").map(Number);
 
+        if (!yr || !mo || !dy || isNaN(hh) || isNaN(mm)) return false;
+
         const startDateTime = new Date(yr, mo - 1, dy, hh, mm, 0);
-        return new Date().getTime() < (startDateTime.getTime() - 60000);
+        return now < (startDateTime.getTime() - 60000);
     } catch (err) {
         return false;
     }

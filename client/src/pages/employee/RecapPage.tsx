@@ -15,8 +15,22 @@ import { calculateDailyTotal, formatDuration } from "@/lib/attendance";
 import { resolveFileUrl } from "@/lib/utils";
 
 function checkIsOvertimePast(splDateVal: any, endTimeVal: any): boolean {
-  if (!splDateVal) return false;
+  if (!splDateVal && !endTimeVal) return false;
   try {
+    const now = new Date().getTime();
+
+    if (endTimeVal) {
+      if (endTimeVal instanceof Date) {
+        return now > endTimeVal.getTime();
+      }
+      if (typeof endTimeVal === "string" && (endTimeVal.includes("T") || endTimeVal.includes("Z"))) {
+        const endObj = new Date(endTimeVal);
+        if (!isNaN(endObj.getTime())) {
+          return now > endObj.getTime();
+        }
+      }
+    }
+
     let dateStr = "";
     if (typeof splDateVal === "string") {
       dateStr = splDateVal.split("T")[0];
@@ -27,22 +41,22 @@ function checkIsOvertimePast(splDateVal: any, endTimeVal: any): boolean {
     }
 
     let endHhMm = "23:59";
-    if (endTimeVal) {
-      if (typeof endTimeVal === "string") {
-        if (endTimeVal.length === 5) {
-          endHhMm = endTimeVal;
-        } else if (endTimeVal.includes("T")) {
-          endHhMm = endTimeVal.split("T")[1]?.substring(0, 5) || "23:59";
-        }
-      } else if (endTimeVal instanceof Date) {
-        endHhMm = `${String(endTimeVal.getHours()).padStart(2, '0')}:${String(endTimeVal.getMinutes()).padStart(2, '0')}`;
+    if (typeof endTimeVal === "string" && endTimeVal.length === 5 && endTimeVal.includes(":")) {
+      endHhMm = endTimeVal;
+    } else if (typeof endTimeVal === "string" && endTimeVal.includes("T")) {
+      const dateParsed = new Date(endTimeVal);
+      if (!isNaN(dateParsed.getTime())) {
+        endHhMm = `${String(dateParsed.getHours()).padStart(2, '0')}:${String(dateParsed.getMinutes()).padStart(2, '0')}`;
       }
     }
 
     const [yr, mo, dy] = dateStr.split("-").map(Number);
     const [hh, mm] = endHhMm.split(":").map(Number);
+
+    if (!yr || !mo || !dy || isNaN(hh) || isNaN(mm)) return false;
+
     const endDateTime = new Date(yr, mo - 1, dy, hh, mm, 59);
-    return new Date().getTime() > endDateTime.getTime();
+    return now > endDateTime.getTime();
   } catch (err) {
     return false;
   }
