@@ -81,6 +81,63 @@ function formatOvertimeRange(startTime: Date | string | null, endTime: Date | st
   return { rangeStr, durationStr };
 }
 
+function OvertimeEstimateBanner({
+  dateStr,
+  startTimeStr,
+  endTimeStr,
+  onApplySuggestPm
+}: {
+  dateStr: string;
+  startTimeStr: string;
+  endTimeStr: string;
+  onApplySuggestPm?: (newEndTime: string) => void;
+}) {
+  if (!dateStr || !startTimeStr || !endTimeStr) return null;
+  const calc = calculateOvertimeEstimatedDuration(dateStr, startTimeStr, endTimeStr);
+  const endH = parseInt((endTimeStr || "").split(":")[0] || "0", 10);
+  const startH = parseInt((startTimeStr || "").split(":")[0] || "0", 10);
+
+  const suggestPm = (calc.isNextDay && endH < 12 && startH >= 6)
+    ? `${String(endH + 12).padStart(2, "0")}:${(endTimeStr || "").split(":")[1] || "00"}`
+    : null;
+
+  return (
+    <div className="p-3.5 bg-orange-50/80 border border-orange-200 rounded-2xl space-y-1.5 mt-2">
+      <div className="flex items-center justify-between text-xs">
+        <span className="font-extrabold text-orange-900 uppercase tracking-wide flex items-center gap-1.5">
+          <Zap className="w-4 h-4 text-orange-500 fill-orange-500" /> Estimasi Durasi Lembur
+        </span>
+        <span className="font-black text-xs text-orange-700 bg-orange-200/80 px-2.5 py-0.5 rounded-full">
+          ⚡ {calc.text}
+        </span>
+      </div>
+      <p className="text-xs text-orange-900 font-bold pt-1">
+        Periode: <span className="font-mono text-xs">{calc.displayRange}</span>
+      </p>
+      {calc.isNextDay && (
+        <p className="text-[11px] text-orange-600 font-semibold italic">
+          * Lembur melewati tengah malam dan berakhir pada hari berikutnya ({calc.formattedEnd}).
+        </p>
+      )}
+      {suggestPm && onApplySuggestPm && (
+        <div className="bg-amber-100/90 border border-amber-300 rounded-xl p-2.5 mt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div className="text-[11px] text-amber-950 font-bold">
+            ⚠️ <strong>Perhatian Format 24 Jam:</strong> Jam <span className="underline">{endTimeStr}</span> dihitung sebagai {endTimeStr} Subuh (Besok Hari). Jika yang dimaksud Jam {endH}:{endTimeStr.split(":")[1] || "00"} Sore, pilih <strong>{suggestPm} WIB</strong>.
+          </div>
+          <Button
+            type="button"
+            size="sm"
+            onClick={() => onApplySuggestPm(suggestPm)}
+            className="bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs h-8 px-3 rounded-lg shrink-0 shadow-sm"
+          >
+            Ubah ke {suggestPm} WIB
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function AdminOvertimePage() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
@@ -1165,29 +1222,12 @@ export default function AdminOvertimePage() {
                 </div>
 
                 {/* Dynamic Overtime Estimate Banner */}
-                {assignDate && assignStartTime && assignEndTime && (() => {
-                  const calc = calculateOvertimeEstimatedDuration(assignDate, assignStartTime, assignEndTime);
-                  return (
-                    <div className="p-3.5 bg-orange-50/80 border border-orange-200 rounded-2xl space-y-1 mt-2">
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="font-extrabold text-orange-900 uppercase tracking-wide flex items-center gap-1.5">
-                          <Zap className="w-4 h-4 text-orange-500 fill-orange-500" /> Estimasi Durasi Lembur
-                        </span>
-                        <span className="font-black text-xs text-orange-700 bg-orange-200/80 px-2.5 py-0.5 rounded-full">
-                          ⚡ {calc.text}
-                        </span>
-                      </div>
-                      <p className="text-xs text-orange-900 font-bold pt-1">
-                        Periode: <span className="font-mono text-xs">{calc.displayRange}</span>
-                      </p>
-                      {calc.isNextDay && (
-                        <p className="text-[11px] text-orange-600 font-semibold italic">
-                          * Lembur melewati tengah malam dan berakhir pada hari berikutnya ({calc.formattedEnd}).
-                        </p>
-                      )}
-                    </div>
-                  );
-                })()}
+                <OvertimeEstimateBanner
+                  dateStr={assignDate}
+                  startTimeStr={assignStartTime}
+                  endTimeStr={assignEndTime}
+                  onApplySuggestPm={(newTime) => setAssignEndTime(newTime)}
+                />
               </div>
 
               {/* Field 4: Uraian Tugas */}
@@ -1498,6 +1538,13 @@ export default function AdminOvertimePage() {
               </div>
             </div>
 
+            <OvertimeEstimateBanner
+              dateStr={manualDate}
+              startTimeStr={manualStartTime}
+              endTimeStr={manualEndTime}
+              onApplySuggestPm={(newTime) => setManualEndTime(newTime)}
+            />
+
             <div className="space-y-1.5">
               <label className="font-bold text-gray-700">Uraian Pekerjaan</label>
               <Textarea
@@ -1603,29 +1650,12 @@ export default function AdminOvertimePage() {
                 </div>
 
                 {/* Dynamic Overtime Estimate Banner */}
-                {editDate && editStartTime && editEndTime && (() => {
-                  const calc = calculateOvertimeEstimatedDuration(editDate, editStartTime, editEndTime);
-                  return (
-                    <div className="p-3.5 bg-orange-50/80 border border-orange-200 rounded-2xl space-y-1 mt-2">
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="font-extrabold text-orange-900 uppercase tracking-wide flex items-center gap-1.5">
-                          <Zap className="w-4 h-4 text-orange-500 fill-orange-500" /> Estimasi Durasi Lembur
-                        </span>
-                        <span className="font-black text-xs text-orange-700 bg-orange-200/80 px-2.5 py-0.5 rounded-full">
-                          ⚡ {calc.text}
-                        </span>
-                      </div>
-                      <p className="text-xs text-orange-900 font-bold pt-1">
-                        Periode: <span className="font-mono text-xs">{calc.displayRange}</span>
-                      </p>
-                      {calc.isNextDay && (
-                        <p className="text-[11px] text-orange-600 font-semibold italic">
-                          * Lembur melewati tengah malam dan berakhir pada hari berikutnya ({calc.formattedEnd}).
-                        </p>
-                      )}
-                    </div>
-                  );
-                })()}
+                <OvertimeEstimateBanner
+                  dateStr={editDate}
+                  startTimeStr={editStartTime}
+                  endTimeStr={editEndTime}
+                  onApplySuggestPm={(newTime) => setEditEndTime(newTime)}
+                />
               </div>
 
               {/* Field 2: Uraian Pekerjaan */}
