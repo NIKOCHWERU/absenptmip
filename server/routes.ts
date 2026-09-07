@@ -2291,7 +2291,7 @@ export function registerRoutes(app: Express) {
   // API Tambah & Edit Lembur Manual oleh Admin
   app.post("/api/admin/overtimes/manual", isAuthenticated, isAdmin, async (req: Request, res: Response) => {
     try {
-      const { userId, date, attendanceId, startTime, endTime, description, finalDescription, status } = req.body;
+      const { userId, date, attendanceId, startTime, endTime, description, finalDescription, status, employeeApproval } = req.body;
       let targetAttId = attendanceId ? Number(attendanceId) : null;
 
       if (!targetAttId) {
@@ -2325,14 +2325,17 @@ export function registerRoutes(app: Express) {
       const splDateStr = (date || (typeof startTime === 'string' ? startTime.split('T')[0] : safeFormatDate(new Date(), 'yyyy-MM-dd'))).replace(/-/g, '');
       const splNum = `SPL/MIP/${splDateStr}/${Math.floor(1000 + Math.random() * 9000)}`;
 
+      const finalStatus = status || (endTime ? "completed" : "ongoing");
+      const finalApproval = employeeApproval || (status === "pending" ? "pending" : "approved");
+
       const [newOt] = await (db.insert(overtimes) as any).values({
         attendanceId: targetAttId,
         startTime: new Date(startTime),
         endTime: endTime ? new Date(endTime) : null,
         description: description || "Lembur Manual Admin",
         finalDescription: finalDescription || null,
-        status: status || (endTime ? "completed" : "ongoing"),
-        employeeApproval: "approved",
+        status: finalStatus,
+        employeeApproval: finalApproval,
         splNumber: splNum,
         assignedBy: (req.user as any)?.id
       });

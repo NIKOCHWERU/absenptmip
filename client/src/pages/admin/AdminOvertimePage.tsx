@@ -197,6 +197,7 @@ export default function AdminOvertimePage() {
   const [manualEndTime, setManualEndTime] = useState<string>("20:00");
   const [manualTask, setManualTask] = useState<string>("");
   const [manualStatus, setManualStatus] = useState<string>("completed");
+  const [manualApproval, setManualApproval] = useState<string>("approved");
 
   // Form Fields — Edit Lembur Admin
   const [editDate, setEditDate] = useState<string>(format(new Date(), "yyyy-MM-dd"));
@@ -325,7 +326,8 @@ export default function AdminOvertimePage() {
           startTime: new Date(startIso).toISOString(),
           endTime: endIso,
           description: manualTask || "Lembur Manual Admin",
-          status: manualStatus
+          status: manualStatus,
+          employeeApproval: manualApproval
         })
       });
       if (!res.ok) {
@@ -339,6 +341,8 @@ export default function AdminOvertimePage() {
       setIsManualModalOpen(false);
       setManualUserId("");
       setManualTask("");
+      setManualStatus("completed");
+      setManualApproval("approved");
       toast({ title: "Berhasil!", description: "Data lembur manual telah ditambahkan." });
     },
     onError: (err: any) => {
@@ -1510,13 +1514,13 @@ export default function AdminOvertimePage() {
       {/* MODAL POPUP 2: INPUT LEMBUR MANUAL ADMIN                                  */}
       {/* ========================================================================= */}
       <Dialog open={isManualModalOpen} onOpenChange={setIsManualModalOpen}>
-        <DialogContent className="sm:max-w-md rounded-2xl p-6 bg-white shadow-2xl">
+        <DialogContent className="sm:max-w-lg rounded-2xl p-6 bg-white shadow-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader className="border-b pb-3">
             <DialogTitle className="text-lg font-black text-gray-900 flex items-center gap-2">
               <Plus className="w-5 h-5 text-orange-600" /> Input Lembur Manual Admin
             </DialogTitle>
             <DialogDescription className="text-xs text-gray-500">
-              Catat data lembur karyawan secara langsung tanpa melalui alur persetujuan SPL di HP.
+              Catat data lembur karyawan secara langsung dengan status dan persetujuan yang dapat disesuaikan.
             </DialogDescription>
           </DialogHeader>
 
@@ -1584,25 +1588,47 @@ export default function AdminOvertimePage() {
               />
             </div>
 
-            <div className="space-y-1.5">
-              <label className="font-bold text-gray-700">Status Lembur</label>
-              <Select value={manualStatus} onValueChange={setManualStatus}>
-                <SelectTrigger className="h-10 rounded-xl border-gray-200 text-xs">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="completed">Selesai (Completed)</SelectItem>
-                  <SelectItem value="ongoing">Sedang Berlangsung (Ongoing)</SelectItem>
-                </SelectContent>
-              </Select>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <label className="font-bold text-gray-700">Status Lembur</label>
+                <Select value={manualStatus} onValueChange={(val) => {
+                  setManualStatus(val);
+                  if (val === "pending" && manualApproval === "approved") {
+                    setManualApproval("pending");
+                  }
+                }}>
+                  <SelectTrigger className="h-10 rounded-xl border-gray-200 text-xs bg-white">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="completed">Selesai (Completed)</SelectItem>
+                    <SelectItem value="ongoing">Sedang Berlangsung (Ongoing)</SelectItem>
+                    <SelectItem value="pending">Belum Dimulai (Pending)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="font-bold text-gray-700">Respon / Persetujuan Karyawan</label>
+                <Select value={manualApproval} onValueChange={setManualApproval}>
+                  <SelectTrigger className="h-10 rounded-xl border-gray-200 text-xs bg-white">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="approved">Disetujui Karyawan</SelectItem>
+                    <SelectItem value="pending">Menunggu Persetujuan Karyawan</SelectItem>
+                    <SelectItem value="rejected">Ditolak / Izin Tidak Lembur</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
-            <DialogFooter className="pt-3 border-t gap-2">
-              <Button type="button" variant="outline" onClick={() => setIsManualModalOpen(false)} className="rounded-xl text-xs">
+            <DialogFooter className="pt-3 border-t gap-2 flex flex-row items-center justify-end">
+              <Button type="button" variant="outline" onClick={() => setIsManualModalOpen(false)} className="rounded-xl text-xs px-4">
                 Batal
               </Button>
-              <Button type="submit" disabled={manualMutation.isPending} className="rounded-xl text-xs font-bold bg-orange-600 hover:bg-orange-700 text-white">
-                {manualMutation.isPending ? "Simpan..." : "Simpan Lembur Manual"}
+              <Button type="submit" disabled={manualMutation.isPending} className="rounded-xl text-xs font-bold bg-orange-600 hover:bg-orange-700 text-white px-5 shadow-sm">
+                {manualMutation.isPending ? "Menyimpan..." : "Simpan Lembur Manual"}
               </Button>
             </DialogFooter>
           </form>
@@ -1815,15 +1841,15 @@ export default function AdminOvertimePage() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="font-bold text-gray-700">Respon Karyawan</label>
+                  <label className="font-bold text-gray-700">Respon / Persetujuan Karyawan</label>
                   <Select value={editApproval} onValueChange={setEditApproval}>
                     <SelectTrigger className="h-10 rounded-xl border-gray-200 text-xs">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="approved">Disetujui</SelectItem>
-                      <SelectItem value="pending">Menunggu</SelectItem>
-                      <SelectItem value="rejected">Ditolak / Izin</SelectItem>
+                      <SelectItem value="approved">Disetujui Karyawan</SelectItem>
+                      <SelectItem value="pending">Menunggu Persetujuan Karyawan</SelectItem>
+                      <SelectItem value="rejected">Ditolak / Izin Tidak Lembur</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
