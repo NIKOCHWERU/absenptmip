@@ -52,33 +52,44 @@ function calculateOvertimeEstimatedDuration(dateStr: string, startTimeStr: strin
 }
 
 function formatOvertimeRange(startTime: Date | string | null, endTime: Date | string | null) {
-  if (!startTime) return { rangeStr: "-", durationStr: "-" };
+  if (!startTime) return { rangeStr: "-", durationStr: "-", dateStr: "-", timeRangeStr: "-" };
   const start = new Date(startTime);
+  if (isNaN(start.getTime())) return { rangeStr: "-", durationStr: "-", dateStr: "-", timeRangeStr: "-" };
   const end = endTime ? new Date(endTime) : null;
 
+  const dateStr = format(start, "d MMMM yyyy", { locale: id });
+  let timeRangeStr = "";
   let rangeStr = "";
   let durationStr = "-";
 
-  if (end) {
+  if (end && !isNaN(end.getTime())) {
     const isDifferentDay = format(start, "yyyy-MM-dd") !== format(end, "yyyy-MM-dd");
+    const startHhMm = format(start, "HH:mm");
+    const endHhMm = format(end, "HH:mm");
+    timeRangeStr = `${startHhMm} – ${endHhMm} WIB`;
     if (isDifferentDay) {
       rangeStr = `${format(start, "d MMMM yyyy HH:mm", { locale: id })} - ${format(end, "d MMMM yyyy HH:mm", { locale: id })}`;
     } else {
-      rangeStr = `${format(start, "d MMMM yyyy", { locale: id })} (${format(start, "HH:mm")} - ${format(end, "HH:mm")} WIB)`;
+      rangeStr = `${dateStr} (${startHhMm} - ${endHhMm} WIB)`;
     }
-
     const otMins = Math.round((end.getTime() - start.getTime()) / 60000);
-    const hrs = Math.floor(otMins / 60);
-    const mins = otMins % 60;
-    if (hrs > 0 && mins > 0) durationStr = `${hrs} Jam ${mins} Menit`;
-    else if (hrs > 0) durationStr = `${hrs} Jam`;
-    else if (mins > 0) durationStr = `${mins} Menit`;
+    if (otMins > 0) {
+      const hrs = Math.floor(otMins / 60);
+      const mins = otMins % 60;
+      if (hrs > 0 && mins > 0) durationStr = `${hrs} Jam ${mins} Menit`;
+      else if (hrs > 0) durationStr = `${hrs} Jam`;
+      else durationStr = `${mins} Menit`;
+    } else {
+      // endTime < startTime (data rusak / salah format jam)
+      durationStr = `${startHhMm} – ${endHhMm}`;
+    }
   } else {
-    rangeStr = `${format(start, "d MMMM yyyy HH:mm", { locale: id })} WIB`;
+    timeRangeStr = `${format(start, "HH:mm")} WIB`;
+    rangeStr = `${dateStr} ${timeRangeStr}`;
     durationStr = "Berlangsung";
   }
 
-  return { rangeStr, durationStr };
+  return { rangeStr, durationStr, dateStr, timeRangeStr };
 }
 
 function OvertimeEstimateBanner({
@@ -929,7 +940,9 @@ export default function AdminOvertimePage() {
                   ) : sortedRequests.map((req) => {
                     const empName = req.fullName || "Karyawan";
                     const empNik = req.nik || "-";
-                    const { rangeStr, durationStr } = formatOvertimeRange(req.startTime, req.endTime);
+                    const { dateStr, timeRangeStr, durationStr } = formatOvertimeRange(req.startTime, req.endTime);
+                    const hasInitialProof = !!req.initialProofUrl;
+                    const hasFinalProof = !!req.finalProofUrl;
 
                     return (
                       <tr key={req.id} className="hover:bg-gray-50/50 transition-colors">
@@ -946,15 +959,31 @@ export default function AdminOvertimePage() {
                           </div>
                         </td>
 
-                        {/* Column 2: Periode & SPL */}
+                        {/* Column 2: Tanggal & SPL */}
                         <td className="px-6 py-4 text-gray-700 font-medium">
-                          <div className="font-bold text-xs max-w-[200px] leading-snug">{rangeStr}</div>
+                          <div className="font-bold text-xs leading-snug">{dateStr}</div>
                           <div className="text-[10px] text-orange-600 font-mono font-semibold mt-0.5">📄 {req.splNumber || "SPL Resmi"}</div>
                         </td>
 
-                        {/* Column 3: Durasi Lembur */}
+                        {/* Column 3: Jam & Durasi */}
                         <td className="px-6 py-4">
-                          <span className="text-xs font-black text-primary bg-primary/10 px-2.5 py-1 rounded-md inline-block">{durationStr}</span>
+                          <div className="text-xs font-bold text-gray-800">{timeRangeStr}</div>
+                          <span className={`text-[10px] font-black px-2 py-0.5 rounded-md inline-block mt-0.5 ${
+                            durationStr === "Berlangsung"
+                              ? "text-orange-700 bg-orange-50"
+                              : durationStr === "-"
+                              ? "text-gray-400 bg-gray-50"
+                              : "text-primary bg-primary/10"
+                          }`}>{durationStr}</span>
+                          {/* Foto Bukti Indicator */}
+                          <div className="flex gap-1 mt-1">
+                            <span title="Foto Awal Lembur" className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${hasInitialProof ? "bg-emerald-100 text-emerald-700" : "bg-gray-100 text-gray-400"}`}>
+                              📸 Awal
+                            </span>
+                            <span title="Foto Hasil Lembur" className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${hasFinalProof ? "bg-emerald-100 text-emerald-700" : "bg-gray-100 text-gray-400"}`}>
+                              📸 Hasil
+                            </span>
+                          </div>
                         </td>
 
                         {/* Column 4: Respon Karyawan */}
