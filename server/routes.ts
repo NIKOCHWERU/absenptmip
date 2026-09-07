@@ -1982,7 +1982,8 @@ export function registerRoutes(app: Express) {
       const userId = Number((req.user as any)?.id || (req.session as any)?.userId);
       const adminDate = getAdminDate();
 
-      // Auto-close past unclosed overtimes for this user
+      // Auto-close past ONGOING overtimes for this user (sessions that were started but never ended)
+      // DO NOT auto-complete pending SPLs — those were never started and should be handled separately
       const pastUnclosed = await db.select({
         id: overtimes.id
       })
@@ -1990,8 +1991,7 @@ export function registerRoutes(app: Express) {
       .innerJoin(attendance, eq(overtimes.attendanceId, attendance.id))
       .where(and(
         eq(attendance.userId, userId),
-        ne(overtimes.status, "completed"),
-        ne(overtimes.status, "cancelled"),
+        eq(overtimes.status, "ongoing"),
         sql`DATE(${attendance.date}) < ${adminDate}`
       ));
 
@@ -2189,6 +2189,20 @@ export function registerRoutes(app: Express) {
       if (endTime) {
         let tempEnd = new Date(`${date}T${endTime}:00+07:00`);
         if (tempEnd < startDateObj) {
+          // Detect likely AM/PM typo: if endHour < 12 AND startHour >= 6
+          // this is almost certainly a PM typo (e.g. "03:30" meant "15:30")
+          const endHour = parseInt((endTime || "").split(":")[0] || "0", 10);
+          const startHour = parseInt((startTime || "").split(":")[0] || "0", 10);
+          if (endHour < 12 && startHour >= 6) {
+            return res.status(400).json({
+              message: `Format jam selesai "${endTime}" terdeteksi sebagai ${endTime} Subuh (dini hari), ` +
+                `sehingga lebih awal dari jam mulai "${startTime}". ` +
+                `Jika maksud Anda ${endHour}:${endTime.split(":")[1] || "00"} Sore, ` +
+                `gunakan format 24 jam: "${String(endHour + 12).padStart(2, "0")}:${endTime.split(":")[1] || "00"}". ` +
+                `Silakan koreksi dan coba lagi.`
+            });
+          }
+          // Genuine overnight shift → advance to next day
           tempEnd.setDate(tempEnd.getDate() + 1);
         }
         endDateObj = tempEnd;
@@ -4091,18 +4105,70 @@ export function registerRoutes(app: Express) {
       if (wibHours === 3 && wibMinutes === 30 && lastResetDate !== todayStr) {
         lastResetDate = todayStr;
         console.log(`[03:30 WIB RESET] Executing daily session reset for ${todayStr}...`);
-        
-        // Cap any active overtime sessions left open overnight
+
+        // 1. Cap any ONGOING (already started) overtime sessions left open overnight
+        //    These are real sessions that ran past midnight without being ended
         const ongoingOvertimes = await db.select().from(overtimes).where(eq(overtimes.status, "ongoing"));
         for (const ot of ongoingOvertimes) {
           await db.update(overtimes).set({
             endTime: now,
             status: "completed",
-            finalDescription: (ot.finalDescription || "") + " (Auto-capped by 03:30 system reset)"
+            isAutoCompleted: true,
+            finalDescription: (ot.finalDescription || "") + " (Auto-selesai: sesi lembur tidak ditutup sebelum reset harian 03:30 WIB)"
           }).where(eq(overtimes.id, ot.id));
         }
+        console.log(`[03:30 WIB RESET] Capped ${ongoingOvertimes.length} ongoing overtime sessions.`);
 
-        console.log(`[03:30 WIB RESET] Completed daily session reset. Capped ${ongoingOvertimes.length} ongoing overtime sessions.`);
+        // 2. Mark PENDING SPLs (never started) whose endTime has already passed as missed
+        //    DO NOT mark them as completed — they were never started
+        //    Only mark SPLs from PREVIOUS days (not today's date)
+        const nowWib = new Date(now.getTime() + 7 * 60 * 60 * 1000); // shift to WIB
+        const yesterdayWib = new Date(nowWib);
+        yesterdayWib.setDate(yesterdayWib.getDate() - 1);
+        const yesterdayStr = `${yesterdayWib.getFullYear()}-${String(yesterdayWib.getMonth() + 1).padStart(2, "0")}-${String(yesterdayWib.getDate()).padStart(2, "0")}`;
+
+        const missedPendingSpls = await db.select({
+          id: overtimes.id,
+          endTime: overtimes.endTime
+        })
+        .from(overtimes)
+        .innerJoin(attendance, eq(overtimes.attendanceId, attendance.id))
+        .where(and(
+          eq(overtimes.status, "pending"),
+          eq(overtimes.employeeApproval, "approved"),
+          sql`DATE(${attendance.date}) <= ${yesterdayStr}`
+        ));
+
+        for (const ot of missedPendingSpls) {
+          await db.update(overtimes).set({
+            status: "completed",
+            isAutoCompleted: true,
+            missedReason: "Karyawan tidak memulai sesi lembur sesuai penugasan SPL",
+            finalDescription: "Lembur tidak dimulai oleh karyawan — ditandai otomatis saat reset harian."
+          }).where(eq(overtimes.id, ot.id));
+        }
+        console.log(`[03:30 WIB RESET] Marked ${missedPendingSpls.length} unstarted (pending) SPLs as missed.`);
+
+        // 3. Cancel PENDING SPLs that were never approved by employee (still awaiting response)
+        //    from previous days — these are abandoned without employee confirmation
+        const abandonedSpls = await db.select({ id: overtimes.id })
+        .from(overtimes)
+        .innerJoin(attendance, eq(overtimes.attendanceId, attendance.id))
+        .where(and(
+          eq(overtimes.status, "pending"),
+          eq(overtimes.employeeApproval, "pending"),
+          sql`DATE(${attendance.date}) <= ${yesterdayStr}`
+        ));
+
+        for (const ot of abandonedSpls) {
+          await db.update(overtimes).set({
+            status: "cancelled",
+            finalDescription: "SPL dibatalkan otomatis: karyawan tidak merespons penugasan lembur."
+          }).where(eq(overtimes.id, ot.id));
+        }
+        console.log(`[03:30 WIB RESET] Cancelled ${abandonedSpls.length} unresponded SPLs from previous days.`);
+
+        console.log(`[03:30 WIB RESET] Daily session reset completed for ${todayStr}.`);
       }
     } catch (err) {
       console.error("[03:30 WIB RESET ERROR]", err);
