@@ -2759,29 +2759,21 @@ export default function EmployeeDashboard() {
                                     </button>
                                 </div>
                             ) : (
-                                <div className="grid grid-cols-2 gap-2">
-                                    <input
-                                        ref={startOvertimeFileInputRef}
-                                        type="file"
-                                        accept="image/*"
-                                        className="hidden"
-                                        onChange={handleStartOvertimeFileSelected}
-                                    />
-                                    <Button
-                                        type="button"
-                                        onClick={() => startOvertimeFileInputRef.current?.click()}
-                                        variant="outline"
-                                        className="h-12 rounded-2xl border-2 border-primary/30 text-primary font-bold text-xs gap-1.5 hover:bg-primary/5"
-                                    >
-                                        <Upload className="w-4 h-4" /> Upload Foto
-                                    </Button>
+                                <div className="space-y-2">
+                                    <div className="border-2 border-dashed border-primary/30 rounded-2xl h-32 flex flex-col items-center justify-center gap-2 bg-primary/5">
+                                        <Camera className="w-8 h-8 text-primary/60" />
+                                        <span className="text-xs text-gray-500 font-medium">Foto belum diambil</span>
+                                    </div>
                                     <Button
                                         type="button"
                                         onClick={() => setIsStartOvertimeCameraOpen(true)}
-                                        className="h-12 rounded-2xl bg-primary hover:bg-primary/90 text-white font-bold text-xs gap-1.5 shadow-md shadow-primary/20"
+                                        className="w-full h-12 rounded-2xl bg-primary hover:bg-primary/90 text-white font-bold text-xs gap-2 shadow-md shadow-primary/20"
                                     >
-                                        <Camera className="w-4 h-4" /> Kamera Live
+                                        <Camera className="w-4 h-4" /> Buka Kamera Live &amp; Ambil Foto
                                     </Button>
+                                    <p className="text-[10px] text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 text-center font-semibold">
+                                        ⚠️ Foto wajib diambil menggunakan Kamera Live. Upload dari galeri tidak diizinkan.
+                                    </p>
                                 </div>
                             )}
                         </div>
@@ -2854,29 +2846,21 @@ export default function EmployeeDashboard() {
                                     </button>
                                 </div>
                             ) : (
-                                <div className="grid grid-cols-2 gap-2">
-                                    <input
-                                        ref={endOvertimeFileInputRef}
-                                        type="file"
-                                        accept="image/*"
-                                        className="hidden"
-                                        onChange={handleEndOvertimeFileSelected}
-                                    />
-                                    <Button
-                                        type="button"
-                                        onClick={() => endOvertimeFileInputRef.current?.click()}
-                                        variant="outline"
-                                        className="h-12 rounded-2xl border-2 border-primary/30 text-primary font-bold text-xs gap-1.5 hover:bg-primary/5"
-                                    >
-                                        <Upload className="w-4 h-4" /> Upload Foto
-                                    </Button>
+                                <div className="space-y-2">
+                                    <div className="border-2 border-dashed border-red-300 rounded-2xl h-32 flex flex-col items-center justify-center gap-2 bg-red-50/50">
+                                        <Camera className="w-8 h-8 text-red-400" />
+                                        <span className="text-xs text-gray-500 font-medium">Foto belum diambil</span>
+                                    </div>
                                     <Button
                                         type="button"
                                         onClick={() => setIsEndOvertimeCameraOpen(true)}
-                                        className="h-12 rounded-2xl bg-primary hover:bg-primary/90 text-white font-bold text-xs gap-1.5 shadow-md shadow-primary/20"
+                                        className="w-full h-12 rounded-2xl bg-red-600 hover:bg-red-700 text-white font-bold text-xs gap-2 shadow-md shadow-red-600/20"
                                     >
-                                        <Camera className="w-4 h-4" /> Kamera Live
+                                        <Camera className="w-4 h-4" /> Buka Kamera Live &amp; Ambil Foto Hasil
                                     </Button>
+                                    <p className="text-[10px] text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 text-center font-semibold">
+                                        ⚠️ Foto wajib diambil menggunakan Kamera Live. Upload dari galeri tidak diizinkan.
+                                    </p>
                                 </div>
                             )}
                         </div>
