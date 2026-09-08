@@ -1641,25 +1641,8 @@ export function registerRoutes(app: Express) {
 
       const activeSession = todaySessions[0];
       
-      // If haven't checked out normally, check them out at shift end time
-      if (activeSession.checkIn && !activeSession.checkOut) {
-        const userShift = activeSession.shiftId ? await db.select().from(shifts).where(eq(shifts.id, activeSession.shiftId)).limit(1) : [];
-        const shiftEndStr = userShift.length > 0 ? userShift[0].checkOutTime : "17:00";
-        const [hh, mm] = shiftEndStr.split(":").map(Number);
-        
-        let year, month, dateNum;
-        if (typeof activeSession.date === 'string') {
-          const parts = (activeSession.date as string).split("-");
-          year = Number(parts[0]); month = Number(parts[1]) - 1; dateNum = Number(parts[2]);
-        } else {
-          const d = activeSession.date as Date;
-          year = d.getFullYear(); month = d.getMonth(); dateNum = d.getDate();
-        }
-        
-        const isoString = `${year}-${String(month + 1).padStart(2, '0')}-${String(dateNum).padStart(2, '0')}T${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}:00+07:00`;
-        let checkOutDate = new Date(isoString);
-        await db.update(attendance).set({ checkOut: checkOutDate }).where(eq(attendance.id, activeSession.id));
-      }
+      // Regular attendance checkOut is NOT automatically set when starting overtime.
+      // Employee must check out manually.
 
       const userAttRecords = await db.select({ id: attendance.id }).from(attendance).where(eq(attendance.userId, userId));
       const userAttIds = userAttRecords.map(a => a.id);
