@@ -1586,6 +1586,44 @@ export function registerRoutes(app: Express) {
     }
   });
 
+  // Endpoint: Hapus semua data absen pulang otomatis dari database
+  // Kosongkan checkOut & bersihkan catatan "(Otomatis absen pulang oleh sistem...)"
+  app.post("/api/admin/clear-auto-checkout", isAuthenticated, isAdmin, async (req: Request, res: Response) => {
+    try {
+      const records = await db.select().from(attendance);
+      let clearedCount = 0;
+      const clearedIds: number[] = [];
+
+      for (const record of records) {
+        const notesHasAutoCheckout = record.notes && /otomatis absen pulang oleh sistem/i.test(record.notes);
+        if (!notesHasAutoCheckout) continue;
+
+        // Bersihkan teks otomatis dari catatan
+        const cleanedNotes = (record.notes || "")
+          .replace(/\n?\(Otomatis absen pulang oleh sistem pada jam \d{2}:\d{2}\)/gi, "")
+          .replace(/\n?\(Auto-selesai: sesi lembur tidak ditutup sebelum reset harian 03:30 WIB\)/gi, "")
+          .trim() || null;
+
+        await db.update(attendance).set({
+          checkOut: null,
+          notes: cleanedNotes
+        }).where(eq(attendance.id, record.id));
+
+        clearedCount++;
+        clearedIds.push(record.id);
+      }
+
+      res.json({
+        message: `Berhasil membersihkan ${clearedCount} data absen pulang otomatis.`,
+        clearedCount,
+        clearedIds
+      });
+    } catch (err: any) {
+      console.error("Clear auto-checkout error:", err);
+      res.status(500).json({ message: err.message || "Internal server error" });
+    }
+  });
+
   // Helper untuk mengirim Push Notification ke user spesifik
   async function sendPushToUser(userId: number, payload: { title: string; body: string; url?: string }) {
     try {

@@ -114,7 +114,12 @@ export function AttendanceReport({ date, records, users }: AttendanceReportProps
                                     <div className="grid grid-cols-1 gap-1 font-mono text-[10px]">
                                         <p><span className="text-gray-400">IN :</span> <span className="font-bold text-[#0D9488]">{record.checkIn ? format(new Date(record.checkIn), "HH:mm") : "- - : - -"}</span></p>
                                         <p><span className="text-gray-400">BRK:</span> <span className="font-bold text-orange-400">{record.breakStart ? format(new Date(record.breakStart), "HH:mm") : "- - : - -"}</span></p>
-                                        <p><span className="text-gray-400">OUT:</span> <span className="font-bold text-red-500">{record.checkOut ? format(new Date(record.checkOut), "HH:mm") : "- - : - -"}</span></p>
+                                        <p><span className="text-gray-400">OUT:</span> {record.checkOut
+                                            ? <span className="font-bold text-red-500">{format(new Date(record.checkOut), "HH:mm")}</span>
+                                            : record.checkIn
+                                                ? <span className="font-bold text-amber-600 text-[9px]">Tidak Absen Pulang</span>
+                                                : <span className="font-bold text-red-500">- - : - -</span>
+                                        }</p>
                                         
                                         <div className="mt-2">
                                             <p className={`text-[10px] font-bold uppercase ${isComplete ? 'text-green-600' : 'text-red-500'}`}>

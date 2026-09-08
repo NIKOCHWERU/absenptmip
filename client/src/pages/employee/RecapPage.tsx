@@ -333,10 +333,14 @@ export default function RecapPage() {
                       <span className="text-[9px] px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded-full font-bold">Sesi {(record as any).sessionNumber}</span>
                     )}
                   </div>
-                  <div className="text-xs text-muted-foreground mt-0.5">
+                  <div className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1 flex-wrap">
                     {record.checkIn ? format(new Date(record.checkIn), 'HH:mm') : '-'}
                     {' - '}
-                    {record.checkOut ? format(new Date(record.checkOut), 'HH:mm') : '-'}
+                    {record.checkOut
+                      ? format(new Date(record.checkOut), 'HH:mm')
+                      : record.checkIn
+                        ? <span className="text-amber-600 font-bold text-[10px]">Tidak Absen Pulang</span>
+                        : '-'}
                     {/* Display Total for Day if first record of day */}
                     {(() => {
                       const dateStr = format(new Date(record.date), "yyyy-MM-dd");
@@ -447,10 +451,14 @@ export default function RecapPage() {
               </div>
 
               {(selectedRecord.notes || !selectedRecord.checkOut) && (
-                <div className="bg-gray-50 p-3 rounded-xl border border-gray-100 mt-4">
-                  <p className="text-[10px] uppercase font-bold text-gray-400 mb-1">Catatan / Keterangan</p>
-                  <p className={`text-sm italic ${!selectedRecord.checkOut && !selectedRecord.notes ? 'text-yellow-600 font-semibold' : 'text-gray-700'}`}>
-                    {selectedRecord.notes || 'Belum Absen Pulang'}
+                <div className="bg-amber-50 p-3 rounded-xl border border-amber-100 mt-4">
+                  <p className="text-[10px] uppercase font-bold text-amber-600 mb-1">⚠ Keterangan</p>
+                  <p className={`text-sm italic ${!selectedRecord.checkOut && !selectedRecord.notes ? 'text-amber-700 font-semibold' : 'text-gray-700'}`}>
+                    {!selectedRecord.checkOut && !selectedRecord.notes
+                      ? 'Tidak Absen Pulang'
+                      : !selectedRecord.checkOut
+                        ? `${selectedRecord.notes} — Tidak Absen Pulang`
+                        : selectedRecord.notes}
                   </p>
                 </div>
               )}

@@ -745,8 +745,9 @@ export default function RecapPage() {
                         `;
 
                         if (masuk !== "-" || pulang !== "-") {
+                            const pulangDisplay = pulang !== "-" ? pulang : (masuk !== "-" ? '<span style="color:#d97706;font-weight:bold;">Tdk Absen Pulang</span>' : '-');
                             cellHtml += `
-                                <div class="jam">Jam: <strong>${escapeHTML(masuk)} sampai ${escapeHTML(pulang)}</strong></div>
+                                <div class="jam">Jam: <strong>${escapeHTML(masuk)} sampai </strong>${pulang !== "-" ? `<strong>${escapeHTML(pulang)}</strong>` : '<span style="color:#d97706;font-weight:bold;">Tdk Absen Pulang</span>'}</div>
                             `;
                         }
 
@@ -1553,11 +1554,11 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
             const inTime = row.checkIn ? format(new Date(row.checkIn), 'HH:mm') : '-';
             const brkTime = row.breakStart ? format(new Date(row.breakStart), 'HH:mm') : '-';
             const brkEnd = row.breakEnd ? format(new Date(row.breakEnd), 'HH:mm') : '-';
-            const outTime = row.checkOut ? format(new Date(row.checkOut), 'HH:mm') : '-';
-            const isNoBreak = (inTime !== '-' && outTime !== '-' && brkTime === '-' && brkEnd === '-');
+            const outTime = row.checkOut ? format(new Date(row.checkOut), 'HH:mm') : 'Tdk Absen';
+            const isNoBreak = (inTime !== '-' && outTime !== 'Tdk Absen' && brkTime === '-' && brkEnd === '-');
             const jamKerja = !isSameDayAndUser ? (dailyTotalMins > 0 ? formatDuration(dailyTotalMins) : '-') : '';
             let keterangan = row.notes ? row.notes : '-';
-            if (!row.checkOut) keterangan = row.notes ? row.notes + ' <br><span class="note-warn">(Belum Pulang)</span>' : '<span class="note-warn">Belum Pulang</span>';
+            if (!row.checkOut && row.checkIn) keterangan = row.notes ? row.notes + ' <br><span class="note-warn">⚠ Tidak Absen Pulang</span>' : '<span class="note-warn">⚠ Tidak Absen Pulang</span>';
             else if (isNoBreak) keterangan = row.notes ? row.notes + ' <br><span class="note-warn">(Tanpa Istirahat)</span>' : '<span class="note-warn">Tanpa Istirahat</span>';
             const lateNote = row.status === 'late' && (row as any).lateReason ? `<br><span class="note-late">[Telat: ${(row as any).lateReason}]</span>` : '';
             return `<tr>
@@ -1787,7 +1788,12 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
                                                     {row.breakEnd ? safeFormatDate(row.breakEnd, "HH:mm") : "-"}
                                                 </td>
                                                 <td className="px-6 py-4 text-center font-mono font-bold text-rose-600">
-                                                    {row.checkOut ? safeFormatDate(row.checkOut, "HH:mm") : "-"}
+                                                    {row.checkOut
+                                                        ? safeFormatDate(row.checkOut, "HH:mm")
+                                                        : row.checkIn
+                                                            ? <span className="text-[9px] font-bold text-amber-600 bg-amber-50 border border-amber-200 rounded-full px-2 py-0.5 leading-tight whitespace-normal text-center block">Tidak Absen Pulang</span>
+                                                            : <span className="text-gray-300">-</span>
+                                                    }
                                                 </td>
                                                 <td className="px-6 py-4">
                                                     {!isSameDayAndUser && (
