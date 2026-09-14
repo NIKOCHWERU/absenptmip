@@ -4192,6 +4192,89 @@ export function registerRoutes(app: Express) {
         }
         console.log(`[03:30 WIB RESET] Cancelled ${abandonedSpls.length} unresponded SPLs from previous days.`);
 
+        // 4. AUTO-CHECKOUT: Isi jam pulang untuk karyawan yang lupa absen pulang
+        //    Aturan:
+        //    - Hanya attendance kemarin yang checkIn != NULL dan checkOut == NULL
+        //    - SKIP jika ada sesi lembur ONGOING (masih lembur saat ini)
+        //    - Jika lembur DISETUJUI (approved) → set checkOut = jam akhir shift
+        //    - Jika tidak ada lembur / tidak disetujui → set checkOut = jam akhir shift + catatan "Lupa Absen Pulang"
+        try {
+          const forgottenCheckouts = await db.select({
+            id: attendance.id,
+            userId: attendance.userId,
+            date: attendance.date,
+            shiftId: attendance.shiftId,
+            notes: attendance.notes,
+          })
+          .from(attendance)
+          .where(and(
+            sql`DATE(${attendance.date}) = ${yesterdayStr}`,
+            isNotNull(attendance.checkIn),
+            isNull(attendance.checkOut),
+            inArray(attendance.status, ["present", "late"])
+          ));
+
+          const allShifts = await db.select().from(shifts);
+          const shiftMap = new Map(allShifts.map(s => [s.id, s]));
+
+          const yesterdayOvertimes = await db.select({
+            id: overtimes.id,
+            attendanceId: overtimes.attendanceId,
+            status: overtimes.status,
+            employeeApproval: overtimes.employeeApproval,
+          })
+          .from(overtimes)
+          .innerJoin(attendance, eq(overtimes.attendanceId, attendance.id))
+          .where(sql`DATE(${attendance.date}) = ${yesterdayStr}`);
+
+          const overtimesByAttendance = new Map<number, typeof yesterdayOvertimes>();
+          for (const ot of yesterdayOvertimes) {
+            if (!overtimesByAttendance.has(ot.attendanceId)) {
+              overtimesByAttendance.set(ot.attendanceId, []);
+            }
+            overtimesByAttendance.get(ot.attendanceId)!.push(ot);
+          }
+
+          let autoCheckoutCount = 0;
+          for (const rec of forgottenCheckouts) {
+            const otList = overtimesByAttendance.get(rec.id) || [];
+
+            // SKIP jika masih ada sesi lembur ongoing
+            const hasOngoingOT = otList.some(ot => ot.status === "ongoing");
+            if (hasOngoingOT) continue;
+
+            const hasApprovedOT = otList.some(ot => ot.employeeApproval === "approved");
+
+            const shiftData = rec.shiftId ? shiftMap.get(rec.shiftId) : null;
+            if (!shiftData || !shiftData.checkOutTime) {
+              console.log(`[AUTO-CHECKOUT] userId=${rec.userId} tidak punya data shift, dilewati.`);
+              continue;
+            }
+
+            const [shiftHour, shiftMin] = shiftData.checkOutTime.split(":").map(Number);
+            const checkOutWib = new Date(`${yesterdayStr}T${String(shiftHour).padStart(2,"0")}:${String(shiftMin).padStart(2,"0")}:00+07:00`);
+
+            const autoNote = hasApprovedOT
+              ? "Lupa Absen Pulang (Lembur Disetujui)"
+              : "Lupa Absen Pulang";
+            const newNotes = rec.notes
+              ? `${rec.notes}\n(${autoNote})`
+              : `(${autoNote})`;
+
+            await db.update(attendance).set({
+              checkOut: checkOutWib,
+              notes: newNotes,
+            }).where(eq(attendance.id, rec.id));
+
+            autoCheckoutCount++;
+            console.log(`[AUTO-CHECKOUT] userId=${rec.userId} tgl=${yesterdayStr} → checkOut=${shiftData.checkOutTime} WIB [${autoNote}]`);
+          }
+
+          console.log(`[03:30 WIB RESET] Auto-checkout: ${autoCheckoutCount} karyawan diisi jam pulang otomatis.`);
+        } catch (autoErr) {
+          console.error("[AUTO-CHECKOUT ERROR]", autoErr);
+        }
+
         console.log(`[03:30 WIB RESET] Daily session reset completed for ${todayStr}.`);
       }
     } catch (err) {

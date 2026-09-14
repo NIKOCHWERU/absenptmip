@@ -1938,12 +1938,20 @@ export default function EmployeeDashboard() {
                         </div>
                         <div>
                             <p className="text-gray-400 text-xs font-medium">Pulang</p>
-                            {today?.checkOut
-                                ? <p className="font-mono font-bold text-gray-800">{safeFormatDate(today.checkOut, "HH:mm")}</p>
-                                : today?.checkIn
-                                    ? <p className="text-[10px] font-bold text-amber-600 leading-tight mt-0.5">Tidak Absen<br />Pulang</p>
-                                    : <p className="font-mono font-bold text-gray-800">--:--</p>
-                            }
+                            {today?.checkOut ? (
+                                <div className="flex flex-col leading-tight">
+                                    <p className={`font-mono font-bold ${today.notes && /lupa absen pulang/i.test(today.notes) ? 'text-gray-500' : 'text-gray-800'}`}>
+                                        {safeFormatDate(today.checkOut, "HH:mm")}
+                                    </p>
+                                    {today.notes && /lupa absen pulang/i.test(today.notes) && (
+                                        <span className="text-[9px] font-bold text-gray-400 leading-tight">Lupa Absen Pulang</span>
+                                    )}
+                                </div>
+                            ) : today?.checkIn ? (
+                                <p className="text-[10px] font-bold text-amber-600 leading-tight mt-0.5">Tidak Absen<br />Pulang</p>
+                            ) : (
+                                <p className="font-mono font-bold text-gray-800">--:--</p>
+                            )}
                         </div>
                         <div>
                             <p className="text-gray-400 text-xs font-medium">Mulai Istirahat</p>

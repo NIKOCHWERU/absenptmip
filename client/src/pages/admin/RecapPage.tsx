@@ -1787,13 +1787,25 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
                                                 <td className="px-6 py-4 text-center font-mono font-bold text-blue-600">
                                                     {row.breakEnd ? safeFormatDate(row.breakEnd, "HH:mm") : "-"}
                                                 </td>
-                                                <td className="px-6 py-4 text-center font-mono font-bold text-rose-600">
-                                                    {row.checkOut
-                                                        ? safeFormatDate(row.checkOut, "HH:mm")
-                                                        : row.checkIn
-                                                            ? <span className="text-[9px] font-bold text-amber-600 bg-amber-50 border border-amber-200 rounded-full px-2 py-0.5 leading-tight whitespace-normal text-center block">Tidak Absen Pulang</span>
-                                                            : <span className="text-gray-300">-</span>
-                                                    }
+                                                <td className="px-6 py-4 text-center">
+                                                    {row.checkOut ? (
+                                                        <div className="flex flex-col items-center gap-0.5">
+                                                            <span className={`font-mono font-bold ${row.notes && /lupa absen pulang/i.test(row.notes) ? 'text-gray-500' : 'text-rose-600'}`}>
+                                                                {safeFormatDate(row.checkOut, "HH:mm")}
+                                                            </span>
+                                                            {row.notes && /lupa absen pulang/i.test(row.notes) && (
+                                                                <span className="text-[8px] font-bold text-gray-400 bg-gray-100 border border-gray-200 rounded-full px-1.5 py-0.5 leading-tight">
+                                                                    Lupa Absen Pulang
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    ) : row.checkIn ? (
+                                                        <span className="text-[9px] font-bold text-amber-600 bg-amber-50 border border-amber-200 rounded-full px-2 py-0.5 leading-tight whitespace-normal text-center block">
+                                                            Tidak Absen Pulang
+                                                        </span>
+                                                    ) : (
+                                                        <span className="text-gray-300">-</span>
+                                                    )}
                                                 </td>
                                                 <td className="px-6 py-4">
                                                     {!isSameDayAndUser && (
