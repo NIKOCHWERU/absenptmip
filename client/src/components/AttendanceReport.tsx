@@ -117,7 +117,7 @@ export function AttendanceReport({ date, records, users }: AttendanceReportProps
                                         <p><span className="text-gray-400">OUT:</span> {record.checkOut
                                             ? <span className="font-bold text-red-500">{format(new Date(record.checkOut), "HH:mm")}</span>
                                             : record.checkIn
-                                                ? <span className="font-bold text-amber-600 text-[9px]">Tidak Absen Pulang</span>
+                                                ? <span className="font-bold text-amber-600 text-[9px]">Belum Absen Pulang</span>
                                                 : <span className="font-bold text-red-500">- - : - -</span>
                                         }</p>
                                         

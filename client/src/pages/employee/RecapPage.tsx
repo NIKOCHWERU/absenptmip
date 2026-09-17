@@ -339,7 +339,7 @@ export default function RecapPage() {
                     {record.checkOut
                       ? format(new Date(record.checkOut), 'HH:mm')
                       : record.checkIn
-                        ? <span className="text-amber-600 font-bold text-[10px]">Tidak Absen Pulang</span>
+                        ? <span className="text-amber-600 font-bold text-[10px]">Belum Absen Pulang</span>
                         : '-'}
                     {/* Display Total for Day if first record of day */}
                     {(() => {
@@ -455,9 +455,9 @@ export default function RecapPage() {
                   <p className="text-[10px] uppercase font-bold text-amber-600 mb-1">⚠ Keterangan</p>
                   <p className={`text-sm italic ${!selectedRecord.checkOut && !selectedRecord.notes ? 'text-amber-700 font-semibold' : 'text-gray-700'}`}>
                     {!selectedRecord.checkOut && !selectedRecord.notes
-                      ? 'Tidak Absen Pulang'
+                      ? 'Belum Absen Pulang'
                       : !selectedRecord.checkOut
-                        ? `${selectedRecord.notes} — Tidak Absen Pulang`
+                        ? `${selectedRecord.notes} — Belum Absen Pulang`
                         : selectedRecord.notes}
                   </p>
                 </div>

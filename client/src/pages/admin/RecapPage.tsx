@@ -1558,7 +1558,7 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
             const isNoBreak = (inTime !== '-' && outTime !== 'Tdk Absen' && brkTime === '-' && brkEnd === '-');
             const jamKerja = !isSameDayAndUser ? (dailyTotalMins > 0 ? formatDuration(dailyTotalMins) : '-') : '';
             let keterangan = row.notes ? row.notes : '-';
-            if (!row.checkOut && row.checkIn) keterangan = row.notes ? row.notes + ' <br><span class="note-warn">⚠ Tidak Absen Pulang</span>' : '<span class="note-warn">⚠ Tidak Absen Pulang</span>';
+            if (!row.checkOut && row.checkIn) keterangan = row.notes ? row.notes + ' <br><span class="note-warn">⚠ Belum Absen Pulang</span>' : '<span class="note-warn">⚠ Belum Absen Pulang</span>';
             else if (isNoBreak) keterangan = row.notes ? row.notes + ' <br><span class="note-warn">(Tanpa Istirahat)</span>' : '<span class="note-warn">Tanpa Istirahat</span>';
             const lateNote = row.status === 'late' && (row as any).lateReason ? `<br><span class="note-late">[Telat: ${(row as any).lateReason}]</span>` : '';
             return `<tr>
@@ -1801,7 +1801,7 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
                                                         </div>
                                                     ) : row.checkIn ? (
                                                         <span className="text-[9px] font-bold text-amber-600 bg-amber-50 border border-amber-200 rounded-full px-2 py-0.5 leading-tight whitespace-normal text-center block">
-                                                            Tidak Absen Pulang
+                                                            Belum Absen Pulang
                                                         </span>
                                                     ) : (
                                                         <span className="text-gray-300">-</span>
