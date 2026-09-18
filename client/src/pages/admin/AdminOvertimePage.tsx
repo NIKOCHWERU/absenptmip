@@ -11,7 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
 import { 
-  Plus, Calendar, Clock, User as UserIcon, Eye, Printer, Trash2, Check, X, FileText, Send, Upload, ArrowLeft, Image as ImageIcon, CheckCircle, ShieldCheck, AlertCircle, AlertTriangle, Zap, Search, Filter, Pencil, RefreshCw
+  Plus, Calendar, Clock, User as UserIcon, Eye, Printer, Trash2, Check, X, FileText, Send, Upload, ArrowLeft, Image as ImageIcon, CheckCircle, ShieldCheck, AlertCircle, AlertTriangle, Zap, Search, Filter, Pencil, RefreshCw, Camera
 } from "lucide-react";
 import { User } from "@shared/schema";
 import { TimePicker24h } from "@/components/TimePicker24h";
@@ -198,6 +198,10 @@ export default function AdminOvertimePage() {
   const [manualTask, setManualTask] = useState<string>("");
   const [manualStatus, setManualStatus] = useState<string>("completed");
   const [manualApproval, setManualApproval] = useState<string>("approved");
+  const [manualInitialProof, setManualInitialProof] = useState<File | null>(null);
+  const [manualFinalProof, setManualFinalProof] = useState<File | null>(null);
+  const [manualInitialPreview, setManualInitialPreview] = useState<string | null>(null);
+  const [manualFinalPreview, setManualFinalPreview] = useState<string | null>(null);
 
   // Form Fields — Edit Lembur Admin
   const [editDate, setEditDate] = useState<string>(format(new Date(), "yyyy-MM-dd"));
@@ -317,6 +321,32 @@ export default function AdminOvertimePage() {
         endIso = tempEnd.toISOString();
       }
 
+      // Upload foto awal lembur jika ada
+      let initialProofUrl: string | undefined;
+      if (manualInitialProof) {
+        const fd = new FormData();
+        fd.append("photo", manualInitialProof);
+        fd.append("type", "overtime");
+        const upRes = await fetch("/api/upload-direct", { method: "POST", body: fd });
+        if (upRes.ok) {
+          const upData = await upRes.json();
+          initialProofUrl = upData.url;
+        }
+      }
+
+      // Upload foto akhir lembur jika ada
+      let finalProofUrl: string | undefined;
+      if (manualFinalProof) {
+        const fd = new FormData();
+        fd.append("photo", manualFinalProof);
+        fd.append("type", "overtime");
+        const upRes = await fetch("/api/upload-direct", { method: "POST", body: fd });
+        if (upRes.ok) {
+          const upData = await upRes.json();
+          finalProofUrl = upData.url;
+        }
+      }
+
       const res = await fetch("/api/admin/overtimes/manual", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -327,7 +357,9 @@ export default function AdminOvertimePage() {
           endTime: endIso,
           description: manualTask || "Lembur Manual Admin",
           status: manualStatus,
-          employeeApproval: manualApproval
+          employeeApproval: manualApproval,
+          initialProofUrl,
+          finalProofUrl,
         })
       });
       if (!res.ok) {
@@ -343,6 +375,10 @@ export default function AdminOvertimePage() {
       setManualTask("");
       setManualStatus("completed");
       setManualApproval("approved");
+      setManualInitialProof(null);
+      setManualFinalProof(null);
+      setManualInitialPreview(null);
+      setManualFinalPreview(null);
       toast({ title: "Berhasil!", description: "Data lembur manual telah ditambahkan." });
     },
     onError: (err: any) => {
@@ -1586,6 +1622,79 @@ export default function AdminOvertimePage() {
                 onChange={(e) => setManualTask(e.target.value)}
                 className="rounded-xl border-gray-200 text-xs min-h-[70px]"
               />
+            </div>
+
+            {/* Foto Bukti Lembur */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {/* Foto Awal Lembur */}
+              <div className="space-y-1.5">
+                <label className="font-bold text-gray-700 flex items-center gap-1">
+                  <Camera className="w-3.5 h-3.5 text-orange-500" /> Foto Awal Lembur
+                  <span className="text-gray-400 font-normal text-[10px]">(opsional)</span>
+                </label>
+                <label className="block cursor-pointer">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0] || null;
+                      setManualInitialProof(file);
+                      setManualInitialPreview(file ? URL.createObjectURL(file) : null);
+                    }}
+                  />
+                  {manualInitialPreview ? (
+                    <div className="relative rounded-xl overflow-hidden border border-orange-200 bg-orange-50">
+                      <img src={manualInitialPreview} alt="Foto Awal" className="w-full h-28 object-cover" />
+                      <button
+                        type="button"
+                        onClick={(e) => { e.preventDefault(); setManualInitialProof(null); setManualInitialPreview(null); }}
+                        className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold hover:bg-red-600"
+                      >×</button>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center h-28 rounded-xl border-2 border-dashed border-orange-200 bg-orange-50 hover:bg-orange-100 transition-colors">
+                      <Camera className="w-6 h-6 text-orange-300 mb-1" />
+                      <span className="text-[10px] text-orange-400 font-medium">Klik untuk pilih foto</span>
+                    </div>
+                  )}
+                </label>
+              </div>
+
+              {/* Foto Akhir Lembur */}
+              <div className="space-y-1.5">
+                <label className="font-bold text-gray-700 flex items-center gap-1">
+                  <Camera className="w-3.5 h-3.5 text-orange-500" /> Foto Akhir Lembur
+                  <span className="text-gray-400 font-normal text-[10px]">(opsional)</span>
+                </label>
+                <label className="block cursor-pointer">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0] || null;
+                      setManualFinalProof(file);
+                      setManualFinalPreview(file ? URL.createObjectURL(file) : null);
+                    }}
+                  />
+                  {manualFinalPreview ? (
+                    <div className="relative rounded-xl overflow-hidden border border-orange-200 bg-orange-50">
+                      <img src={manualFinalPreview} alt="Foto Akhir" className="w-full h-28 object-cover" />
+                      <button
+                        type="button"
+                        onClick={(e) => { e.preventDefault(); setManualFinalProof(null); setManualFinalPreview(null); }}
+                        className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold hover:bg-red-600"
+                      >×</button>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center h-28 rounded-xl border-2 border-dashed border-orange-200 bg-orange-50 hover:bg-orange-100 transition-colors">
+                      <Camera className="w-6 h-6 text-orange-300 mb-1" />
+                      <span className="text-[10px] text-orange-400 font-medium">Klik untuk pilih foto</span>
+                    </div>
+                  )}
+                </label>
+              </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

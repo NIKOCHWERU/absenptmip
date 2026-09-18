@@ -2312,7 +2312,7 @@ export function registerRoutes(app: Express) {
   // API Tambah & Edit Lembur Manual oleh Admin
   app.post("/api/admin/overtimes/manual", isAuthenticated, isAdmin, async (req: Request, res: Response) => {
     try {
-      const { userId, date, attendanceId, startTime, endTime, description, finalDescription, status, employeeApproval } = req.body;
+      const { userId, date, attendanceId, startTime, endTime, description, finalDescription, status, employeeApproval, initialProofUrl, finalProofUrl } = req.body;
       let targetAttId = attendanceId ? Number(attendanceId) : null;
 
       if (!targetAttId) {
@@ -2358,7 +2358,9 @@ export function registerRoutes(app: Express) {
         status: finalStatus,
         employeeApproval: finalApproval,
         splNumber: splNum,
-        assignedBy: (req.user as any)?.id
+        assignedBy: (req.user as any)?.id,
+        initialProofUrl: initialProofUrl || null,
+        finalProofUrl: finalProofUrl || null,
       });
       res.json({ message: "Lembur manual berhasil ditambahkan", id: newOt?.insertId || newOt });
     } catch (e: any) {
