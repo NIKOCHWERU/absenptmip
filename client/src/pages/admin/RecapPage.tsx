@@ -33,7 +33,7 @@ const loadHtml2Pdf = () => {
     });
 };
 
-const loadJSZip = () => {
+const loadJsZip = () => {
     return new Promise<any>((resolve, reject) => {
         if ((window as any).JSZip) {
             resolve((window as any).JSZip);
@@ -47,51 +47,146 @@ const loadJSZip = () => {
     });
 };
 
-const generatePdfBlobFromHtml = async (htmlContent: string, pdfFileName: string): Promise<Blob> => {
+const triggerBlobDownload = (blob: Blob, fileName: string) => {
+    const blobUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.style.display = 'none';
+    a.href = blobUrl;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => {
+        if (a.parentNode) a.parentNode.removeChild(a);
+        URL.revokeObjectURL(blobUrl);
+    }, 8000);
+};
+
+const renderRecapHtmlToPdfBlob = async ({
+    html,
+    pdfFileName,
+    html2pdfLib,
+    splitMode
+}: {
+    html: string;
+    pdfFileName: string;
+    html2pdfLib: any;
+    splitMode: "split" | "combine";
+}): Promise<Blob> => {
+    const parsedDoc = new DOMParser().parseFromString(html, 'text/html');
+    const styleTags = Array.from(parsedDoc.querySelectorAll('style')).map(s => s.innerHTML).join('\n');
+    const reportSections = Array.from(parsedDoc.querySelectorAll('section.report'));
+
+    const savedScrollX = window.scrollX;
+    const savedScrollY = window.scrollY;
+    window.scrollTo(0, 0);
+
+    // Container mounted directly with explicit A4 landscape inner printable width (277mm ~ 1047px)
     const container = document.createElement('div');
     container.style.position = 'fixed';
     container.style.left = '0';
     container.style.top = '0';
-    container.style.width = '794px';
+    container.style.width = '1047px';
     container.style.backgroundColor = '#ffffff';
-    container.style.zIndex = '9990';
-    container.style.opacity = '1';
+    container.style.zIndex = '-9999';
+    container.style.opacity = '0';
     container.style.pointerEvents = 'none';
-    container.style.color = '#1e293b';
-    container.style.fontFamily = 'Arial, Helvetica, sans-serif';
-    container.style.fontSize = '11px';
-    container.style.padding = '28px 36px';
-    container.style.boxSizing = 'border-box';
-    container.innerHTML = htmlContent;
+    container.style.margin = '0';
+    container.style.padding = '0';
 
+    const wrapper = document.createElement('div');
+    wrapper.className = 'pdf-recap-root';
+    wrapper.style.width = '1047px';
+    wrapper.style.margin = '0';
+    wrapper.style.padding = '0';
+    wrapper.style.backgroundColor = '#ffffff';
+
+    if (reportSections.length === 0) {
+        const laporanEl = parsedDoc.getElementById('laporan');
+        wrapper.innerHTML = `<style>${styleTags}</style>${laporanEl ? laporanEl.innerHTML : parsedDoc.body.innerHTML}`;
+    } else {
+        wrapper.innerHTML = `<style>${styleTags}</style>` + reportSections.map(sec => sec.outerHTML).join('\n');
+    }
+
+    container.appendChild(wrapper);
     document.body.appendChild(container);
 
-    const imgs = Array.from(container.querySelectorAll('img'));
-    await Promise.all(imgs.map(img => {
-        if (img.complete) return Promise.resolve();
-        return new Promise(res => {
-            img.onload = res;
-            img.onerror = res;
-        });
-    }));
-
     try {
+        // Tunggu seluruh gambar di dalam container selesai dimuat
+        const imgs = Array.from(container.querySelectorAll('img'));
+        await Promise.all(imgs.map(img => {
+            if (img.complete) return Promise.resolve();
+            return new Promise(res => { img.onload = res; img.onerror = res; });
+        }));
+
+        // Margin [6mm, 10mm, 6mm, 10mm] persis seperti @media print CSS pada file referensi
         const opt = {
-            margin:       [10, 10, 10, 10],
-            filename:     pdfFileName,
-            image:        { type: 'jpeg', quality: 0.98 },
-            html2canvas:  { scale: 2, useCORS: true, logging: false, scrollX: 0, scrollY: 0, windowWidth: 794 },
-            jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' },
-            pagebreak:    { mode: ['avoid-all', 'css', 'legacy'] }
+            margin: [6, 10, 6, 10],
+            filename: pdfFileName,
+            image: { type: 'jpeg', quality: 0.98 },
+            html2canvas: {
+                scale: 2,
+                useCORS: true,
+                logging: false,
+                scrollX: 0,
+                scrollY: 0,
+                letterRendering: true
+            },
+            jsPDF: {
+                unit: 'mm',
+                format: 'a4',
+                orientation: 'landscape',
+                compress: true
+            },
+            pagebreak: {
+                mode: ['css', 'legacy'],
+                avoid: ['tr', '.attendance-table tbody tr', '.summary', '.header', '.photo-item']
+            }
         };
-        const html2pdf = (window as any).html2pdf;
-        const pdfBlob = await html2pdf().set(opt).from(container).outputPdf('blob');
-        return pdfBlob;
+
+        const worker = html2pdfLib().set(opt).from(wrapper);
+        const blob: Blob = await worker.output('blob');
+        return blob;
     } finally {
         if (container.parentNode) {
             container.parentNode.removeChild(container);
         }
+        window.scrollTo(savedScrollX, savedScrollY);
     }
+};
+
+const buildCustomBulkPeriods = (rangeStart: Date, rangeEnd: Date): Array<{ start: Date; end: Date }> => {
+    const periods: Array<{ start: Date; end: Date }> = [];
+    let curr = startOfDay(new Date(rangeStart));
+    const end = startOfDay(new Date(rangeEnd));
+
+    if (curr > end) return periods;
+
+    if (curr.getTime() === end.getTime()) {
+        const dayOfWeek = curr.getDay();
+        const stepDays = dayOfWeek === 5 ? 3 : dayOfWeek === 6 ? 2 : 1;
+        periods.push({
+            start: new Date(curr),
+            end: addDays(curr, stepDays),
+        });
+        return periods;
+    }
+
+    while (curr < end) {
+        const pStart = new Date(curr);
+        const dayOfWeek = pStart.getDay();
+        // Jika hari Jumat (5), hitung Jumat, Sabtu, Minggu, Senin (+3 hari, misal 9 -> 12)
+        // Jika mulai hari Sabtu (6), hitung Sabtu, Minggu, Senin (+2 hari, misal 10 -> 12)
+        // Hari lainnya (+1 hari, misal 8 -> 9, 12 -> 13)
+        const stepDays = dayOfWeek === 5 ? 3 : dayOfWeek === 6 ? 2 : 1;
+        const pEnd = addDays(pStart, stepDays);
+        periods.push({
+            start: pStart,
+            end: pEnd,
+        });
+        curr = pEnd;
+    }
+
+    return periods;
 };
 
 const safeFormatDate = (dateVal: any, formatStr: string, options?: any) => {
@@ -147,6 +242,7 @@ export default function RecapPage() {
     const [reportType, setReportType] = useState<"daily" | "weekly" | "monthly" | "custom">("daily");
     const [customStartDate, setCustomStartDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
     const [customEndDate, setCustomEndDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
+    const [pageSplitMode, setPageSplitMode] = useState<"split" | "combine">("split");
 
     let startDate: Date;
     let endDate: Date;
@@ -483,7 +579,8 @@ export default function RecapPage() {
         startDate,
         endDate,
         imageCache = {},
-        isPdf = false
+        isPdf = false,
+        pageSplitMode = "split"
     }: {
         docTitle: string;
         periodStr: string;
@@ -497,6 +594,7 @@ export default function RecapPage() {
         endDate: Date;
         imageCache?: Record<string, string>;
         isPdf?: boolean;
+        pageSplitMode?: "split" | "combine";
     }) => {
         const escapeHTML = (value: any): string => {
             if (value === null || value === undefined) return "";
@@ -879,12 +977,26 @@ export default function RecapPage() {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>${escapeHTML(docTitle)}</title>
     <style>
-        @page { size: A4 landscape; margin: 8mm 12mm 8mm 12mm; }
+        @page { size: A4 landscape; margin: 6mm 10mm 6mm 10mm; }
         * { box-sizing: border-box; }
-        html, body { margin: 0; padding: 0; }
-        body { background: #eeeeee; color: #0f172a; font-family: Arial, Helvetica, sans-serif; font-size: 7.5pt; }
-        .report { width: 100%; max-width: 1050px; margin: 10px auto; padding: 10px 14px; background: #ffffff; page-break-after: always; page-break-inside: auto; break-inside: auto; }
-        .report:last-child { page-break-after: auto; }
+        ${isPdf ? `.pdf-recap-root { margin: 0 !important; padding: 0 !important; background: #ffffff; color: #0f172a; font-family: Arial, Helvetica, sans-serif; font-size: 6.5pt; width: 1047px !important; }` : 'html, body { margin: 0; padding: 0; }\n        body { background: #eeeeee; color: #0f172a; font-family: Arial, Helvetica, sans-serif; font-size: 7.5pt; }'}
+        .report { 
+            width: 100%; 
+            max-width: ${isPdf ? "1047px" : "1050px"}; 
+            margin: ${isPdf ? "0 0 6mm 0" : "10px auto 30px auto"}; 
+            padding: ${isPdf ? "2mm 4mm 4mm 4mm" : "10px 14px"}; 
+            background: #ffffff; 
+            page-break-after: ${pageSplitMode === "split" ? "always" : "auto"}; 
+            page-break-inside: avoid; 
+            break-inside: avoid; 
+            border-bottom: ${pageSplitMode === "combine" ? "3px double #94a3b8" : "none"};
+            padding-bottom: ${pageSplitMode === "combine" ? (isPdf ? "16px" : "35px") : (isPdf ? "4mm" : "10px")};
+        }
+        .report:last-child { 
+            page-break-after: auto; 
+            border-bottom: none;
+            padding-bottom: ${isPdf ? "6px" : "10px"};
+        }
         .letterhead { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; min-height: 36px; }
         .logo-img { height: 36px; max-width: 110px; object-fit: contain; flex-shrink: 0; }
         .company-block { text-align: right; flex-grow: 1; margin-left: 12px; }
@@ -944,12 +1056,28 @@ export default function RecapPage() {
         .print-button { border: none; padding: 10px 18px; background: #111827; color: white; border-radius: 4px; cursor: pointer; font-size: 14px; }
         .print-button:hover { background: #374151; }
         .footer { margin-top: 8px; font-size: 7pt; color: #94a3b8; border-top: 1px dashed #cbd5e1; padding-top: 3px; text-align: center; }
-        @media screen { body { padding: 12px; } .report { box-shadow: 0 2px 10px rgba(0, 0, 0, .12); } }
+        @media screen { ${isPdf ? '' : 'body { padding: 12px; } .report { box-shadow: 0 2px 10px rgba(0, 0, 0, .12); }'} }
         @media print {
             @page { size: A4 landscape; margin: 6mm 10mm 6mm 10mm; }
             body { background: white; padding: 0; margin: 0; font-size: 6.5pt; }
             .print-container, .footer { display: none !important; }
-            .report { width: 100% !important; max-width: none !important; min-height: auto !important; margin: 0 !important; padding: 2mm 4mm !important; box-shadow: none !important; page-break-after: always !important; page-break-inside: auto !important; break-inside: auto !important; }
+            .report { 
+                width: 100% !important; 
+                max-width: none !important; 
+                min-height: auto !important; 
+                margin: 0 0 10mm 0 !important; 
+                padding: 2mm 4mm 6mm 4mm !important; 
+                box-shadow: none !important; 
+                page-break-after: ${pageSplitMode === "split" ? "always !important" : "auto !important"}; 
+                page-break-inside: avoid !important; 
+                break-inside: avoid !important; 
+                border-bottom: ${pageSplitMode === "combine" ? "2px dashed #0f172a !important" : "none !important"}; 
+            }
+            .report:last-child { 
+                border-bottom: none !important; 
+                padding-bottom: 2mm !important; 
+                margin-bottom: 0 !important; 
+            }
             .attendance-table { page-break-inside: auto !important; break-inside: auto !important; }
             .attendance-table thead { display: table-header-group !important; }
             .attendance-table tbody tr { page-break-inside: avoid !important; break-inside: avoid !important; break-inside: avoid-page !important; }
@@ -964,7 +1092,7 @@ export default function RecapPage() {
 </head>
 <body>
     ${!isPdf ? `<div class="print-container"><button class="print-button" onclick="window.print()">Cetak / Simpan PDF</button></div>` : ''}
-    <div id="laporan">${reportsHtml}</div>
+    <div id="laporan" class="pdf-recap-root">${reportsHtml}</div>
     <div class="footer">Dokumen ini dicetak secara otomatis oleh Sistem Absensi ${escapeHTML(namaPt.toUpperCase())} &mdash; ${format(new Date(), "d MMMM yyyy, HH:mm", { locale: id })} WIB</div>
     ${!isPdf ? `<script>window.onload = function() { setTimeout(function() { window.print(); }, 600); };</script>` : ''}
 </body>
@@ -1157,6 +1285,207 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
         }
     };
 
+    const fetchLogoBase64 = async (): Promise<string> => {
+        try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 5000);
+            const logoToUse = config?.logoUrl || '/icon-192.png';
+            const logoRes = await fetch(logoToUse, { signal: controller.signal });
+            clearTimeout(timeoutId);
+            const logoBlob = await logoRes.blob();
+            return await new Promise<string>((resolve) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result as string);
+                reader.onerror = () => resolve('');
+                reader.readAsDataURL(logoBlob);
+            });
+        } catch (_) {
+            return '';
+        }
+    };
+
+    const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quality = 0.75): Promise<string> => {
+        return new Promise((resolve) => {
+            const img = new Image();
+            const url = URL.createObjectURL(blob);
+            img.onload = () => {
+                URL.revokeObjectURL(url);
+                let width = img.width;
+                let height = img.height;
+                if (width > height) {
+                    if (width > maxW) {
+                        height = Math.round((height * maxW) / width);
+                        width = maxW;
+                    }
+                } else {
+                    if (height > maxH) {
+                        width = Math.round((width * maxH) / height);
+                        height = maxH;
+                    }
+                }
+
+                const canvas = document.createElement('canvas');
+                canvas.width = Math.max(1, width);
+                canvas.height = Math.max(1, height);
+                const ctx = canvas.getContext('2d');
+                if (!ctx) {
+                    const reader = new FileReader();
+                    reader.onload = () => resolve(reader.result as string);
+                    reader.onerror = () => resolve('');
+                    reader.readAsDataURL(blob);
+                    return;
+                }
+
+                ctx.drawImage(img, 0, 0, width, height);
+                const dataUrl = canvas.toDataURL('image/jpeg', quality);
+                resolve(dataUrl);
+            };
+            img.onerror = () => {
+                URL.revokeObjectURL(url);
+                resolve('');
+            };
+            img.src = url;
+        });
+    };
+
+    const preloadAttendanceImages = async (
+        records: Attendance[],
+        onProgress?: (loaded: number, total: number) => void
+    ): Promise<Record<string, string>> => {
+        const imageCache: Record<string, string> = {};
+        const uniquePhotoUrls = new Set<string>();
+        records.forEach(r => {
+            if (r.checkInPhoto) uniquePhotoUrls.add(r.checkInPhoto);
+            if (r.breakStartPhoto) uniquePhotoUrls.add(r.breakStartPhoto);
+            if (r.breakEndPhoto) uniquePhotoUrls.add(r.breakEndPhoto);
+            if (r.checkOutPhoto) uniquePhotoUrls.add(r.checkOutPhoto);
+            if ((r as any).lateReasonPhoto) uniquePhotoUrls.add((r as any).lateReasonPhoto);
+        });
+        (allOvertimes || []).forEach(ot => {
+            if (ot.initialProofUrl) uniquePhotoUrls.add(ot.initialProofUrl);
+            if (ot.finalProofUrl) uniquePhotoUrls.add(ot.finalProofUrl);
+        });
+
+        const urlArray = Array.from(uniquePhotoUrls);
+
+        const fetchSingleImageBase64 = async (rawUrl: string, retries = 2) => {
+            if (!rawUrl) return;
+            if (rawUrl.startsWith('data:')) {
+                imageCache[rawUrl] = rawUrl;
+                return;
+            }
+
+            const resolved = resolveFileUrl(rawUrl);
+            if (!resolved) return;
+
+            const fullUrl = resolved.startsWith('http')
+                ? resolved
+                : `${window.location.origin}${resolved.startsWith('/') ? '' : '/'}${resolved}`;
+
+            if (imageCache[rawUrl]) return;
+
+            for (let i = 0; i <= retries; i++) {
+                try {
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 6000);
+                    const res = await fetch(fullUrl, { signal: controller.signal });
+                    clearTimeout(timeoutId);
+
+                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                    const blob = await res.blob();
+                    const b64 = await compressBlobToThumbnailBase64(blob, 160, 140, 0.75);
+                    if (b64 && b64.startsWith('data:image')) {
+                        imageCache[rawUrl] = b64;
+                        imageCache[resolved] = b64;
+                        imageCache[fullUrl] = b64;
+                        return;
+                    }
+                } catch (e) {
+                    console.warn(`Preload image attempt ${i + 1} failed for ${fullUrl}:`, e);
+                    if (i === retries) {
+                        imageCache[rawUrl] = fullUrl;
+                        imageCache[resolved] = fullUrl;
+                    } else {
+                        await new Promise(r => setTimeout(r, 400));
+                    }
+                }
+            }
+        };
+
+        const chunkSize = 8;
+        for (let i = 0; i < urlArray.length; i += chunkSize) {
+            const chunk = urlArray.slice(i, i + chunkSize);
+            if (onProgress) {
+                onProgress(Math.min(i + chunkSize, urlArray.length), urlArray.length);
+            }
+            await Promise.all(chunk.map(url => fetchSingleImageBase64(url)));
+        }
+
+        return imageCache;
+    };
+
+    const handleExportHtmlRekap = async () => {
+        let periodStr = '';
+        if (reportType === 'daily') {
+            periodStr = format(targetDate, "dd MMMM yyyy", { locale: id }).toUpperCase();
+        } else if (reportType === 'weekly') {
+            periodStr = `${format(startDate, "dd MMM")} - ${format(endDate, "dd MMM yyyy", { locale: id })}`.toUpperCase();
+        } else if (reportType === 'custom') {
+            periodStr = `${format(startDate, "dd MMM yyyy", { locale: id })} - ${format(endDate, "dd MMM yyyy", { locale: id })}`.toUpperCase();
+        } else {
+            periodStr = format(targetDate, "MMMM yyyy", { locale: id }).toUpperCase();
+        }
+
+        const fileName = `LAPORAN REKAP ABSENSI TENAGA KERJA ${singkatanPt} - ${periodStr}.html`;
+        setIsExporting(true);
+        setExportProgress("Memuat logo & gambar absensi...");
+        try {
+            const logoDataUrl = await fetchLogoBase64();
+            const imageCache = await preloadAttendanceImages(processedData, (loaded, total) => {
+                setExportProgress(`Memuat gambar absensi (${loaded}/${total})...`);
+            });
+
+            setExportProgress("Menyusun dokumen HTML...");
+            const html = buildRecapReportHtml({
+                docTitle: fileName,
+                periodStr,
+                namaPt,
+                singkatanPt,
+                alamatPt,
+                logoDataUrl,
+                usersList: users || [],
+                processedData,
+                startDate,
+                endDate,
+                imageCache,
+                isPdf: false,
+                pageSplitMode
+            });
+
+            const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+            const blobUrl = URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = blobUrl;
+            a.download = fileName;
+            document.body.appendChild(a);
+            a.click();
+            
+            setTimeout(() => {
+                document.body.removeChild(a);
+                URL.revokeObjectURL(blobUrl);
+            }, 5000);
+
+            toast({ title: "✅ HTML Rekap Berhasil Diunduh", description: fileName });
+        } catch (e: any) {
+            toast({ title: "Gagal Export HTML Rekap", description: e.message, variant: "destructive" });
+        } finally {
+            setIsExporting(false);
+            setExportProgress("");
+        }
+    };
+
     const handleExportPdf = async () => {
         let periodStr = '';
         if (reportType === 'daily') {
@@ -1169,93 +1498,15 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
             periodStr = format(targetDate, "MMMM yyyy", { locale: id }).toUpperCase();
         }
 
-        const todayStamp = format(new Date(), "dd-MM-yyyy");
-        const pdfFileName = `LAPORAN REKAP ABSENSI TENAGA KERJA ${singkatanPt} - ${periodStr} (${todayStamp}).pdf`;
+        const pdfFileName = `LAPORAN REKAP ABSENSI TENAGA KERJA ${singkatanPt} - ${periodStr}.pdf`;
         setIsExporting(true);
         setExportProgress("Memuat logo & gambar absensi untuk PDF...");
         try {
-            let logoDataUrl = '';
-            try {
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 5000);
-                const logoToUse = config?.logoUrl || '/icon-192.png';
-                const logoRes = await fetch(logoToUse, { signal: controller.signal });
-                clearTimeout(timeoutId);
-                const logoBlob = await logoRes.blob();
-                logoDataUrl = await new Promise<string>((resolve) => {
-                    const reader = new FileReader();
-                    reader.onload = () => resolve(reader.result as string);
-                    reader.onerror = () => resolve('');
-                    reader.readAsDataURL(logoBlob);
-                });
-            } catch (_) {}
-
-            const imageCache: Record<string, string> = {};
-            const uniquePhotoUrls = new Set<string>();
-            processedData.forEach(r => {
-                if (r.checkInPhoto) uniquePhotoUrls.add(r.checkInPhoto);
-                if (r.breakStartPhoto) uniquePhotoUrls.add(r.breakStartPhoto);
-                if (r.breakEndPhoto) uniquePhotoUrls.add(r.breakEndPhoto);
-                if (r.checkOutPhoto) uniquePhotoUrls.add(r.checkOutPhoto);
-                if ((r as any).lateReasonPhoto) uniquePhotoUrls.add((r as any).lateReasonPhoto);
+            const html2pdfLib = await loadHtml2Pdf();
+            const logoDataUrl = await fetchLogoBase64();
+            const imageCache = await preloadAttendanceImages(processedData, (loaded, total) => {
+                setExportProgress(`Memuat gambar absensi (${loaded}/${total})...`);
             });
-            (allOvertimes || []).forEach(ot => {
-                if (ot.initialProofUrl) uniquePhotoUrls.add(ot.initialProofUrl);
-                if (ot.finalProofUrl) uniquePhotoUrls.add(ot.finalProofUrl);
-            });
-
-            const urlArray = Array.from(uniquePhotoUrls);
-            
-            const fetchSingleImageBase64 = async (rawUrl: string, retries = 2) => {
-                if (!rawUrl) return;
-                if (rawUrl.startsWith('data:')) {
-                    imageCache[rawUrl] = rawUrl;
-                    return;
-                }
-
-                const resolved = resolveFileUrl(rawUrl);
-                if (!resolved) return;
-
-                const fullUrl = resolved.startsWith('http')
-                    ? resolved
-                    : `${window.location.origin}${resolved.startsWith('/') ? '' : '/'}${resolved}`;
-
-                if (imageCache[rawUrl]) return;
-
-                for (let i = 0; i <= retries; i++) {
-                    try {
-                        const controller = new AbortController();
-                        const timeoutId = setTimeout(() => controller.abort(), 6000);
-                        const res = await fetch(fullUrl, { signal: controller.signal });
-                        clearTimeout(timeoutId);
-
-                        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-                        const blob = await res.blob();
-                        const b64 = await compressBlobToThumbnailBase64(blob, 160, 140, 0.75);
-                        if (b64 && b64.startsWith('data:image')) {
-                            imageCache[rawUrl] = b64;
-                            imageCache[resolved] = b64;
-                            imageCache[fullUrl] = b64;
-                            return;
-                        }
-                    } catch (e) {
-                        console.warn(`Preload image attempt ${i + 1} failed for ${fullUrl}:`, e);
-                        if (i === retries) {
-                            imageCache[rawUrl] = fullUrl;
-                            imageCache[resolved] = fullUrl;
-                        } else {
-                            await new Promise(r => setTimeout(r, 400));
-                        }
-                    }
-                }
-            };
-
-            const chunkSize = 8;
-            for (let i = 0; i < urlArray.length; i += chunkSize) {
-                const chunk = urlArray.slice(i, i + chunkSize);
-                setExportProgress(`Memuat gambar absensi (${Math.min(i + chunkSize, urlArray.length)}/${urlArray.length})...`);
-                await Promise.all(chunk.map(url => fetchSingleImageBase64(url)));
-            }
 
             setExportProgress("Menyusun dokumen PDF...");
             const html = buildRecapReportHtml({
@@ -1270,36 +1521,18 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
                 startDate,
                 endDate,
                 imageCache,
-                isPdf: true
+                isPdf: true,
+                pageSplitMode
             });
 
-            const container = document.createElement('div');
-            container.style.position = 'fixed';
-            container.style.left = '-9999px';
-            container.style.top = '0';
-            container.style.width = '1050px';
-            container.style.backgroundColor = '#ffffff';
-            container.innerHTML = html;
-            document.body.appendChild(container);
+            const pdfBlob = await renderRecapHtmlToPdfBlob({
+                html,
+                pdfFileName,
+                html2pdfLib,
+                splitMode: pageSplitMode
+            });
 
-            const imgs = Array.from(container.querySelectorAll('img'));
-            await Promise.all(imgs.map(img => {
-                if (img.complete) return Promise.resolve();
-                return new Promise(res => { img.onload = res; img.onerror = res; });
-            }));
-
-            const html2pdfLib = await loadHtml2Pdf();
-            const opt = {
-                margin: [5, 5, 5, 5],
-                filename: pdfFileName,
-                image: { type: 'jpeg', quality: 0.98 },
-                html2canvas: { scale: 2, useCORS: true, logging: false, windowWidth: 1050, letterRendering: true },
-                jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape', compress: true },
-                pagebreak: { mode: ['css', 'legacy'], avoid: ['tr', '.attendance-table tbody tr', '.summary', '.header', '.photo-item'] }
-            };
-            await html2pdfLib().set(opt).from(container).save();
-            document.body.removeChild(container);
-
+            triggerBlobDownload(pdfBlob, pdfFileName);
             toast({ title: "✅ PDF Berhasil Diunduh", description: pdfFileName });
         } catch (e: any) {
             toast({ title: "Gagal Export PDF", description: e.message, variant: "destructive" });
@@ -1310,55 +1543,24 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
     };
 
     const handleBulkExport = async () => {
-        if (user?.role !== "superadmin") {
-            toast({
-                title: "Akses Ditolak",
-                description: "Hanya Super Admin yang dapat melakukan export massal.",
-                variant: "destructive"
-            });
-            return;
-        }
+        const periods = buildCustomBulkPeriods(startDate, endDate);
 
-        const datePairs: { d1: Date; d2: Date }[] = [];
-        let curr = new Date(startDate);
-        const end = new Date(endDate);
-
-        while (curr <= end) {
-            const d1 = new Date(curr);
-            const dayOfWeek = d1.getDay(); // 0 = Sun, 1 = Mon, ..., 5 = Fri, 6 = Sat
-            let step = 1;
-            let d2Add = 1;
-
-            if (dayOfWeek === 5) {
-                // Friday -> Friday to Monday (+3 days)
-                d2Add = 3;
-                step = 3;
-            } else if (dayOfWeek === 6) {
-                // Saturday -> Saturday to Monday (+2 days)
-                d2Add = 2;
-                step = 2;
-            }
-
-            const d2 = addDays(d1, d2Add);
-            datePairs.push({ d1, d2 });
-            curr = addDays(curr, step);
-        }
-
-        if (datePairs.length === 0) {
+        if (periods.length === 0) {
             toast({
                 title: "Info",
-                description: "Tidak ada data untuk rentang tanggal yang dipilih.",
+                description: "Rentang tanggal tidak valid. Pastikan tanggal mulai tidak melebihi tanggal akhir.",
             });
             return;
         }
 
         setIsExporting(true);
-        
-        let html2pdf: any;
+        setExportProgress("Menyiapkan engine PDF & ZIP...");
+
+        let html2pdfLib: any;
         let JSZip: any;
         try {
-            html2pdf = await loadHtml2Pdf();
-            JSZip = await loadJSZip();
+            html2pdfLib = await loadHtml2Pdf();
+            JSZip = await loadJsZip();
         } catch (err) {
             toast({
                 title: "Error",
@@ -1366,275 +1568,152 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
                 variant: "destructive"
             });
             setIsExporting(false);
+            setExportProgress("");
             return;
         }
 
+        const periodLabels = periods.map(
+            p => `${format(p.start, "d")}-${format(p.end, "d")} ${format(p.end, "MMM", { locale: id }).toUpperCase()}`
+        ).join(", ");
+
         toast({
-            title: "Export Massal Dimulai",
-            description: `Mengekspor ${datePairs.length} laporan harian ke dalam 1 file ZIP. Harap tunggu sebentar...`,
+            title: "Export Rekap Harian Massal Dimulai",
+            description: `Memproses ${periods.length} periode (${periodLabels}) menjadi PDF...`,
         });
 
-        let logoDataUrl = '';
         try {
-            const logoToUse = config?.logoUrl || '/icon-192.png';
-            const logoRes = await fetch(logoToUse);
-            const logoBlob = await logoRes.blob();
-            logoDataUrl = await new Promise<string>((resolve) => {
-                const reader = new FileReader();
-                reader.onload = () => resolve(reader.result as string);
-                reader.readAsDataURL(logoBlob);
+            const firstStart = periods[0].start;
+            const lastEnd = periods[periods.length - 1].end;
+
+            let sourceAttendance: Attendance[] = allAttendance || [];
+            if (isBefore(firstStart, startOfDay(startDate)) || isAfter(endOfDay(lastEnd), endOfDay(endDate))) {
+                setExportProgress("Mengambil data absensi lengkap untuk seluruh sub-periode...");
+                try {
+                    const res = await fetch(
+                        `/api/attendance?startDate=${format(firstStart, 'yyyy-MM-dd')}&endDate=${format(lastEnd, 'yyyy-MM-dd')}`
+                    );
+                    if (res.ok) {
+                        sourceAttendance = await res.json();
+                    }
+                } catch (_) {
+                    // Gunakan allAttendance yang sudah ada jika gagal fetch tambahan
+                }
+            }
+
+            const allRangeRecords = sourceAttendance.filter(att => {
+                if (!getUserName(att.userId)) return false;
+                const name = (getUserName(att.userId) || '').toLowerCase();
+                if (!name.includes(searchName.toLowerCase())) return false;
+                const d = startOfDay(new Date(att.date));
+                const s = startOfDay(firstStart);
+                const e = endOfDay(lastEnd);
+                return (isAfter(d, s) || isEqual(d, s)) && (isBefore(d, e) || isEqual(d, e));
             });
-        } catch (_) { }
 
-        const zip = new JSZip();
+            setExportProgress("Memuat logo & mengompresi foto absensi...");
+            const logoDataUrl = await fetchLogoBase64();
+            const imageCache = await preloadAttendanceImages(allRangeRecords, (loaded, total) => {
+                setExportProgress(`Memuat gambar absensi (${loaded}/${total})...`);
+            });
 
-        for (let i = 0; i < datePairs.length; i++) {
-            const { d1, d2 } = datePairs[i];
-            
-            const dayStr1 = format(d1, "d");
-            const monthStr1 = format(d1, "MMMM", { locale: id }).toUpperCase();
-            const dayStr2 = format(d2, "d");
-            const monthStr2 = format(d2, "MMMM", { locale: id }).toUpperCase();
-            const yearStr = format(d1, "yyyy");
-            
-            const docTitle = `REKAP ABSENSI NON MANAJEMEN ${dayStr1} ${monthStr1} - ${dayStr2} ${monthStr2} ${yearStr} ${singkatanPt}`;
-            const pdfFileName = `${docTitle}.pdf`;
+            const zip = new JSZip();
 
-            const dayRecords = allAttendance?.filter(row => {
-                if (!getUserName(row.userId)) return false;
-                const rowDate = new Date(row.date);
-                return format(rowDate, "yyyy-MM-dd") === format(d1, "yyyy-MM-dd");
-            }) || [];
+            for (let i = 0; i < periods.length; i++) {
+                const { start: pStart, end: pEnd } = periods[i];
+                const periodStr = `${format(pStart, "dd MMM yyyy", { locale: id })} - ${format(pEnd, "dd MMM yyyy", { locale: id })}`.toUpperCase();
+                const shortRange = `${format(pStart, "d")} - ${format(pEnd, "d")}`;
+                const docTitle = `LAPORAN REKAP ABSENSI TENAGA KERJA ${singkatanPt} - ${periodStr}`;
+                const pdfFileName = `${docTitle}.pdf`;
+                const htmlFileName = `${docTitle}.html`;
 
-            const filteredDayRecords = dayRecords
-                .filter(row => {
-                    const name = (getUserName(row.userId) || '').toLowerCase();
-                    return name.includes(searchName.toLowerCase());
-                })
-                .sort((a, b) => {
-                    const nameA = (getUserName(a.userId) || '').toLowerCase();
-                    const nameB = (getUserName(b.userId) || '').toLowerCase();
-                    if (nameA < nameB) return -1;
-                    if (nameA > nameB) return 1;
-                    return 0;
+                setExportProgress(`Menyusun PDF (${i + 1}/${periods.length}): ${shortRange} (${periodStr})...`);
+
+                const periodRecords = allRangeRecords
+                    .filter(row => {
+                        const d = startOfDay(new Date(row.date));
+                        const s = startOfDay(pStart);
+                        const e = endOfDay(pEnd);
+                        return (isAfter(d, s) || isEqual(d, s)) && (isBefore(d, e) || isEqual(d, e));
+                    })
+                    .sort((a, b) => {
+                        const nameA = (getUserName(a.userId) || '').toLowerCase();
+                        const nameB = (getUserName(b.userId) || '').toLowerCase();
+                        if (nameA < nameB) return -1;
+                        if (nameA > nameB) return 1;
+                        return new Date(a.date).getTime() - new Date(b.date).getTime();
+                    });
+
+                const pdfHtml = buildRecapReportHtml({
+                    docTitle,
+                    periodStr,
+                    namaPt,
+                    singkatanPt,
+                    alamatPt,
+                    logoDataUrl,
+                    usersList: users || [],
+                    processedData: periodRecords,
+                    startDate: pStart,
+                    endDate: pEnd,
+                    imageCache,
+                    isPdf: true,
+                    pageSplitMode
                 });
 
-            const localDailyTotals = new Map<string, { mins: number; complete: boolean }>();
-            filteredDayRecords.forEach(row => {
-                const dateKey = format(new Date(row.date), "yyyy-MM-dd");
-                const key = `${dateKey}-${row.userId}`;
-                if (!localDailyTotals.has(key)) {
-                    const userDayRecords = filteredDayRecords.filter(r => r.userId === row.userId);
-                    const { netWorkMins, hasAllCheckOuts } = calculateDailyTotal(userDayRecords);
-                    localDailyTotals.set(key, { mins: netWorkMins, complete: hasAllCheckOuts });
+                const printableHtml = buildRecapReportHtml({
+                    docTitle,
+                    periodStr,
+                    namaPt,
+                    singkatanPt,
+                    alamatPt,
+                    logoDataUrl,
+                    usersList: users || [],
+                    processedData: periodRecords,
+                    startDate: pStart,
+                    endDate: pEnd,
+                    imageCache,
+                    isPdf: false,
+                    pageSplitMode
+                });
+
+                try {
+                    const pdfBlob = await renderRecapHtmlToPdfBlob({
+                        html: pdfHtml,
+                        pdfFileName,
+                        html2pdfLib,
+                        splitMode: pageSplitMode
+                    });
+
+                    // Simpan ke dalam bundel ZIP beserta versi HTML siap cetak
+                    zip.file(pdfFileName, pdfBlob);
+                    zip.file(`HTML_SIAP_CETAK/${htmlFileName}`, printableHtml);
+                } catch (e) {
+                    console.error("Gagal membuat PDF untuk periode", periodStr, e);
                 }
-            });
 
-            let totalHadirCount = 0;
-            let totalJamKerjaMins = 0;
-            let totalIstirahatMins = 0;
-
-            filteredDayRecords.forEach(row => {
-                const breakMins = calculateDuration(row.breakStart, row.breakEnd);
-                totalIstirahatMins += breakMins;
-                if (row.status === 'present' || row.status === 'late') {
-                    totalHadirCount++;
-                }
-            });
-
-            localDailyTotals.forEach(val => {
-                totalJamKerjaMins += val.mins;
-            });
-
-            const html = `<!DOCTYPE html>
-<html>
-<head>
-  <title>${docTitle}</title>
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; text-transform: uppercase !important; }
-    body, .pdf-export-container { font-family: Arial, Helvetica, sans-serif; font-size: 11px; color: #1e293b; background: white; padding: 28px 36px; box-sizing: border-box; }
-    .letterhead { display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px; min-height: 50px; }
-    .logo-img { height: 50px; max-width: 140px; object-fit: contain; flex-shrink: 0; }
-    .company-block { text-align: right; flex-grow: 1; margin-left: 20px; }
-    .company-block h1 { font-size: 22px; font-weight: bold; text-transform: uppercase; margin-bottom: 4px; letter-spacing: 0.5px; }
-    .company-block .alamat { font-size: 12px; font-weight: normal; color: #334155; line-height: 1.4; margin-top: 4px; }
-    .hr-thick { border: none; border-top: 2px solid #cbd5e1; margin: 6px 0 2px; }
-    .hr-thin  { border: none; border-top: 1px solid #e2e8f0; margin-bottom: 18px; }
-    .report-meta { text-align: center; margin-bottom: 15px; }
-    .report-meta h2 { font-size: 16px; font-weight: 900; text-transform: uppercase; letter-spacing: 1.5px; color: #1e293b; }
-    .report-meta .sub { font-size: 10.5px; margin-top: 4px; color: #475569; }
-    .summary-card { margin-top: 12px; margin-bottom: 18px; padding: 10px 14px; background: #f8fafc; border: 1.5px solid #cbd5e1; border-radius: 6px; display: flex; justify-content: space-around; font-size: 10.5px; text-transform: uppercase; }
-    table { width: 100%; border-collapse: collapse; font-size: 10.5px; }
-    thead tr { background-color: #f8fafc; }
-    th { color: #374151; font-weight: 700; text-align: left; padding: 8px 8px; font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.4px; border-bottom: 2px solid #1e293b; border-right: 1px solid #e2e8f0; white-space: nowrap; }
-    th.c { text-align: center; }
-    td { padding: 7px 8px; border-bottom: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0; vertical-align: middle; white-space: nowrap; }
-    tbody tr:nth-child(even) { background-color: #f8fafc; }
-    .col-no   { text-align: center; color: #94a3b8; font-size: 10px; }
-    .col-date { color: #374151; font-weight: 600; }
-    .col-name { color: #1d4ed8; font-weight: 600; }
-    .col-time { font-family: ui-monospace, Consolas, monospace; font-size: 11px; text-align: center; }
-    .t-in   { color: #15803d; font-weight: 700; }
-    .t-brk  { color: #b45309; font-weight: 700; }
-    .t-out  { color: #b91c1c; font-weight: 700; }
-    .t-dash { color: #94a3b8; }
-    .col-work { font-size: 11px; font-weight: 700; color: #1e293b; }
-    .col-brk  { text-align: center; font-size: 11px; font-weight: 700; color: #ea580c; }
-    .col-stat { text-align: center; font-weight: 700; font-size: 11px; }
-    .st-hadir { color: #16a34a; }
-    .st-telat { color: #ea580c; }
-    .st-sakit { color: #2563eb; }
-    .st-izin  { color: #7c3aed; }
-    .st-cuti  { color: #0d9488; }
-    .st-alpha { color: #dc2626; }
-    .col-note { font-size: 10.5px; color: #475569; white-space: normal; max-width: 200px; }
-    .note-late { color: #dc2626; font-size: 10px; }
-    .note-warn { color: #ca8a04; font-weight: 600; }
-    .signature-section { margin-top: 48px; display: flex; justify-content: center; gap: 100px; padding: 0; }
-    .sig-box { text-align: center; width: 160px; }
-    .sig-label { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px; color: #374151; margin-bottom: 64px; }
-    .sig-name { font-size: 11px; font-weight: 800; border-top: 1.5px solid #374151; padding-top: 6px; text-transform: uppercase; letter-spacing: 0.5px; color: #1e293b; }
-    .footer { margin-top: 18px; font-size: 8.5px; color: #94a3b8; border-top: 1px dashed #cbd5e1; padding-top: 8px; }
-    @media print {
-      body, .pdf-export-container { padding: 12px 16px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-      tr { page-break-inside: avoid; }
-    }
-  </style>
-</head>
-<body>
-  <div class="letterhead">
-    ${logoDataUrl ? `<img src="${logoDataUrl}" class="logo-img" alt="Logo" />` : ''}
-    <div class="company-block">
-      <h1>${namaPt}</h1>
-      ${alamatPt ? `<p class="alamat">${alamatPt}</p>` : `<p class="alamat">Sistem Manajemen Kehadiran Digital</p>`}
-    </div>
-  </div>
-  <hr class="hr-thick" />
-  <hr class="hr-thin" />
-  <div class="report-meta">
-    <h2>Laporan Rekapitulasi Absensi Harian</h2>
-    <p class="sub">Periode: ${format(d1, "EEEE, d MMMM yyyy", { locale: id })}</p>
-  </div>
-  <div class="summary-card">
-    <div><b>TOTAL HADIR:</b> <span style="color:#16a34a; font-weight:800;">${totalHadirCount} ORANG</span></div>
-    <div><b>REKAPITULASI TOTAL JAM KERJA:</b> <span style="color:#1d4ed8; font-weight:800;">${formatDuration(totalJamKerjaMins)}</span></div>
-    <div><b>TOTAL WAKTU ISTIRAHAT:</b> <span style="color:#ea580c; font-weight:800;">${formatDuration(totalIstirahatMins)}</span></div>
-  </div>
-  <table>
-    <thead>
-      <tr>
-        <th class="c" style="width:28px;">No</th>
-        <th style="width:130px;">Hari & Tanggal</th>
-        <th style="width:130px;">Nama Tenaga Kerja</th>
-        <th class="c" style="width:62px;">Masuk</th>
-        <th class="c" style="width:62px;">Istirahat</th>
-        <th class="c" style="width:62px;">Selesai</th>
-        <th class="c" style="width:62px;">Pulang</th>
-        <th style="width:80px;">Jam Kerja</th>
-        <th class="c" style="width:80px;">Total Istirahat</th>
-        <th class="c" style="width:62px;">Status</th>
-        <th>Keterangan</th>
-      </tr>
-    </thead>
-    <tbody>
-      ${filteredDayRecords.length === 0 ? `
-        <tr>
-          <td colSpan="11" style="text-align:center;padding:20px;color:#94a3b8;">Tidak ada data absensi untuk hari ini.</td>
-        </tr>
-      ` : filteredDayRecords.map((row, index) => {
-            const dateStr = format(new Date(row.date), "yyyy-MM-dd");
-            const breakMins = calculateDuration(row.breakStart, row.breakEnd);
-            const key = `${dateStr}-${row.userId}`;
-            const dailyEntry = localDailyTotals.get(key);
-            const dailyTotalMins = dailyEntry?.mins ?? 0;
-            const prevRow = index > 0 ? filteredDayRecords[index - 1] : null;
-            const isSameDayAndUser = !!(prevRow && format(new Date(prevRow.date), "yyyy-MM-dd") === dateStr && prevRow.userId === row.userId);
-            const statusLabel = row.status === 'present' ? 'Hadir' : row.status === 'late' ? 'Telat' : row.status === 'sick' ? 'Sakit' : row.status === 'permission' ? 'Izin' : row.status === 'cuti' ? 'Cuti' : row.status === 'absent' ? 'Alpha' : (row.status || '-');
-            const statusClass = row.status === 'present' ? 'st-hadir' : row.status === 'late' ? 'st-telat' : row.status === 'sick' ? 'st-sakit' : row.status === 'permission' ? 'st-izin' : row.status === 'cuti' ? 'st-cuti' : row.status === 'absent' ? 'st-alpha' : '';
-            const inTime = row.checkIn ? format(new Date(row.checkIn), 'HH:mm') : '-';
-            const brkTime = row.breakStart ? format(new Date(row.breakStart), 'HH:mm') : '-';
-            const brkEnd = row.breakEnd ? format(new Date(row.breakEnd), 'HH:mm') : '-';
-            const outTime = row.checkOut ? format(new Date(row.checkOut), 'HH:mm') : 'Tdk Absen';
-            const isNoBreak = (inTime !== '-' && outTime !== 'Tdk Absen' && brkTime === '-' && brkEnd === '-');
-            const jamKerja = !isSameDayAndUser ? (dailyTotalMins > 0 ? formatDuration(dailyTotalMins) : '-') : '';
-            let keterangan = row.notes ? row.notes : '-';
-            if (!row.checkOut && row.checkIn) keterangan = row.notes ? row.notes + ' <br><span class="note-warn">⚠ Belum Absen Pulang</span>' : '<span class="note-warn">⚠ Belum Absen Pulang</span>';
-            else if (isNoBreak) keterangan = row.notes ? row.notes + ' <br><span class="note-warn">(Tanpa Istirahat)</span>' : '<span class="note-warn">Tanpa Istirahat</span>';
-            const lateNote = row.status === 'late' && (row as any).lateReason ? `<br><span class="note-late">[Telat: ${(row as any).lateReason}]</span>` : '';
-            return `<tr>
-          <td class="col-no">${isSameDayAndUser ? '<span style="color:#cbd5e1;">↳</span>' : (index + 1)}</td>
-          <td class="col-date" style="font-size:9.5px;">${isSameDayAndUser ? '' : format(new Date(row.date), 'EEEE, d MMMM yyyy', { locale: id })}</td>
-          <td class="col-name">
-              ${isSameDayAndUser ? '' : `
-                   <div style="line-height:1.2;">
-                       <b style="color:#1d4ed8;font-size:11.5px;">${getUserName(row.userId) || '-'}</b><br/>
-                       ${(row.shift && row.shift.toLowerCase().trim() !== '-' && row.shift.toLowerCase().trim() !== 'management') 
-                           ? `<span style="color:#16a34a;font-size:9px;font-weight:bold;text-transform:uppercase;">${row.shift}</span><br/>` 
-                           : '<span style="color:#94a3b8;font-size:9px;font-style:italic;">Belum Tercatat</span><br/>'}
-                       <span style="color:#64748b;font-size:9px;">NIK: ${users?.find(u => u.id === row.userId)?.nik || users?.find(u => u.id === row.userId)?.username || '-'}</span>
-                   </div>
-              `}
-          </td>
-          <td class="col-time ${inTime === '-' ? 't-dash' : 't-in'}">${inTime}</td>
-          <td class="col-time ${brkTime === '-' ? 't-dash' : 't-brk'}">${brkTime}</td>
-          <td class="col-time ${brkEnd === '-' ? 't-dash' : 't-brk'}">${brkEnd}</td>
-          <td class="col-time ${outTime === '-' ? 't-dash' : 't-out'}">${outTime}</td>
-          <td class="col-work">${jamKerja}</td>
-          <td class="col-brk">${breakMins > 0 ? formatDuration(breakMins) : '-'}</td>
-          <td class="col-stat"><span class="${statusClass}">${statusLabel}</span></td>
-          <td class="col-note">${keterangan}${lateNote}</td>
-        </tr>`;
-        }).join('')}
-    </tbody>
-  </table>
-  <div class="signature-section">
-    <div class="sig-box"><p class="sig-label">Checked By</p><div class="sig-name">NIKO</div></div>
-    <div class="sig-box"><p class="sig-label">Approved By</p><div class="sig-name">CLAVERINA</div></div>
-  </div>
-  <div class="footer">Dokumen ini dicetak secara otomatis oleh Sistem Absensi ${namaPt.toUpperCase()} &mdash; ${format(new Date(), "d MMMM yyyy, HH:mm", { locale: id })} WIB</div>
-</body>
-</html>`;
-
-            setExportProgress(`Mengekspor ${i + 1} dari ${datePairs.length} laporan harian (${format(d1, "dd MMM yyyy", { locale: id })})...`);
-
-            try {
-                const pdfFileName = `${docTitle}.pdf`;
-                const pdfBlob = await generatePdfBlobFromHtml(html, pdfFileName);
-                zip.file(pdfFileName, pdfBlob);
-            } catch (e) {
-                console.error("Gagal membuat PDF untuk tanggal", d1, e);
+                await new Promise(resolve => setTimeout(resolve, 250));
             }
-        }
 
-        try {
-            const zipBlob = await zip.generateAsync({ type: 'blob' });
-            const zipFileName = `REKAP_ABSENSI_HARIAN_MASSAL_${format(startDate, 'yyyyMMdd')}_SD_${format(endDate, 'yyyyMMdd')}.zip`;
-            const blobUrl = URL.createObjectURL(zipBlob);
-
-            const a = document.createElement('a');
-            a.style.display = 'none';
-            a.href = blobUrl;
-            a.download = zipFileName;
-            document.body.appendChild(a);
-            a.click();
-
-            setTimeout(() => {
-                document.body.removeChild(a);
-                URL.revokeObjectURL(blobUrl);
-            }, 1000);
+            setExportProgress("Mengemas seluruh PDF ke dalam 1 file ZIP...");
+            const zipContent = await zip.generateAsync({ type: "blob" });
+            const startStr = format(firstStart, "yyyyMMdd");
+            const endStr = format(lastEnd, "yyyyMMdd");
+            const zipFileName = `REKAP_ABSENSI_MASSAL_${startStr}_to_${endStr}.zip`;
+            triggerBlobDownload(zipContent, zipFileName);
 
             toast({
-                title: "Ekspor Massal Berhasil",
-                description: `File ZIP ${zipFileName} berhasil diunduh.`,
+                title: "✅ Export Harian Massal Selesai",
+                description: `${periods.length} laporan PDF (${periodLabels}) berhasil dikemas dalam ${zipFileName}.`,
             });
-        } catch (err) {
+        } catch (err: any) {
+            console.error("Gagal melakukan export massal", err);
             toast({
-                title: "Error",
-                description: "Gagal membuat file ZIP.",
-                variant: "destructive",
+                title: "Error Export Massal",
+                description: err?.message || "Terjadi kesalahan saat mengekspor laporan.",
+                variant: "destructive"
             });
         } finally {
             setIsExporting(false);
+            setExportProgress("");
         }
     };
 
@@ -1712,10 +1791,19 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
                                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                                 <Input placeholder="Cari nama..." className="pl-9 h-10" value={searchName} onChange={(e) => setSearchName(e.target.value)} />
                             </div>
-                            <Button variant="outline" className="gap-2 bg-primary/5 text-primary border-primary/20 hover:bg-primary/10 h-10 font-bold" onClick={() => handleOpenManualModal()}>
+                            <Select value={pageSplitMode} onValueChange={(val: any) => setPageSplitMode(val)}>
+                                <SelectTrigger className="w-[170px] bg-white h-10 font-medium">
+                                    <SelectValue placeholder="Tata Letak Halaman" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="split">Pisah Per Karyawan</SelectItem>
+                                    <SelectItem value="combine">Gabung Halaman</SelectItem>
+                                </SelectContent>
+                            </Select>
+                            <Button variant="outline" className="gap-2 bg-green-50 text-green-700 border-green-200 hover:bg-green-100 h-10 font-bold" onClick={() => handleOpenManualModal()}>
                                 <Plus className="h-4 w-4" /> Input Manual
                             </Button>
-                            {reportType === "custom" && user?.role === "superadmin" && (
+                            {reportType === "custom" && (
                                 <Button 
                                     variant="outline" 
                                     className="gap-2 bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100 h-10 font-bold shadow-sm" 
@@ -1728,8 +1816,21 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
                             <Button variant="outline" className="gap-2 h-10 font-bold shadow-sm" onClick={handleExport}>
                                 <FileDown className="h-4 w-4" /> Export HTML
                             </Button>
-                            <Button variant="outline" className="gap-2 h-10 font-bold shadow-sm bg-red-50 text-red-700 border-red-200 hover:bg-red-100" onClick={handleExportPdf} disabled={isExporting}>
-                                <FileDown className="h-4 w-4" /> Export PDF
+                            <Button 
+                                variant="outline" 
+                                className="gap-2 bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100 h-10 font-bold shadow-sm" 
+                                onClick={handleExportHtmlRekap}
+                                disabled={isExporting}
+                            >
+                                <FileDown className="h-4 w-4" /> {isExporting ? "Mengekspor..." : "Export HTML Rekap"}
+                            </Button>
+                            <Button 
+                                variant="outline" 
+                                className="gap-2 bg-red-50 text-red-700 border-red-200 hover:bg-red-100 h-10 font-bold shadow-sm" 
+                                onClick={handleExportPdf} 
+                                disabled={isExporting}
+                            >
+                                <FileDown className="h-4 w-4" /> {isExporting ? "Mengekspor..." : "Export PDF Rekap"}
                             </Button>
                         </div>
                     </div>
