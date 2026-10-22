@@ -2,11 +2,11 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { User, Attendance, Shift } from "@shared/schema";
 import { format, subMonths, addMonths, isSameMonth, setDate, isAfter, isBefore, isEqual, startOfWeek, endOfWeek, startOfDay, endOfDay, subDays, addDays } from "date-fns";
 import { id } from "date-fns/locale";
-import React, { useState, useEffect, Fragment } from "react";
+import React, { useState, useEffect, Fragment, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ChevronLeft, ChevronRight, FileDown, ArrowLeft, Search, ArrowUpDown, MessageSquare, Plus, Edit2, Trash2, Camera, Image as ImageIcon } from "lucide-react";
+import { ChevronLeft, ChevronRight, FileDown, ArrowLeft, Search, ArrowUpDown, MessageSquare, Plus, Edit2, Trash2, Camera, Image as ImageIcon, FileSpreadsheet, Calendar, Users, Clock, CheckCircle2 } from "lucide-react";
 import { useLocation } from "wouter";
 import { Input } from "@/components/ui/input";
 import { differenceInMinutes } from "date-fns";
@@ -43,6 +43,20 @@ const loadJsZip = () => {
         script.src = "https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js";
         script.onload = () => resolve((window as any).JSZip);
         script.onerror = () => reject(new Error("Gagal memuat script JSZip"));
+        document.head.appendChild(script);
+    });
+};
+
+const loadXlsx = () => {
+    return new Promise<any>((resolve, reject) => {
+        if ((window as any).XLSX) {
+            resolve((window as any).XLSX);
+            return;
+        }
+        const script = document.createElement('script');
+        script.src = "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js";
+        script.onload = () => resolve((window as any).XLSX);
+        script.onerror = () => reject(new Error("Gagal memuat script XLSX"));
         document.head.appendChild(script);
     });
 };
@@ -206,6 +220,16 @@ const safeFormatDate = (dateVal: any, formatStr: string, options?: any) => {
     }
 };
 
+const escapeHTML = (value: any): string => {
+    if (value === null || value === undefined) return "";
+    return String(value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+};
+
 export default function RecapPage() {
     const [, setLocation] = useLocation();
     const { toast } = useToast();
@@ -243,6 +267,11 @@ export default function RecapPage() {
     const [customStartDate, setCustomStartDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
     const [customEndDate, setCustomEndDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
     const [pageSplitMode, setPageSplitMode] = useState<"split" | "combine">("split");
+    const [viewMode, setViewMode] = useState<"detailed" | "summary">("detailed");
+    const [activeTab, setActiveTab] = useState<"rekap" | "ringkasan">("rekap");
+    const [ringkasanStartDate, setRingkasanStartDate] = useState<string>(format(new Date(new Date().getFullYear(), new Date().getMonth(), 1), 'yyyy-MM-dd'));
+    const [ringkasanEndDate, setRingkasanEndDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
+    const [isExportingExcel, setIsExportingExcel] = useState(false);
 
     let startDate: Date;
     let endDate: Date;
@@ -263,6 +292,13 @@ export default function RecapPage() {
 
     const { data: users } = useQuery<User[]>({
         queryKey: ["/api/admin/users"],
+    });
+
+    const [searchRingkasan, setSearchRingkasan] = useState("");
+
+    const { data: ringkasanAttendanceData, isLoading: isLoadingRingkasan } = useQuery<Attendance[]>({
+        queryKey: [`/api/attendance?startDate=${ringkasanStartDate}&endDate=${ringkasanEndDate}`],
+        enabled: activeTab === "ringkasan" || isExportingExcel,
     });
 
     const { data: allAttendance } = useQuery<Attendance[]>({
@@ -436,6 +472,210 @@ export default function RecapPage() {
         }
     });
 
+
+    // ========== RINGKASAN BULANAN: Pisah hari kerja reguler (Senin-Jumat) vs lembur ==========
+    const ringkasanData = useMemo(() => {
+        if (!users) return [];
+
+        const rs = new Date(ringkasanStartDate);
+        rs.setHours(0, 0, 0, 0);
+        const re = new Date(ringkasanEndDate);
+        re.setHours(23, 59, 59, 999);
+
+        const isInRange = (dateVal: any) => {
+            if (!dateVal) return false;
+            const d = new Date(dateVal);
+            return d >= rs && d <= re;
+        };
+
+        // Attendance dalam range (prioritaskan ringkasanAttendanceData jika aktif)
+        const currentAttSource = ringkasanAttendanceData || allAttendance || [];
+        const rangeAtt = currentAttSource.filter(att => isInRange(att.date));
+
+        // Overtimes dalam range
+        const rangeOt = (allOvertimes || []).filter(ot => {
+            if (!ot || ot.employeeApproval === 'rejected' || ot.status === 'cancelled') return false;
+            const dtStr = ot.date ? ot.date : (ot.startTime ? ot.startTime : null);
+            if (!dtStr) return false;
+            return isInRange(dtStr);
+        });
+
+        // Seluruh karyawan aktif (role employee atau non-admin)
+        const activeEmployees = users
+            .filter(u => u.role === 'employee' || !u.isAdmin)
+            .sort((a, b) => (a.fullName || '').localeCompare(b.fullName || '', 'id'));
+
+        return activeEmployees.map(user => {
+            const uid = user.id;
+
+            // Attendance records dalam range untuk user ini
+            const userAtt = rangeAtt.filter(a => a.userId === uid);
+
+            // Hari kerja reguler: hanya absen di Senin-Jumat (getDay 1 = Senin, ..., 5 = Jumat)
+            const regularAtt = userAtt.filter(a => {
+                const d = new Date(a.date);
+                const day = d.getDay();
+                return day >= 1 && day <= 5;
+            });
+
+            // Hitung total hadir hari kerja reguler (Senin-Jumat)
+            // Menggunakan Set tanggal unik (yyyy-MM-dd) agar 1 hari kerja hanya dihitung 1x meski ada multi sesi
+            const presentDates = new Set<string>();
+            regularAtt.forEach(a => {
+                const isPresent = (a.checkIn || a.status === 'present' || a.status === 'late') &&
+                    !['sick', 'permission', 'cuti', 'off', 'absent'].includes(a.status || '');
+                if (isPresent) {
+                    const dStr = safeFormatDate(a.date, 'yyyy-MM-dd');
+                    if (dStr) presentDates.add(dStr);
+                }
+            });
+            const totalHadirHariKerja = presentDates.size;
+
+            // Hitung total jam kerja reguler
+            let totalJamKerjaRegMins = 0;
+            const processedRegDates = new Set<string>();
+            regularAtt.forEach(a => {
+                const dStr = safeFormatDate(a.date, 'yyyy-MM-dd');
+                if (dStr && !processedRegDates.has(dStr)) {
+                    processedRegDates.add(dStr);
+                    const dayRecs = regularAtt.filter(r => safeFormatDate(r.date, 'yyyy-MM-dd') === dStr);
+                    const { netWorkMins } = calculateDailyTotal(dayRecs);
+                    if (netWorkMins > 0) totalJamKerjaRegMins += netWorkMins;
+                }
+            });
+
+            // Overtime assignments untuk user ini
+            const userOt = rangeOt.filter(o => {
+                const targetUid = o.userId || (o.attendance?.userId);
+                return Number(targetUid) === Number(uid);
+            });
+
+            // 1. Akumulasi jam dari seluruh penugasan lembur (overtimes)
+            let totalLemburMins = 0;
+            const otDatesWithDuration = new Map<string, number>();
+
+            userOt.forEach(ot => {
+                if (ot.startTime && ot.endTime) {
+                    const mins = Math.max(0, differenceInMinutes(new Date(ot.endTime), new Date(ot.startTime)));
+                    if (mins > 0) {
+                        totalLemburMins += mins;
+                        const otDateStr = ot.date ? safeFormatDate(ot.date, 'yyyy-MM-dd') : safeFormatDate(ot.startTime, 'yyyy-MM-dd');
+                        if (otDateStr) {
+                            otDatesWithDuration.set(otDateStr, (otDatesWithDuration.get(otDateStr) || 0) + mins);
+                        }
+                    }
+                }
+            });
+
+            // 2. Akumulasi jam dari kehadiran di hari Sabtu & Minggu (Weekend)
+            // Semua kehadiran di akhir pekan otomatis dihitung lembur!
+            const weekendAtt = userAtt.filter(a => {
+                const d = new Date(a.date);
+                const day = d.getDay();
+                return day === 0 || day === 6; // 0 = Minggu, 6 = Sabtu
+            });
+
+            const processedWeekendDates = new Set<string>();
+            weekendAtt.forEach(a => {
+                const dStr = safeFormatDate(a.date, 'yyyy-MM-dd');
+                if (dStr && !processedWeekendDates.has(dStr)) {
+                    processedWeekendDates.add(dStr);
+                    const dayRecs = weekendAtt.filter(r => safeFormatDate(r.date, 'yyyy-MM-dd') === dStr);
+                    const { netWorkMins } = calculateDailyTotal(dayRecs);
+
+                    // Jika hari weekend ini BELUM tercatat durasi lembur di table overtimes, tambahkan durasi absensi ini
+                    const existingOtMins = otDatesWithDuration.get(dStr) || 0;
+                    if (existingOtMins === 0 && netWorkMins > 0) {
+                        totalLemburMins += netWorkMins;
+                    } else if (netWorkMins > existingOtMins) {
+                        // Jika jam absensi nyata lebih besar dari yang diinput manual, sesuaikan selisihnya
+                        totalLemburMins += (netWorkMins - existingOtMins);
+                    }
+                }
+            });
+
+            // Format total jam lembur (desimal seperti 23.5 atau integer seperti 16 atau 0)
+            const totalLemburHoursRaw = Math.round((totalLemburMins / 60) * 10) / 10;
+            const totalLemburFormatted = totalLemburHoursRaw % 1 === 0 ? totalLemburHoursRaw : Number(totalLemburHoursRaw.toFixed(1));
+
+            const totalJamKerjaH = Math.floor(totalJamKerjaRegMins / 60);
+            const totalJamKerjaM = totalJamKerjaRegMins % 60;
+            const totalJamKerjaStr = totalJamKerjaRegMins > 0
+                ? (totalJamKerjaM > 0 ? `${totalJamKerjaH}j ${totalJamKerjaM}m` : `${totalJamKerjaH}j`)
+                : '-';
+
+            const dept = ((user as any).position || (user as any).department || (user as any).dept || '-').toUpperCase();
+
+            return {
+                userId: uid,
+                nik: user.nik || user.username || '-',
+                nama: (user.fullName || '').toUpperCase(),
+                dept,
+                totalHadirHariKerja,
+                totalLemburMins,
+                totalLemburHours: totalLemburFormatted,
+                totalJamKerjaRegMins,
+                totalJamKerjaStr,
+            };
+        });
+    }, [users, allAttendance, ringkasanAttendanceData, allOvertimes, ringkasanStartDate, ringkasanEndDate]);
+
+    const handleExportExcel = async () => {
+        if (!ringkasanData || ringkasanData.length === 0) {
+            toast({ title: "Tidak ada data", description: "Belum ada data untuk rentang tanggal ini.", variant: "destructive" });
+            return;
+        }
+        setIsExportingExcel(true);
+        try {
+            const XLSX = await loadXlsx();
+
+            // Header columns exact casing to client sample image:
+            // NO | NAMA | DEPT | Total Hadir Hari Kerja | Total Lembur (Jam)
+            const headerRow = ['NO', 'NAMA', 'DEPT', 'Total Hadir Hari Kerja', 'Total Lembur (Jam)'];
+
+            const dataRows = ringkasanData.map((row: any, i: number) => [
+                i + 1,
+                row.nama,
+                row.dept,
+                row.totalHadirHariKerja,
+                row.totalLemburHours,
+            ]);
+
+            const allRows = [headerRow, ...dataRows];
+            const ws = XLSX.utils.aoa_to_sheet(allRows);
+
+            // Set column widths matching the layout
+            ws['!cols'] = [
+                { wch: 6 },   // NO
+                { wch: 32 },  // NAMA
+                { wch: 28 },  // DEPT
+                { wch: 24 },  // Total Hadir Hari Kerja
+                { wch: 22 },  // Total Lembur (Jam)
+            ];
+
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'Rekap Absensi');
+
+            const startStr = ringkasanStartDate.replace(/-/g, '');
+            const endStr = ringkasanEndDate.replace(/-/g, '');
+            const fileName = `REKAP_ABSENSI_${startStr}_to_${endStr}.xlsx`;
+
+            XLSX.writeFile(wb, fileName);
+            toast({
+                title: "✅ Export Excel Berhasil",
+                description: `File ${fileName} berhasil dibuat dan diunduh.`
+            });
+        } catch (err: any) {
+            toast({
+                title: "Gagal Export Excel",
+                description: err?.message || "Terjadi kesalahan saat memproses file Excel.",
+                variant: "destructive"
+            });
+        } finally {
+            setIsExportingExcel(false);
+        }
+    };
+    // ========== END RINGKASAN ==========
     const manualMutation = useMutation({
         mutationFn: async (data: any) => {
             const isEdit = !!editingAttendance?.id;
@@ -1777,8 +2017,36 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
                 </div>
             </div>
 
-            <div className="space-y-6">
-                <div className="bg-white rounded-xl overflow-hidden mb-6">
+            {/* TAB SELECTOR */}
+            <div className="flex items-center gap-2 border-b border-gray-200 bg-white px-3 pt-2 rounded-t-xl shadow-sm">
+                <button
+                    onClick={() => setActiveTab('rekap')}
+                    className={`flex items-center gap-2 py-3 px-5 font-bold text-sm border-b-2 transition-all ${
+                        activeTab === 'rekap'
+                            ? 'border-blue-600 text-blue-600 bg-blue-50/60 rounded-t-lg'
+                            : 'border-transparent text-gray-500 hover:text-gray-800 hover:bg-gray-50'
+                    }`}
+                >
+                    <Calendar className="h-4 w-4" />
+                    Laporan Detail Kehadiran & Sesi
+                </button>
+                <button
+                    onClick={() => setActiveTab('ringkasan')}
+                    className={`flex items-center gap-2 py-3 px-5 font-bold text-sm border-b-2 transition-all ${
+                        activeTab === 'ringkasan'
+                            ? 'border-emerald-600 text-emerald-700 bg-emerald-50/70 rounded-t-lg'
+                            : 'border-transparent text-gray-500 hover:text-gray-800 hover:bg-gray-50'
+                    }`}
+                >
+                    <FileSpreadsheet className="h-4 w-4 text-emerald-600" />
+                    Rekap Ringkasan Bulanan (Excel Format)
+                </button>
+            </div>
+
+            {/* TAB 1: DETAIL KEHADIRAN */}
+            {activeTab === 'rekap' && (
+                <div className="space-y-6">
+                    <div className="bg-white rounded-xl overflow-hidden mb-6">
                     <div className="flex flex-col md:flex-row items-center justify-between gap-4 border-b border-gray-100 bg-white py-4 px-6">
                         <div className="space-y-1">
                             <div className="text-lg font-bold">Laporan Kehadiran</div>
@@ -1864,7 +2132,16 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
                                             <Fragment key={row.id}>
                                                 <tr className="hover:bg-gray-50/30 transition-colors group">
                                                 <td className="px-6 py-4 font-bold text-gray-500 text-[10px]">
-                                                    {isSameDayAndUser ? <span className="ml-4 text-gray-300">↳</span> : safeFormatDate(row.date, "EEEE, d MMMM yyyy", { locale: id })}
+                                                    {isSameDayAndUser ? <span className="ml-4 text-gray-300">↳</span> : (
+                                                        <div className="flex flex-col gap-1">
+                                                            <span>{safeFormatDate(row.date, "EEEE, d MMMM yyyy", { locale: id })}</span>
+                                                            {(new Date(row.date).getDay() === 0 || new Date(row.date).getDay() === 6) && (
+                                                                <span className="inline-block bg-orange-100 text-orange-800 text-[9px] font-extrabold px-1.5 py-0.5 rounded border border-orange-200 w-fit">
+                                                                    ⚡ WEEKEND / LEMBUR
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    )}
                                                 </td>
                                                 <td className="px-6 py-4 font-bold text-gray-900 capitalize">
                                                     {isSameDayAndUser ? "" : (
@@ -1911,7 +2188,14 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
                                                 <td className="px-6 py-4">
                                                     {!isSameDayAndUser && (
                                                         <div className="font-black text-gray-800">
-                                                            {(dailyTotals.get(key)?.mins ?? 0) > 0 ? formatDuration(dailyTotals.get(key)?.mins ?? 0) : "-"}
+                                                            {(dailyTotals.get(key)?.mins ?? 0) > 0 ? (
+                                                                <>
+                                                                    <span>{formatDuration(dailyTotals.get(key)?.mins ?? 0)}</span>
+                                                                    {(new Date(row.date).getDay() === 0 || new Date(row.date).getDay() === 6) && (
+                                                                        <span className="text-[9px] block text-orange-600 font-semibold">(Dihitung Lembur)</span>
+                                                                    )}
+                                                                </>
+                                                            ) : "-"}
                                                         </div>
                                                     )}
                                                     <div className="text-[10px] text-gray-400 mt-0.5">
@@ -2065,6 +2349,247 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
                     </div>
                 </div>
             </div>
+            )}
+
+            {/* TAB 2: REKAP RINGKASAN BULANAN (EXCEL FORMAT) */}
+            {activeTab === 'ringkasan' && (
+                <div className="space-y-6">
+                    {/* Control Card Ringkasan */}
+                    <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 space-y-4">
+                        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                            <div>
+                                <h2 className="text-lg font-black text-gray-900 tracking-tight flex items-center gap-2">
+                                    <FileSpreadsheet className="h-5 w-5 text-emerald-600" />
+                                    Rekap Ringkasan Bulanan (Senin–Jumat vs Lembur)
+                                </h2>
+                                <p className="text-xs text-gray-500 mt-1">
+                                    Format ringkasan bulanan sesuai rekap penggajian. Kehadiran Senin–Jumat dihitung sebagai hari kerja, sedangkan kehadiran Sabtu &amp; Minggu otomatis masuk hitungan jam lembur.
+                                </p>
+                            </div>
+
+                            <div className="flex flex-wrap items-center gap-3">
+                                {/* Date Range Picker */}
+                                <div className="flex items-center gap-2 bg-gray-50 p-1.5 rounded-lg border border-gray-200">
+                                    <span className="text-xs font-bold text-gray-600 px-1">Periode:</span>
+                                    <Input
+                                        type="date"
+                                        className="h-8 text-xs border border-gray-200 bg-white rounded w-36 shadow-none"
+                                        value={ringkasanStartDate}
+                                        onChange={(e) => setRingkasanStartDate(e.target.value)}
+                                    />
+                                    <span className="text-gray-400 font-bold">-</span>
+                                    <Input
+                                        type="date"
+                                        className="h-8 text-xs border border-gray-200 bg-white rounded w-36 shadow-none"
+                                        value={ringkasanEndDate}
+                                        onChange={(e) => setRingkasanEndDate(e.target.value)}
+                                    />
+                                </div>
+
+                                {/* Export Excel Button */}
+                                <Button
+                                    onClick={handleExportExcel}
+                                    disabled={isExportingExcel}
+                                    className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold h-10 shadow-sm"
+                                >
+                                    <FileSpreadsheet className="h-4 w-4" />
+                                    {isExportingExcel ? "Mengekspor Excel..." : "Export ke Excel (.xlsx)"}
+                                </Button>
+                            </div>
+                        </div>
+
+                        {/* Preset Quick Filters */}
+                        <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-gray-100">
+                            <div className="flex flex-wrap items-center gap-2">
+                                <span className="text-xs font-semibold text-gray-400">Pilihan Cepat:</span>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-7 text-xs font-semibold rounded-lg bg-gray-50 hover:bg-gray-100"
+                                    onClick={() => {
+                                        const now = new Date();
+                                        setRingkasanStartDate(format(new Date(now.getFullYear(), now.getMonth(), 1), 'yyyy-MM-dd'));
+                                        setRingkasanEndDate(format(now, 'yyyy-MM-dd'));
+                                    }}
+                                >
+                                    Bulan Ini (1 s/d Hari ini)
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-7 text-xs font-semibold rounded-lg bg-gray-50 hover:bg-gray-100"
+                                    onClick={() => {
+                                        const now = new Date();
+                                        const prevM = subMonths(now, 1);
+                                        const lastDay = new Date(prevM.getFullYear(), prevM.getMonth() + 1, 0);
+                                        setRingkasanStartDate(format(new Date(prevM.getFullYear(), prevM.getMonth(), 1), 'yyyy-MM-dd'));
+                                        setRingkasanEndDate(format(lastDay, 'yyyy-MM-dd'));
+                                    }}
+                                >
+                                    Bulan Kemarin Penuh
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-7 text-xs font-semibold rounded-lg bg-gray-50 hover:bg-gray-100"
+                                    onClick={() => {
+                                        const now = new Date();
+                                        const s = new Date(now.getFullYear(), now.getMonth() - 1, 26);
+                                        const e = new Date(now.getFullYear(), now.getMonth(), 25);
+                                        setRingkasanStartDate(format(s, 'yyyy-MM-dd'));
+                                        setRingkasanEndDate(format(e, 'yyyy-MM-dd'));
+                                    }}
+                                >
+                                    Periode Cutoff (26 s/d 25)
+                                </Button>
+                            </div>
+
+                            <div className="relative w-full sm:w-64">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
+                                <Input
+                                    placeholder="Cari nama atau divisi..."
+                                    className="pl-8 h-8 text-xs bg-gray-50 border-gray-200"
+                                    value={searchRingkasan}
+                                    onChange={(e) => setSearchRingkasan(e.target.value)}
+                                />
+                            </div>
+                        </div>
+
+                        {/* Notice Banner */}
+                        <div className="bg-emerald-50/80 border border-emerald-200 rounded-xl p-3.5 flex items-start gap-3">
+                            <div className="p-1 bg-emerald-200 text-emerald-800 rounded-lg mt-0.5">
+                                <CheckCircle2 className="h-4 w-4" />
+                            </div>
+                            <div className="text-xs text-emerald-950 leading-relaxed">
+                                <span className="font-extrabold uppercase tracking-wide">Ketentuan Penghitungan Sesuai Kebijakan:</span>
+                                <div className="mt-1 flex flex-col sm:flex-row gap-4 text-emerald-900 font-medium">
+                                    <span>• <strong>Total Hadir Hari Kerja:</strong> Hanya absensi reguler <strong>Senin s/d Jumat</strong>.</span>
+                                    <span>• <strong>Total Lembur (Jam):</strong> Absensi <strong>Sabtu &amp; Minggu</strong> otomatis dihitung lembur + penugasan lembur jam kerja.</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Ringkasan Metrics */}
+                    {(() => {
+                        const filtered = (ringkasanData || []).filter((r: any) => {
+                            const q = (searchRingkasan || '').toLowerCase();
+                            return r.nama.toLowerCase().includes(q) || r.dept.toLowerCase().includes(q);
+                        });
+                        const totalEmp = filtered.length;
+                        const totalHadirAll = filtered.reduce((acc: number, r: any) => acc + (r.totalHadirHariKerja || 0), 0);
+                        const totalLemburAll = Math.round(filtered.reduce((acc: number, r: any) => acc + (r.totalLemburHours || 0), 0) * 10) / 10;
+                        const avgHadir = totalEmp > 0 ? (totalHadirAll / totalEmp).toFixed(1) : "0";
+
+                        return (
+                            <>
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                    <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex items-center justify-between">
+                                        <div>
+                                            <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Total Karyawan</p>
+                                            <p className="text-2xl font-black text-gray-900 mt-1">{totalEmp} <span className="text-xs font-semibold text-gray-400">Orang</span></p>
+                                        </div>
+                                        <div className="h-10 w-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
+                                            <Users className="h-5 w-5" />
+                                        </div>
+                                    </div>
+                                    <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex items-center justify-between">
+                                        <div>
+                                            <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Rata-rata Hari Kerja</p>
+                                            <p className="text-2xl font-black text-gray-900 mt-1">{avgHadir} <span className="text-xs font-semibold text-gray-400">Hari / Karyawan</span></p>
+                                        </div>
+                                        <div className="h-10 w-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                                            <Calendar className="h-5 w-5" />
+                                        </div>
+                                    </div>
+                                    <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex items-center justify-between">
+                                        <div>
+                                            <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Total Jam Lembur</p>
+                                            <p className="text-2xl font-black text-emerald-700 mt-1">{totalLemburAll} <span className="text-xs font-semibold text-gray-400">Jam Terakumulasi</span></p>
+                                        </div>
+                                        <div className="h-10 w-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
+                                            <Clock className="h-5 w-5" />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Tabel Ringkasan Format Excel Persis Gambar Klien */}
+                                <div className="bg-white rounded-xl shadow-sm border border-slate-300 overflow-hidden">
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full text-sm border-collapse text-left">
+                                            <thead>
+                                                <tr>
+                                                    {/* Header matching client screenshot: Slate-Blue for columns 1-3 */}
+                                                    <th className="bg-[#a8bacd] text-slate-900 border border-slate-400 px-4 py-3 text-center font-black text-xs uppercase tracking-wider w-16">
+                                                        NO
+                                                    </th>
+                                                    <th className="bg-[#a8bacd] text-slate-900 border border-slate-400 px-6 py-3 text-center font-black text-xs uppercase tracking-wider">
+                                                        NAMA
+                                                    </th>
+                                                    <th className="bg-[#a8bacd] text-slate-900 border border-slate-400 px-6 py-3 text-center font-black text-xs uppercase tracking-wider">
+                                                        DEPT
+                                                    </th>
+                                                    {/* Header matching client screenshot: Green for columns 4-5 */}
+                                                    <th className="bg-[#70ad47] text-white border border-slate-400 px-6 py-3 text-center font-black text-xs uppercase tracking-wider w-44">
+                                                        Total Hadir<br />Hari Kerja
+                                                    </th>
+                                                    <th className="bg-[#70ad47] text-white border border-slate-400 px-6 py-3 text-center font-black text-xs uppercase tracking-wider w-44">
+                                                        Total Lembur<br />(Jam)
+                                                    </th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {filtered.length === 0 ? (
+                                                    <tr>
+                                                        <td colSpan={5} className="text-center py-8 text-gray-400 border border-slate-300 italic">
+                                                            {searchRingkasan ? "Tidak ditemukan karyawan yang sesuai pencarian." : "Belum ada data absensi untuk periode yang dipilih."}
+                                                        </td>
+                                                    </tr>
+                                                ) : (
+                                                    filtered.map((row: any, i: number) => (
+                                                        <tr key={row.userId} className="hover:bg-slate-50 transition-colors">
+                                                            <td className="border border-slate-300 px-4 py-2.5 text-center font-bold text-slate-700 text-xs">
+                                                                {i + 1}
+                                                            </td>
+                                                            <td className="border border-slate-300 px-6 py-2.5 text-center font-bold text-slate-900 text-xs tracking-tight">
+                                                                {row.nama}
+                                                            </td>
+                                                            <td className="border border-slate-300 px-6 py-2.5 text-center font-semibold text-slate-700 text-xs">
+                                                                {row.dept}
+                                                            </td>
+                                                            <td className="border border-slate-300 px-6 py-2.5 text-center font-black text-slate-900 text-sm bg-emerald-50/20">
+                                                                {row.totalHadirHariKerja}
+                                                            </td>
+                                                            <td className="border border-slate-300 px-6 py-2.5 text-center font-black text-slate-900 text-sm bg-emerald-50/40">
+                                                                {row.totalLemburHours}
+                                                            </td>
+                                                        </tr>
+                                                    ))
+                                                )}
+                                            </tbody>
+                                            {filtered.length > 0 && (
+                                                <tfoot>
+                                                    <tr className="bg-slate-100 font-black border-t-2 border-slate-400">
+                                                        <td colSpan={3} className="border border-slate-300 px-6 py-3 text-right text-xs uppercase tracking-wider text-slate-800">
+                                                            TOTAL KESELURUHAN ({filtered.length} Karyawan):
+                                                        </td>
+                                                        <td className="border border-slate-300 px-6 py-3 text-center text-sm font-black text-slate-900 bg-emerald-100/50">
+                                                            {totalHadirAll} Hari
+                                                        </td>
+                                                        <td className="border border-slate-300 px-6 py-3 text-center text-sm font-black text-emerald-900 bg-emerald-100">
+                                                            {totalLemburAll} Jam
+                                                        </td>
+                                                    </tr>
+                                                </tfoot>
+                                            )}
+                                        </table>
+                                    </div>
+                                </div>
+                            </>
+                        );
+                    })()}
+                </div>
+            )}
         </div>
 
             <Dialog open={!!selectedPhotoRecord} onOpenChange={(open) => !open && setSelectedPhotoRecord(null)}>
@@ -2240,7 +2765,7 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[99999] flex flex-col items-center justify-center text-white p-4">
                     <div className="bg-white text-gray-900 rounded-2xl p-6 shadow-2xl max-w-sm w-full text-center space-y-4">
                         <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent mx-auto"></div>
-                        <div>
+                                                <div>
                             <h3 className="font-bold text-lg text-gray-900">Mengekspor Laporan PDF</h3>
                             <p className="text-xs text-gray-500 mt-1">{exportProgress || "Harap tunggu sebentar..."}</p>
                         </div>

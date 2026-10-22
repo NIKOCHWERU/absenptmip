@@ -19,7 +19,13 @@ export default function LoginPage() {
   const { loginMutation } = useAuth();
   const { toast } = useToast();
   const [, setLocation] = useLocation();
-  const [username, setUsername] = useState("");
+  const [username, setUsername] = useState(() => {
+    try {
+      return localStorage.getItem("absen_saved_nik") || "";
+    } catch {
+      return "";
+    }
+  });
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [showInstallPopup, setShowInstallPopup] = useState(false);
   const [installed, setInstalled] = useState(false);
@@ -92,6 +98,10 @@ export default function LoginPage() {
           });
         },
         onSuccess: async (data) => {
+          try {
+            localStorage.setItem("absen_saved_nik", username.trim());
+          } catch (_) {}
+
           if (data.role !== "employee") {
             toast({
               title: "Akses Dialihkan",
@@ -159,6 +169,11 @@ export default function LoginPage() {
                 required
               />
             </div>
+            {username.trim().length > 0 && (
+              <p className="text-[11px] text-emerald-600 font-medium flex items-center gap-1 mt-1 pl-1">
+                <span>✓</span> NIK akan otomatis tersimpan di perangkat ini
+              </p>
+            )}
           </div>
 
           <button

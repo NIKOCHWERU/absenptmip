@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Camera, RefreshCw, X, Check, SwitchCamera } from "lucide-react";
+import { Camera, RefreshCw, X, Check, SwitchCamera, AlertTriangle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
@@ -30,6 +30,7 @@ export function CameraModal({ open, onClose, onCapture, locationAddress, allowCa
   const [facingMode, setFacingMode]   = useState<"user" | "environment">("user");
   const [isInitializing, setIsInitializing] = useState(false);
   const [isSubmitting, setIsSubmitting]     = useState(false);
+  const [cameraError, setCameraError]       = useState<string | null>(null);
 
   const streamRef = useRef<MediaStream | null>(null);
   const videoRef  = useRef<HTMLVideoElement>(null);
@@ -46,24 +47,61 @@ export function CameraModal({ open, onClose, onCapture, locationAddress, allowCa
   // ── Start camera ──────────────────────────────────────────────────────────
   const startCamera = async () => {
     setIsInitializing(true);
+    setCameraError(null);
     stopCamera(); // make sure any previous stream is cleared
+
+    if (typeof navigator === "undefined" || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      setCameraError("Browser Anda tidak mendukung akses kamera langsung atau situs belum menggunakan HTTPS.");
+      setIsInitializing(false);
+      return;
+    }
+
     try {
-      const newStream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode, width: { ideal: 800 }, height: { ideal: 600 } },
-        audio: false,
-      });
+      let newStream: MediaStream;
+      try {
+        newStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode, width: { ideal: 800 }, height: { ideal: 600 } },
+          audio: false,
+        });
+      } catch (firstErr) {
+        // Fallback: jika ideal resolution / facingMode gagal di HP tertentu, coba constraint video standar
+        console.warn("Primary camera constraint failed, using fallback:", firstErr);
+        newStream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+          audio: false,
+        });
+      }
+
       streamRef.current = newStream;
       if (videoRef.current) {
         videoRef.current.srcObject = newStream;
       }
       setCameraState("active");
-    } catch (err) {
+      setCameraError(null);
+    } catch (err: any) {
       console.error("Camera error:", err);
-      toast({
-        title: "Gagal Mengakses Kamera",
-        description: "Pastikan Anda memberikan izin kamera.",
-        variant: "destructive",
-      });
+      const isDenied = err.name === "NotAllowedError" || err.name === "PermissionDeniedError";
+      const isNotFound = err.name === "NotFoundError" || err.name === "DevicesNotFoundError";
+      const isBusy = err.name === "NotReadableError" || err.name === "TrackStartError";
+
+      if (isDenied) {
+        setCameraError("permission_denied");
+      } else if (isBusy) {
+        setCameraError("Kamera sedang digunakan aplikasi lain. Harap tutup aplikasi lain dan coba lagi.");
+      } else if (isNotFound) {
+        setCameraError("Perangkat kamera tidak ditemukan pada HP Anda.");
+      } else {
+        setCameraError("Gagal mengakses kamera. Pastikan izin kamera aktif.");
+      }
+
+      // Tampilkan toast hanya bila belum pernah error untuk mencegah toast menumpuk
+      if (!cameraError) {
+        toast({
+          title: "Gagal Mengakses Kamera",
+          description: isDenied ? "Izin kamera diblokir di browser." : "Pastikan Anda memberikan izin kamera.",
+          variant: "destructive",
+        });
+      }
     } finally {
       setIsInitializing(false);
     }
@@ -77,6 +115,7 @@ export function CameraModal({ open, onClose, onCapture, locationAddress, allowCa
       setCapturedPhoto(null);
       setPhotoCaption("");
       setIsSubmitting(false);
+      setCameraError(null);
     }
   }, [open]);
 
@@ -173,23 +212,62 @@ export function CameraModal({ open, onClose, onCapture, locationAddress, allowCa
 
           {/* IDLE — kamera belum aktif */}
           {cameraState === "idle" && (
-            <div className="flex flex-col items-center gap-5 text-white px-8 text-center">
-              <div className="w-24 h-24 rounded-full bg-white/10 border-2 border-white/20 flex items-center justify-center mb-2">
-                <Camera className="w-10 h-10 text-white/70" />
+            <div className="flex flex-col items-center gap-4 text-white px-6 text-center max-w-sm">
+              <div className="w-20 h-20 rounded-full bg-white/10 border-2 border-white/20 flex items-center justify-center">
+                {cameraError ? (
+                  <AlertTriangle className="w-9 h-9 text-amber-400" />
+                ) : (
+                  <Camera className="w-9 h-9 text-white/80" />
+                )}
               </div>
-              <p className="text-lg font-semibold">Siap Absen?</p>
-              <p className="text-sm text-white/50">
-                Tekan tombol di bawah untuk mengaktifkan kamera dan mengambil foto.
+              <p className="text-lg font-semibold">
+                {cameraError ? "Kendala Akses Kamera" : "Siap Absen?"}
               </p>
+
+              {cameraError === "permission_denied" ? (
+                <div className="w-full bg-red-950/70 border border-red-500/40 rounded-2xl p-4 text-left shadow-lg text-white">
+                  <p className="text-xs font-bold text-red-200 mb-1.5 flex items-center gap-1.5">
+                    <AlertTriangle className="w-4 h-4 text-red-400 shrink-0" />
+                    Izin Kamera Terblokir di Browser
+                  </p>
+                  <p className="text-[11px] text-slate-300 mb-2">
+                    Browser Anda belum mengizinkan akses kamera situs ini. Cara membukanya:
+                  </p>
+                  <ol className="list-decimal list-inside space-y-1.5 text-[11px] text-slate-200 leading-relaxed pl-1">
+                    <li>Ketuk ikon <b>Gembok / Setelan Situs</b> di samping alamat URL di atas.</li>
+                    <li>Pilih <b>Izin Situs (Permissions)</b>, ubah <b>Kamera</b> ke <b>Izinkan (Allow)</b>.</li>
+                    <li>Muat ulang (refresh) halaman.</li>
+                  </ol>
+                  <Button
+                    type="button"
+                    onClick={() => window.location.reload()}
+                    variant="outline"
+                    size="sm"
+                    className="mt-3 w-full text-xs font-semibold bg-white/10 border-white/20 hover:bg-white/20 text-white"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5 mr-1.5" /> Muat Ulang Halaman
+                  </Button>
+                </div>
+              ) : cameraError ? (
+                <div className="w-full bg-amber-950/70 border border-amber-500/40 rounded-2xl p-3 text-xs text-amber-200">
+                  <p>{cameraError}</p>
+                </div>
+              ) : (
+                <p className="text-sm text-white/60">
+                  Tekan tombol di bawah untuk mengaktifkan kamera dan mengambil foto absensi.
+                </p>
+              )}
+
               <Button
                 onClick={startCamera}
                 disabled={isInitializing}
-                className="mt-2 rounded-full px-8 py-5 text-base font-bold bg-white text-black hover:bg-white/90 shadow-xl"
+                className="mt-1 rounded-full px-8 py-5 text-base font-bold bg-white text-black hover:bg-white/90 shadow-xl"
               >
-                {isInitializing
-                  ? <><RefreshCw className="w-5 h-5 animate-spin mr-2" /> Memuat...</>
-                  : <><Camera className="w-5 h-5 mr-2" /> Aktifkan Kamera</>
-                }
+                {isInitializing ? (
+                  <><RefreshCw className="w-5 h-5 animate-spin mr-2" /> Memuat...</>
+                ) : (
+                  <><Camera className="w-5 h-5 mr-2" /> {cameraError ? "Coba Aktifkan Lagi" : "Aktifkan Kamera"}</>
+                )}
               </Button>
             </div>
           )}

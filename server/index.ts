@@ -328,6 +328,7 @@ async function runAutoMigrations() {
 
 async function startServer() {
   await runAutoMigrations();
+  app.set("trust proxy", 1);
   setupAuth(app);
   
   // Serve uploads folder statically so frontend can access /uploads/... images

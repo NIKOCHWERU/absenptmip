@@ -48,8 +48,11 @@ export function setupAuth(app: Express) {
       resave: false,
       saveUninitialized: false,
       store: sessionStore,
+      proxy: true,
       cookie: {
-        secure: false, // Set to true if running behind HTTPS
+        secure: "auto", // Otomatis aktifkan secure flag jika berjalan di balik reverse proxy HTTPS
+        sameSite: "lax",
+        httpOnly: true,
         maxAge: 30 * 24 * 60 * 60 * 1000, // 30 hari
       },
     })

@@ -48,23 +48,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const { data: user = null, isLoading } = useQuery<User | null>({
     queryKey: ["/api/user"],
     queryFn: async () => {
+      if (typeof navigator !== "undefined" && !navigator.onLine) {
+        const cachedUser = queryClient.getQueryData<User>(["/api/user"]);
+        if (cachedUser) return cachedUser;
+      }
       try {
         const res = await fetch("/api/user", { credentials: "include" });
         if (res.status === 401) return null;
-        if (!res.ok) return null;
+        if (!res.ok) {
+          const cachedUser = queryClient.getQueryData<User>(["/api/user"]);
+          if (cachedUser) return cachedUser;
+          return null;
+        }
         return await res.json();
       } catch (err) {
-        // Pada situasi gangguan jaringan sementara (ERR_NETWORK_CHANGED), jangan kembalikan null (terpental logout)
-        // Kembalikan data user sebelumnya dari cache query client jika ada
+        // Pada gangguan jaringan sementara (ERR_NETWORK_CHANGED), kembalikan data user sebelumnya
         const cachedUser = queryClient.getQueryData<User>(["/api/user"]);
         if (cachedUser) return cachedUser;
         return null;
       }
     },
-    retry: 2,
-    retryDelay: 1000,
-    refetchOnWindowFocus: true,
-    refetchInterval: 10000,
+    staleTime: 5 * 60 * 1000, // Fresh selama 5 menit
+    retry: 3,
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 5000),
+    refetchOnWindowFocus: false, // Hindari logout mendadak saat layar HP bangun/fokus
+    refetchInterval: false, // Matikan polling 10 detik yang agresif
   });
 
   const loginMutation = useMutation<User, Error, any>({
