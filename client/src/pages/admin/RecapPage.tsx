@@ -272,6 +272,18 @@ export default function RecapPage() {
     const [ringkasanStartDate, setRingkasanStartDate] = useState<string>(format(new Date(new Date().getFullYear(), new Date().getMonth(), 1), 'yyyy-MM-dd'));
     const [ringkasanEndDate, setRingkasanEndDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
     const [isExportingExcel, setIsExportingExcel] = useState(false);
+    const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>("all");
+
+    // Sinkronisasi tanggal cutoff bulanan dari konfigurasi (default 21 s/d 20)
+    useEffect(() => {
+        if (config?.cutoffStartDay !== undefined && config?.cutoffEndDay !== undefined) {
+            const cStart = Number(config.cutoffStartDay) || 21;
+            const cEnd = Number(config.cutoffEndDay) || 20;
+            const now = new Date();
+            setRingkasanStartDate(format(new Date(now.getFullYear(), now.getMonth() - 1, cStart), 'yyyy-MM-dd'));
+            setRingkasanEndDate(format(new Date(now.getFullYear(), now.getMonth(), cEnd), 'yyyy-MM-dd'));
+        }
+    }, [config?.cutoffStartDay, config?.cutoffEndDay]);
 
     let startDate: Date;
     let endDate: Date;
@@ -286,8 +298,10 @@ export default function RecapPage() {
         startDate = startOfDay(new Date(customStartDate));
         endDate = endOfDay(new Date(customEndDate));
     } else {
-        startDate = new Date(targetDate.getFullYear(), targetDate.getMonth() - 1, 26);
-        endDate = new Date(targetDate.getFullYear(), targetDate.getMonth(), 25);
+        const cStart = Number(config?.cutoffStartDay ?? 21);
+        const cEnd = Number(config?.cutoffEndDay ?? 20);
+        startDate = new Date(targetDate.getFullYear(), targetDate.getMonth() - 1, cStart);
+        endDate = new Date(targetDate.getFullYear(), targetDate.getMonth(), cEnd);
     }
 
     const { data: users } = useQuery<User[]>({
@@ -629,11 +643,21 @@ export default function RecapPage() {
         try {
             const XLSX = await loadXlsx();
 
+            const exportTargetData = selectedEmployeeId === "all"
+                ? ringkasanData
+                : ringkasanData.filter((r: any) => String(r.userId) === selectedEmployeeId);
+
+            if (exportTargetData.length === 0) {
+                toast({ title: "Tidak ada data", description: "Tidak ada data untuk karyawan yang dipilih.", variant: "destructive" });
+                setIsExportingExcel(false);
+                return;
+            }
+
             // Header columns exact casing to client sample image:
             // NO | NAMA | DEPT | Total Hadir Hari Kerja | Total Lembur (Jam)
             const headerRow = ['NO', 'NAMA', 'DEPT', 'Total Hadir Hari Kerja', 'Total Lembur (Jam)'];
 
-            const dataRows = ringkasanData.map((row: any, i: number) => [
+            const dataRows = exportTargetData.map((row: any, i: number) => [
                 i + 1,
                 row.nama,
                 row.dept,
@@ -658,7 +682,8 @@ export default function RecapPage() {
 
             const startStr = ringkasanStartDate.replace(/-/g, '');
             const endStr = ringkasanEndDate.replace(/-/g, '');
-            const fileName = `REKAP_ABSENSI_${startStr}_to_${endStr}.xlsx`;
+            const empSuffix = selectedEmployeeId === "all" ? "" : `_${(exportTargetData[0]?.nama || '').replace(/\s+/g, '_')}`;
+            const fileName = `REKAP_ABSENSI_${startStr}_to_${endStr}${empSuffix}.xlsx`;
 
             XLSX.writeFile(wb, fileName);
             toast({
@@ -2359,11 +2384,11 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
                         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                             <div>
                                 <h2 className="text-lg font-black text-gray-900 tracking-tight flex items-center gap-2">
-                                    <FileSpreadsheet className="h-5 w-5 text-emerald-600" />
-                                    Rekap Ringkasan Bulanan (Senin–Jumat vs Lembur)
+                                    <FileSpreadsheet className="h-5 w-5 text-primary" />
+                                    Rekap Ringkasan Bulanan EXCEL
                                 </h2>
                                 <p className="text-xs text-gray-500 mt-1">
-                                    Format ringkasan bulanan sesuai rekap penggajian. Kehadiran Senin–Jumat dihitung sebagai hari kerja, sedangkan kehadiran Sabtu &amp; Minggu otomatis masuk hitungan jam lembur.
+                                    Laporan ringkasan absensi kerja reguler (Senin–Jumat) &amp; jam lembur sesuai periode bulanan.
                                 </p>
                             </div>
 
@@ -2386,6 +2411,28 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
                                     />
                                 </div>
 
+                                {/* Pilih Karyawan Dropdown */}
+                                <div className="flex items-center gap-2 bg-gray-50 p-1.5 rounded-lg border border-gray-200">
+                                    <span className="text-xs font-bold text-gray-600 px-1">Karyawan:</span>
+                                    <Select value={selectedEmployeeId} onValueChange={setSelectedEmployeeId}>
+                                        <SelectTrigger className="w-[210px] h-8 text-xs bg-white border-gray-200">
+                                            <SelectValue placeholder="Pilih Karyawan" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="all">Semua Karyawan</SelectItem>
+                                            {(users || [])
+                                                .filter(u => u.role === 'employee' || !u.isAdmin)
+                                                .sort((a, b) => (a.fullName || '').localeCompare(b.fullName || '', 'id'))
+                                                .map((emp) => (
+                                                    <SelectItem key={emp.id} value={String(emp.id)}>
+                                                        {emp.fullName} ({emp.nik || emp.username || "-"})
+                                                    </SelectItem>
+                                                ))
+                                            }
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+
                                 {/* Export Excel Button */}
                                 <Button
                                     onClick={handleExportExcel}
@@ -2397,197 +2444,481 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
                                 </Button>
                             </div>
                         </div>
-
-                        {/* Preset Quick Filters */}
-                        <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-gray-100">
-                            <div className="flex flex-wrap items-center gap-2">
-                                <span className="text-xs font-semibold text-gray-400">Pilihan Cepat:</span>
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="h-7 text-xs font-semibold rounded-lg bg-gray-50 hover:bg-gray-100"
-                                    onClick={() => {
-                                        const now = new Date();
-                                        setRingkasanStartDate(format(new Date(now.getFullYear(), now.getMonth(), 1), 'yyyy-MM-dd'));
-                                        setRingkasanEndDate(format(now, 'yyyy-MM-dd'));
-                                    }}
-                                >
-                                    Bulan Ini (1 s/d Hari ini)
-                                </Button>
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="h-7 text-xs font-semibold rounded-lg bg-gray-50 hover:bg-gray-100"
-                                    onClick={() => {
-                                        const now = new Date();
-                                        const prevM = subMonths(now, 1);
-                                        const lastDay = new Date(prevM.getFullYear(), prevM.getMonth() + 1, 0);
-                                        setRingkasanStartDate(format(new Date(prevM.getFullYear(), prevM.getMonth(), 1), 'yyyy-MM-dd'));
-                                        setRingkasanEndDate(format(lastDay, 'yyyy-MM-dd'));
-                                    }}
-                                >
-                                    Bulan Kemarin Penuh
-                                </Button>
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="h-7 text-xs font-semibold rounded-lg bg-gray-50 hover:bg-gray-100"
-                                    onClick={() => {
-                                        const now = new Date();
-                                        const s = new Date(now.getFullYear(), now.getMonth() - 1, 26);
-                                        const e = new Date(now.getFullYear(), now.getMonth(), 25);
-                                        setRingkasanStartDate(format(s, 'yyyy-MM-dd'));
-                                        setRingkasanEndDate(format(e, 'yyyy-MM-dd'));
-                                    }}
-                                >
-                                    Periode Cutoff (26 s/d 25)
-                                </Button>
-                            </div>
-
-                            <div className="relative w-full sm:w-64">
-                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
-                                <Input
-                                    placeholder="Cari nama atau divisi..."
-                                    className="pl-8 h-8 text-xs bg-gray-50 border-gray-200"
-                                    value={searchRingkasan}
-                                    onChange={(e) => setSearchRingkasan(e.target.value)}
-                                />
-                            </div>
-                        </div>
-
-                        {/* Notice Banner */}
-                        <div className="bg-emerald-50/80 border border-emerald-200 rounded-xl p-3.5 flex items-start gap-3">
-                            <div className="p-1 bg-emerald-200 text-emerald-800 rounded-lg mt-0.5">
-                                <CheckCircle2 className="h-4 w-4" />
-                            </div>
-                            <div className="text-xs text-emerald-950 leading-relaxed">
-                                <span className="font-extrabold uppercase tracking-wide">Ketentuan Penghitungan Sesuai Kebijakan:</span>
-                                <div className="mt-1 flex flex-col sm:flex-row gap-4 text-emerald-900 font-medium">
-                                    <span>• <strong>Total Hadir Hari Kerja:</strong> Hanya absensi reguler <strong>Senin s/d Jumat</strong>.</span>
-                                    <span>• <strong>Total Lembur (Jam):</strong> Absensi <strong>Sabtu &amp; Minggu</strong> otomatis dihitung lembur + penugasan lembur jam kerja.</span>
-                                </div>
-                            </div>
-                        </div>
                     </div>
 
-                    {/* Ringkasan Metrics */}
-                    {(() => {
-                        const filtered = (ringkasanData || []).filter((r: any) => {
-                            const q = (searchRingkasan || '').toLowerCase();
-                            return r.nama.toLowerCase().includes(q) || r.dept.toLowerCase().includes(q);
-                        });
-                        const totalEmp = filtered.length;
-                        const totalHadirAll = filtered.reduce((acc: number, r: any) => acc + (r.totalHadirHariKerja || 0), 0);
-                        const totalLemburAll = Math.round(filtered.reduce((acc: number, r: any) => acc + (r.totalLemburHours || 0), 0) * 10) / 10;
-                        const avgHadir = totalEmp > 0 ? (totalHadirAll / totalEmp).toFixed(1) : "0";
+                    {/* KONDISI 1: JIKA SEMUA KARYAWAN DIPILIH */}
+                    {selectedEmployeeId === "all" ? (
+                        <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-sm border-collapse text-left">
+                                    <thead>
+                                        {/* Header Styled with Application Primary Theme */}
+                                        <tr className="bg-primary text-primary-foreground font-black text-xs uppercase tracking-wider">
+                                            <th className="border-r border-primary-foreground/20 px-4 py-3.5 text-center w-16">
+                                                NO
+                                            </th>
+                                            <th className="border-r border-primary-foreground/20 px-6 py-3.5 text-center">
+                                                NAMA
+                                            </th>
+                                            <th className="border-r border-primary-foreground/20 px-6 py-3.5 text-center">
+                                                DEPT
+                                            </th>
+                                            <th className="border-r border-primary-foreground/20 px-6 py-3.5 text-center w-48">
+                                                Total Hadir<br />Hari Kerja
+                                            </th>
+                                            <th className="px-6 py-3.5 text-center w-48">
+                                                Total Lembur<br />(Jam)
+                                            </th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-200">
+                                        {ringkasanData.length === 0 ? (
+                                            <tr>
+                                                <td colSpan={5} className="text-center py-8 text-gray-400 border border-slate-200 italic">
+                                                    Belum ada data absensi untuk periode yang dipilih.
+                                                </td>
+                                            </tr>
+                                        ) : (
+                                            ringkasanData.map((row: any, i: number) => (
+                                                <tr key={row.userId} className="hover:bg-slate-50 transition-colors">
+                                                    <td className="border-r border-slate-200 px-4 py-2.5 text-center font-bold text-slate-700 text-xs">
+                                                        {i + 1}
+                                                    </td>
+                                                    <td className="border-r border-slate-200 px-6 py-2.5 text-center font-bold text-slate-900 text-xs tracking-tight uppercase">
+                                                        {row.nama}
+                                                    </td>
+                                                    <td className="border-r border-slate-200 px-6 py-2.5 text-center font-semibold text-slate-700 text-xs uppercase">
+                                                        {row.dept}
+                                                    </td>
+                                                    <td className="border-r border-slate-200 px-6 py-2.5 text-center font-black text-slate-900 text-sm bg-primary/5">
+                                                        {row.totalHadirHariKerja}
+                                                    </td>
+                                                    <td className="px-6 py-2.5 text-center font-black text-amber-700 text-sm bg-amber-50/50">
+                                                        {row.totalLemburHours}
+                                                    </td>
+                                                </tr>
+                                            ))
+                                        )}
+                                    </tbody>
+                                    {ringkasanData.length > 0 && (
+                                        <tfoot>
+                                            <tr className="bg-slate-100 font-black border-t-2 border-slate-300">
+                                                <td colSpan={3} className="border-r border-slate-200 px-6 py-3 text-right text-xs uppercase tracking-wider text-slate-800">
+                                                    TOTAL KESELURUHAN ({ringkasanData.length} Karyawan):
+                                                </td>
+                                                <td className="border-r border-slate-200 px-6 py-3 text-center text-sm font-black text-slate-900 bg-primary/10">
+                                                    {ringkasanData.reduce((acc: number, r: any) => acc + (r.totalHadirHariKerja || 0), 0)} Hari
+                                                </td>
+                                                <td className="px-6 py-3 text-center text-sm font-black text-amber-900 bg-amber-100">
+                                                    {Math.round(ringkasanData.reduce((acc: number, r: any) => acc + (r.totalLemburHours || 0), 0) * 10) / 10} Jam
+                                                </td>
+                                            </tr>
+                                        </tfoot>
+                                    )}
+                                </table>
+                            </div>
+                        </div>
+                    ) : (
+                        /* KONDISI 2: JIKA 1 KARYAWAN SPESIFIK DIPILIH */
+                        (() => {
+                            const selectedEmp = (users || []).find(u => String(u.id) === selectedEmployeeId);
+                            const summaryItem = ringkasanData.find((r: any) => String(r.userId) === selectedEmployeeId) || {
+                                nama: (selectedEmp?.fullName || '').toUpperCase(),
+                                dept: ((selectedEmp as any)?.position || (selectedEmp as any)?.department || '-').toUpperCase(),
+                                totalHadirHariKerja: 0,
+                                totalLemburHours: 0,
+                            };
 
-                        return (
-                            <>
-                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                                    <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex items-center justify-between">
-                                        <div>
-                                            <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Total Karyawan</p>
-                                            <p className="text-2xl font-black text-gray-900 mt-1">{totalEmp} <span className="text-xs font-semibold text-gray-400">Orang</span></p>
-                                        </div>
-                                        <div className="h-10 w-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
-                                            <Users className="h-5 w-5" />
-                                        </div>
-                                    </div>
-                                    <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex items-center justify-between">
-                                        <div>
-                                            <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Rata-rata Hari Kerja</p>
-                                            <p className="text-2xl font-black text-gray-900 mt-1">{avgHadir} <span className="text-xs font-semibold text-gray-400">Hari / Karyawan</span></p>
-                                        </div>
-                                        <div className="h-10 w-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
-                                            <Calendar className="h-5 w-5" />
-                                        </div>
-                                    </div>
-                                    <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex items-center justify-between">
-                                        <div>
-                                            <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Total Jam Lembur</p>
-                                            <p className="text-2xl font-black text-emerald-700 mt-1">{totalLemburAll} <span className="text-xs font-semibold text-gray-400">Jam Terakumulasi</span></p>
-                                        </div>
-                                        <div className="h-10 w-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
-                                            <Clock className="h-5 w-5" />
-                                        </div>
-                                    </div>
-                                </div>
+                            const rs = new Date(ringkasanStartDate);
+                            rs.setHours(0, 0, 0, 0);
+                            const re = new Date(ringkasanEndDate);
+                            re.setHours(23, 59, 59, 999);
 
-                                {/* Tabel Ringkasan Format Excel Persis Gambar Klien */}
-                                <div className="bg-white rounded-xl shadow-sm border border-slate-300 overflow-hidden">
-                                    <div className="overflow-x-auto">
+                            const isInDateRange = (dateVal: any) => {
+                                if (!dateVal) return false;
+                                const d = new Date(dateVal);
+                                return d >= rs && d <= re;
+                            };
+
+                            // Riwayat absensi karyawan terpilih
+                            const currentAttSource = ringkasanAttendanceData || allAttendance || [];
+                            const empAtt = currentAttSource
+                                .filter(a => String(a.userId) === selectedEmployeeId && isInDateRange(a.date))
+                                .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+                            // Tabel 1: Absensi Biasa (Senin - Jumat)
+                            const regularRecords = empAtt.filter(a => {
+                                const day = new Date(a.date).getDay();
+                                return day >= 1 && day <= 5;
+                            });
+
+                            // Tabel 2: Riwayat Lembur
+                            // A. Weekend attendance (Sabtu & Minggu otomatis lembur)
+                            const weekendRecords = empAtt.filter(a => {
+                                const day = new Date(a.date).getDay();
+                                return day === 0 || day === 6;
+                            });
+
+                            // B. Overtime assignments dalam rentang tanggal
+                            const empOvertimes = (allOvertimes || []).filter(ot => {
+                                if (!ot || ot.employeeApproval === 'rejected' || ot.status === 'cancelled') return false;
+                                const targetUid = ot.userId || (ot.attendance?.userId);
+                                if (String(targetUid) !== selectedEmployeeId) return false;
+                                const dtStr = ot.date ? ot.date : (ot.startTime ? ot.startTime : null);
+                                return isInDateRange(dtStr);
+                            });
+
+                            return (
+                                <div className="space-y-6">
+                                    {/* 1. KARTU INFORMASI KARYAWAN SESUAI PERMINTAAN */}
+                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                        <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm flex items-center justify-between">
+                                            <div>
+                                                <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Nama Karyawan</p>
+                                                <p className="text-lg font-black text-gray-900 mt-1 uppercase">{selectedEmp?.fullName || "-"}</p>
+                                                <p className="text-[11px] font-semibold text-primary font-mono mt-0.5">
+                                                    NIK: {selectedEmp?.nik || selectedEmp?.username || "-"} | Divisi: {summaryItem.dept}
+                                                </p>
+                                            </div>
+                                            <div className="h-11 w-11 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-bold">
+                                                <Users className="h-5 w-5" />
+                                            </div>
+                                        </div>
+
+                                        <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm flex items-center justify-between">
+                                            <div>
+                                                <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Hari Kerja (Senin–Jumat)</p>
+                                                <p className="text-2xl font-black text-gray-900 mt-1">
+                                                    {summaryItem.totalHadirHariKerja} <span className="text-xs font-semibold text-gray-400">Hari Masuk</span>
+                                                </p>
+                                                <p className="text-[11px] text-gray-400 mt-0.5">Senin s/d Jumat Sesuai Shift</p>
+                                            </div>
+                                            <div className="h-11 w-11 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
+                                                <Calendar className="h-5 w-5" />
+                                            </div>
+                                        </div>
+
+                                        <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm flex items-center justify-between">
+                                            <div>
+                                                <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Total Jam Lembur</p>
+                                                <p className="text-2xl font-black text-amber-600 mt-1">
+                                                    {summaryItem.totalLemburHours} <span className="text-xs font-semibold text-gray-400">Jam Terakumulasi</span>
+                                                </p>
+                                                <p className="text-[11px] text-gray-400 mt-0.5">Sabtu, Minggu &amp; Penugasan Lembur</p>
+                                            </div>
+                                            <div className="h-11 w-11 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
+                                                <Clock className="h-5 w-5" />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* 2. TABEL REKAP RINGKASAN SATU KARYAWAN (WARNA TEMA APLIKASI) */}
+                                    <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                                         <table className="w-full text-sm border-collapse text-left">
                                             <thead>
-                                                <tr>
-                                                    {/* Header matching client screenshot: Slate-Blue for columns 1-3 */}
-                                                    <th className="bg-[#a8bacd] text-slate-900 border border-slate-400 px-4 py-3 text-center font-black text-xs uppercase tracking-wider w-16">
-                                                        NO
+                                                <tr className="bg-primary text-primary-foreground font-black text-xs uppercase tracking-wider">
+                                                    <th className="border-r border-primary-foreground/20 px-6 py-3 text-center">NAMA</th>
+                                                    <th className="border-r border-primary-foreground/20 px-6 py-3 text-center">DEPT</th>
+                                                    <th className="border-r border-primary-foreground/20 px-6 py-3 text-center w-52">
+                                                        Total Hadir Hari Kerja
                                                     </th>
-                                                    <th className="bg-[#a8bacd] text-slate-900 border border-slate-400 px-6 py-3 text-center font-black text-xs uppercase tracking-wider">
-                                                        NAMA
-                                                    </th>
-                                                    <th className="bg-[#a8bacd] text-slate-900 border border-slate-400 px-6 py-3 text-center font-black text-xs uppercase tracking-wider">
-                                                        DEPT
-                                                    </th>
-                                                    {/* Header matching client screenshot: Green for columns 4-5 */}
-                                                    <th className="bg-[#70ad47] text-white border border-slate-400 px-6 py-3 text-center font-black text-xs uppercase tracking-wider w-44">
-                                                        Total Hadir<br />Hari Kerja
-                                                    </th>
-                                                    <th className="bg-[#70ad47] text-white border border-slate-400 px-6 py-3 text-center font-black text-xs uppercase tracking-wider w-44">
-                                                        Total Lembur<br />(Jam)
+                                                    <th className="px-6 py-3 text-center w-52">
+                                                        Total Lembur (Jam)
                                                     </th>
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                {filtered.length === 0 ? (
-                                                    <tr>
-                                                        <td colSpan={5} className="text-center py-8 text-gray-400 border border-slate-300 italic">
-                                                            {searchRingkasan ? "Tidak ditemukan karyawan yang sesuai pencarian." : "Belum ada data absensi untuk periode yang dipilih."}
-                                                        </td>
-                                                    </tr>
-                                                ) : (
-                                                    filtered.map((row: any, i: number) => (
-                                                        <tr key={row.userId} className="hover:bg-slate-50 transition-colors">
-                                                            <td className="border border-slate-300 px-4 py-2.5 text-center font-bold text-slate-700 text-xs">
-                                                                {i + 1}
-                                                            </td>
-                                                            <td className="border border-slate-300 px-6 py-2.5 text-center font-bold text-slate-900 text-xs tracking-tight">
-                                                                {row.nama}
-                                                            </td>
-                                                            <td className="border border-slate-300 px-6 py-2.5 text-center font-semibold text-slate-700 text-xs">
-                                                                {row.dept}
-                                                            </td>
-                                                            <td className="border border-slate-300 px-6 py-2.5 text-center font-black text-slate-900 text-sm bg-emerald-50/20">
-                                                                {row.totalHadirHariKerja}
-                                                            </td>
-                                                            <td className="border border-slate-300 px-6 py-2.5 text-center font-black text-slate-900 text-sm bg-emerald-50/40">
-                                                                {row.totalLemburHours}
-                                                            </td>
-                                                        </tr>
-                                                    ))
-                                                )}
+                                                <tr className="font-bold text-slate-900 bg-white">
+                                                    <td className="border-r border-slate-200 px-6 py-3.5 text-center uppercase tracking-tight">
+                                                        {summaryItem.nama}
+                                                    </td>
+                                                    <td className="border-r border-slate-200 px-6 py-3.5 text-center uppercase text-slate-700">
+                                                        {summaryItem.dept}
+                                                    </td>
+                                                    <td className="border-r border-slate-200 px-6 py-3.5 text-center font-black text-base text-primary bg-primary/5">
+                                                        {summaryItem.totalHadirHariKerja} Hari
+                                                    </td>
+                                                    <td className="px-6 py-3.5 text-center font-black text-base text-amber-700 bg-amber-50/50">
+                                                        {summaryItem.totalLemburHours} Jam
+                                                    </td>
+                                                </tr>
                                             </tbody>
-                                            {filtered.length > 0 && (
-                                                <tfoot>
-                                                    <tr className="bg-slate-100 font-black border-t-2 border-slate-400">
-                                                        <td colSpan={3} className="border border-slate-300 px-6 py-3 text-right text-xs uppercase tracking-wider text-slate-800">
-                                                            TOTAL KESELURUHAN ({filtered.length} Karyawan):
-                                                        </td>
-                                                        <td className="border border-slate-300 px-6 py-3 text-center text-sm font-black text-slate-900 bg-emerald-100/50">
-                                                            {totalHadirAll} Hari
-                                                        </td>
-                                                        <td className="border border-slate-300 px-6 py-3 text-center text-sm font-black text-emerald-900 bg-emerald-100">
-                                                            {totalLemburAll} Jam
-                                                        </td>
-                                                    </tr>
-                                                </tfoot>
-                                            )}
                                         </table>
                                     </div>
+
+                                    {/* 3. TABEL A: RINCIAN ABSENSI BIASA (SENIN - JUMAT) */}
+                                    <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden space-y-0">
+                                        <div className="bg-slate-50 border-b border-slate-200 px-6 py-3.5 flex items-center justify-between">
+                                            <div>
+                                                <h3 className="font-black text-slate-900 text-sm flex items-center gap-2">
+                                                    <Calendar className="h-4 w-4 text-primary" />
+                                                    Daftar Absen Biasa (Hari Kerja Reguler Senin s/d Jumat)
+                                                </h3>
+                                                <p className="text-[11px] text-gray-500 mt-0.5">
+                                                    Total {regularRecords.length} sesi absensi hari kerja reguler tercatat
+                                                </p>
+                                            </div>
+                                            <span className="text-xs font-black px-2.5 py-1 rounded bg-primary/10 text-primary">
+                                                {summaryItem.totalHadirHariKerja} Hari Masuk
+                                            </span>
+                                        </div>
+
+                                        <div className="overflow-x-auto">
+                                            <table className="w-full text-xs text-left whitespace-nowrap">
+                                                <thead className="bg-primary/5 text-slate-700 font-bold uppercase tracking-wider text-[10px] border-b border-slate-200">
+                                                    <tr>
+                                                        <th className="px-4 py-3">TANGGAL</th>
+                                                        <th className="px-4 py-3">SHIFT</th>
+                                                        <th className="px-4 py-3 text-center">MASUK</th>
+                                                        <th className="px-4 py-3 text-center">ISTIRAHAT</th>
+                                                        <th className="px-4 py-3 text-center">SELESAI</th>
+                                                        <th className="px-4 py-3 text-center">PULANG</th>
+                                                        <th className="px-4 py-3 text-center">JAM KERJA</th>
+                                                        <th className="px-4 py-3 text-center">STATUS</th>
+                                                        <th className="px-4 py-3 text-center">BUKTI FOTO ABSEN &amp; TELAT</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody className="divide-y divide-slate-100">
+                                                    {regularRecords.length === 0 ? (
+                                                        <tr>
+                                                            <td colSpan={9} className="text-center py-6 text-gray-400 italic">
+                                                                Tidak ada catatan absensi biasa pada periode ini.
+                                                            </td>
+                                                        </tr>
+                                                    ) : (
+                                                        regularRecords.map((r: any) => {
+                                                            const { netWorkMins } = calculateDailyTotal([r]);
+                                                            return (
+                                                                <tr key={r.id} className="hover:bg-slate-50 transition-colors">
+                                                                    <td className="px-4 py-3 font-bold text-slate-800">
+                                                                        {safeFormatDate(r.date, "EEEE, d MMM yyyy", { locale: id })}
+                                                                    </td>
+                                                                    <td className="px-4 py-3 font-semibold text-primary">
+                                                                        {r.shift && r.shift !== '-' ? r.shift : "Reguler"}
+                                                                    </td>
+                                                                    <td className="px-4 py-3 text-center font-mono font-bold text-emerald-600">
+                                                                        {r.checkIn ? safeFormatDate(r.checkIn, "HH:mm") : "-"}
+                                                                    </td>
+                                                                    <td className="px-4 py-3 text-center font-mono text-amber-600">
+                                                                        {r.breakStart ? safeFormatDate(r.breakStart, "HH:mm") : "-"}
+                                                                    </td>
+                                                                    <td className="px-4 py-3 text-center font-mono text-blue-600">
+                                                                        {r.breakEnd ? safeFormatDate(r.breakEnd, "HH:mm") : "-"}
+                                                                    </td>
+                                                                    <td className="px-4 py-3 text-center font-mono font-bold text-rose-600">
+                                                                        {r.checkOut ? safeFormatDate(r.checkOut, "HH:mm") : "-"}
+                                                                    </td>
+                                                                    <td className="px-4 py-3 text-center font-bold text-slate-800">
+                                                                        {netWorkMins > 0 ? formatDuration(netWorkMins) : "-"}
+                                                                    </td>
+                                                                    <td className="px-4 py-3 text-center">
+                                                                        <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase ${
+                                                                            r.status === 'present' ? 'bg-emerald-100 text-emerald-800' :
+                                                                            r.status === 'late' ? 'bg-amber-100 text-amber-800' :
+                                                                            r.status === 'sick' ? 'bg-blue-100 text-blue-800' :
+                                                                            r.status === 'permission' ? 'bg-purple-100 text-purple-800' :
+                                                                            'bg-gray-100 text-gray-700'
+                                                                        }`}>
+                                                                            {r.status === 'present' ? 'Hadir' : r.status === 'late' ? 'Telat' : r.status}
+                                                                        </span>
+                                                                    </td>
+                                                                    <td className="px-4 py-3 text-center">
+                                                                        <div className="flex items-center justify-center gap-1.5">
+                                                                            {r.checkInPhoto && (
+                                                                                <button onClick={() => setSelectedPhotoRecord(r)} title="Foto Masuk" className="relative group">
+                                                                                    <img src={resolveFileUrl(r.checkInPhoto)} className="w-8 h-8 rounded border object-cover hover:scale-110 transition-transform" />
+                                                                                    <span className="text-[8px] block font-bold text-gray-400">Masuk</span>
+                                                                                </button>
+                                                                            )}
+                                                                            {r.breakStartPhoto && (
+                                                                                <button onClick={() => setSelectedPhotoRecord(r)} title="Foto Istirahat" className="relative group">
+                                                                                    <img src={resolveFileUrl(r.breakStartPhoto)} className="w-8 h-8 rounded border object-cover hover:scale-110 transition-transform" />
+                                                                                    <span className="text-[8px] block font-bold text-gray-400">Ist</span>
+                                                                                </button>
+                                                                            )}
+                                                                            {r.checkOutPhoto && (
+                                                                                <button onClick={() => setSelectedPhotoRecord(r)} title="Foto Pulang" className="relative group">
+                                                                                    <img src={resolveFileUrl(r.checkOutPhoto)} className="w-8 h-8 rounded border object-cover hover:scale-110 transition-transform" />
+                                                                                    <span className="text-[8px] block font-bold text-gray-400">Pulang</span>
+                                                                                </button>
+                                                                            )}
+                                                                            {r.lateReasonPhoto && (
+                                                                                <button onClick={() => setSelectedPhotoRecord(r)} title="Bukti Telat" className="relative group">
+                                                                                    <img src={resolveFileUrl(r.lateReasonPhoto)} className="w-8 h-8 rounded border border-rose-300 object-cover hover:scale-110 transition-transform" />
+                                                                                    <span className="text-[8px] block font-bold text-rose-600">Telat</span>
+                                                                                </button>
+                                                                            )}
+                                                                            {!r.checkInPhoto && !r.checkOutPhoto && !r.lateReasonPhoto && (
+                                                                                <span className="text-gray-300 text-xs">-</span>
+                                                                            )}
+                                                                        </div>
+                                                                    </td>
+                                                                </tr>
+                                                            );
+                                                        })
+                                                    )}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+
+                                    {/* 4. TABEL B: RINCIAN LEMBUR (WEEKEND & HARI KERJA) */}
+                                    <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden space-y-0">
+                                        <div className="bg-amber-50/60 border-b border-amber-200 px-6 py-3.5 flex items-center justify-between">
+                                            <div>
+                                                <h3 className="font-black text-amber-950 text-sm flex items-center gap-2">
+                                                    <Clock className="h-4 w-4 text-amber-600" />
+                                                    Daftar Lembur (Akhir Pekan &amp; Penugasan Lembur)
+                                                </h3>
+                                                <p className="text-[11px] text-amber-800/80 mt-0.5">
+                                                    Mencakup kehadiran Sabtu &amp; Minggu (otomatis dihitung jam lembur) serta penugasan lembur hari kerja
+                                                </p>
+                                            </div>
+                                            <span className="text-xs font-black px-2.5 py-1 rounded bg-amber-100 text-amber-900 border border-amber-300">
+                                                Total {summaryItem.totalLemburHours} Jam Lembur
+                                            </span>
+                                        </div>
+
+                                        <div className="overflow-x-auto">
+                                            <table className="w-full text-xs text-left whitespace-nowrap">
+                                                <thead className="bg-amber-50 text-amber-900 font-bold uppercase tracking-wider text-[10px] border-b border-amber-200">
+                                                    <tr>
+                                                        <th className="px-4 py-3">TANGGAL</th>
+                                                        <th className="px-4 py-3">KATEGORI LEMBUR</th>
+                                                        <th className="px-4 py-3 text-center">MULAI</th>
+                                                        <th className="px-4 py-3 text-center">SELESAI</th>
+                                                        <th className="px-4 py-3 text-center">DURASI</th>
+                                                        <th className="px-4 py-3">KETERANGAN / TUGAS</th>
+                                                        <th className="px-4 py-3 text-center">STATUS</th>
+                                                        <th className="px-4 py-3 text-center">BUKTI FOTO LEMBUR</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody className="divide-y divide-slate-100">
+                                                    {weekendRecords.length === 0 && empOvertimes.length === 0 ? (
+                                                        <tr>
+                                                            <td colSpan={8} className="text-center py-6 text-gray-400 italic">
+                                                                Tidak ada catatan lembur pada periode ini.
+                                                            </td>
+                                                        </tr>
+                                                    ) : (
+                                                        <>
+                                                            {/* Baris Lembur dari Kehadiran Weekend (Sabtu/Minggu) */}
+                                                            {weekendRecords.map((w: any) => {
+                                                                const { netWorkMins } = calculateDailyTotal([w]);
+                                                                return (
+                                                                    <tr key={`weekend-${w.id}`} className="bg-amber-50/20 hover:bg-amber-50/40 transition-colors">
+                                                                        <td className="px-4 py-3 font-bold text-slate-800">
+                                                                            {safeFormatDate(w.date, "EEEE, d MMM yyyy", { locale: id })}
+                                                                        </td>
+                                                                        <td className="px-4 py-3">
+                                                                            <span className="bg-amber-100 text-amber-800 text-[10px] font-extrabold px-2 py-0.5 rounded border border-amber-300">
+                                                                                ⚡ Weekend (Sabtu/Minggu)
+                                                                            </span>
+                                                                        </td>
+                                                                        <td className="px-4 py-3 text-center font-mono font-bold text-amber-700">
+                                                                            {w.checkIn ? safeFormatDate(w.checkIn, "HH:mm") : "-"}
+                                                                        </td>
+                                                                        <td className="px-4 py-3 text-center font-mono font-bold text-amber-700">
+                                                                            {w.checkOut ? safeFormatDate(w.checkOut, "HH:mm") : "-"}
+                                                                        </td>
+                                                                        <td className="px-4 py-3 text-center font-black text-amber-900">
+                                                                            {netWorkMins > 0 ? formatDuration(netWorkMins) : "-"}
+                                                                        </td>
+                                                                        <td className="px-4 py-3 text-slate-600 italic">
+                                                                            {w.notes || "Absensi kerja akhir pekan"}
+                                                                        </td>
+                                                                        <td className="px-4 py-3 text-center">
+                                                                            <span className="bg-emerald-100 text-emerald-800 text-[10px] font-extrabold px-2 py-0.5 rounded">
+                                                                                Selesai
+                                                                            </span>
+                                                                        </td>
+                                                                        <td className="px-4 py-3 text-center">
+                                                                            <div className="flex items-center justify-center gap-1.5">
+                                                                                {w.checkInPhoto && (
+                                                                                    <button onClick={() => setSelectedPhotoRecord(w)} title="Foto Masuk Weekend">
+                                                                                        <img src={resolveFileUrl(w.checkInPhoto)} className="w-8 h-8 rounded border object-cover hover:scale-110 transition-transform" />
+                                                                                    </button>
+                                                                                )}
+                                                                                {w.checkOutPhoto && (
+                                                                                    <button onClick={() => setSelectedPhotoRecord(w)} title="Foto Pulang Weekend">
+                                                                                        <img src={resolveFileUrl(w.checkOutPhoto)} className="w-8 h-8 rounded border object-cover hover:scale-110 transition-transform" />
+                                                                                    </button>
+                                                                                )}
+                                                                                {!w.checkInPhoto && !w.checkOutPhoto && (
+                                                                                    <span className="text-gray-300">-</span>
+                                                                                )}
+                                                                            </div>
+                                                                        </td>
+                                                                    </tr>
+                                                                );
+                                                            })}
+
+                                                            {/* Baris Lembur dari Penugasan Lembur (Overtime Record) */}
+                                                            {empOvertimes.map((ot: any) => {
+                                                                const otMins = (ot.startTime && ot.endTime)
+                                                                    ? Math.max(0, differenceInMinutes(new Date(ot.endTime), new Date(ot.startTime)))
+                                                                    : 0;
+                                                                return (
+                                                                    <tr key={`ot-${ot.id}`} className="hover:bg-amber-50/30 transition-colors">
+                                                                        <td className="px-4 py-3 font-bold text-slate-800">
+                                                                            {ot.date ? safeFormatDate(ot.date, "EEEE, d MMM yyyy", { locale: id }) : (ot.startTime ? safeFormatDate(ot.startTime, "EEEE, d MMM yyyy", { locale: id }) : "-")}
+                                                                        </td>
+                                                                        <td className="px-4 py-3">
+                                                                            <span className="bg-orange-100 text-orange-800 text-[10px] font-extrabold px-2 py-0.5 rounded border border-orange-200">
+                                                                                Penugasan Lembur (SPL)
+                                                                            </span>
+                                                                        </td>
+                                                                        <td className="px-4 py-3 text-center font-mono font-bold text-orange-700">
+                                                                            {ot.startTime ? safeFormatDate(ot.startTime, "HH:mm") : "-"}
+                                                                        </td>
+                                                                        <td className="px-4 py-3 text-center font-mono font-bold text-orange-700">
+                                                                            {ot.endTime ? safeFormatDate(ot.endTime, "HH:mm") : (ot.status === 'ongoing' ? 'Berlangsung' : '-')}
+                                                                        </td>
+                                                                        <td className="px-4 py-3 text-center font-black text-orange-900">
+                                                                            {otMins > 0 ? formatDuration(otMins) : "-"}
+                                                                        </td>
+                                                                        <td className="px-4 py-3 text-slate-600 italic">
+                                                                            {ot.description || ot.finalDescription || "Pekerjaan lembur"}
+                                                                        </td>
+                                                                        <td className="px-4 py-3 text-center">
+                                                                            <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded border ${
+                                                                                ot.status === 'completed' ? 'bg-emerald-100 text-emerald-800 border-emerald-200' :
+                                                                                ot.status === 'ongoing' ? 'bg-blue-100 text-blue-800 border-blue-200 animate-pulse' :
+                                                                                'bg-yellow-100 text-yellow-800 border-yellow-200'
+                                                                            }`}>
+                                                                                {ot.status === 'completed' ? 'Selesai' : ot.status === 'ongoing' ? 'Berlangsung' : 'Disetujui'}
+                                                                            </span>
+                                                                        </td>
+                                                                        <td className="px-4 py-3 text-center">
+                                                                            <div className="flex items-center justify-center gap-1.5">
+                                                                                {ot.initialProofUrl && (
+                                                                                    <a href={resolveFileUrl(ot.initialProofUrl)} target="_blank" rel="noopener noreferrer" title="Bukti Awal Lembur">
+                                                                                        <img src={resolveFileUrl(ot.initialProofUrl)} className="w-8 h-8 rounded border object-cover hover:scale-110 transition-transform" />
+                                                                                    </a>
+                                                                                )}
+                                                                                {ot.finalProofUrl && (
+                                                                                    <a href={resolveFileUrl(ot.finalProofUrl)} target="_blank" rel="noopener noreferrer" title="Bukti Selesai Lembur">
+                                                                                        <img src={resolveFileUrl(ot.finalProofUrl)} className="w-8 h-8 rounded border border-emerald-300 object-cover hover:scale-110 transition-transform" />
+                                                                                    </a>
+                                                                                )}
+                                                                                {!ot.initialProofUrl && !ot.finalProofUrl && (
+                                                                                    <span className="text-gray-300">-</span>
+                                                                                )}
+                                                                            </div>
+                                                                        </td>
+                                                                    </tr>
+                                                                );
+                                                            })}
+                                                        </>
+                                                    )}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
                                 </div>
-                            </>
-                        );
-                    })()}
+                            );
+                        })()
+                    )}
                 </div>
             )}
         </div>

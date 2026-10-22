@@ -116,7 +116,11 @@ export default function AdminSettingsPage() {
   const [singkatanPt, setSingkatanPt] = useState("");
   const [deskripsiPwa, setDeskripsiPwa] = useState("");
   const [logoUrl, setLogoUrl] = useState("");
-  const [rekapPrefix, setRekapPrefix] = useState("");
+  const [rekapPrefix,
+      cutoffStartDay,
+      cutoffEndDay, setRekapPrefix] = useState("");
+  const [cutoffStartDay, setCutoffStartDay] = useState(21);
+  const [cutoffEndDay, setCutoffEndDay] = useState(20);
   const [hexPrimary, setHexPrimary] = useState("#f97316");
   const [hexSecondary, setHexSecondary] = useState("#ea580c");
   const [hexAccent, setHexAccent] = useState("#ffedd5");
@@ -143,6 +147,8 @@ export default function AdminSettingsPage() {
       setDeskripsiPwa(config.deskripsiPwa || "");
       setLogoUrl(config.logoUrl || "");
       setRekapPrefix(config.rekapPrefix || "");
+      if (config.cutoffStartDay !== undefined) setCutoffStartDay(Number(config.cutoffStartDay) || 21);
+      if (config.cutoffEndDay !== undefined) setCutoffEndDay(Number(config.cutoffEndDay) || 20);
       setHexPrimary(hslToHex(config.themePrimary || "24 95% 53%"));
       setHexSecondary(hslToHex(config.themeSecondary || "24 95% 43%"));
       setHexAccent(hslToHex(config.themeAccent || "24 95% 93%"));
@@ -352,6 +358,41 @@ export default function AdminSettingsPage() {
                   onChange={(e) => setRekapPrefix(e.target.value)}
                   placeholder="Contoh: REKAP_ABSENSI"
                 />
+              </div>
+
+              <div className="space-y-1.5 pt-2 border-t border-gray-100">
+                <Label className="text-[10px] font-bold text-gray-700 uppercase tracking-wider block">
+                  Periode Bulanan Absensi (Cutoff Penggajian)
+                </Label>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <span className="text-[10px] text-gray-400 block mb-1">Mulai Tgl:</span>
+                    <Input
+                      type="number"
+                      min={1}
+                      max={31}
+                      className="rounded-xl border-gray-200 text-xs"
+                      value={cutoffStartDay}
+                      onChange={(e) => setCutoffStartDay(Number(e.target.value) || 1)}
+                      placeholder="21"
+                    />
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-gray-400 block mb-1">Sampai Tgl:</span>
+                    <Input
+                      type="number"
+                      min={1}
+                      max={31}
+                      className="rounded-xl border-gray-200 text-xs"
+                      value={cutoffEndDay}
+                      onChange={(e) => setCutoffEndDay(Number(e.target.value) || 1)}
+                      placeholder="20"
+                    />
+                  </div>
+                </div>
+                <p className="text-[10px] text-gray-400 italic">
+                  Misal 21 s/d 20 atau 21 s/d 21 untuk perhitungan 1 bulan periode bulanan aplikasi.
+                </p>
               </div>
             </CardContent>
           </Card>

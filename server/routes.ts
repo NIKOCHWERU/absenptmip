@@ -662,6 +662,8 @@ export function registerRoutes(app: Express) {
         logoUrl: configMap["logoUrl"] ?? process.env.VITE_LOGO_FILE ?? "",
         logoInisial: configMap["logoInisial"] ?? process.env.VITE_LOGO_INISIAL ?? "",
         rekapPrefix: configMap["rekapPrefix"] ?? process.env.VITE_REKAP_FILE_PREFIX ?? "REKAP_ABSENSI",
+        cutoffStartDay: Number(configMap["cutoffStartDay"] ?? 21),
+        cutoffEndDay: Number(configMap["cutoffEndDay"] ?? 20),
         themePrimary: configMap["themePrimary"] ?? process.env.VITE_THEME_PRIMARY_HSL ?? "24 95% 53%",
         themeSecondary: configMap["themeSecondary"] ?? process.env.VITE_THEME_SECONDARY_HSL ?? "24 95% 43%",
         themeAccent: configMap["themeAccent"] ?? process.env.VITE_THEME_ACCENT_HSL ?? "24 95% 93%",
@@ -690,6 +692,8 @@ export function registerRoutes(app: Express) {
         logoUrl: process.env.VITE_LOGO_FILE || "",
         logoInisial: process.env.VITE_LOGO_INISIAL || "",
         rekapPrefix: process.env.VITE_REKAP_FILE_PREFIX || "REKAP_ABSENSI",
+        cutoffStartDay: 21,
+        cutoffEndDay: 20,
         features: {
           leave: process.env.FEATURE_LEAVE !== "false",
           recap: process.env.FEATURE_RECAP !== "false",
@@ -711,6 +715,7 @@ export function registerRoutes(app: Express) {
     try {
       const {
         namaPt, singkatanPt, deskripsiPwa, alamatPt, logoUrl, logoInisial, rekapPrefix,
+        cutoffStartDay, cutoffEndDay,
         themePrimary, themeSecondary, themeAccent, themeBackground, themeSidebarAccent,
         features
       } = req.body;
@@ -723,6 +728,8 @@ export function registerRoutes(app: Express) {
       if (logoUrl !== undefined) configsToSave.push({ key: "logoUrl", value: String(logoUrl) });
       if (logoInisial !== undefined) configsToSave.push({ key: "logoInisial", value: String(logoInisial) });
       if (rekapPrefix !== undefined) configsToSave.push({ key: "rekapPrefix", value: String(rekapPrefix) });
+      if (cutoffStartDay !== undefined) configsToSave.push({ key: "cutoffStartDay", value: String(cutoffStartDay) });
+      if (cutoffEndDay !== undefined) configsToSave.push({ key: "cutoffEndDay", value: String(cutoffEndDay) });
       if (themePrimary !== undefined) configsToSave.push({ key: "themePrimary", value: String(themePrimary) });
       if (themeSecondary !== undefined) configsToSave.push({ key: "themeSecondary", value: String(themeSecondary) });
       if (themeAccent !== undefined) configsToSave.push({ key: "themeAccent", value: String(themeAccent) });
