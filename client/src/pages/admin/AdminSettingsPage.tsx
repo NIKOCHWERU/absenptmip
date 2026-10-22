@@ -116,9 +116,7 @@ export default function AdminSettingsPage() {
   const [singkatanPt, setSingkatanPt] = useState("");
   const [deskripsiPwa, setDeskripsiPwa] = useState("");
   const [logoUrl, setLogoUrl] = useState("");
-  const [rekapPrefix,
-      cutoffStartDay,
-      cutoffEndDay, setRekapPrefix] = useState("");
+  const [rekapPrefix, setRekapPrefix] = useState("");
   const [cutoffStartDay, setCutoffStartDay] = useState(21);
   const [cutoffEndDay, setCutoffEndDay] = useState(20);
   const [hexPrimary, setHexPrimary] = useState("#f97316");
@@ -212,6 +210,8 @@ export default function AdminSettingsPage() {
       alamatPt,
       logoUrl,
       rekapPrefix,
+      cutoffStartDay,
+      cutoffEndDay,
       themePrimary: primaryHsl,
       themeSecondary: secondaryHsl,
       themeAccent: derived.themeAccent,
