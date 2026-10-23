@@ -308,6 +308,38 @@ export default function RecapPage() {
         queryKey: ["/api/admin/users"],
     });
 
+    const { data: allResignations } = useQuery<any[]>({
+        queryKey: ["/api/admin/resignations"],
+    });
+
+    const isAdminUser = (u: any) => {
+        if (!u) return false;
+        if (u.isAdmin === true) return true;
+        const role = (u.role || '').toLowerCase();
+        if (role === 'admin' || role === 'superadmin') return true;
+        if ((u.username || '').toLowerCase() === 'admin') return true;
+        return false;
+    };
+
+    const isResignedUser = (u: any) => {
+        if (!u) return false;
+        const empStatus = (u.employmentStatus || '').toLowerCase();
+        if (empStatus === 'resign') return true;
+        const st = (u.status || '').toLowerCase();
+        if (st === 'resign' || u.isResigned) return true;
+        if (allResignations && allResignations.some((r: any) => Number(r.userId) === Number(u.id) && (r.status === 'approved' || !r.status))) return true;
+        return false;
+    };
+
+    const formatLemburDisplay = (totalMins: number) => {
+        if (!totalMins || totalMins <= 0) return "0 Jam";
+        const h = Math.floor(totalMins / 60);
+        const m = Math.round(totalMins % 60);
+        if (h > 0 && m > 0) return `${h} jam ${m} Menit`;
+        if (h > 0) return `${h} Jam`;
+        return `${m} Menit`;
+    };
+
     const [searchRingkasan, setSearchRingkasan] = useState("");
 
     const { data: ringkasanAttendanceData, isLoading: isLoadingRingkasan } = useQuery<Attendance[]>({
@@ -514,9 +546,9 @@ export default function RecapPage() {
             return isInRange(dtStr);
         });
 
-        // Seluruh karyawan aktif (role employee atau non-admin)
-        const activeEmployees = users
-            .filter(u => u.role === 'employee' || !u.isAdmin)
+        // Seluruh karyawan aktif (non-admin dan bukan karyawan resign)
+        const activeEmployees = (users || [])
+            .filter(u => !isAdminUser(u) && !isResignedUser(u))
             .sort((a, b) => (a.fullName || '').localeCompare(b.fullName || '', 'id'));
 
         return activeEmployees.map(user => {
@@ -620,19 +652,24 @@ export default function RecapPage() {
 
             const dept = ((user as any).position || (user as any).department || (user as any).dept || '-').toUpperCase();
 
+            const totalHadirStr = `${totalHadirHariKerja} Hari`;
+            const totalLemburStr = formatLemburDisplay(totalLemburMins);
+
             return {
                 userId: uid,
                 nik: user.nik || user.username || '-',
                 nama: (user.fullName || '').toUpperCase(),
                 dept,
                 totalHadirHariKerja,
+                totalHadirStr,
                 totalLemburMins,
                 totalLemburHours: totalLemburFormatted,
+                totalLemburStr,
                 totalJamKerjaRegMins,
                 totalJamKerjaStr,
             };
         });
-    }, [users, allAttendance, ringkasanAttendanceData, allOvertimes, ringkasanStartDate, ringkasanEndDate]);
+    }, [users, allResignations, allAttendance, ringkasanAttendanceData, allOvertimes, ringkasanStartDate, ringkasanEndDate]);
 
     const handleExportExcel = async () => {
         if (!ringkasanData || ringkasanData.length === 0) {
@@ -653,7 +690,12 @@ export default function RecapPage() {
                 return;
             }
 
-            // Header columns exact casing to client sample image:
+            const formattedStart = safeFormatDate(ringkasanStartDate, "d MMMM yyyy");
+            const formattedEnd = safeFormatDate(ringkasanEndDate, "d MMMM yyyy");
+            const titleRow = [`Rekap absensi tanggal ${formattedStart} s/d ${formattedEnd} ${namaPt}`];
+            const emptyRow: string[] = [];
+
+            // Header columns exact casing:
             // NO | NAMA | DEPT | Total Hadir Hari Kerja | Total Lembur (Jam)
             const headerRow = ['NO', 'NAMA', 'DEPT', 'Total Hadir Hari Kerja', 'Total Lembur (Jam)'];
 
@@ -661,20 +703,23 @@ export default function RecapPage() {
                 i + 1,
                 row.nama,
                 row.dept,
-                row.totalHadirHariKerja,
-                row.totalLemburHours,
+                row.totalHadirStr,
+                row.totalLemburStr,
             ]);
 
-            const allRows = [headerRow, ...dataRows];
+            const allRows = [titleRow, emptyRow, headerRow, ...dataRows];
             const ws = XLSX.utils.aoa_to_sheet(allRows);
+
+            // Merge header title across columns A1 to E1
+            ws['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 4 } }];
 
             // Set column widths matching the layout
             ws['!cols'] = [
                 { wch: 6 },   // NO
-                { wch: 32 },  // NAMA
-                { wch: 28 },  // DEPT
+                { wch: 36 },  // NAMA
+                { wch: 30 },  // DEPT
                 { wch: 24 },  // Total Hadir Hari Kerja
-                { wch: 22 },  // Total Lembur (Jam)
+                { wch: 26 },  // Total Lembur (Jam)
             ];
 
             const wb = XLSX.utils.book_new();
@@ -2421,7 +2466,7 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
                                         <SelectContent>
                                             <SelectItem value="all">Semua Karyawan</SelectItem>
                                             {(users || [])
-                                                .filter(u => u.role === 'employee' || !u.isAdmin)
+                                                .filter(u => !isAdminUser(u) && !isResignedUser(u))
                                                 .sort((a, b) => (a.fullName || '').localeCompare(b.fullName || '', 'id'))
                                                 .map((emp) => (
                                                     <SelectItem key={emp.id} value={String(emp.id)}>
@@ -2449,6 +2494,13 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
                     {/* KONDISI 1: JIKA SEMUA KARYAWAN DIPILIH */}
                     {selectedEmployeeId === "all" ? (
                         <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                            {/* Header Banner Judul Rekap */}
+                            <div className="bg-primary/5 border-b border-primary/20 px-6 py-4 text-center">
+                                <h3 className="text-sm font-black uppercase tracking-wider text-primary">
+                                    Rekap absensi tanggal {safeFormatDate(ringkasanStartDate, "d MMMM yyyy")} s/d {safeFormatDate(ringkasanEndDate, "d MMMM yyyy")} {namaPt}
+                                </h3>
+                            </div>
+
                             <div className="overflow-x-auto">
                                 <table className="w-full text-sm border-collapse text-left">
                                     <thead>
@@ -2491,30 +2543,15 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
                                                         {row.dept}
                                                     </td>
                                                     <td className="border-r border-slate-200 px-6 py-2.5 text-center font-black text-slate-900 text-sm bg-primary/5">
-                                                        {row.totalHadirHariKerja}
+                                                        {row.totalHadirStr}
                                                     </td>
                                                     <td className="px-6 py-2.5 text-center font-black text-amber-700 text-sm bg-amber-50/50">
-                                                        {row.totalLemburHours}
+                                                        {row.totalLemburStr}
                                                     </td>
                                                 </tr>
                                             ))
                                         )}
                                     </tbody>
-                                    {ringkasanData.length > 0 && (
-                                        <tfoot>
-                                            <tr className="bg-slate-100 font-black border-t-2 border-slate-300">
-                                                <td colSpan={3} className="border-r border-slate-200 px-6 py-3 text-right text-xs uppercase tracking-wider text-slate-800">
-                                                    TOTAL KESELURUHAN ({ringkasanData.length} Karyawan):
-                                                </td>
-                                                <td className="border-r border-slate-200 px-6 py-3 text-center text-sm font-black text-slate-900 bg-primary/10">
-                                                    {ringkasanData.reduce((acc: number, r: any) => acc + (r.totalHadirHariKerja || 0), 0)} Hari
-                                                </td>
-                                                <td className="px-6 py-3 text-center text-sm font-black text-amber-900 bg-amber-100">
-                                                    {Math.round(ringkasanData.reduce((acc: number, r: any) => acc + (r.totalLemburHours || 0), 0) * 10) / 10} Jam
-                                                </td>
-                                            </tr>
-                                        </tfoot>
-                                    )}
                                 </table>
                             </div>
                         </div>
@@ -2526,7 +2563,9 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
                                 nama: (selectedEmp?.fullName || '').toUpperCase(),
                                 dept: ((selectedEmp as any)?.position || (selectedEmp as any)?.department || '-').toUpperCase(),
                                 totalHadirHariKerja: 0,
+                                totalHadirStr: "0 Hari",
                                 totalLemburHours: 0,
+                                totalLemburStr: "0 Jam",
                             };
 
                             const rs = new Date(ringkasanStartDate);
@@ -2589,7 +2628,7 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
                                             <div>
                                                 <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Hari Kerja (Senin–Jumat)</p>
                                                 <p className="text-2xl font-black text-gray-900 mt-1">
-                                                    {summaryItem.totalHadirHariKerja} <span className="text-xs font-semibold text-gray-400">Hari Masuk</span>
+                                                    {summaryItem.totalHadirStr}
                                                 </p>
                                                 <p className="text-[11px] text-gray-400 mt-0.5">Senin s/d Jumat Sesuai Shift</p>
                                             </div>
@@ -2602,7 +2641,7 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
                                             <div>
                                                 <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Total Jam Lembur</p>
                                                 <p className="text-2xl font-black text-amber-600 mt-1">
-                                                    {summaryItem.totalLemburHours} <span className="text-xs font-semibold text-gray-400">Jam Terakumulasi</span>
+                                                    {summaryItem.totalLemburStr}
                                                 </p>
                                                 <p className="text-[11px] text-gray-400 mt-0.5">Sabtu, Minggu &amp; Penugasan Lembur</p>
                                             </div>
@@ -2636,10 +2675,10 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
                                                         {summaryItem.dept}
                                                     </td>
                                                     <td className="border-r border-slate-200 px-6 py-3.5 text-center font-black text-base text-primary bg-primary/5">
-                                                        {summaryItem.totalHadirHariKerja} Hari
+                                                        {summaryItem.totalHadirStr}
                                                     </td>
                                                     <td className="px-6 py-3.5 text-center font-black text-base text-amber-700 bg-amber-50/50">
-                                                        {summaryItem.totalLemburHours} Jam
+                                                        {summaryItem.totalLemburStr}
                                                     </td>
                                                 </tr>
                                             </tbody>
