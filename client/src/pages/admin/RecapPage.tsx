@@ -990,67 +990,30 @@ export default function RecapPage() {
             text-transform: uppercase;
             margin: 0 0 2px 0;
         }
-        .kop-subname {
-            font-size: 8pt;
-            font-weight: 700;
-            color: ${themeColor};
-            letter-spacing: 1px;
-            text-transform: uppercase;
-            margin: 0 0 2px 0;
-        }
         .kop-address {
-            font-size: 7.5pt;
+            font-size: 8pt;
             color: #475569;
             line-height: 1.3;
             margin: 0;
         }
-        .kop-doc-meta {
-            width: 140px;
-            flex-shrink: 0;
-            text-align: right;
-            font-size: 6.8pt;
-            color: #64748b;
-            line-height: 1.4;
-        }
         .report-header {
             text-align: center;
             margin-top: 14px;
-            margin-bottom: 10px;
+            margin-bottom: 14px;
         }
         .report-title {
-            font-size: 11pt;
+            font-size: 11.5pt;
             font-weight: 800;
             color: #0f172a;
             text-transform: uppercase;
             letter-spacing: 0.5px;
-            margin: 0 0 3px 0;
+            margin: 0 0 4px 0;
         }
         .report-period {
-            font-size: 8.5pt;
+            font-size: 9pt;
             font-weight: 600;
             color: #334155;
             margin: 0;
-        }
-        .stats-bar {
-            display: flex;
-            justify-content: center;
-            gap: 15px;
-            margin-bottom: 10px;
-        }
-        .stat-badge {
-            background: #f8fafc;
-            border: 1px solid #e2e8f0;
-            border-radius: 4px;
-            padding: 3.5px 12px;
-            font-size: 7.2pt;
-            color: #475569;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-        .stat-badge strong {
-            color: #0f172a;
-            font-weight: 800;
         }
         .recap-table {
             width: 100%;
@@ -1096,48 +1059,7 @@ export default function RecapPage() {
         .td-dept { font-weight: 600; color: #475569; text-transform: uppercase; font-size: 7pt; }
         .td-hadir { font-weight: 800; color: #0f172a; background: rgba(234, 88, 12, 0.05); font-size: 8pt; }
         .td-lembur { font-weight: 800; color: #c2410c; background: #fff7ed; font-size: 8pt; }
-        .signature-wrapper {
-            margin-top: 18px;
-            page-break-inside: avoid !important;
-            break-inside: avoid !important;
-        }
-        .signature-table {
-            width: 100%;
-            border-collapse: collapse;
-            border: none;
-            table-layout: fixed;
-        }
-        .signature-table td {
-            border: none;
-            padding: 0 10px;
-            text-align: center;
-            font-size: 7.8pt;
-            color: #0f172a;
-            vertical-align: top;
-        }
-        .sig-role {
-            font-weight: 800;
-            text-transform: uppercase;
-            margin-top: 3px;
-            color: #334155;
-            font-size: 7.2pt;
-        }
-        .sig-space { height: 48px; }
-        .sig-name {
-            font-weight: 800;
-            text-transform: uppercase;
-            text-decoration: underline;
-            font-size: 8pt;
-        }
-        .sig-title { font-size: 6.8pt; color: #64748b; margin-top: 2px; }
-        .doc-footer {
-            margin-top: 14px;
-            padding-top: 6px;
-            border-top: 1px dashed #cbd5e1;
-            font-size: 6.5pt;
-            color: #94a3b8;
-            text-align: center;
-        }
+
     </style>
 </head>
 <body>
@@ -1149,14 +1071,9 @@ export default function RecapPage() {
                 </div>
                 <div class="kop-content">
                     <h1 class="kop-company-name">${escapeHTML(namaPt)}</h1>
-                    <div class="kop-subname">Sistem Manajemen Presensi &amp; Rekapitulasi Kerja Karyawan</div>
                     <p class="kop-address">${escapeHTML(alamatPt || "Kawasan Industri PT Mekano Industrial Presisi")}</p>
                 </div>
-                <div class="kop-doc-meta">
-                    <div><strong>FORMAT:</strong> REKAP BULANAN</div>
-                    <div><strong>ORIENTASI:</strong> LANDSCAPE</div>
-                    <div><strong>DOKUMEN:</strong> RESMI</div>
-                </div>
+                <div style="width: 120px; flex-shrink: 0;"></div>
             </div>
 
             <div class="report-header">
@@ -1164,21 +1081,6 @@ export default function RecapPage() {
                 <p class="report-period">
                     Periode: <strong>${escapeHTML(formattedStart)}</strong> s/d <strong>${escapeHTML(formattedEnd)}</strong>
                 </p>
-            </div>
-
-            <div class="stats-bar">
-                <div class="stat-badge">
-                    <span>Total Karyawan Direkap:</span>
-                    <strong>${exportTargetData.length} Orang</strong>
-                </div>
-                <div class="stat-badge">
-                    <span>Tanggal Cetak:</span>
-                    <strong>${escapeHTML(formattedPrintDate)} WIB</strong>
-                </div>
-                <div class="stat-badge">
-                    <span>Status Rekap:</span>
-                    <strong style="color: #166534;">Final / Terverifikasi</strong>
-                </div>
             </div>
 
             <table class="recap-table">
@@ -1197,38 +1099,6 @@ export default function RecapPage() {
             </table>
 
             ${singleEmpDetailsHtml}
-
-            <div class="signature-wrapper">
-                <table class="signature-table">
-                    <tr>
-                        <td style="width: 33.3%;">
-                            <div>Dibuat Oleh,</div>
-                            <div class="sig-role">HRD / Personalia</div>
-                            <div class="sig-space"></div>
-                            <div class="sig-name">( &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; )</div>
-                            <div class="sig-title">Staff Admin HRD</div>
-                        </td>
-                        <td style="width: 33.3%;">
-                            <div>Diperiksa Oleh,</div>
-                            <div class="sig-role">Supervisor / Leader</div>
-                            <div class="sig-space"></div>
-                            <div class="sig-name">( &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; )</div>
-                            <div class="sig-title">Kepala Bagian / Supervisor</div>
-                        </td>
-                        <td style="width: 33.3%;">
-                            <div>Mengetahui &amp; Menyetujui,</div>
-                            <div class="sig-role">Direksi / Manajemen</div>
-                            <div class="sig-space"></div>
-                            <div class="sig-name">( &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; )</div>
-                            <div class="sig-title">Pimpinan Perusahaan</div>
-                        </td>
-                    </tr>
-                </table>
-            </div>
-
-            <div class="doc-footer">
-                Dokumen resmi ini dicetak secara otomatis melalui Sistem Absensi &amp; Rekapitulasi Digital ${escapeHTML(namaPt)} pada ${escapeHTML(formattedPrintDate)} WIB &bull; Bersifat Sah untuk Keperluan Penggajian &amp; Operasional Internal Perusahaan.
-            </div>
         </div>
     </div>
 </body>
