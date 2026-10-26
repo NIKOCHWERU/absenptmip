@@ -775,10 +775,11 @@ export default function RecapPage() {
             const formattedPrintDate = format(new Date(), "d MMMM yyyy, HH:mm", { locale: id });
             const themeColor = config?.hexPrimary || "#ea580c";
 
-            const startStr = ringkasanStartDate.replace(/-/g, '');
-            const endStr = ringkasanEndDate.replace(/-/g, '');
-            const empSuffix = selectedEmployeeId === "all" ? "" : `_${(exportTargetData[0]?.nama || '').replace(/\s+/g, '_')}`;
-            const fileName = `REKAP_ABSENSI_${startStr}_to_${endStr}${empSuffix}.pdf`;
+            const periodStart = safeFormatDate(ringkasanStartDate, "dd MMM yyyy", { locale: id }).toUpperCase();
+            const periodEnd = safeFormatDate(ringkasanEndDate, "dd MMM yyyy", { locale: id }).toUpperCase();
+            const periodStr = `${periodStart} - ${periodEnd}`;
+            const empSuffix = selectedEmployeeId === "all" ? "" : ` - ${(exportTargetData[0]?.nama || '').replace(/\s+/g, ' ')}`;
+            const pdfFileName = `LAPORAN REKAP ABSENSI TENAGA KERJA ${singkatanPt} - ${periodStr}${empSuffix}.pdf`;
 
             let tableRowsHtml = "";
             exportTargetData.forEach((row: any, i: number) => {
@@ -921,7 +922,7 @@ export default function RecapPage() {
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <title>Rekap Absensi - ${escapeHTML(namaPt)}</title>
+    <title>LAPORAN KEHADIRAN TENAGA KERJA - ${escapeHTML(namaPt)}</title>
     <style>
         @page {
             size: A4 landscape;
@@ -952,7 +953,7 @@ export default function RecapPage() {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding-bottom: 8px;
+            padding-bottom: 6px;
             border-bottom: 2.5px solid #0f172a;
             position: relative;
         }
@@ -961,38 +962,37 @@ export default function RecapPage() {
             position: absolute;
             left: 0;
             right: 0;
-            bottom: -5px;
+            bottom: -4px;
             height: 1px;
             background: #64748b;
         }
         .kop-logo-wrapper {
-            width: 120px;
             flex-shrink: 0;
             display: flex;
             align-items: center;
-            justify-content: flex-start;
         }
         .kop-logo {
-            max-height: 52px;
-            max-width: 115px;
+            max-height: 48px;
+            max-width: 120px;
             object-fit: contain;
         }
-        .kop-content {
-            flex: 1;
-            text-align: center;
-            padding: 0 10px;
+        .company-block {
+            text-align: right;
+            flex-grow: 1;
+            margin-left: 16px;
         }
-        .kop-company-name {
-            font-size: 15pt;
+        .company-name {
+            font-size: 14.5pt;
             font-weight: 900;
-            letter-spacing: 0.8px;
+            letter-spacing: 0.5px;
             color: #0f172a;
             text-transform: uppercase;
             margin: 0 0 2px 0;
         }
-        .kop-address {
-            font-size: 8pt;
-            color: #475569;
+        .company-address {
+            font-size: 8.5pt;
+            font-weight: normal;
+            color: #334155;
             line-height: 1.3;
             margin: 0;
         }
@@ -1069,15 +1069,14 @@ export default function RecapPage() {
                 <div class="kop-logo-wrapper">
                     ${logoDataUrl ? `<img src="${logoDataUrl}" class="kop-logo" alt="Logo Perusahaan" />` : `<div style="font-size: 16pt; font-weight: 900; color: ${themeColor};">${escapeHTML(singkatanPt)}</div>`}
                 </div>
-                <div class="kop-content">
-                    <h1 class="kop-company-name">${escapeHTML(namaPt)}</h1>
-                    <p class="kop-address">${escapeHTML(alamatPt || "Kawasan Industri PT Mekano Industrial Presisi")}</p>
+                <div class="company-block">
+                    <h1 class="company-name">${escapeHTML(namaPt)}</h1>
+                    <p class="company-address">${escapeHTML(alamatPt || "Jl. Raya Dukuh, Industri Anggadita, Karawang Timur")}</p>
                 </div>
-                <div style="width: 120px; flex-shrink: 0;"></div>
             </div>
 
             <div class="report-header">
-                <h2 class="report-title">LAPORAN REKAPITULASI KEHADIRAN &amp; JAM LEMBUR KARYAWAN</h2>
+                <h2 class="report-title">LAPORAN KEHADIRAN TENAGA KERJA</h2>
                 <p class="report-period">
                     Periode: <strong>${escapeHTML(formattedStart)}</strong> s/d <strong>${escapeHTML(formattedEnd)}</strong>
                 </p>
@@ -1106,23 +1105,15 @@ export default function RecapPage() {
 
             const pdfBlob = await renderRecapHtmlToPdfBlob({
                 html,
-                pdfFileName: fileName,
+                pdfFileName,
                 html2pdfLib,
                 splitMode: "combine"
             });
 
-            const url = URL.createObjectURL(pdfBlob);
-            const a = document.createElement("a");
-            a.href = url;
-            a.download = fileName;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-
+            triggerBlobDownload(pdfBlob, pdfFileName);
             toast({
-                title: "✅ Export PDF Berhasil",
-                description: `File PDF ${fileName} berhasil dibuat dan diunduh.`
+                title: "✅ PDF Berhasil Diunduh",
+                description: pdfFileName
             });
         } catch (err: any) {
             toast({
