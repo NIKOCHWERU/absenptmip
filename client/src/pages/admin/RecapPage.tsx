@@ -816,17 +816,30 @@ export default function RecapPage() {
                     return day >= 1 && day <= 5;
                 });
 
-                const weekendRecords = empAtt.filter(a => {
-                    const day = new Date(a.date).getDay();
-                    return day === 0 || day === 6;
-                });
-
                 const empOvertimes = (allOvertimes || []).filter(ot => {
                     if (!ot || ot.employeeApproval === 'rejected' || ot.status === 'cancelled') return false;
                     const targetUid = ot.userId || (ot.attendance?.userId);
                     if (String(targetUid) !== selectedEmployeeId) return false;
                     const dtStr = ot.date ? ot.date : (ot.startTime ? ot.startTime : null);
                     return isInDateRange(dtStr);
+                });
+
+                const otDates = new Set(
+                    empOvertimes.map(ot => {
+                        return ot.date ? safeFormatDate(ot.date, 'yyyy-MM-dd') : safeFormatDate(ot.startTime, 'yyyy-MM-dd');
+                    }).filter(Boolean)
+                );
+
+                // Hanya sertakan absensi weekend yang benar-benar ada jam absen dan belum tercatat di SPL agar tidak dobel
+                const weekendRecords = empAtt.filter(a => {
+                    const day = new Date(a.date).getDay();
+                    const isWeekend = day === 0 || day === 6;
+                    if (!isWeekend) return false;
+                    const hasClock = !!(a.checkIn || a.checkOut);
+                    if (!hasClock) return false;
+                    const dStr = safeFormatDate(a.date, 'yyyy-MM-dd');
+                    if (dStr && otDates.has(dStr)) return false;
+                    return true;
                 });
 
                 let regRows = "";
@@ -2982,19 +2995,32 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
                             });
 
                             // Tabel 2: Riwayat Lembur
-                            // A. Weekend attendance (Sabtu & Minggu otomatis lembur)
-                            const weekendRecords = empAtt.filter(a => {
-                                const day = new Date(a.date).getDay();
-                                return day === 0 || day === 6;
-                            });
-
-                            // B. Overtime assignments dalam rentang tanggal
+                            // B. Overtime assignments (SPL) dalam rentang tanggal
                             const empOvertimes = (allOvertimes || []).filter(ot => {
                                 if (!ot || ot.employeeApproval === 'rejected' || ot.status === 'cancelled') return false;
                                 const targetUid = ot.userId || (ot.attendance?.userId);
                                 if (String(targetUid) !== selectedEmployeeId) return false;
                                 const dtStr = ot.date ? ot.date : (ot.startTime ? ot.startTime : null);
                                 return isInDateRange(dtStr);
+                            });
+
+                            const otDates = new Set(
+                                empOvertimes.map(ot => {
+                                    return ot.date ? safeFormatDate(ot.date, 'yyyy-MM-dd') : safeFormatDate(ot.startTime, 'yyyy-MM-dd');
+                                }).filter(Boolean)
+                            );
+
+                            // A. Weekend attendance: hanya yang ada jam masuk/pulang nyata,
+                            // dan abaikan jika tanggal tersebut sudah tercatat di penugasan SPL agar tidak dobel baris
+                            const weekendRecords = empAtt.filter(a => {
+                                const day = new Date(a.date).getDay();
+                                const isWeekend = day === 0 || day === 6;
+                                if (!isWeekend) return false;
+                                const hasClock = !!(a.checkIn || a.checkOut);
+                                if (!hasClock) return false;
+                                const dStr = safeFormatDate(a.date, 'yyyy-MM-dd');
+                                if (dStr && otDates.has(dStr)) return false;
+                                return true;
                             });
 
                             return (
@@ -3287,6 +3313,11 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
                                                                 const otMins = (ot.startTime && ot.endTime)
                                                                     ? Math.max(0, differenceInMinutes(new Date(ot.endTime), new Date(ot.startTime)))
                                                                     : 0;
+                                                                const otDateStr = ot.date ? safeFormatDate(ot.date, "yyyy-MM-dd") : (ot.startTime ? safeFormatDate(ot.startTime, "yyyy-MM-dd") : "");
+                                                                const matchingAtt = empAtt.find(a => safeFormatDate(a.date, 'yyyy-MM-dd') === otDateStr);
+                                                                const photo1 = ot.initialProofUrl || matchingAtt?.checkInPhoto;
+                                                                const photo2 = ot.finalProofUrl || matchingAtt?.checkOutPhoto;
+
                                                                 return (
                                                                     <tr key={`ot-${ot.id}`} className="hover:bg-amber-50/30 transition-colors">
                                                                         <td className="px-4 py-3 font-bold text-slate-800">
@@ -3320,17 +3351,17 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
                                                                         </td>
                                                                         <td className="px-4 py-3 text-center">
                                                                             <div className="flex items-center justify-center gap-1.5">
-                                                                                {ot.initialProofUrl && (
-                                                                                    <a href={resolveFileUrl(ot.initialProofUrl)} target="_blank" rel="noopener noreferrer" title="Bukti Awal Lembur">
-                                                                                        <img src={resolveFileUrl(ot.initialProofUrl)} className="w-8 h-8 rounded border object-cover hover:scale-110 transition-transform" />
+                                                                                {photo1 && (
+                                                                                    <a href={resolveFileUrl(photo1)} target="_blank" rel="noopener noreferrer" title="Bukti Awal / Masuk Lembur">
+                                                                                        <img src={resolveFileUrl(photo1)} className="w-8 h-8 rounded border object-cover hover:scale-110 transition-transform" />
                                                                                     </a>
                                                                                 )}
-                                                                                {ot.finalProofUrl && (
-                                                                                    <a href={resolveFileUrl(ot.finalProofUrl)} target="_blank" rel="noopener noreferrer" title="Bukti Selesai Lembur">
-                                                                                        <img src={resolveFileUrl(ot.finalProofUrl)} className="w-8 h-8 rounded border border-emerald-300 object-cover hover:scale-110 transition-transform" />
+                                                                                {photo2 && (
+                                                                                    <a href={resolveFileUrl(photo2)} target="_blank" rel="noopener noreferrer" title="Bukti Selesai / Pulang Lembur">
+                                                                                        <img src={resolveFileUrl(photo2)} className="w-8 h-8 rounded border border-emerald-300 object-cover hover:scale-110 transition-transform" />
                                                                                     </a>
                                                                                 )}
-                                                                                {!ot.initialProofUrl && !ot.finalProofUrl && (
+                                                                                {!photo1 && !photo2 && (
                                                                                     <span className="text-gray-300">-</span>
                                                                                 )}
                                                                             </div>
