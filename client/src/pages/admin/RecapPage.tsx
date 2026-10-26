@@ -272,6 +272,7 @@ export default function RecapPage() {
     const [ringkasanStartDate, setRingkasanStartDate] = useState<string>(format(new Date(new Date().getFullYear(), new Date().getMonth(), 1), 'yyyy-MM-dd'));
     const [ringkasanEndDate, setRingkasanEndDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
     const [isExportingExcel, setIsExportingExcel] = useState(false);
+    const [isExportingPdfRingkasan, setIsExportingPdfRingkasan] = useState(false);
     const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>("all");
 
     // Sinkronisasi tanggal cutoff bulanan dari konfigurasi (default 21 s/d 20)
@@ -743,6 +744,524 @@ export default function RecapPage() {
             });
         } finally {
             setIsExportingExcel(false);
+        }
+    };
+
+
+
+    const handleExportPdfRingkasan = async () => {
+        if (!ringkasanData || ringkasanData.length === 0) {
+            toast({ title: "Tidak ada data", description: "Belum ada data untuk rentang tanggal ini.", variant: "destructive" });
+            return;
+        }
+
+        setIsExportingPdfRingkasan(true);
+        try {
+            const html2pdfLib = await loadHtml2Pdf();
+            const logoDataUrl = await fetchLogoBase64();
+
+            const exportTargetData = selectedEmployeeId === "all"
+                ? ringkasanData
+                : ringkasanData.filter((r: any) => String(r.userId) === selectedEmployeeId);
+
+            if (exportTargetData.length === 0) {
+                toast({ title: "Tidak ada data", description: "Tidak ada data untuk karyawan yang dipilih.", variant: "destructive" });
+                setIsExportingPdfRingkasan(false);
+                return;
+            }
+
+            const formattedStart = safeFormatDate(ringkasanStartDate, "d MMMM yyyy");
+            const formattedEnd = safeFormatDate(ringkasanEndDate, "d MMMM yyyy");
+            const formattedPrintDate = format(new Date(), "d MMMM yyyy, HH:mm", { locale: id });
+            const themeColor = config?.hexPrimary || "#ea580c";
+
+            const startStr = ringkasanStartDate.replace(/-/g, '');
+            const endStr = ringkasanEndDate.replace(/-/g, '');
+            const empSuffix = selectedEmployeeId === "all" ? "" : `_${(exportTargetData[0]?.nama || '').replace(/\s+/g, '_')}`;
+            const fileName = `REKAP_ABSENSI_${startStr}_to_${endStr}${empSuffix}.pdf`;
+
+            let tableRowsHtml = "";
+            exportTargetData.forEach((row: any, i: number) => {
+                tableRowsHtml += `
+                    <tr>
+                        <td class="td-center" style="font-weight: 700; color: #475569;">${i + 1}</td>
+                        <td class="td-left td-name">${escapeHTML(row.nama)}</td>
+                        <td class="td-center td-dept">${escapeHTML(row.dept)}</td>
+                        <td class="td-center td-hadir">${escapeHTML(row.totalHadirStr)}</td>
+                        <td class="td-center td-lembur">${escapeHTML(row.totalLemburStr)}</td>
+                    </tr>
+                `;
+            });
+
+            let singleEmpDetailsHtml = "";
+            if (selectedEmployeeId !== "all") {
+                const rs = new Date(ringkasanStartDate);
+                rs.setHours(0, 0, 0, 0);
+                const re = new Date(ringkasanEndDate);
+                re.setHours(23, 59, 59, 999);
+                const isInDateRange = (dateVal: any) => {
+                    if (!dateVal) return false;
+                    const d = new Date(dateVal);
+                    return d >= rs && d <= re;
+                };
+
+                const currentAttSource = ringkasanAttendanceData || allAttendance || [];
+                const empAtt = currentAttSource
+                    .filter(a => String(a.userId) === selectedEmployeeId && isInDateRange(a.date))
+                    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+                const regularRecords = empAtt.filter(a => {
+                    const day = new Date(a.date).getDay();
+                    return day >= 1 && day <= 5;
+                });
+
+                const weekendRecords = empAtt.filter(a => {
+                    const day = new Date(a.date).getDay();
+                    return day === 0 || day === 6;
+                });
+
+                const empOvertimes = (allOvertimes || []).filter(ot => {
+                    if (!ot || ot.employeeApproval === 'rejected' || ot.status === 'cancelled') return false;
+                    const targetUid = ot.userId || (ot.attendance?.userId);
+                    if (String(targetUid) !== selectedEmployeeId) return false;
+                    const dtStr = ot.date ? ot.date : (ot.startTime ? ot.startTime : null);
+                    return isInDateRange(dtStr);
+                });
+
+                let regRows = "";
+                regularRecords.forEach((r, idx) => {
+                    const statusText = r.status === 'present' ? 'Hadir Tepat Waktu' : (r.status === 'late' ? 'Terlambat' : (r.status || 'Hadir'));
+                    const statusColor = r.status === 'late' ? '#dc2626' : '#166534';
+                    regRows += `
+                        <tr>
+                            <td class="td-center">${idx + 1}</td>
+                            <td class="td-left" style="font-weight: 700;">${safeFormatDate(r.date, "EEEE, d MMM yyyy", { locale: id })}</td>
+                            <td class="td-center">${r.checkIn ? safeFormatDate(r.checkIn, "HH:mm") : "-"}</td>
+                            <td class="td-center">${r.breakStart ? safeFormatDate(r.breakStart, "HH:mm") : "-"} s/d ${r.breakEnd ? safeFormatDate(r.breakEnd, "HH:mm") : "-"}</td>
+                            <td class="td-center">${r.checkOut ? safeFormatDate(r.checkOut, "HH:mm") : "-"}</td>
+                            <td class="td-center" style="font-weight: 700; color: ${statusColor};">${escapeHTML(statusText)}</td>
+                            <td class="td-left" style="font-size: 6.8pt; color: #64748b;">${escapeHTML(r.lateReason || r.notes || "-")}</td>
+                        </tr>
+                    `;
+                });
+
+                let otRows = "";
+                let otIdx = 1;
+                weekendRecords.forEach(w => {
+                    otRows += `
+                        <tr>
+                            <td class="td-center">${otIdx++}</td>
+                            <td class="td-left" style="font-weight: 700;">${safeFormatDate(w.date, "EEEE, d MMM yyyy", { locale: id })}</td>
+                            <td class="td-center">${w.checkIn ? safeFormatDate(w.checkIn, "HH:mm") : "-"}</td>
+                            <td class="td-center">${w.checkOut ? safeFormatDate(w.checkOut, "HH:mm") : "-"}</td>
+                            <td class="td-left" style="color: #c2410c; font-weight: 700;">Lembur Akhir Pekan (Sabtu/Minggu)</td>
+                            <td class="td-center" style="font-weight: 700; color: #166534;">Otomatis Dihitung</td>
+                        </tr>
+                    `;
+                });
+                empOvertimes.forEach(ot => {
+                    const otDateStr = ot.date ? safeFormatDate(ot.date, "EEEE, d MMM yyyy", { locale: id }) : (ot.startTime ? safeFormatDate(ot.startTime, "EEEE, d MMM yyyy", { locale: id }) : "-");
+                    otRows += `
+                        <tr>
+                            <td class="td-center">${otIdx++}</td>
+                            <td class="td-left" style="font-weight: 700;">${otDateStr}</td>
+                            <td class="td-center">${ot.startTime ? safeFormatDate(ot.startTime, "HH:mm") : "-"}</td>
+                            <td class="td-center">${ot.endTime ? safeFormatDate(ot.endTime, "HH:mm") : "-"}</td>
+                            <td class="td-left">${escapeHTML(ot.reason || ot.notes || "Penugasan Lembur")}</td>
+                            <td class="td-center" style="font-weight: 700; color: #166534;">Disetujui</td>
+                        </tr>
+                    `;
+                });
+
+                singleEmpDetailsHtml = `
+                    <div style="margin-top: 18px; page-break-inside: avoid;">
+                        <h4 style="font-size: 8.8pt; font-weight: 800; color: #0f172a; text-transform: uppercase; margin: 0 0 6px 0; border-left: 3px solid ${themeColor}; padding-left: 6px;">
+                            1. Rincian Absensi Hari Kerja Reguler (Senin s/d Jumat)
+                        </h4>
+                        <table class="recap-table" style="font-size: 7pt; margin-bottom: 12px;">
+                            <thead>
+                                <tr>
+                                    <th style="width: 5%;">NO</th>
+                                    <th style="width: 22%;">HARI, TANGGAL</th>
+                                    <th style="width: 13%;">MASUK</th>
+                                    <th style="width: 18%;">ISTIRAHAT</th>
+                                    <th style="width: 13%;">PULANG</th>
+                                    <th style="width: 14%;">STATUS</th>
+                                    <th style="width: 15%;">KETERANGAN</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${regRows || '<tr><td colspan="7" class="td-center" style="padding: 10px; color: #94a3b8;">Tidak ada catatan kehadiran reguler pada periode ini.</td></tr>'}
+                            </tbody>
+                        </table>
+
+                        <h4 style="font-size: 8.8pt; font-weight: 800; color: #0f172a; text-transform: uppercase; margin: 12px 0 6px 0; border-left: 3px solid #c2410c; padding-left: 6px;">
+                            2. Rincian Riwayat Lembur (Weekend &amp; Penugasan Lembur)
+                        </h4>
+                        <table class="recap-table" style="font-size: 7pt; margin-bottom: 12px;">
+                            <thead>
+                                <tr>
+                                    <th style="width: 5%;">NO</th>
+                                    <th style="width: 24%;">HARI, TANGGAL</th>
+                                    <th style="width: 14%;">JAM MULAI</th>
+                                    <th style="width: 14%;">JAM SELESAI</th>
+                                    <th style="width: 28%;">KEPERLUAN / ALASAN LEMBUR</th>
+                                    <th style="width: 15%;">STATUS</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${otRows || '<tr><td colspan="6" class="td-center" style="padding: 10px; color: #94a3b8;">Tidak ada catatan lembur pada periode ini.</td></tr>'}
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+            }
+
+            const html = `<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <title>Rekap Absensi - ${escapeHTML(namaPt)}</title>
+    <style>
+        @page {
+            size: A4 landscape;
+            margin: 8mm 10mm 8mm 10mm;
+        }
+        * {
+            box-sizing: border-box;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+        }
+        body, .pdf-recap-root {
+            margin: 0 !important;
+            padding: 0 !important;
+            background: #ffffff;
+            color: #0f172a;
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 8pt;
+            width: 1047px !important;
+        }
+        .report-card {
+            width: 100%;
+            max-width: 1047px;
+            margin: 0 auto;
+            padding: 4px 8px;
+            background: #ffffff;
+        }
+        .kop-surat {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding-bottom: 8px;
+            border-bottom: 2.5px solid #0f172a;
+            position: relative;
+        }
+        .kop-surat::after {
+            content: "";
+            position: absolute;
+            left: 0;
+            right: 0;
+            bottom: -5px;
+            height: 1px;
+            background: #64748b;
+        }
+        .kop-logo-wrapper {
+            width: 120px;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+        }
+        .kop-logo {
+            max-height: 52px;
+            max-width: 115px;
+            object-fit: contain;
+        }
+        .kop-content {
+            flex: 1;
+            text-align: center;
+            padding: 0 10px;
+        }
+        .kop-company-name {
+            font-size: 15pt;
+            font-weight: 900;
+            letter-spacing: 0.8px;
+            color: #0f172a;
+            text-transform: uppercase;
+            margin: 0 0 2px 0;
+        }
+        .kop-subname {
+            font-size: 8pt;
+            font-weight: 700;
+            color: ${themeColor};
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            margin: 0 0 2px 0;
+        }
+        .kop-address {
+            font-size: 7.5pt;
+            color: #475569;
+            line-height: 1.3;
+            margin: 0;
+        }
+        .kop-doc-meta {
+            width: 140px;
+            flex-shrink: 0;
+            text-align: right;
+            font-size: 6.8pt;
+            color: #64748b;
+            line-height: 1.4;
+        }
+        .report-header {
+            text-align: center;
+            margin-top: 14px;
+            margin-bottom: 10px;
+        }
+        .report-title {
+            font-size: 11pt;
+            font-weight: 800;
+            color: #0f172a;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin: 0 0 3px 0;
+        }
+        .report-period {
+            font-size: 8.5pt;
+            font-weight: 600;
+            color: #334155;
+            margin: 0;
+        }
+        .stats-bar {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 10px;
+        }
+        .stat-badge {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 4px;
+            padding: 3.5px 12px;
+            font-size: 7.2pt;
+            color: #475569;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .stat-badge strong {
+            color: #0f172a;
+            font-weight: 800;
+        }
+        .recap-table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+            font-size: 7.5pt;
+            margin-bottom: 12px;
+        }
+        .recap-table thead {
+            display: table-header-group;
+        }
+        .recap-table thead tr th {
+            background: ${themeColor};
+            color: #ffffff;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+            padding: 6.5px 5px;
+            border: 1px solid rgba(0, 0, 0, 0.15);
+            text-align: center;
+            font-size: 7.3pt;
+        }
+        .recap-table thead tr th.border-r-white {
+            border-right: 1px solid rgba(255, 255, 255, 0.35);
+        }
+        .recap-table tbody tr {
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+        }
+        .recap-table tbody tr:nth-child(even) {
+            background: #f8fafc;
+        }
+        .recap-table td {
+            border: 1px solid #cbd5e1;
+            padding: 5px 6px;
+            vertical-align: middle;
+            color: #1e293b;
+            line-height: 1.25;
+        }
+        .td-center { text-align: center; }
+        .td-left { text-align: left; }
+        .td-name { font-weight: 700; color: #0f172a; text-transform: uppercase; }
+        .td-dept { font-weight: 600; color: #475569; text-transform: uppercase; font-size: 7pt; }
+        .td-hadir { font-weight: 800; color: #0f172a; background: rgba(234, 88, 12, 0.05); font-size: 8pt; }
+        .td-lembur { font-weight: 800; color: #c2410c; background: #fff7ed; font-size: 8pt; }
+        .signature-wrapper {
+            margin-top: 18px;
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+        }
+        .signature-table {
+            width: 100%;
+            border-collapse: collapse;
+            border: none;
+            table-layout: fixed;
+        }
+        .signature-table td {
+            border: none;
+            padding: 0 10px;
+            text-align: center;
+            font-size: 7.8pt;
+            color: #0f172a;
+            vertical-align: top;
+        }
+        .sig-role {
+            font-weight: 800;
+            text-transform: uppercase;
+            margin-top: 3px;
+            color: #334155;
+            font-size: 7.2pt;
+        }
+        .sig-space { height: 48px; }
+        .sig-name {
+            font-weight: 800;
+            text-transform: uppercase;
+            text-decoration: underline;
+            font-size: 8pt;
+        }
+        .sig-title { font-size: 6.8pt; color: #64748b; margin-top: 2px; }
+        .doc-footer {
+            margin-top: 14px;
+            padding-top: 6px;
+            border-top: 1px dashed #cbd5e1;
+            font-size: 6.5pt;
+            color: #94a3b8;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="pdf-recap-root">
+        <div class="report-card">
+            <div class="kop-surat">
+                <div class="kop-logo-wrapper">
+                    ${logoDataUrl ? `<img src="${logoDataUrl}" class="kop-logo" alt="Logo Perusahaan" />` : `<div style="font-size: 16pt; font-weight: 900; color: ${themeColor};">${escapeHTML(singkatanPt)}</div>`}
+                </div>
+                <div class="kop-content">
+                    <h1 class="kop-company-name">${escapeHTML(namaPt)}</h1>
+                    <div class="kop-subname">Sistem Manajemen Presensi &amp; Rekapitulasi Kerja Karyawan</div>
+                    <p class="kop-address">${escapeHTML(alamatPt || "Kawasan Industri PT Mekano Industrial Presisi")}</p>
+                </div>
+                <div class="kop-doc-meta">
+                    <div><strong>FORMAT:</strong> REKAP BULANAN</div>
+                    <div><strong>ORIENTASI:</strong> LANDSCAPE</div>
+                    <div><strong>DOKUMEN:</strong> RESMI</div>
+                </div>
+            </div>
+
+            <div class="report-header">
+                <h2 class="report-title">LAPORAN REKAPITULASI KEHADIRAN &amp; JAM LEMBUR KARYAWAN</h2>
+                <p class="report-period">
+                    Periode: <strong>${escapeHTML(formattedStart)}</strong> s/d <strong>${escapeHTML(formattedEnd)}</strong>
+                </p>
+            </div>
+
+            <div class="stats-bar">
+                <div class="stat-badge">
+                    <span>Total Karyawan Direkap:</span>
+                    <strong>${exportTargetData.length} Orang</strong>
+                </div>
+                <div class="stat-badge">
+                    <span>Tanggal Cetak:</span>
+                    <strong>${escapeHTML(formattedPrintDate)} WIB</strong>
+                </div>
+                <div class="stat-badge">
+                    <span>Status Rekap:</span>
+                    <strong style="color: #166534;">Final / Terverifikasi</strong>
+                </div>
+            </div>
+
+            <table class="recap-table">
+                <thead>
+                    <tr>
+                        <th class="border-r-white" style="width: 5%;">NO</th>
+                        <th class="border-r-white" style="width: 33%;">NAMA KARYAWAN</th>
+                        <th class="border-r-white" style="width: 24%;">DEPT / JABATAN</th>
+                        <th class="border-r-white" style="width: 19%;">TOTAL HADIR HARI KERJA</th>
+                        <th style="width: 19%;">TOTAL LEMBUR (JAM)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${tableRowsHtml}
+                </tbody>
+            </table>
+
+            ${singleEmpDetailsHtml}
+
+            <div class="signature-wrapper">
+                <table class="signature-table">
+                    <tr>
+                        <td style="width: 33.3%;">
+                            <div>Dibuat Oleh,</div>
+                            <div class="sig-role">HRD / Personalia</div>
+                            <div class="sig-space"></div>
+                            <div class="sig-name">( &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; )</div>
+                            <div class="sig-title">Staff Admin HRD</div>
+                        </td>
+                        <td style="width: 33.3%;">
+                            <div>Diperiksa Oleh,</div>
+                            <div class="sig-role">Supervisor / Leader</div>
+                            <div class="sig-space"></div>
+                            <div class="sig-name">( &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; )</div>
+                            <div class="sig-title">Kepala Bagian / Supervisor</div>
+                        </td>
+                        <td style="width: 33.3%;">
+                            <div>Mengetahui &amp; Menyetujui,</div>
+                            <div class="sig-role">Direksi / Manajemen</div>
+                            <div class="sig-space"></div>
+                            <div class="sig-name">( &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; )</div>
+                            <div class="sig-title">Pimpinan Perusahaan</div>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+
+            <div class="doc-footer">
+                Dokumen resmi ini dicetak secara otomatis melalui Sistem Absensi &amp; Rekapitulasi Digital ${escapeHTML(namaPt)} pada ${escapeHTML(formattedPrintDate)} WIB &bull; Bersifat Sah untuk Keperluan Penggajian &amp; Operasional Internal Perusahaan.
+            </div>
+        </div>
+    </div>
+</body>
+</html>`;
+
+            const pdfBlob = await renderRecapHtmlToPdfBlob({
+                html,
+                pdfFileName: fileName,
+                html2pdfLib,
+                splitMode: "combine"
+            });
+
+            const url = URL.createObjectURL(pdfBlob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = fileName;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            toast({
+                title: "✅ Export PDF Berhasil",
+                description: `File PDF ${fileName} berhasil dibuat dan diunduh.`
+            });
+        } catch (err: any) {
+            toast({
+                title: "Gagal Export PDF",
+                description: err?.message || "Terjadi kesalahan saat memproses file PDF.",
+                variant: "destructive"
+            });
+        } finally {
+            setIsExportingPdfRingkasan(false);
         }
     };
     // ========== END RINGKASAN ==========
@@ -2478,10 +2997,20 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
                                     </Select>
                                 </div>
 
+                                {/* Export PDF Button */}
+                                <Button
+                                    onClick={handleExportPdfRingkasan}
+                                    disabled={isExportingPdfRingkasan || isExportingExcel}
+                                    className="gap-2 bg-rose-600 hover:bg-rose-700 text-white font-bold h-10 shadow-sm"
+                                >
+                                    <FileDown className="h-4 w-4" />
+                                    {isExportingPdfRingkasan ? "Mengekspor PDF..." : "Export PDF Rekap"}
+                                </Button>
+
                                 {/* Export Excel Button */}
                                 <Button
                                     onClick={handleExportExcel}
-                                    disabled={isExportingExcel}
+                                    disabled={isExportingExcel || isExportingPdfRingkasan}
                                     className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold h-10 shadow-sm"
                                 >
                                     <FileSpreadsheet className="h-4 w-4" />
