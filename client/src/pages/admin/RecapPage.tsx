@@ -335,10 +335,51 @@ export default function RecapPage() {
     const formatLemburDisplay = (totalMins: number) => {
         if (!totalMins || totalMins <= 0) return "0 Jam";
         const h = Math.floor(totalMins / 60);
-        const m = Math.round(totalMins % 60);
-        if (h > 0 && m > 0) return `${h} jam ${m} Menit`;
-        if (h > 0) return `${h} Jam`;
-        return `${m} Menit`;
+        return `${h} Jam`;
+    };
+
+    // Helper untuk menyesuaikan perhitungan lembur:
+    // 1. Sesuaikan jam penugasan bulat (misal jam 20.00 - 23.00 tapi karyawan absen jam 19.50 tetap dihitung 20.00 - 23.00 = 3 jam)
+    // 2. Khusus hari Sabtu dan Minggu (weekend), kurangi 1 jam istirahat
+    const normalizeOvertimeDuration = (
+        startTimeVal: any,
+        endTimeVal: any,
+        isWeekend: boolean
+    ): number => {
+        if (!startTimeVal || !endTimeVal) return 0;
+        const start = new Date(startTimeVal);
+        const end = new Date(endTimeVal);
+        if (isNaN(start.getTime()) || isNaN(end.getTime()) || end <= start) return 0;
+
+        let sTime = new Date(start);
+        let eTime = new Date(end);
+
+        // Jika karyawan absen masuk lembur lebih awal dari jam bulat penugasan (misal 19.50 -> 20.00):
+        if (sTime.getMinutes() >= 35) {
+            sTime.setHours(sTime.getHours() + 1, 0, 0, 0);
+        } else if (sTime.getMinutes() <= 15) {
+            sTime.setMinutes(0, 0, 0);
+        }
+
+        // Jika karyawan selesai lembur di sekitar jam pas penugasan (misal 23.05 -> 23.00):
+        if (eTime.getMinutes() <= 20) {
+            eTime.setMinutes(0, 0, 0);
+        } else if (eTime.getMinutes() >= 45) {
+            eTime.setHours(eTime.getHours() + 1, 0, 0, 0);
+        }
+
+        let diffMins = Math.round((eTime.getTime() - sTime.getTime()) / 60000);
+        if (diffMins <= 0) {
+            diffMins = Math.round((end.getTime() - start.getTime()) / 60000);
+        }
+
+        let grossHours = Math.floor(diffMins / 60);
+
+        // Aturan: khusus lembur akhir pekan (Sabtu & Minggu), potong istirahat 1 jam
+        if (isWeekend) {
+            return Math.max(0, grossHours - 1);
+        }
+        return Math.max(0, grossHours);
     };
 
     const [searchRingkasan, setSearchRingkasan] = useState("");
@@ -598,24 +639,29 @@ export default function RecapPage() {
             });
 
             // 1. Akumulasi jam dari seluruh penugasan lembur (overtimes)
+            // Sesuai aturan: sesuaikan jam penugasan bulat & kurangi istirahat 1 jam khusus Sabtu/Minggu
             let totalLemburMins = 0;
             const otDatesWithDuration = new Map<string, number>();
 
             userOt.forEach(ot => {
                 if (ot.startTime && ot.endTime) {
-                    const mins = Math.max(0, differenceInMinutes(new Date(ot.endTime), new Date(ot.startTime)));
-                    if (mins > 0) {
-                        totalLemburMins += mins;
+                    const otDate = ot.date ? new Date(ot.date) : (ot.startTime ? new Date(ot.startTime) : null);
+                    const isWeekendOt = otDate ? (otDate.getDay() === 0 || otDate.getDay() === 6) : false;
+
+                    const sessionHours = normalizeOvertimeDuration(ot.startTime, ot.endTime, isWeekendOt);
+                    if (sessionHours > 0) {
+                        const roundedMins = sessionHours * 60;
+                        totalLemburMins += roundedMins;
                         const otDateStr = ot.date ? safeFormatDate(ot.date, 'yyyy-MM-dd') : safeFormatDate(ot.startTime, 'yyyy-MM-dd');
                         if (otDateStr) {
-                            otDatesWithDuration.set(otDateStr, (otDatesWithDuration.get(otDateStr) || 0) + mins);
+                            otDatesWithDuration.set(otDateStr, (otDatesWithDuration.get(otDateStr) || 0) + roundedMins);
                         }
                     }
                 }
             });
 
             // 2. Akumulasi jam dari kehadiran di hari Sabtu & Minggu (Weekend)
-            // Semua kehadiran di akhir pekan otomatis dihitung lembur!
+            // Semua kehadiran di akhir pekan otomatis dihitung lembur, dan dikurangi istirahat 1 jam!
             const weekendAtt = userAtt.filter(a => {
                 const d = new Date(a.date);
                 const day = d.getDay();
@@ -629,21 +675,25 @@ export default function RecapPage() {
                     processedWeekendDates.add(dStr);
                     const dayRecs = weekendAtt.filter(r => safeFormatDate(r.date, 'yyyy-MM-dd') === dStr);
                     const { netWorkMins } = calculateDailyTotal(dayRecs);
+                    const grossWeekendHours = Math.floor(netWorkMins / 60);
+                    // Kurangi istirahat 1 jam untuk lembur Sabtu/Minggu
+                    const netWeekendHours = Math.max(0, grossWeekendHours - 1);
+                    const roundedWeekendMins = netWeekendHours * 60;
 
                     // Jika hari weekend ini BELUM tercatat durasi lembur di table overtimes, tambahkan durasi absensi ini
                     const existingOtMins = otDatesWithDuration.get(dStr) || 0;
-                    if (existingOtMins === 0 && netWorkMins > 0) {
-                        totalLemburMins += netWorkMins;
-                    } else if (netWorkMins > existingOtMins) {
+                    if (existingOtMins === 0 && roundedWeekendMins > 0) {
+                        totalLemburMins += roundedWeekendMins;
+                    } else if (roundedWeekendMins > existingOtMins) {
                         // Jika jam absensi nyata lebih besar dari yang diinput manual, sesuaikan selisihnya
-                        totalLemburMins += (netWorkMins - existingOtMins);
+                        totalLemburMins += (roundedWeekendMins - existingOtMins);
                     }
                 }
             });
 
-            // Format total jam lembur (desimal seperti 23.5 atau integer seperti 16 atau 0)
-            const totalLemburHoursRaw = Math.round((totalLemburMins / 60) * 10) / 10;
-            const totalLemburFormatted = totalLemburHoursRaw % 1 === 0 ? totalLemburHoursRaw : Number(totalLemburHoursRaw.toFixed(1));
+            // Format total jam lembur jadi jam bulat (integer murni)
+            const totalLemburHours = Math.floor(totalLemburMins / 60);
+            const totalLemburFormatted = totalLemburHours;
 
             const totalJamKerjaH = Math.floor(totalJamKerjaRegMins / 60);
             const totalJamKerjaM = totalJamKerjaRegMins % 60;
@@ -1597,8 +1647,7 @@ export default function RecapPage() {
                 const totalJamKerjaStr = totalMinsEmp > 0 ? `${totalHours} jam ${totalMinsRem} menit` : "-";
 
                 const totalOtHours = Math.floor(totalOtMinsEmp / 60);
-                const totalOtMinsRem = totalOtMinsEmp % 60;
-                const totalJamLemburStr = totalOtMinsEmp > 0 ? `${totalOtHours} jam ${totalOtMinsRem} menit` : "-";
+                const totalJamLemburStr = totalOtHours > 0 ? `${totalOtHours} Jam` : "-";
 
                 reportsHtml += `
                     <section class="report">
@@ -2720,7 +2769,7 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
                                                 const otDurationMins = (hasFinished && ot.startTime && ot.endTime) 
                                                     ? Math.round((new Date(ot.endTime).getTime() - new Date(ot.startTime).getTime()) / 60000)
                                                     : 0;
-                                                const otDurationStr = (hasFinished && otDurationMins > 0) ? formatDuration(otDurationMins) : (isOngoing ? "Sedang Lembur" : "-");
+                                                const otDurationStr = (hasFinished && otDurationMins > 0) ? `${Math.floor(otDurationMins / 60)} Jam` : (isOngoing ? "Sedang Lembur" : "-");
 
                                                 let statusLabel = "MENUNGGU KONFIRMASI";
                                                 let statusClass = "bg-yellow-100 text-yellow-800 border-yellow-200 animate-pulse";
@@ -3260,6 +3309,9 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
                                                             {/* Baris Lembur dari Kehadiran Weekend (Sabtu/Minggu) */}
                                                             {weekendRecords.map((w: any) => {
                                                                 const { netWorkMins } = calculateDailyTotal([w]);
+                                                                const grossWeekendHours = Math.floor(netWorkMins / 60);
+                                                                const netWeekendHours = Math.max(0, grossWeekendHours - 1);
+
                                                                 return (
                                                                     <tr key={`weekend-${w.id}`} className="bg-amber-50/20 hover:bg-amber-50/40 transition-colors">
                                                                         <td className="px-4 py-3 font-bold text-slate-800">
@@ -3277,7 +3329,7 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
                                                                             {w.checkOut ? safeFormatDate(w.checkOut, "HH:mm") : "-"}
                                                                         </td>
                                                                         <td className="px-4 py-3 text-center font-black text-amber-900">
-                                                                            {netWorkMins > 0 ? formatDuration(netWorkMins) : "-"}
+                                                                            {netWorkMins > 0 ? `${netWeekendHours} Jam` : "-"}
                                                                         </td>
                                                                         <td className="px-4 py-3 text-slate-600 italic">
                                                                             {w.notes || "Absensi kerja akhir pekan"}
@@ -3310,9 +3362,9 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
 
                                                             {/* Baris Lembur dari Penugasan Lembur (Overtime Record) */}
                                                             {empOvertimes.map((ot: any) => {
-                                                                const otMins = (ot.startTime && ot.endTime)
-                                                                    ? Math.max(0, differenceInMinutes(new Date(ot.endTime), new Date(ot.startTime)))
-                                                                    : 0;
+                                                                const otDate = ot.date ? new Date(ot.date) : (ot.startTime ? new Date(ot.startTime) : null);
+                                                                const isWeekendOt = otDate ? (otDate.getDay() === 0 || otDate.getDay() === 6) : false;
+                                                                const otHours = normalizeOvertimeDuration(ot.startTime, ot.endTime, isWeekendOt);
                                                                 const otDateStr = ot.date ? safeFormatDate(ot.date, "yyyy-MM-dd") : (ot.startTime ? safeFormatDate(ot.startTime, "yyyy-MM-dd") : "");
                                                                 const matchingAtt = empAtt.find(a => safeFormatDate(a.date, 'yyyy-MM-dd') === otDateStr);
                                                                 const photo1 = ot.initialProofUrl || matchingAtt?.checkInPhoto;
@@ -3335,7 +3387,7 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
                                                                             {ot.endTime ? safeFormatDate(ot.endTime, "HH:mm") : (ot.status === 'ongoing' ? 'Berlangsung' : '-')}
                                                                         </td>
                                                                         <td className="px-4 py-3 text-center font-black text-orange-900">
-                                                                            {otMins > 0 ? formatDuration(otMins) : "-"}
+                                                                            {otHours > 0 ? `${otHours} Jam` : "-"}
                                                                         </td>
                                                                         <td className="px-4 py-3 text-slate-600 italic">
                                                                             {ot.description || ot.finalDescription || "Pekerjaan lembur"}

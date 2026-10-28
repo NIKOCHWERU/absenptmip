@@ -406,19 +406,84 @@ async function autoCloseExpiredSessions(userId: number) {
   return;
 }
 
-function getAdminDate(): string {
-  const now = new Date();
+export function getShiftResetTime(checkInTime?: string | null): { hour: number; minute: number; timeStr: string } {
+  const [hStr, mStr] = (checkInTime || "07:00").split(":");
+  const h = parseInt(hStr, 10);
+  const m = parseInt(mStr || "0", 10);
+  // Reset absensi minimal 1 jam sebelum mulai shift:
+  // misal 07:00 -> 06:00 (jam 6 pagi), 12:00 -> 11:00 (jam 11 siang)
+  const resetHour = !isNaN(h) ? (h - 1 + 24) % 24 : 6;
+  const resetMinute = !isNaN(m) ? m : 0;
+  const timeStr = `${String(resetHour).padStart(2, "0")}:${String(resetMinute).padStart(2, "0")}`;
+  return { hour: resetHour, minute: resetMinute, timeStr };
+}
+
+export function getShiftDate(shiftCheckInTime?: string | null, targetDate?: Date): string {
+  const now = targetDate || new Date();
   const jakartaTime = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Jakarta" }));
   const hours = jakartaTime.getHours();
   const minutes = jakartaTime.getMinutes();
-  // Reset sesi harian setelah jam 04.30 Pagi WIB
-  if (hours < 4 || (hours === 4 && minutes < 30)) {
+  const currentTotalMins = hours * 60 + minutes;
+
+  // Waktu reset absensi minimal 1 jam sebelum shift dimulai
+  const { hour: resetH, minute: resetM } = getShiftResetTime(shiftCheckInTime);
+  const resetTotalMins = resetH * 60 + resetM;
+
+  // Jika waktu sekarang belum mencapai waktu reset shift,
+  // maka sesi absensi masih milik tanggal kerja sebelumnya (kemarin)
+  if (currentTotalMins < resetTotalMins) {
     jakartaTime.setDate(jakartaTime.getDate() - 1);
   }
+
   const y = jakartaTime.getFullYear();
   const m = String(jakartaTime.getMonth() + 1).padStart(2, '0');
   const d = String(jakartaTime.getDate()).padStart(2, '0');
   return `${y}-${m}-${d}`;
+}
+
+export function getAdminDate(shiftCheckInTime?: string | null, targetDate?: Date): string {
+  return getShiftDate(shiftCheckInTime, targetDate);
+}
+
+async function getEffectiveShiftForUser(userId: number, shiftIdHint?: number | null): Promise<any | null> {
+  if (shiftIdHint && Number(shiftIdHint) > 0) {
+    const [found] = await db.select().from(shifts).where(eq(shifts.id, Number(shiftIdHint))).limit(1);
+    if (found) return found;
+  }
+
+  // Cek sesi absensi yang sedang aktif (belum checkout)
+  const [activeAtt] = await db.select().from(attendance)
+    .where(and(eq(attendance.userId, userId), isNull(attendance.checkOut)))
+    .orderBy(desc(attendance.id))
+    .limit(1);
+  if (activeAtt?.shiftId) {
+    const [found] = await db.select().from(shifts).where(eq(shifts.id, activeAtt.shiftId)).limit(1);
+    if (found) return found;
+  }
+
+  // Cek shift karyawan di tabel users
+  const [user] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+  if (user?.shift) {
+    const [found] = await db.select().from(shifts).where(or(
+      eq(shifts.name, user.shift),
+      sql`CAST(${shifts.id} AS CHAR) = ${user.shift}`
+    )).limit(1);
+    if (found) return found;
+  }
+
+  // Cek riwayat absensi terbaru
+  const [recentAtt] = await db.select().from(attendance)
+    .where(eq(attendance.userId, userId))
+    .orderBy(desc(attendance.id))
+    .limit(1);
+  if (recentAtt?.shiftId) {
+    const [found] = await db.select().from(shifts).where(eq(shifts.id, recentAtt.shiftId)).limit(1);
+    if (found) return found;
+  }
+
+  // Default ke shift pertama atau null
+  const [firstShift] = await db.select().from(shifts).limit(1);
+  return firstShift || null;
 }
 
 export function registerRoutes(app: Express) {
@@ -1132,7 +1197,7 @@ export function registerRoutes(app: Express) {
           return res.status(400).json({ message: "Shift tidak valid" });
         }
 
-        const adminDate = getAdminDate();
+        const adminDate = getAdminDate(shiftRecord.checkInTime);
 
         // 1. Fake GPS detection
         const acc = Number(accuracy);
@@ -1214,7 +1279,8 @@ export function registerRoutes(app: Express) {
   app.post("/api/attendance/break-start", isAuthenticated, upload.single("photo"), async (req: Request, res: Response) => {
     await autoCloseExpiredSessions((req.user as any).id);
     const userId = (req.user as any).id;
-    const adminDate = getAdminDate();
+    const userShift = await getEffectiveShiftForUser(userId);
+    const adminDate = getAdminDate(userShift?.checkInTime);
     const { address, location, checkInPhoto } = req.body;
     const activeAddress = location || address;
 
@@ -1265,7 +1331,8 @@ export function registerRoutes(app: Express) {
   app.post("/api/attendance/break-end", isAuthenticated, upload.single("photo"), async (req: Request, res: Response) => {
     await autoCloseExpiredSessions((req.user as any).id);
     const userId = (req.user as any).id;
-    const adminDate = getAdminDate();
+    const userShift = await getEffectiveShiftForUser(userId);
+    const adminDate = getAdminDate(userShift?.checkInTime);
     const { address, location, checkInPhoto } = req.body;
     const activeAddress = location || address;
 
@@ -1318,7 +1385,8 @@ export function registerRoutes(app: Express) {
   app.post("/api/attendance/clock-out", isAuthenticated, upload.single("photo"), async (req: Request, res: Response) => {
     await autoCloseExpiredSessions((req.user as any).id);
     const userId = (req.user as any).id;
-    const adminDate = getAdminDate();
+    const userShift = await getEffectiveShiftForUser(userId);
+    const adminDate = getAdminDate(userShift?.checkInTime);
     const { address, location, checkInPhoto } = req.body;
     const activeAddress = location || address;
 
@@ -1368,7 +1436,8 @@ export function registerRoutes(app: Express) {
   app.post("/api/attendance/permit", isAuthenticated, upload.single("photo"), async (req: Request, res: Response) => {
     const userId = (req.user as any).id;
     const { notes, type, checkInPhoto, location } = req.body;
-    const adminDate = getAdminDate();
+    const userShift = await getEffectiveShiftForUser(userId);
+    const adminDate = getAdminDate(userShift?.checkInTime);
     const labelType = type === 'sick' ? 'Sakit' : type === 'off' ? 'Libur' : 'Izin';
 
     try {
@@ -1447,7 +1516,8 @@ export function registerRoutes(app: Express) {
   // 8. Resume (Lanjut Kerja)
   app.post("/api/attendance/resume", isAuthenticated, async (req: Request, res: Response) => {
     const userId = (req.user as any).id;
-    const adminDate = getAdminDate();
+    const userShift = await getEffectiveShiftForUser(userId);
+    const adminDate = getAdminDate(userShift?.checkInTime);
 
     try {
       const todaySessions = await db
@@ -1662,7 +1732,8 @@ export function registerRoutes(app: Express) {
       const files = req.files as { [fieldname: string]: Express.Multer.File[] };
       const description = req.body.description;
 
-      const adminDate = getAdminDate();
+      const userShift = await getEffectiveShiftForUser(userId);
+      const adminDate = getAdminDate(userShift?.checkInTime);
       let todaySessions = await db.select()
         .from(attendance)
         .where(and(
@@ -1739,8 +1810,14 @@ export function registerRoutes(app: Express) {
           }
         }
 
+        // Jika karyawan absen lembur lebih awal dari jam penugasan (misal penugasan 20.00 tapi absen 19.50),
+        // tetap gunakan jam penugasan agar hitungan lembur sesuai penugasan
+        const assignedStart = pendingOt[0].startTime ? new Date(pendingOt[0].startTime) : null;
+        const now = new Date();
+        const effectiveStartTime = (assignedStart && now < assignedStart) ? assignedStart : now;
+
         await db.update(overtimes).set({
-          startTime: new Date(),
+          startTime: effectiveStartTime,
           description: description || pendingOt[0].description || "Lembur",
           splDocumentUrl: updatedSplDocUrl,
           initialProofUrl: initialProofUrl,
@@ -1846,8 +1923,21 @@ export function registerRoutes(app: Express) {
         });
       }
 
+      // Jika ada jam penugasan endTime (misal 23:00), dan karyawan selesai di sekitar jam tersebut,
+      // sesuaikan ke jam penugasan agar durasi tidak bertambah karena antri / beres-beres
+      const assignedEnd = activeOt.endTime ? new Date(activeOt.endTime) : null;
+      const nowEnd = new Date();
+      let effectiveEndTime = nowEnd;
+      if (assignedEnd) {
+        const diffMinutes = (nowEnd.getTime() - assignedEnd.getTime()) / 60000;
+        // Jika selesai dalam toleransi -10 menit s/d +30 menit dari jam penugasan
+        if (diffMinutes >= -10 && diffMinutes <= 30) {
+          effectiveEndTime = assignedEnd;
+        }
+      }
+
       await db.update(overtimes).set({
-        endTime: new Date(),
+        endTime: effectiveEndTime,
         finalProofUrl: finalProofUrl,
         finalDescription: finalDescription || "Selesai Lembur",
         splDocumentUrl: updatedSplDocUrl,
@@ -2008,7 +2098,8 @@ export function registerRoutes(app: Express) {
   app.get("/api/attendance/overtime/pending-missed", isAuthenticated, async (req: Request, res: Response) => {
     try {
       const userId = Number((req.user as any)?.id || (req.session as any)?.userId);
-      const adminDate = getAdminDate();
+      const userShift = await getEffectiveShiftForUser(userId);
+      const adminDate = getAdminDate(userShift?.checkInTime);
 
       // Auto-close past ONGOING overtimes for this user (sessions that were started but never ended)
       // DO NOT auto-complete pending SPLs — those were never started and should be handled separately
@@ -2411,7 +2502,8 @@ export function registerRoutes(app: Express) {
   app.get("/api/attendance/today", isAuthenticated, async (req: Request, res: Response) => {
     await autoCloseExpiredSessions((req.user as any).id);
     const userId = (req.user as any).id;
-    const adminDate = getAdminDate();
+    const userShift = await getEffectiveShiftForUser(userId);
+    const adminDate = getAdminDate(userShift?.checkInTime);
 
     try {
       const todaySessions = await db
@@ -4125,169 +4217,240 @@ export function registerRoutes(app: Express) {
     }
   });
 
-  // Scheduled Daily Session Reset at 03:30 WIB
-  let lastResetDate = "";
+  // Scheduled Shift-Based Session Reset (minimal 1 jam sebelum mulai shift)
+  // misal: Shift 1 (07:00 - 17:00) -> reset pukul 06:00 WIB
+  //        Shift 2 (12:00 - 23:00) -> reset pukul 11:00 WIB
+  const lastResetByShift = new Map<number, string>();
+  let lastDefaultResetDate = "";
+
   setInterval(async () => {
     try {
       const now = new Date();
       // WIB is UTC+7
-      const wibHours = (now.getUTCHours() + 7) % 24;
-      const wibMinutes = now.getUTCMinutes();
-      const todayStr = `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}`;
+      const nowWib = new Date(now.getTime() + 7 * 60 * 60 * 1000);
+      const wibHours = nowWib.getUTCHours();
+      const wibMinutes = nowWib.getUTCMinutes();
+      const todayStr = `${nowWib.getFullYear()}-${String(nowWib.getMonth() + 1).padStart(2, "0")}-${String(nowWib.getDate()).padStart(2, "0")}`;
 
-      if (wibHours === 3 && wibMinutes === 30 && lastResetDate !== todayStr) {
-        lastResetDate = todayStr;
-        console.log(`[03:30 WIB RESET] Executing daily session reset for ${todayStr}...`);
+      const yesterdayWib = new Date(nowWib);
+      yesterdayWib.setDate(yesterdayWib.getDate() - 1);
+      const yesterdayStr = `${yesterdayWib.getFullYear()}-${String(yesterdayWib.getMonth() + 1).padStart(2, "0")}-${String(yesterdayWib.getDate()).padStart(2, "0")}`;
 
-        // 1. Cap any ONGOING (already started) overtime sessions left open overnight
-        //    These are real sessions that ran past midnight without being ended
-        const ongoingOvertimes = await db.select().from(overtimes).where(eq(overtimes.status, "ongoing"));
-        for (const ot of ongoingOvertimes) {
-          await db.update(overtimes).set({
-            endTime: now,
-            status: "completed",
-            isAutoCompleted: true,
-            finalDescription: (ot.finalDescription || "") + " (Auto-selesai: sesi lembur tidak ditutup sebelum reset harian 03:30 WIB)"
-          }).where(eq(overtimes.id, ot.id));
+      const allShifts = await db.select().from(shifts);
+      const shiftMap = new Map(allShifts.map(s => [s.id, s]));
+
+      // 1. Reset per-shift: dijalankan tepat 1 jam sebelum masing-masing shift dimulai
+      for (const s of allShifts) {
+        const { hour: resetH, minute: resetM, timeStr: resetTimeStr } = getShiftResetTime(s.checkInTime);
+
+        if (wibHours === resetH && wibMinutes === resetM && lastResetByShift.get(s.id) !== todayStr) {
+          lastResetByShift.set(s.id, todayStr);
+          console.log(`[RESET SHIFT - ${s.name}] Executing reset at ${resetTimeStr} WIB (1 jam sebelum mulai ${s.checkInTime}) for ${todayStr}...`);
+
+          // 1a. Cap sesi lembur ONGOING khusus untuk shift ini yang belum ditutup
+          const ongoingOvertimes = await db.select({
+            id: overtimes.id,
+            finalDescription: overtimes.finalDescription,
+          })
+          .from(overtimes)
+          .innerJoin(attendance, eq(overtimes.attendanceId, attendance.id))
+          .where(and(
+            eq(overtimes.status, "ongoing"),
+            or(
+              eq(attendance.shiftId, s.id),
+              eq(attendance.shift, s.name)
+            )
+          ));
+
+          for (const ot of ongoingOvertimes) {
+            await db.update(overtimes).set({
+              endTime: now,
+              status: "completed",
+              isAutoCompleted: true,
+              finalDescription: (ot.finalDescription || "") + ` (Auto-selesai: sesi lembur tidak ditutup sebelum reset shift ${s.name} ${resetTimeStr} WIB)`
+            }).where(eq(overtimes.id, ot.id));
+          }
+          if (ongoingOvertimes.length > 0) {
+            console.log(`[RESET SHIFT - ${s.name}] Capped ${ongoingOvertimes.length} ongoing overtime sessions.`);
+          }
+
+          // 1b. Tandai missed untuk SPL pending yang tidak pernah dimulai dari hari sebelumnya
+          const missedPendingSpls = await db.select({
+            id: overtimes.id,
+          })
+          .from(overtimes)
+          .innerJoin(attendance, eq(overtimes.attendanceId, attendance.id))
+          .where(and(
+            eq(overtimes.status, "pending"),
+            eq(overtimes.employeeApproval, "approved"),
+            sql`DATE(${attendance.date}) <= ${yesterdayStr}`,
+            or(
+              eq(attendance.shiftId, s.id),
+              eq(attendance.shift, s.name)
+            )
+          ));
+
+          for (const ot of missedPendingSpls) {
+            await db.update(overtimes).set({
+              status: "completed",
+              isAutoCompleted: true,
+              missedReason: "Karyawan tidak memulai sesi lembur sesuai penugasan SPL",
+              finalDescription: `Lembur tidak dimulai oleh karyawan — ditandai otomatis saat reset shift ${s.name} (${resetTimeStr} WIB).`
+            }).where(eq(overtimes.id, ot.id));
+          }
+          if (missedPendingSpls.length > 0) {
+            console.log(`[RESET SHIFT - ${s.name}] Marked ${missedPendingSpls.length} unstarted (pending) SPLs as missed.`);
+          }
+
+          // 1c. Batalkan SPL yang tidak direspons karyawan dari hari sebelumnya
+          const abandonedSpls = await db.select({ id: overtimes.id })
+          .from(overtimes)
+          .innerJoin(attendance, eq(overtimes.attendanceId, attendance.id))
+          .where(and(
+            eq(overtimes.status, "pending"),
+            eq(overtimes.employeeApproval, "pending"),
+            sql`DATE(${attendance.date}) <= ${yesterdayStr}`,
+            or(
+              eq(attendance.shiftId, s.id),
+              eq(attendance.shift, s.name)
+            )
+          ));
+
+          for (const ot of abandonedSpls) {
+            await db.update(overtimes).set({
+              status: "cancelled",
+              finalDescription: `SPL dibatalkan otomatis: karyawan tidak merespons penugasan lembur (reset shift ${s.name}).`
+            }).where(eq(overtimes.id, ot.id));
+          }
+          if (abandonedSpls.length > 0) {
+            console.log(`[RESET SHIFT - ${s.name}] Cancelled ${abandonedSpls.length} unresponded SPLs.`);
+          }
+
+          // 1d. Auto-checkout untuk karyawan yang lupa absen pulang pada shift ini
+          try {
+            const forgottenCheckouts = await db.select({
+              id: attendance.id,
+              userId: attendance.userId,
+              date: attendance.date,
+              shiftId: attendance.shiftId,
+              notes: attendance.notes,
+            })
+            .from(attendance)
+            .where(and(
+              sql`DATE(${attendance.date}) = ${yesterdayStr}`,
+              isNotNull(attendance.checkIn),
+              isNull(attendance.checkOut),
+              inArray(attendance.status, ["present", "late"]),
+              or(
+                eq(attendance.shiftId, s.id),
+                eq(attendance.shift, s.name)
+              )
+            ));
+
+            const yesterdayOvertimes = await db.select({
+              id: overtimes.id,
+              attendanceId: overtimes.attendanceId,
+              status: overtimes.status,
+              employeeApproval: overtimes.employeeApproval,
+            })
+            .from(overtimes)
+            .innerJoin(attendance, eq(overtimes.attendanceId, attendance.id))
+            .where(sql`DATE(${attendance.date}) = ${yesterdayStr}`);
+
+            const overtimesByAttendance = new Map<number, typeof yesterdayOvertimes>();
+            for (const ot of yesterdayOvertimes) {
+              if (!overtimesByAttendance.has(ot.attendanceId)) {
+                overtimesByAttendance.set(ot.attendanceId, []);
+              }
+              overtimesByAttendance.get(ot.attendanceId)!.push(ot);
+            }
+
+            let autoCheckoutCount = 0;
+            for (const rec of forgottenCheckouts) {
+              const otList = overtimesByAttendance.get(rec.id) || [];
+              const hasOngoingOT = otList.some(ot => ot.status === "ongoing");
+              if (hasOngoingOT) continue;
+
+              const hasApprovedOT = otList.some(ot => ot.employeeApproval === "approved");
+              const [shiftHour, shiftMin] = (s.checkOutTime || "17:00").split(":").map(Number);
+              const checkOutWib = new Date(`${yesterdayStr}T${String(shiftHour).padStart(2,"0")}:${String(shiftMin).padStart(2,"0")}:00+07:00`);
+
+              const autoNote = hasApprovedOT
+                ? "Lupa Absen Pulang (Lembur Disetujui)"
+                : "Lupa Absen Pulang";
+              const newNotes = rec.notes
+                ? `${rec.notes}
+(${autoNote})`
+                : `(${autoNote})`;
+
+              await db.update(attendance).set({
+                checkOut: checkOutWib,
+                notes: newNotes,
+              }).where(eq(attendance.id, rec.id));
+
+              autoCheckoutCount++;
+            }
+            if (autoCheckoutCount > 0) {
+              console.log(`[RESET SHIFT - ${s.name}] Auto-checkout: ${autoCheckoutCount} karyawan diisi jam pulang otomatis.`);
+            }
+          } catch (autoErr) {
+            console.error(`[RESET SHIFT - ${s.name} AUTO-CHECKOUT ERROR]`, autoErr);
+          }
+
+          console.log(`[RESET SHIFT - ${s.name}] Daily reset completed for ${todayStr}.`);
         }
-        console.log(`[03:30 WIB RESET] Capped ${ongoingOvertimes.length} ongoing overtime sessions.`);
+      }
 
-        // 2. Mark PENDING SPLs (never started) whose endTime has already passed as missed
-        //    DO NOT mark them as completed — they were never started
-        //    Only mark SPLs from PREVIOUS days (not today's date)
-        const nowWib = new Date(now.getTime() + 7 * 60 * 60 * 1000); // shift to WIB
-        const yesterdayWib = new Date(nowWib);
-        yesterdayWib.setDate(yesterdayWib.getDate() - 1);
-        const yesterdayStr = `${yesterdayWib.getFullYear()}-${String(yesterdayWib.getMonth() + 1).padStart(2, "0")}-${String(yesterdayWib.getDate()).padStart(2, "0")}`;
+      // 2. Default sweep jam 06:00 WIB untuk absensi tanpa shift (legacy / orphan)
+      if (wibHours === 6 && wibMinutes === 0 && lastDefaultResetDate !== todayStr) {
+        lastDefaultResetDate = todayStr;
+        console.log(`[DEFAULT 06:00 WIB RESET] Executing general reset for orphan records on ${todayStr}...`);
 
-        const missedPendingSpls = await db.select({
+        const orphanOngoing = await db.select({
           id: overtimes.id,
-          endTime: overtimes.endTime
+          finalDescription: overtimes.finalDescription,
         })
         .from(overtimes)
         .innerJoin(attendance, eq(overtimes.attendanceId, attendance.id))
         .where(and(
-          eq(overtimes.status, "pending"),
-          eq(overtimes.employeeApproval, "approved"),
-          sql`DATE(${attendance.date}) <= ${yesterdayStr}`
+          eq(overtimes.status, "ongoing"),
+          isNull(attendance.shiftId)
         ));
 
-        for (const ot of missedPendingSpls) {
+        for (const ot of orphanOngoing) {
           await db.update(overtimes).set({
+            endTime: now,
             status: "completed",
             isAutoCompleted: true,
-            missedReason: "Karyawan tidak memulai sesi lembur sesuai penugasan SPL",
-            finalDescription: "Lembur tidak dimulai oleh karyawan — ditandai otomatis saat reset harian."
+            finalDescription: (ot.finalDescription || "") + " (Auto-selesai: sesi lembur tidak ditutup sebelum reset harian 06:00 WIB)"
           }).where(eq(overtimes.id, ot.id));
         }
-        console.log(`[03:30 WIB RESET] Marked ${missedPendingSpls.length} unstarted (pending) SPLs as missed.`);
 
-        // 3. Cancel PENDING SPLs that were never approved by employee (still awaiting response)
-        //    from previous days — these are abandoned without employee confirmation
-        const abandonedSpls = await db.select({ id: overtimes.id })
-        .from(overtimes)
-        .innerJoin(attendance, eq(overtimes.attendanceId, attendance.id))
+        const orphanForgotten = await db.select({
+          id: attendance.id,
+          userId: attendance.userId,
+          notes: attendance.notes,
+        })
+        .from(attendance)
         .where(and(
-          eq(overtimes.status, "pending"),
-          eq(overtimes.employeeApproval, "pending"),
-          sql`DATE(${attendance.date}) <= ${yesterdayStr}`
+          sql`DATE(${attendance.date}) = ${yesterdayStr}`,
+          isNotNull(attendance.checkIn),
+          isNull(attendance.checkOut),
+          inArray(attendance.status, ["present", "late"]),
+          isNull(attendance.shiftId)
         ));
 
-        for (const ot of abandonedSpls) {
-          await db.update(overtimes).set({
-            status: "cancelled",
-            finalDescription: "SPL dibatalkan otomatis: karyawan tidak merespons penugasan lembur."
-          }).where(eq(overtimes.id, ot.id));
+        for (const rec of orphanForgotten) {
+          const checkOutWib = new Date(`${yesterdayStr}T17:00:00+07:00`);
+          const newNotes = rec.notes ? `${rec.notes}\n(Lupa Absen Pulang)` : "(Lupa Absen Pulang)";
+          await db.update(attendance).set({
+            checkOut: checkOutWib,
+            notes: newNotes,
+          }).where(eq(attendance.id, rec.id));
         }
-        console.log(`[03:30 WIB RESET] Cancelled ${abandonedSpls.length} unresponded SPLs from previous days.`);
-
-        // 4. AUTO-CHECKOUT: Isi jam pulang untuk karyawan yang lupa absen pulang
-        //    Aturan:
-        //    - Hanya attendance kemarin yang checkIn != NULL dan checkOut == NULL
-        //    - SKIP jika ada sesi lembur ONGOING (masih lembur saat ini)
-        //    - Jika lembur DISETUJUI (approved) → set checkOut = jam akhir shift
-        //    - Jika tidak ada lembur / tidak disetujui → set checkOut = jam akhir shift + catatan "Lupa Absen Pulang"
-        try {
-          const forgottenCheckouts = await db.select({
-            id: attendance.id,
-            userId: attendance.userId,
-            date: attendance.date,
-            shiftId: attendance.shiftId,
-            notes: attendance.notes,
-          })
-          .from(attendance)
-          .where(and(
-            sql`DATE(${attendance.date}) = ${yesterdayStr}`,
-            isNotNull(attendance.checkIn),
-            isNull(attendance.checkOut),
-            inArray(attendance.status, ["present", "late"])
-          ));
-
-          const allShifts = await db.select().from(shifts);
-          const shiftMap = new Map(allShifts.map(s => [s.id, s]));
-
-          const yesterdayOvertimes = await db.select({
-            id: overtimes.id,
-            attendanceId: overtimes.attendanceId,
-            status: overtimes.status,
-            employeeApproval: overtimes.employeeApproval,
-          })
-          .from(overtimes)
-          .innerJoin(attendance, eq(overtimes.attendanceId, attendance.id))
-          .where(sql`DATE(${attendance.date}) = ${yesterdayStr}`);
-
-          const overtimesByAttendance = new Map<number, typeof yesterdayOvertimes>();
-          for (const ot of yesterdayOvertimes) {
-            if (!overtimesByAttendance.has(ot.attendanceId)) {
-              overtimesByAttendance.set(ot.attendanceId, []);
-            }
-            overtimesByAttendance.get(ot.attendanceId)!.push(ot);
-          }
-
-          let autoCheckoutCount = 0;
-          for (const rec of forgottenCheckouts) {
-            const otList = overtimesByAttendance.get(rec.id) || [];
-
-            // SKIP jika masih ada sesi lembur ongoing
-            const hasOngoingOT = otList.some(ot => ot.status === "ongoing");
-            if (hasOngoingOT) continue;
-
-            const hasApprovedOT = otList.some(ot => ot.employeeApproval === "approved");
-
-            const shiftData = rec.shiftId ? shiftMap.get(rec.shiftId) : null;
-            if (!shiftData || !shiftData.checkOutTime) {
-              console.log(`[AUTO-CHECKOUT] userId=${rec.userId} tidak punya data shift, dilewati.`);
-              continue;
-            }
-
-            const [shiftHour, shiftMin] = shiftData.checkOutTime.split(":").map(Number);
-            const checkOutWib = new Date(`${yesterdayStr}T${String(shiftHour).padStart(2,"0")}:${String(shiftMin).padStart(2,"0")}:00+07:00`);
-
-            const autoNote = hasApprovedOT
-              ? "Lupa Absen Pulang (Lembur Disetujui)"
-              : "Lupa Absen Pulang";
-            const newNotes = rec.notes
-              ? `${rec.notes}\n(${autoNote})`
-              : `(${autoNote})`;
-
-            await db.update(attendance).set({
-              checkOut: checkOutWib,
-              notes: newNotes,
-            }).where(eq(attendance.id, rec.id));
-
-            autoCheckoutCount++;
-            console.log(`[AUTO-CHECKOUT] userId=${rec.userId} tgl=${yesterdayStr} → checkOut=${shiftData.checkOutTime} WIB [${autoNote}]`);
-          }
-
-          console.log(`[03:30 WIB RESET] Auto-checkout: ${autoCheckoutCount} karyawan diisi jam pulang otomatis.`);
-        } catch (autoErr) {
-          console.error("[AUTO-CHECKOUT ERROR]", autoErr);
-        }
-
-        console.log(`[03:30 WIB RESET] Daily session reset completed for ${todayStr}.`);
       }
     } catch (err) {
-      console.error("[03:30 WIB RESET ERROR]", err);
+      console.error("[SHIFT RESET SCHEDULER ERROR]", err);
     }
   }, 60000);
 }

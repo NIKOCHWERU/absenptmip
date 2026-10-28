@@ -30,10 +30,7 @@ function calculateOvertimeEstimatedDuration(dateStr: string, startTimeStr: strin
     const hours = Math.floor(diffMins / 60);
     const mins = diffMins % 60;
     
-    let durationText = "";
-    if (hours > 0 && mins > 0) durationText = `${hours} Jam ${mins} Menit`;
-    else if (hours > 0) durationText = `${hours} Jam`;
-    else durationText = `${mins} Menit`;
+    const durationText = `${hours} Jam`;
 
     const formattedStart = format(start, "d MMMM yyyy HH:mm", { locale: id });
     const formattedEnd = format(end, "d MMMM yyyy HH:mm", { locale: id });
@@ -75,10 +72,7 @@ function formatOvertimeRange(startTime: Date | string | null, endTime: Date | st
     const otMins = Math.round((end.getTime() - start.getTime()) / 60000);
     if (otMins > 0) {
       const hrs = Math.floor(otMins / 60);
-      const mins = otMins % 60;
-      if (hrs > 0 && mins > 0) durationStr = `${hrs} Jam ${mins} Menit`;
-      else if (hrs > 0) durationStr = `${hrs} Jam`;
-      else durationStr = `${mins} Menit`;
+      durationStr = `${hrs} Jam`;
     } else {
       // endTime < startTime (data rusak / salah format jam)
       durationStr = `${startHhMm} – ${endHhMm}`;

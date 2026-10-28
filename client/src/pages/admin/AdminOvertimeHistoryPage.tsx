@@ -41,10 +41,7 @@ export default function AdminOvertimeHistoryPage() {
 
             const otMins = Math.round((end.getTime() - start.getTime()) / 60000);
             const hrs = Math.floor(otMins / 60);
-            const mins = otMins % 60;
-            if (hrs > 0 && mins > 0) durationStr = `${hrs} Jam ${mins} Menit`;
-            else if (hrs > 0) durationStr = `${hrs} Jam`;
-            else if (mins > 0) durationStr = `${mins} Menit`;
+            durationStr = `${hrs} Jam`;
         } else {
             rangeStr = `${format(start, "d MMMM yyyy HH:mm", { locale: id })} WIB`;
             durationStr = "Berlangsung";

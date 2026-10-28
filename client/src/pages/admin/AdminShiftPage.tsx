@@ -99,7 +99,7 @@ export default function AdminShiftPage() {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Kelola Shift</h1>
-          <p className="text-muted-foreground">Atur jam masuk dan pulang untuk berbagai shift kerja.</p>
+          <p className="text-muted-foreground">Atur jam masuk, jam pulang, dan waktu reset harian absensi (otomatis diset 1 jam sebelum shift dimulai).</p>
         </div>
         <Dialog open={isDialogOpen} onOpenChange={(open) => {
           setIsDialogOpen(open);
@@ -143,6 +143,7 @@ export default function AdminShiftPage() {
                 <TableHead className="font-bold cursor-pointer hover:text-primary" onClick={() => toggleSort('checkOutTime')}>
                     <div className="flex items-center gap-1">Jam Pulang {sortField === 'checkOutTime' && (sortOrder === 'asc' ? '↑' : '↓')}</div>
                 </TableHead>
+                <TableHead className="font-bold text-orange-600">Reset Absensi (1 Jam Sebelum)</TableHead>
                 <TableHead className="font-bold">Keterangan</TableHead>
                 <TableHead className="text-right font-bold">Aksi</TableHead>
               </TableRow>
@@ -162,6 +163,19 @@ export default function AdminShiftPage() {
                        <Clock className="w-3 h-3 text-primary" />
                        <span className="font-mono">{shift.checkOutTime}</span>
                     </div>
+                  </TableCell>
+                  <TableCell>
+                    {(() => {
+                      const [h, m] = (shift.checkInTime || "07:00").split(":").map(Number);
+                      const resetH = !isNaN(h) ? (h - 1 + 24) % 24 : 6;
+                      const resetM = !isNaN(m) ? m : 0;
+                      const resetStr = `${String(resetH).padStart(2, '0')}:${String(resetM).padStart(2, '0')} WIB`;
+                      return (
+                        <span className="text-xs font-bold text-orange-700 bg-orange-50 border border-orange-200 px-2 py-0.5 rounded-md inline-flex items-center gap-1">
+                          🔄 {resetStr}
+                        </span>
+                      );
+                    })()}
                   </TableCell>
                   <TableCell className="text-slate-500 text-sm max-w-xs truncate">{shift.description || '-'}</TableCell>
                   <TableCell className="text-right">
