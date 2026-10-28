@@ -2470,7 +2470,7 @@ export function registerRoutes(app: Express) {
   app.put("/api/admin/overtimes/:id", isAuthenticated, isAdmin, async (req: Request, res: Response) => {
     try {
       const id = Number(req.params.id);
-      const { startTime, endTime, description, finalDescription, status, employeeApproval, splNumber, isAutoCompleted, missedReason } = req.body;
+      const { startTime, endTime, description, finalDescription, status, employeeApproval, splNumber, isAutoCompleted, missedReason, userId } = req.body;
       const updateData: any = {};
       if (startTime) updateData.startTime = new Date(startTime);
       if (endTime !== undefined) updateData.endTime = endTime ? new Date(endTime) : null;
@@ -2483,6 +2483,18 @@ export function registerRoutes(app: Express) {
       if (missedReason !== undefined) updateData.missedReason = missedReason;
 
       await db.update(overtimes).set(updateData).where(eq(overtimes.id, id));
+
+      // Sinkronisasi record attendance jika tanggal atau userId diperbarui
+      if (startTime || userId) {
+        const existingOt = await db.select().from(overtimes).where(eq(overtimes.id, id)).limit(1);
+        if (existingOt.length > 0 && existingOt[0].attendanceId) {
+          const attUpdates: any = {};
+          if (startTime) attUpdates.date = new Date(startTime);
+          if (userId) attUpdates.userId = Number(userId);
+          await db.update(attendance).set(attUpdates).where(eq(attendance.id, existingOt[0].attendanceId));
+        }
+      }
+
       res.json({ message: "Data lembur berhasil diperbarui" });
     } catch (e: any) {
       res.status(500).json({ message: e.message || "Internal server error" });

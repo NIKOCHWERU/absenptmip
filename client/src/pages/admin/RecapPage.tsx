@@ -3315,9 +3315,20 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
                                                     Mencakup kehadiran Sabtu &amp; Minggu (otomatis dihitung jam lembur) serta penugasan lembur hari kerja
                                                 </p>
                                             </div>
-                                            <span className="text-xs font-black px-2.5 py-1 rounded bg-amber-100 text-amber-900 border border-amber-300">
-                                                Total {summaryItem.totalLemburHours} Jam Lembur
-                                            </span>
+                                            <div className="flex items-center gap-2">
+                                                <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    onClick={() => setLocation(`/admin/overtime-management?userId=${selectedEmployee}`)}
+                                                    className="h-8 text-xs font-bold gap-1.5 bg-white border-amber-300 text-amber-900 hover:bg-amber-100/60 cursor-pointer"
+                                                >
+                                                    <Edit2 className="w-3.5 h-3.5 text-amber-600" />
+                                                    Kelola &amp; Edit Lembur
+                                                </Button>
+                                                <span className="text-xs font-black px-2.5 py-1.5 rounded bg-amber-100 text-amber-900 border border-amber-300">
+                                                    Total {summaryItem.totalLemburHours} Jam Lembur
+                                                </span>
+                                            </div>
                                         </div>
 
                                         <div className="overflow-x-auto">

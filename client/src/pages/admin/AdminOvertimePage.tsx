@@ -165,6 +165,16 @@ export default function AdminOvertimePage() {
   // Filter & Search State
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>(() => {
+    if (typeof window !== "undefined") {
+      const p = new URLSearchParams(window.location.search);
+      return p.get("userId") || "all";
+    }
+    return "all";
+  });
+  const [filterStartDate, setFilterStartDate] = useState<string>("");
+  const [filterEndDate, setFilterEndDate] = useState<string>("");
+  const [editUserId, setEditUserId] = useState<string>("");
 
   // Modal States
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
@@ -424,6 +434,7 @@ export default function AdminOvertimePage() {
           finalDescription: editFinalTask,
           status: editStatus,
           employeeApproval: editApproval,
+          userId: editUserId ? Number(editUserId) : undefined,
           referenceItems: uploadedRefItems.length > 0 ? uploadedRefItems : undefined
         })
       });
@@ -472,6 +483,8 @@ export default function AdminOvertimePage() {
 
   const handleOpenEdit = (item: any) => {
     setEditItem(item);
+    const itemUserId = item.userId || (item.attendance ? item.attendance.userId : "");
+    setEditUserId(itemUserId ? String(itemUserId) : "");
 
     let dateStr = format(new Date(), "yyyy-MM-dd");
     if (item.date) {
@@ -494,6 +507,47 @@ export default function AdminOvertimePage() {
     setEditRefRows([{ id: "1", file: null, caption: "" }]);
   };
 
+  const setQuickRangeThisMonth = () => {
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, "0");
+    const lastDay = new Date(y, now.getMonth() + 1, 0).getDate();
+    setFilterStartDate(`${y}-${m}-01`);
+    setFilterEndDate(`${y}-${m}-${String(lastDay).padStart(2, "0")}`);
+  };
+
+  const setQuickRangeLastMonth = () => {
+    const now = new Date();
+    const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const y = prev.getFullYear();
+    const m = String(prev.getMonth() + 1).padStart(2, "0");
+    const lastDay = new Date(y, prev.getMonth() + 1, 0).getDate();
+    setFilterStartDate(`${y}-${m}-01`);
+    setFilterEndDate(`${y}-${m}-${String(lastDay).padStart(2, "0")}`);
+  };
+
+  const resetFilters = () => {
+    setSelectedEmployeeId("all");
+    setFilterStartDate("");
+    setFilterEndDate("");
+    setSearchTerm("");
+    setStatusFilter("all");
+  };
+
+  // Helper normalisasi durasi lembur (potong 1 jam istirahat untuk akhir pekan)
+  const calculateOtHours = (startTime: any, endTime: any) => {
+    if (!startTime || !endTime) return 0;
+    const s = new Date(startTime);
+    const e = new Date(endTime);
+    if (isNaN(s.getTime()) || isNaN(e.getTime())) return 0;
+    const diffMins = Math.round((e.getTime() - s.getTime()) / 60000);
+    if (diffMins <= 0) return 0;
+    const day = s.getDay();
+    const isWeekend = day === 0 || day === 6;
+    const grossHours = Math.floor(diffMins / 60);
+    return isWeekend ? Math.max(0, grossHours - 1) : grossHours;
+  };
+
   const toggleSort = (field: string) => {
     if (sortField === field) {
       setSortOrder(sortOrder === "asc" ? "desc" : "asc");
@@ -505,11 +559,25 @@ export default function AdminOvertimePage() {
 
   // Filtering & Sorting
   const filteredRequests = (overtimesList || []).filter(req => {
+    // 1. Filter Karyawan
+    if (selectedEmployeeId !== "all") {
+      const targetUid = req.userId || (req.attendance ? req.attendance.userId : undefined);
+      if (String(targetUid) !== String(selectedEmployeeId)) return false;
+    }
+
+    // 2. Filter Rentang Tanggal
+    const otDate = req.date ? format(new Date(req.date), "yyyy-MM-dd") : (req.startTime ? format(new Date(req.startTime), "yyyy-MM-dd") : "");
+    if (filterStartDate && otDate && otDate < filterStartDate) return false;
+    if (filterEndDate && otDate && otDate > filterEndDate) return false;
+
+    // 3. Search text
     const nameMatch = (req.fullName || "").toLowerCase().includes(searchTerm.toLowerCase());
     const nikMatch = (req.nik || "").toLowerCase().includes(searchTerm.toLowerCase());
     const descMatch = (req.description || "").toLowerCase().includes(searchTerm.toLowerCase());
-    const searchPass = nameMatch || nikMatch || descMatch;
+    const splMatch = (req.splNumber || "").toLowerCase().includes(searchTerm.toLowerCase());
+    const searchPass = !searchTerm || nameMatch || nikMatch || descMatch || splMatch;
 
+    // 4. Status filter
     let statusPass = true;
     if (statusFilter === "pending") statusPass = req.employeeApproval === "pending";
     else if (statusFilter === "ongoing") statusPass = req.status === "ongoing";
@@ -518,6 +586,21 @@ export default function AdminOvertimePage() {
 
     return searchPass && statusPass;
   });
+
+  // Perhitungan total jam lembur pada data terfilter
+  const totalFilteredOvertimeHours = filteredRequests.reduce((sum, req) => {
+    if (req.status === 'cancelled' || req.employeeApproval === 'rejected') return sum;
+    const hours = calculateOtHours(req.startTime, req.endTime);
+    return sum + hours;
+  }, 0);
+
+  const completedFilteredCount = filteredRequests.filter(req => req.status === 'completed').length;
+  const ongoingFilteredCount = filteredRequests.filter(req => req.status === 'ongoing').length;
+  const pendingFilteredCount = filteredRequests.filter(req => req.employeeApproval === 'pending').length;
+
+  const selectedEmployeeObj = selectedEmployeeId !== "all" 
+    ? users?.find(u => String(u.id) === String(selectedEmployeeId)) 
+    : null;
 
   const sortedRequests = [...filteredRequests].sort((a, b) => {
     let valA: any = a[sortField] || "";
@@ -897,32 +980,55 @@ export default function AdminOvertimePage() {
       {/* Main Table Section & Filter */}
       <div className="space-y-4">
         <Card className="border-gray-100 shadow-sm rounded-xl overflow-hidden">
-          <CardHeader className="bg-white border-b border-gray-50 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 p-4">
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <Input
-                placeholder="Cari nama karyawan, NIK, atau instruksi pekerjaan..."
-                className="pl-9 rounded-lg border-gray-100 bg-gray-50 focus:bg-white transition-all h-10 text-xs"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-            </div>
+          <CardHeader className="bg-white border-b border-gray-100 flex flex-col gap-3 p-4">
+            <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
+              {/* Search text */}
+              <div className="flex-1 relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Input
+                  placeholder="Cari nama karyawan, NIK, atau instruksi pekerjaan..."
+                  className="pl-9 rounded-lg border-gray-200 bg-gray-50/60 focus:bg-white transition-all h-10 text-xs"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
 
-            <div className="flex items-center gap-2">
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-[180px] h-10 rounded-lg text-xs bg-gray-50 border-gray-100">
-                  <SelectValue placeholder="Filter Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Semua Status</SelectItem>
-                  <SelectItem value="pending">Menunggu Persetujuan</SelectItem>
-                  <SelectItem value="ongoing">Sedang Berlangsung</SelectItem>
-                  <SelectItem value="completed">Selesai & Verified</SelectItem>
-                  <SelectItem value="rejected">Ditolak / Dibatalkan</SelectItem>
-                </SelectContent>
-              </Select>
+              {/* Filter Pilih Karyawan */}
+              <div className="w-full sm:w-[260px]">
+                <Select value={selectedEmployeeId} onValueChange={setSelectedEmployeeId}>
+                  <SelectTrigger className="w-full h-10 rounded-lg text-xs bg-gray-50/60 border-gray-200 font-semibold text-gray-700">
+                    <UserIcon className="w-3.5 h-3.5 mr-1 text-primary shrink-0" />
+                    <SelectValue placeholder="Pilih Tenaga Kerja..." />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-[300px]">
+                    <SelectItem value="all" className="font-bold">👥 Semua Tenaga Kerja ({employeeUsers.length})</SelectItem>
+                    {employeeUsers.map(u => (
+                      <SelectItem key={u.id} value={String(u.id)}>
+                        {u.fullName} ({u.nik || "-"})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
-              <div className="flex items-center gap-1 border border-gray-100 rounded-lg p-1 bg-gray-50">
+              {/* Filter Status */}
+              <div className="w-full sm:w-[170px]">
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger className="w-full h-10 rounded-lg text-xs bg-gray-50/60 border-gray-200 font-semibold text-gray-700">
+                    <SelectValue placeholder="Filter Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Semua Status</SelectItem>
+                    <SelectItem value="completed">Selesai & Verified</SelectItem>
+                    <SelectItem value="ongoing">Sedang Berlangsung</SelectItem>
+                    <SelectItem value="pending">Menunggu Konfirmasi</SelectItem>
+                    <SelectItem value="rejected">Ditolak / Dibatalkan</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Sort buttons */}
+              <div className="flex items-center gap-1 border border-gray-200 rounded-lg p-1 bg-gray-50/60 shrink-0">
                 <Button
                   variant={sortField === "createdAt" ? "default" : "ghost"}
                   size="sm"
@@ -941,7 +1047,109 @@ export default function AdminOvertimePage() {
                 </Button>
               </div>
             </div>
+
+            {/* Row 2: Filter Rentang Tanggal & Tombol Preset */}
+            <div className="flex flex-wrap items-center justify-between gap-2 pt-2.5 border-t border-gray-100 text-xs">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="font-bold flex items-center gap-1 text-gray-700">
+                  <Calendar className="w-3.5 h-3.5 text-primary" /> Rentang:
+                </span>
+                <div className="flex items-center gap-1">
+                  <span className="text-[10px] font-semibold text-gray-400">Dari</span>
+                  <Input
+                    type="date"
+                    value={filterStartDate}
+                    onChange={(e) => setFilterStartDate(e.target.value)}
+                    className="w-[135px] h-8 text-xs rounded-lg border-gray-200"
+                  />
+                </div>
+                <div className="flex items-center gap-1">
+                  <span className="text-[10px] font-semibold text-gray-400">Sampai</span>
+                  <Input
+                    type="date"
+                    value={filterEndDate}
+                    onChange={(e) => setFilterEndDate(e.target.value)}
+                    className="w-[135px] h-8 text-xs rounded-lg border-gray-200"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center gap-1">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={setQuickRangeThisMonth}
+                  className="h-7 text-[10px] rounded-md font-bold text-gray-600 hover:text-gray-900 border-gray-200"
+                >
+                  Bulan Ini
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={setQuickRangeLastMonth}
+                  className="h-7 text-[10px] rounded-md font-bold text-gray-600 hover:text-gray-900 border-gray-200"
+                >
+                  Bulan Lalu
+                </Button>
+                {(selectedEmployeeId !== "all" || filterStartDate || filterEndDate || statusFilter !== "all" || searchTerm) && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={resetFilters}
+                    className="h-7 text-[10px] rounded-md font-bold text-rose-600 hover:text-rose-700 hover:bg-rose-50 gap-1 px-2"
+                  >
+                    <X className="w-3 h-3" /> Reset Filter
+                  </Button>
+                )}
+              </div>
+            </div>
           </CardHeader>
+
+          {/* Banner Rekapitulasi Jumlah Lembur Rentang Terpilih */}
+          <div className="bg-gradient-to-r from-amber-50 via-orange-50 to-amber-50 border-b border-amber-200/80 p-4 sm:p-5">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div className="flex items-center gap-3.5">
+                <div className="w-12 h-12 rounded-2xl bg-orange-600 text-white flex flex-col items-center justify-center shadow-sm shrink-0">
+                  <Clock className="w-6 h-6 mb-0.5" />
+                  <span className="text-[8px] font-black uppercase tracking-wider">Lembur</span>
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h2 className="text-2xl font-black text-gray-900 tracking-tight">
+                      {totalFilteredOvertimeHours} <span className="text-base font-bold text-orange-600">Jam Lembur</span>
+                    </h2>
+                    <span className="text-xs font-black text-orange-800 bg-orange-100 px-2.5 py-0.5 rounded-full border border-orange-200">
+                      {filteredRequests.length} Penugasan
+                    </span>
+                  </div>
+                  <div className="text-xs text-gray-600 mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                    <span>Tenaga Kerja: <strong className="text-gray-900">{selectedEmployeeObj ? `${selectedEmployeeObj.fullName} (${selectedEmployeeObj.nik || "-"})` : "Semua Karyawan"}</strong></span>
+                    <span>•</span>
+                    <span>Periode: <strong className="text-gray-900">{filterStartDate ? format(new Date(filterStartDate), "d MMM yyyy", { locale: id }) : "Semua Tanggal"} {filterEndDate ? `s/d ${format(new Date(filterEndDate), "d MMM yyyy", { locale: id })}` : ""}</strong></span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Rincian Status Badge */}
+              <div className="flex flex-wrap items-center gap-2 text-xs">
+                <div className="bg-white/90 border border-emerald-200 rounded-xl px-3 py-1.5 shadow-2xs">
+                  <span className="text-[9px] font-black text-gray-400 block uppercase">Selesai & Verified</span>
+                  <span className="font-extrabold text-emerald-700">{completedFilteredCount} Sesi</span>
+                </div>
+                <div className="bg-white/90 border border-orange-200 rounded-xl px-3 py-1.5 shadow-2xs">
+                  <span className="text-[9px] font-black text-gray-400 block uppercase">Sedang Berlangsung</span>
+                  <span className="font-extrabold text-orange-700">{ongoingFilteredCount} Sesi</span>
+                </div>
+                <div className="bg-white/90 border border-amber-200 rounded-xl px-3 py-1.5 shadow-2xs">
+                  <span className="text-[9px] font-black text-gray-400 block uppercase">Menunggu Konfirmasi</span>
+                  <span className="font-extrabold text-amber-700">{pendingFilteredCount} Sesi</span>
+                </div>
+              </div>
+            </div>
+          </div>
 
           <CardContent className="p-0">
             <div className="overflow-x-auto">
@@ -1757,15 +1965,27 @@ export default function AdminOvertimePage() {
 
           {editItem && (
             <form onSubmit={(e) => { e.preventDefault(); editMutation.mutate(); }} className="space-y-4 pt-2 text-xs">
-              {/* Info Karyawan */}
-              <div className="p-3.5 bg-amber-50/70 border border-amber-200/80 rounded-2xl flex items-center justify-between">
-                <div>
-                  <span className="font-extrabold text-gray-900 text-sm block">{editItem.fullName}</span>
-                  <span className="text-[11px] text-gray-500 font-mono">NIK: {editItem.nik} | Jabatan: {editItem.position || "-"}</span>
+              {/* Info & Pilihan Karyawan */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-gray-700">Tenaga Kerja / Karyawan</label>
+                  <span className="text-xs font-black text-amber-700 bg-amber-100 px-2.5 py-0.5 rounded-lg font-mono">
+                    {editItem.splNumber || "SPL Resmi"}
+                  </span>
                 </div>
-                <span className="text-xs font-black text-amber-700 bg-amber-200/70 px-2.5 py-1 rounded-lg font-mono">
-                  {editItem.splNumber || "SPL Resmi"}
-                </span>
+                <Select value={editUserId} onValueChange={setEditUserId}>
+                  <SelectTrigger className="rounded-xl border-gray-200 h-10 text-xs bg-white font-semibold">
+                    <UserIcon className="w-3.5 h-3.5 mr-1 text-primary shrink-0" />
+                    <SelectValue placeholder="Pilih Karyawan..." />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-[260px]">
+                    {employeeUsers.map(u => (
+                      <SelectItem key={u.id} value={String(u.id)}>
+                        {u.fullName} (NIK: {u.nik || "-"}) {u.position ? `— ${u.position}` : ""}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               {/* Field 1: Tanggal & Waktu 24 Jam */}
