@@ -410,6 +410,86 @@ export default function RecapPage() {
         description: "",
     });
 
+    // State Modal Edit Lembur Khusus di Rekap Absen
+    const [editOvertimeItem, setEditOvertimeItem] = useState<any | null>(null);
+    const [editOtDate, setEditOtDate] = useState<string>("");
+    const [editOtStartTime, setEditOtStartTime] = useState<string>("17:00");
+    const [editOtEndTime, setEditOtEndTime] = useState<string>("20:00");
+    const [editOtDescription, setEditOtDescription] = useState<string>("");
+    const [editOtStatus, setEditOtStatus] = useState<string>("completed");
+    const [editOtApproval, setEditOtApproval] = useState<string>("approved");
+
+    const editOvertimeMutation = useMutation({
+        mutationFn: async () => {
+            if (!editOvertimeItem) return;
+            const startIso = `${editOtDate}T${editOtStartTime}:00+07:00`;
+            let endIso: string | null = null;
+            if (editOtEndTime) {
+                let tempEnd = new Date(`${editOtDate}T${editOtEndTime}:00+07:00`);
+                let tempStart = new Date(startIso);
+                if (tempEnd < tempStart) {
+                    tempEnd.setDate(tempEnd.getDate() + 1);
+                }
+                endIso = tempEnd.toISOString();
+            }
+
+            const res = await fetch(`/api/admin/overtimes/${editOvertimeItem.id}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    date: editOtDate,
+                    startTime: new Date(startIso).toISOString(),
+                    endTime: endIso,
+                    description: editOtDescription,
+                    status: editOtStatus,
+                    employeeApproval: editOtApproval,
+                })
+            });
+            if (!res.ok) throw new Error("Gagal memperbarui data lembur");
+            return res.json();
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["/api/admin/overtimes"] });
+            queryClient.invalidateQueries({ queryKey: ["/api/admin/summary-cutoff"] });
+            queryClient.invalidateQueries({ predicate: (query) => query.queryKey[0] === "/api/attendance" });
+            setEditOvertimeItem(null);
+            toast({ title: "Lembur Berhasil Diperbarui", description: "Perubahan jam lembur telah disimpan dan rekap dihitung ulang." });
+        },
+        onError: (err: any) => {
+            toast({ title: "Gagal Mengubah Lembur", description: err.message, variant: "destructive" });
+        }
+    });
+
+    const handleOpenEditOt = (ot: any) => {
+        setEditOvertimeItem(ot);
+        let dateStr = format(new Date(), "yyyy-MM-dd");
+        if (ot.date) {
+            dateStr = format(new Date(ot.date), "yyyy-MM-dd");
+        } else if (ot.startTime) {
+            dateStr = format(new Date(ot.startTime), "yyyy-MM-dd");
+        }
+        setEditOtDate(dateStr);
+        setEditOtStartTime(ot.startTime ? format(new Date(ot.startTime), "HH:mm") : "17:00");
+        setEditOtEndTime(ot.endTime ? format(new Date(ot.endTime), "HH:mm") : "20:00");
+        setEditOtDescription(ot.description || ot.finalDescription || "");
+        setEditOtStatus(ot.status || "completed");
+        setEditOtApproval(ot.employeeApproval || "approved");
+    };
+
+    const deleteOvertimeMutation = useMutation({
+        mutationFn: async (id: number) => {
+            const res = await fetch(`/api/admin/overtimes/${id}`, { method: "DELETE" });
+            if (!res.ok) throw new Error("Gagal menghapus lembur");
+            return res.json();
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["/api/admin/overtimes"] });
+            queryClient.invalidateQueries({ queryKey: ["/api/admin/summary-cutoff"] });
+            queryClient.invalidateQueries({ predicate: (query) => query.queryKey[0] === "/api/attendance" });
+            toast({ title: "Lembur Dihapus", description: "Data penugasan lembur telah dihapus." });
+        }
+    });
+
     const handlePrev = () => {
         if (reportType === "daily") setTargetDate(d => subDays(d, 1));
         else if (reportType === "weekly") setTargetDate(d => subDays(d, 7));
@@ -440,6 +520,11 @@ export default function RecapPage() {
 
     const filteredRecords = (allAttendance || []).filter(att => {
         if (!getUserName(att.userId)) return false;
+
+        // Filter Karyawan jika dipilih
+        if (selectedEmployeeId !== "all" && String(att.userId) !== selectedEmployeeId) {
+            return false;
+        }
 
         const attDateStr = safeFormatDate(att.date, "yyyy-MM-dd");
 
@@ -475,6 +560,11 @@ export default function RecapPage() {
 
         const targetUserId = ot.userId || (ot.attendance ? ot.attendance.userId : undefined);
         if (!targetUserId || !getUserName(targetUserId)) return false;
+
+        // Filter Karyawan jika dipilih
+        if (selectedEmployeeId !== "all" && String(targetUserId) !== selectedEmployeeId) {
+            return false;
+        }
 
         const alreadyExists = filteredRecords.some(att => 
             att.userId === targetUserId && safeFormatDate(att.date, "yyyy-MM-dd") === otDateStr
@@ -2579,10 +2669,32 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
                                 Periode: {format(startDate, "EEEE, d MMMM yyyy", { locale: id })} - {format(endDate, "EEEE, d MMMM yyyy", { locale: id })}
                             </p>
                         </div>
-                        <div className="flex items-center gap-3 w-full md:w-auto">
-                            <div className="relative flex-1 md:w-64">
+                        <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+                            {/* Pilih Karyawan Filter */}
+                            <div className="w-full sm:w-[220px]">
+                                <Select value={selectedEmployeeId} onValueChange={setSelectedEmployeeId}>
+                                    <SelectTrigger className="w-full bg-white h-10 text-xs font-semibold border-gray-200">
+                                        <Users className="w-3.5 h-3.5 mr-1 text-primary shrink-0" />
+                                        <SelectValue placeholder="Pilih Karyawan" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all" className="font-bold">👥 Semua Karyawan</SelectItem>
+                                        {(users || [])
+                                            .filter(u => !isAdminUser(u) && !isResignedUser(u))
+                                            .sort((a, b) => (a.fullName || '').localeCompare(b.fullName || '', 'id'))
+                                            .map((emp) => (
+                                                <SelectItem key={emp.id} value={String(emp.id)}>
+                                                    {emp.fullName} ({emp.nik || emp.username || "-"})
+                                                </SelectItem>
+                                            ))
+                                        }
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
+                            <div className="relative flex-1 md:w-56">
                                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                                <Input placeholder="Cari nama..." className="pl-9 h-10" value={searchName} onChange={(e) => setSearchName(e.target.value)} />
+                                <Input placeholder="Cari nama..." className="pl-9 h-10 text-xs" value={searchName} onChange={(e) => setSearchName(e.target.value)} />
                             </div>
                             <Select value={pageSplitMode} onValueChange={(val: any) => setPageSplitMode(val)}>
                                 <SelectTrigger className="w-[170px] bg-white h-10 font-medium">
@@ -2627,6 +2739,43 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
                             </Button>
                         </div>
                     </div>
+
+                    {/* Banner Akumulasi Lembur & Kehadiran Karyawan Terpilih */}
+                    {selectedEmployeeId !== "all" && (() => {
+                        const selEmp = (users || []).find(u => String(u.id) === selectedEmployeeId);
+                        const selSummary = ringkasanData.find((r: any) => String(r.userId) === selectedEmployeeId);
+                        return (
+                            <div className="bg-gradient-to-r from-amber-50 via-orange-50 to-amber-50 border-b border-amber-200 p-4">
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 rounded-xl bg-orange-600 text-white flex items-center justify-center font-bold shadow-sm">
+                                            <Clock className="w-5 h-5" />
+                                        </div>
+                                        <div>
+                                            <h4 className="font-black text-slate-900 text-sm">
+                                                {selEmp?.fullName} <span className="text-xs font-mono font-normal text-slate-500">({selEmp?.nik || "-"})</span>
+                                            </h4>
+                                            <div className="text-xs text-slate-600 flex items-center gap-2 mt-0.5">
+                                                <span>Departemen: <strong>{(selEmp as any)?.position || (selEmp as any)?.department || "-"}</strong></span>
+                                                <span>•</span>
+                                                <span>Periode: <strong>{safeFormatDate(startDate, "d MMM yyyy")} - {safeFormatDate(endDate, "d MMM yyyy")}</strong></span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <div className="bg-white px-3 py-1.5 rounded-lg border border-amber-200 text-center shadow-2xs">
+                                            <div className="text-[10px] font-bold text-slate-500 uppercase">Hadir Hari Kerja</div>
+                                            <div className="text-sm font-black text-slate-900">{selSummary?.totalHadirStr || "0 Hari"}</div>
+                                        </div>
+                                        <div className="bg-white px-3 py-1.5 rounded-lg border border-orange-200 text-center shadow-2xs">
+                                            <div className="text-[10px] font-bold text-orange-600 uppercase">Total Lembur</div>
+                                            <div className="text-sm font-black text-orange-700">{selSummary?.totalLemburStr || "0 Jam"}</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        );
+                    })()}
                     <div className="p-0">
                         <div className="overflow-x-auto">
                             <table className="w-full text-sm text-left whitespace-nowrap">
@@ -2780,68 +2929,97 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
 
                                                 // Sort descending by id to pick the newest active assignment
                                                 matchedOvertimes.sort((a, b) => (b.id || 0) - (a.id || 0));
-                                                const ot = matchedOvertimes[0];
 
-                                                const isPendingApproval = ot.employeeApproval === "pending" || (!ot.employeeApproval && ot.status === "pending");
-                                                const isOngoing = ot.status === "ongoing";
-                                                const isApprovedNotStarted = ot.employeeApproval === "approved" && ot.status !== "completed" && ot.status !== "ongoing";
-                                                const hasFinished = ot.status === "completed";
+                                                return matchedOvertimes.map(ot => {
+                                                    const isPendingApproval = ot.employeeApproval === "pending" || (!ot.employeeApproval && ot.status === "pending");
+                                                    const isOngoing = ot.status === "ongoing";
+                                                    const isApprovedNotStarted = ot.employeeApproval === "approved" && ot.status !== "completed" && ot.status !== "ongoing";
+                                                    const hasFinished = ot.status === "completed";
 
-                                                const otStart = ot.startTime ? safeFormatDate(ot.startTime, "HH:mm") : "-";
-                                                const otEnd = hasFinished && ot.endTime ? safeFormatDate(ot.endTime, "HH:mm") : (isOngoing ? "Berlangsung" : "-");
+                                                    const otStart = ot.startTime ? safeFormatDate(ot.startTime, "HH:mm") : "-";
+                                                    const otEnd = hasFinished && ot.endTime ? safeFormatDate(ot.endTime, "HH:mm") : (isOngoing ? "Berlangsung" : "-");
 
-                                                const otDurationMins = (hasFinished && ot.startTime && ot.endTime) 
-                                                    ? Math.round((new Date(ot.endTime).getTime() - new Date(ot.startTime).getTime()) / 60000)
-                                                    : 0;
-                                                const otDurationStr = (hasFinished && otDurationMins > 0) ? `${Math.floor(otDurationMins / 60)} Jam` : (isOngoing ? "Sedang Lembur" : "-");
+                                                    const otDate = ot.date ? new Date(ot.date) : (ot.startTime ? new Date(ot.startTime) : null);
+                                                    const isWeekendOt = otDate ? (otDate.getDay() === 0 || otDate.getDay() === 6) : false;
+                                                    const otHours = normalizeOvertimeDuration(ot.startTime, ot.endTime, isWeekendOt);
+                                                    const otDurationStr = (hasFinished && otHours > 0) ? `${otHours} Jam` : (isOngoing ? "Sedang Lembur" : "-");
 
-                                                let statusLabel = "MENUNGGU KONFIRMASI";
-                                                let statusClass = "bg-yellow-100 text-yellow-800 border-yellow-200 animate-pulse";
+                                                    let statusLabel = "MENUNGGU KONFIRMASI";
+                                                    let statusClass = "bg-yellow-100 text-yellow-800 border-yellow-200 animate-pulse";
 
-                                                if (isOngoing) {
-                                                    statusLabel = "SEDANG BERLANGSUNG";
-                                                    statusClass = "bg-blue-100 text-blue-800 border-blue-200 animate-pulse";
-                                                } else if (isApprovedNotStarted) {
-                                                    statusLabel = "DISETUJUI (BELUM MULAI)";
-                                                    statusClass = "bg-orange-100 text-orange-800 border-orange-200";
-                                                } else if (ot.isAutoCompleted) {
-                                                    statusLabel = "SELESAI OTOMATIS";
-                                                    statusClass = "bg-amber-100 text-amber-800 border-amber-300";
-                                                } else if (hasFinished) {
-                                                    statusLabel = "SELESAI";
-                                                    statusClass = "bg-emerald-100 text-emerald-800 border-emerald-200";
-                                                }
+                                                    if (isOngoing) {
+                                                        statusLabel = "SEDANG BERLANGSUNG";
+                                                        statusClass = "bg-blue-100 text-blue-800 border-blue-200 animate-pulse";
+                                                    } else if (isApprovedNotStarted) {
+                                                        statusLabel = "DISETUJUI (BELUM MULAI)";
+                                                        statusClass = "bg-orange-100 text-orange-800 border-orange-200";
+                                                    } else if (ot.isAutoCompleted) {
+                                                        statusLabel = "SELESAI OTOMATIS";
+                                                        statusClass = "bg-amber-100 text-amber-800 border-amber-300";
+                                                    } else if (hasFinished) {
+                                                        statusLabel = "SELESAI";
+                                                        statusClass = "bg-emerald-100 text-emerald-800 border-emerald-200";
+                                                    }
 
-                                                let noteText = ot.description || "Lembur pekerjaan";
-                                                if (ot.missedReason) {
-                                                    noteText += ` (Alasan Melewatkan: "${ot.missedReason}")`;
-                                                }
+                                                    let noteText = ot.description || ot.finalDescription || "Lembur pekerjaan";
+                                                    if (ot.missedReason) {
+                                                        noteText += ` (Alasan Melewatkan: "${ot.missedReason}")`;
+                                                    }
 
-                                                return (
-                                                    <tr key={`ot-${row.id}`} className="bg-orange-50/60 border-b border-orange-100 hover:bg-orange-50 transition-colors">
-                                                        <td className="px-6 py-3 font-bold text-orange-600 text-xs text-right">↳</td>
-                                                        <td className="px-6 py-3">
-                                                            <div className="flex items-center gap-2">
-                                                                <span className="bg-orange-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider">⚡ LEMBUR</span>
-                                                                <span className="text-xs text-slate-700 font-semibold">{getUserName(row.userId)}</span>
-                                                            </div>
-                                                        </td>
-                                                        <td className="px-6 py-3 text-center font-mono font-bold text-orange-700 text-xs">{otStart}</td>
-                                                        <td className="px-6 py-3 text-center text-xs text-slate-300">-</td>
-                                                        <td className="px-6 py-3 text-center text-xs text-slate-300">-</td>
-                                                        <td className="px-6 py-3 text-center font-mono font-bold text-orange-700 text-xs">{otEnd}</td>
-                                                        <td className="px-6 py-3 font-extrabold text-orange-900 text-xs">{otDurationStr}</td>
-                                                        <td className="px-6 py-3 text-center text-xs text-slate-300">-</td>
-                                                        <td className="px-6 py-3 text-center">
-                                                            <span className={`px-2 py-0.5 rounded text-[10px] font-extrabold uppercase border ${statusClass}`}>
-                                                                {statusLabel}
-                                                            </span>
-                                                        </td>
-                                                        <td className="px-6 py-3 text-xs text-slate-600 italic truncate max-w-[180px]" title={noteText}>
-                                                            {noteText}
-                                                        </td>
-                                                    </tr>
-                                                );
+                                                    return (
+                                                        <tr key={`ot-${ot.id}`} className="bg-orange-50/60 border-b border-orange-100 hover:bg-orange-50 transition-colors">
+                                                            <td className="px-6 py-3 font-bold text-orange-600 text-xs text-right">↳</td>
+                                                            <td className="px-6 py-3">
+                                                                <div className="flex items-center gap-2">
+                                                                    <span className="bg-orange-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider">⚡ LEMBUR</span>
+                                                                    <span className="text-xs text-slate-700 font-semibold">{getUserName(row.userId)}</span>
+                                                                </div>
+                                                            </td>
+                                                            <td className="px-6 py-3 text-center font-mono font-bold text-orange-700 text-xs">{otStart}</td>
+                                                            <td className="px-6 py-3 text-center text-xs text-slate-300">-</td>
+                                                            <td className="px-6 py-3 text-center text-xs text-slate-300">-</td>
+                                                            <td className="px-6 py-3 text-center font-mono font-bold text-orange-700 text-xs">{otEnd}</td>
+                                                            <td className="px-6 py-3 font-extrabold text-orange-900 text-xs">{otDurationStr}</td>
+                                                            <td className="px-6 py-3 text-center text-xs text-slate-300">-</td>
+                                                            <td className="px-6 py-3 text-center">
+                                                                <span className={`px-2 py-0.5 rounded text-[10px] font-extrabold uppercase border ${statusClass}`}>
+                                                                    {statusLabel}
+                                                                </span>
+                                                            </td>
+                                                            <td className="px-6 py-3">
+                                                                <div className="flex items-center justify-between gap-2">
+                                                                    <span className="text-xs text-slate-600 italic truncate max-w-[140px]" title={noteText}>
+                                                                        {noteText}
+                                                                    </span>
+                                                                    <div className="flex items-center gap-1 shrink-0">
+                                                                        <Button
+                                                                            variant="ghost"
+                                                                            size="icon"
+                                                                            className="h-7 w-7 text-amber-600 hover:text-amber-800 hover:bg-amber-100/60 cursor-pointer"
+                                                                            title="Edit Jam & Detail Lembur"
+                                                                            onClick={() => handleOpenEditOt(ot)}
+                                                                        >
+                                                                            <Edit2 className="h-3.5 w-3.5" />
+                                                                        </Button>
+                                                                        <Button
+                                                                            variant="ghost"
+                                                                            size="icon"
+                                                                            className="h-7 w-7 text-rose-600 hover:text-rose-800 hover:bg-rose-100/60 cursor-pointer"
+                                                                            title="Hapus Lembur"
+                                                                            onClick={() => {
+                                                                                if (window.confirm(`Hapus data lembur ${getUserName(ot.userId)}?`)) {
+                                                                                    deleteOvertimeMutation.mutate(ot.id);
+                                                                                }
+                                                                            }}
+                                                                        >
+                                                                            <Trash2 className="h-3.5 w-3.5" />
+                                                                        </Button>
+                                                                    </div>
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                });
                                             })()}
                                             </Fragment>
                                         );
@@ -3343,12 +3521,13 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
                                                         <th className="px-4 py-3">KETERANGAN / TUGAS</th>
                                                         <th className="px-4 py-3 text-center">STATUS</th>
                                                         <th className="px-4 py-3 text-center">BUKTI FOTO LEMBUR</th>
+                                                        <th className="px-4 py-3 text-center">AKSI</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody className="divide-y divide-slate-100">
                                                     {weekendRecords.length === 0 && empOvertimes.length === 0 ? (
                                                         <tr>
-                                                            <td colSpan={8} className="text-center py-6 text-gray-400 italic">
+                                                            <td colSpan={9} className="text-center py-6 text-gray-400 italic">
                                                                 Tidak ada catatan lembur pada periode ini.
                                                             </td>
                                                         </tr>
@@ -3417,6 +3596,28 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
                                                                                 )}
                                                                             </div>
                                                                         </td>
+                                                                        <td className="px-4 py-3 text-center">
+                                                                            <div className="flex items-center justify-center gap-1.5">
+                                                                                <Button
+                                                                                    size="sm"
+                                                                                    variant="outline"
+                                                                                    onClick={() => handleOpenManualModal(w)}
+                                                                                    className="h-7 w-7 p-0 rounded-lg text-blue-600 border-blue-200 hover:bg-blue-50 cursor-pointer"
+                                                                                    title="Edit Absen Weekend"
+                                                                                >
+                                                                                    <Edit2 className="w-3.5 h-3.5" />
+                                                                                </Button>
+                                                                                <Button
+                                                                                    size="sm"
+                                                                                    variant="outline"
+                                                                                    onClick={() => setDeleteConfirmId(w.id)}
+                                                                                    className="h-7 w-7 p-0 rounded-lg text-rose-600 border-rose-200 hover:bg-rose-50 cursor-pointer"
+                                                                                    title="Hapus Absen Weekend"
+                                                                                >
+                                                                                    <Trash2 className="w-3.5 h-3.5" />
+                                                                                </Button>
+                                                                            </div>
+                                                                        </td>
                                                                     </tr>
                                                                 );
                                                             })}
@@ -3477,6 +3678,32 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
                                                                                 {!photo1 && !photo2 && (
                                                                                     <span className="text-gray-300">-</span>
                                                                                 )}
+                                                                            </div>
+                                                                        </td>
+                                                                        <td className="px-4 py-3 text-center">
+                                                                            <div className="flex items-center justify-center gap-1.5">
+                                                                                <Button
+                                                                                    size="sm"
+                                                                                    variant="outline"
+                                                                                    onClick={() => handleOpenEditOt(ot)}
+                                                                                    className="h-7 w-7 p-0 rounded-lg text-amber-600 border-amber-200 hover:bg-amber-50 cursor-pointer"
+                                                                                    title="Edit Jam & Detail Lembur"
+                                                                                >
+                                                                                    <Edit2 className="w-3.5 h-3.5" />
+                                                                                </Button>
+                                                                                <Button
+                                                                                    size="sm"
+                                                                                    variant="outline"
+                                                                                    onClick={() => {
+                                                                                        if (confirm("Hapus penugasan lembur ini?")) {
+                                                                                            deleteOvertimeMutation.mutate(ot.id);
+                                                                                        }
+                                                                                    }}
+                                                                                    className="h-7 w-7 p-0 rounded-lg text-rose-600 border-rose-200 hover:bg-rose-50 cursor-pointer"
+                                                                                    title="Hapus Lembur"
+                                                                                >
+                                                                                    <Trash2 className="w-3.5 h-3.5" />
+                                                                                </Button>
                                                                             </div>
                                                                         </td>
                                                                     </tr>
@@ -3669,13 +3896,131 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[99999] flex flex-col items-center justify-center text-white p-4">
                     <div className="bg-white text-gray-900 rounded-2xl p-6 shadow-2xl max-w-sm w-full text-center space-y-4">
                         <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent mx-auto"></div>
-                                                <div>
+                        <div>
                             <h3 className="font-bold text-lg text-gray-900">Mengekspor Laporan PDF</h3>
                             <p className="text-xs text-gray-500 mt-1">{exportProgress || "Harap tunggu sebentar..."}</p>
                         </div>
                     </div>
                 </div>
             )}
+
+            {/* Modal Edit Lembur Khusus di Rekap Absen */}
+            <Dialog open={!!editOvertimeItem} onOpenChange={(open) => !open && setEditOvertimeItem(null)}>
+                <DialogContent className="sm:max-w-md bg-white rounded-2xl p-6">
+                    <DialogHeader>
+                        <DialogTitle className="text-base font-bold text-gray-900 flex items-center gap-2">
+                            <Clock className="w-4 h-4 text-orange-600" />
+                            Edit Jam Lembur &amp; Penugasan
+                        </DialogTitle>
+                        <DialogDescription className="text-xs text-gray-500">
+                            Sesuaikan jam lembur, tanggal pelaksanaan, atau uraian pekerjaan lembur karyawan.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    {editOvertimeItem && (
+                        <div className="space-y-4 py-2">
+                            {/* Tanggal Lembur */}
+                            <div className="space-y-1.5">
+                                <Label className="text-xs font-bold text-gray-700 flex items-center gap-1.5">
+                                    <Calendar className="w-3.5 h-3.5 text-primary" /> Tanggal Lembur
+                                </Label>
+                                <Input
+                                    type="date"
+                                    value={editOtDate}
+                                    onChange={(e) => setEditOtDate(e.target.value)}
+                                    className="h-10 rounded-xl text-xs border-gray-200"
+                                />
+                            </div>
+
+                            {/* Jam Mulai & Selesai Lembur */}
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="space-y-1.5">
+                                    <Label className="text-xs font-bold text-gray-700 flex items-center gap-1">
+                                        <Clock className="w-3.5 h-3.5 text-emerald-600" /> Jam Mulai
+                                    </Label>
+                                    <TimePicker24h
+                                        value={editOtStartTime}
+                                        onChange={setEditOtStartTime}
+                                    />
+                                </div>
+                                <div className="space-y-1.5">
+                                    <Label className="text-xs font-bold text-gray-700 flex items-center gap-1">
+                                        <Clock className="w-3.5 h-3.5 text-orange-600" /> Jam Selesai
+                                    </Label>
+                                    <TimePicker24h
+                                        value={editOtEndTime}
+                                        onChange={setEditOtEndTime}
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Uraian Tugas / Instruksi Lembur */}
+                            <div className="space-y-1.5">
+                                <Label className="text-xs font-bold text-gray-700">Instruksi / Uraian Tugas</Label>
+                                <Textarea
+                                    rows={2}
+                                    value={editOtDescription}
+                                    onChange={(e) => setEditOtDescription(e.target.value)}
+                                    placeholder="Contoh: Setting dies, trial project, atau delivery urgent..."
+                                    className="rounded-xl text-xs border-gray-200 resize-none"
+                                />
+                            </div>
+
+                            {/* Status Pelaksanaan & Persetujuan Karyawan */}
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="space-y-1.5">
+                                    <Label className="text-xs font-bold text-gray-700">Status Pelaksanaan</Label>
+                                    <Select value={editOtStatus} onValueChange={setEditOtStatus}>
+                                        <SelectTrigger className="h-9 rounded-xl text-xs border-gray-200">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="completed">Selesai (Completed)</SelectItem>
+                                            <SelectItem value="ongoing">Sedang Berlangsung</SelectItem>
+                                            <SelectItem value="pending">Menunggu Konfirmasi</SelectItem>
+                                            <SelectItem value="cancelled">Dibatalkan</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="space-y-1.5">
+                                    <Label className="text-xs font-bold text-gray-700">Respon Karyawan</Label>
+                                    <Select value={editOtApproval} onValueChange={setEditOtApproval}>
+                                        <SelectTrigger className="h-9 rounded-xl text-xs border-gray-200">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="approved">Disetujui</SelectItem>
+                                            <SelectItem value="pending">Belum Merespon</SelectItem>
+                                            <SelectItem value="rejected">Izin Tidak Lembur</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="flex items-center justify-end gap-2 pt-2 border-t">
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setEditOvertimeItem(null)}
+                            className="rounded-xl text-xs"
+                        >
+                            Batal
+                        </Button>
+                        <Button
+                            type="button"
+                            size="sm"
+                            disabled={editOvertimeMutation.isPending}
+                            onClick={() => editOvertimeMutation.mutate()}
+                            className="rounded-xl text-xs font-bold bg-primary hover:bg-primary/90 text-white"
+                        >
+                            {editOvertimeMutation.isPending ? "Menyimpan..." : "Simpan Perubahan Lembur"}
+                        </Button>
+                    </div>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }
