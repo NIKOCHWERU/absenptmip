@@ -1948,7 +1948,16 @@ export default function EmployeeDashboard() {
                                     )}
                                 </div>
                             ) : today?.checkIn ? (
-                                <p className="text-[10px] font-bold text-amber-600 leading-tight mt-0.5">Tidak Absen<br />Pulang</p>
+                                (() => {
+                                    const todayDate = today?.date ? new Date(today.date) : new Date();
+                                    const now = new Date();
+                                    const isPastDay = new Date(todayDate.getFullYear(), todayDate.getMonth(), todayDate.getDate()).getTime() < new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+                                    return isPastDay ? (
+                                        <p className="text-[10px] font-bold text-rose-600 leading-tight mt-0.5">Tidak Absen<br />Pulang</p>
+                                    ) : (
+                                        <p className="text-[10px] font-bold text-amber-600 leading-tight mt-0.5">Belum Absen<br />Pulang</p>
+                                    );
+                                })()
                             ) : (
                                 <p className="font-mono font-bold text-gray-800">--:--</p>
                             )}

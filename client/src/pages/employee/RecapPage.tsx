@@ -339,7 +339,16 @@ export default function RecapPage() {
                     {record.checkOut
                       ? format(new Date(record.checkOut), 'HH:mm')
                       : record.checkIn
-                        ? <span className="text-amber-600 font-bold text-[10px]">Belum Absen Pulang</span>
+                        ? (() => {
+                            const rDate = new Date(record.date);
+                            const today = new Date();
+                            const isPast = new Date(rDate.getFullYear(), rDate.getMonth(), rDate.getDate()).getTime() < new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
+                            return isPast ? (
+                              <span className="text-rose-600 font-bold text-[10px]">Tidak Absen Pulang</span>
+                            ) : (
+                              <span className="text-amber-600 font-bold text-[10px]">Belum Absen Pulang</span>
+                            );
+                          })()
                         : '-'}
                     {/* Display Total for Day if first record of day */}
                     {(() => {
@@ -454,11 +463,19 @@ export default function RecapPage() {
                 <div className="bg-amber-50 p-3 rounded-xl border border-amber-100 mt-4">
                   <p className="text-[10px] uppercase font-bold text-amber-600 mb-1">⚠ Keterangan</p>
                   <p className={`text-sm italic ${!selectedRecord.checkOut && !selectedRecord.notes ? 'text-amber-700 font-semibold' : 'text-gray-700'}`}>
-                    {!selectedRecord.checkOut && !selectedRecord.notes
-                      ? 'Belum Absen Pulang'
-                      : !selectedRecord.checkOut
-                        ? `${selectedRecord.notes} — Belum Absen Pulang`
-                        : selectedRecord.notes}
+                    {(() => {
+                      const rDate = new Date(selectedRecord.date);
+                      const today = new Date();
+                      const isPast = new Date(rDate.getFullYear(), rDate.getMonth(), rDate.getDate()).getTime() < new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
+                      const statusPulang = isPast ? 'Tidak Absen Pulang' : 'Belum Absen Pulang';
+                      if (!selectedRecord.checkOut && !selectedRecord.notes) {
+                        return statusPulang;
+                      }
+                      if (!selectedRecord.checkOut) {
+                        return `${selectedRecord.notes} — ${statusPulang}`;
+                      }
+                      return selectedRecord.notes;
+                    })()}
                   </p>
                 </div>
               )}

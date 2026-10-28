@@ -896,13 +896,17 @@ export default function RecapPage() {
                 regularRecords.forEach((r, idx) => {
                     const statusText = r.status === 'present' ? 'Hadir Tepat Waktu' : (r.status === 'late' ? 'Terlambat' : (r.status || 'Hadir'));
                     const statusColor = r.status === 'late' ? '#dc2626' : '#166534';
+                    const rDate = new Date(r.date);
+                    const today = new Date();
+                    const isPastDay = new Date(rDate.getFullYear(), rDate.getMonth(), rDate.getDate()).getTime() < new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
+                    const pulangLabel = r.checkOut ? safeFormatDate(r.checkOut, "HH:mm") : (r.checkIn ? (isPastDay ? '<span style="color:#e11d48;font-weight:bold;">Tidak Absen Pulang</span>' : '<span style="color:#d97706;font-weight:bold;">Belum Absen Pulang</span>') : "-");
                     regRows += `
                         <tr>
                             <td class="td-center">${idx + 1}</td>
                             <td class="td-left" style="font-weight: 700;">${safeFormatDate(r.date, "EEEE, d MMM yyyy", { locale: id })}</td>
                             <td class="td-center">${r.checkIn ? safeFormatDate(r.checkIn, "HH:mm") : "-"}</td>
                             <td class="td-center">${r.breakStart ? safeFormatDate(r.breakStart, "HH:mm") : "-"} s/d ${r.breakEnd ? safeFormatDate(r.breakEnd, "HH:mm") : "-"}</td>
-                            <td class="td-center">${r.checkOut ? safeFormatDate(r.checkOut, "HH:mm") : "-"}</td>
+                            <td class="td-center">${pulangLabel}</td>
                             <td class="td-center" style="font-weight: 700; color: ${statusColor};">${escapeHTML(statusText)}</td>
                             <td class="td-left" style="font-size: 6.8pt; color: #64748b;">${escapeHTML(r.lateReason || r.notes || "-")}</td>
                         </tr>
@@ -912,12 +916,16 @@ export default function RecapPage() {
                 let otRows = "";
                 let otIdx = 1;
                 weekendRecords.forEach(w => {
+                    const wDate = new Date(w.date);
+                    const today = new Date();
+                    const isPastDayW = new Date(wDate.getFullYear(), wDate.getMonth(), wDate.getDate()).getTime() < new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
+                    const pulangLabelW = w.checkOut ? safeFormatDate(w.checkOut, "HH:mm") : (w.checkIn ? (isPastDayW ? '<span style="color:#e11d48;font-weight:bold;">Tidak Absen Pulang</span>' : '<span style="color:#d97706;font-weight:bold;">Belum Absen Pulang</span>') : "-");
                     otRows += `
                         <tr>
                             <td class="td-center">${otIdx++}</td>
                             <td class="td-left" style="font-weight: 700;">${safeFormatDate(w.date, "EEEE, d MMM yyyy", { locale: id })}</td>
                             <td class="td-center">${w.checkIn ? safeFormatDate(w.checkIn, "HH:mm") : "-"}</td>
-                            <td class="td-center">${w.checkOut ? safeFormatDate(w.checkOut, "HH:mm") : "-"}</td>
+                            <td class="td-center">${pulangLabelW}</td>
                             <td class="td-left" style="color: #c2410c; font-weight: 700;">Lembur Akhir Pekan (Sabtu/Minggu)</td>
                             <td class="td-center" style="font-weight: 700; color: #166534;">Otomatis Dihitung</td>
                         </tr>
@@ -1596,9 +1604,14 @@ export default function RecapPage() {
                         `;
 
                         if (masuk !== "-" || pulang !== "-") {
-                            const pulangDisplay = pulang !== "-" ? pulang : (masuk !== "-" ? '<span style="color:#d97706;font-weight:bold;">Tdk Absen Pulang</span>' : '-');
+                            const rDate = new Date(dateIso);
+                            const today = new Date();
+                            const isPastDay = new Date(rDate.getFullYear(), rDate.getMonth(), rDate.getDate()).getTime() < new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
+                            const missingCheckoutLabel = isPastDay ? "Tdk Absen Pulang" : "Belum Absen Pulang";
+                            const missingCheckoutColor = isPastDay ? "#e11d48" : "#d97706";
+                            const pulangDisplay = pulang !== "-" ? pulang : (masuk !== "-" ? `<span style="color:${missingCheckoutColor};font-weight:bold;">${missingCheckoutLabel}</span>` : '-');
                             cellHtml += `
-                                <div class="jam">Jam: <strong>${escapeHTML(masuk)} sampai </strong>${pulang !== "-" ? `<strong>${escapeHTML(pulang)}</strong>` : '<span style="color:#d97706;font-weight:bold;">Tdk Absen Pulang</span>'}</div>
+                                <div class="jam">Jam: <strong>${escapeHTML(masuk)} sampai </strong>${pulang !== "-" ? `<strong>${escapeHTML(pulang)}</strong>` : `<span style="color:${missingCheckoutColor};font-weight:bold;">${missingCheckoutLabel}</span>`}</div>
                             `;
                         }
 
@@ -2690,9 +2703,20 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
                                                             )}
                                                         </div>
                                                     ) : row.checkIn ? (
-                                                        <span className="text-[9px] font-bold text-amber-600 bg-amber-50 border border-amber-200 rounded-full px-2 py-0.5 leading-tight whitespace-normal text-center block">
-                                                            Belum Absen Pulang
-                                                        </span>
+                                                        (() => {
+                                                            const rowDate = new Date(row.date);
+                                                            const today = new Date();
+                                                            const isPastDay = new Date(rowDate.getFullYear(), rowDate.getMonth(), rowDate.getDate()).getTime() < new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
+                                                            return isPastDay ? (
+                                                                <span className="text-[9px] font-bold text-rose-600 bg-rose-50 border border-rose-200 rounded-full px-2 py-0.5 leading-tight whitespace-normal text-center block">
+                                                                    Tidak Absen Pulang
+                                                                </span>
+                                                            ) : (
+                                                                <span className="text-[9px] font-bold text-amber-600 bg-amber-50 border border-amber-200 rounded-full px-2 py-0.5 leading-tight whitespace-normal text-center block">
+                                                                    Belum Absen Pulang
+                                                                </span>
+                                                            );
+                                                        })()
                                                     ) : (
                                                         <span className="text-gray-300">-</span>
                                                     )}
@@ -3210,7 +3234,20 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
                                                                         {r.breakEnd ? safeFormatDate(r.breakEnd, "HH:mm") : "-"}
                                                                     </td>
                                                                     <td className="px-4 py-3 text-center font-mono font-bold text-rose-600">
-                                                                        {r.checkOut ? safeFormatDate(r.checkOut, "HH:mm") : "-"}
+                                                                        {r.checkOut ? safeFormatDate(r.checkOut, "HH:mm") : (
+                                                                            r.checkIn ? (
+                                                                                (() => {
+                                                                                    const rDate = new Date(r.date);
+                                                                                    const today = new Date();
+                                                                                    const isPast = new Date(rDate.getFullYear(), rDate.getMonth(), rDate.getDate()).getTime() < new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
+                                                                                    return isPast ? (
+                                                                                        <span className="text-[9px] font-bold text-rose-600 bg-rose-50 border border-rose-200 rounded-full px-2 py-0.5 whitespace-nowrap">Tidak Absen Pulang</span>
+                                                                                    ) : (
+                                                                                        <span className="text-[9px] font-bold text-amber-600 bg-amber-50 border border-amber-200 rounded-full px-2 py-0.5 whitespace-nowrap">Belum Absen Pulang</span>
+                                                                                    );
+                                                                                })()
+                                                                            ) : "-"
+                                                                        )}
                                                                     </td>
                                                                     <td className="px-4 py-3 text-center font-bold text-slate-800">
                                                                         {netWorkMins > 0 ? formatDuration(netWorkMins) : "-"}
@@ -3326,7 +3363,20 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
                                                                             {w.checkIn ? safeFormatDate(w.checkIn, "HH:mm") : "-"}
                                                                         </td>
                                                                         <td className="px-4 py-3 text-center font-mono font-bold text-amber-700">
-                                                                            {w.checkOut ? safeFormatDate(w.checkOut, "HH:mm") : "-"}
+                                                                            {w.checkOut ? safeFormatDate(w.checkOut, "HH:mm") : (
+                                                                                w.checkIn ? (
+                                                                                    (() => {
+                                                                                        const wDate = new Date(w.date);
+                                                                                        const today = new Date();
+                                                                                        const isPast = new Date(wDate.getFullYear(), wDate.getMonth(), wDate.getDate()).getTime() < new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
+                                                                                        return isPast ? (
+                                                                                            <span className="text-[9px] font-bold text-rose-600 bg-rose-50 border border-rose-200 rounded-full px-2 py-0.5 whitespace-nowrap">Tidak Absen Pulang</span>
+                                                                                        ) : (
+                                                                                            <span className="text-[9px] font-bold text-amber-600 bg-amber-50 border border-amber-200 rounded-full px-2 py-0.5 whitespace-nowrap">Belum Absen Pulang</span>
+                                                                                        );
+                                                                                    })()
+                                                                                ) : "-"
+                                                                            )}
                                                                         </td>
                                                                         <td className="px-4 py-3 text-center font-black text-amber-900">
                                                                             {netWorkMins > 0 ? `${netWeekendHours} Jam` : "-"}
