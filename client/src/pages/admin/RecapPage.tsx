@@ -6,12 +6,12 @@ import React, { useState, useEffect, Fragment, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ChevronLeft, ChevronRight, FileDown, ArrowLeft, Search, ArrowUpDown, MessageSquare, Plus, Edit2, Trash2, Camera, Image as ImageIcon, FileSpreadsheet, Calendar, Users, Clock, CheckCircle2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, FileDown, ArrowLeft, Search, ArrowUpDown, MessageSquare, Plus, Edit2, Trash2, Camera, Image as ImageIcon, FileSpreadsheet, Calendar, Users, Clock, CheckCircle2, Printer } from "lucide-react";
 import { useLocation } from "wouter";
 import { Input } from "@/components/ui/input";
 import { differenceInMinutes } from "date-fns";
 import { calculateDailyTotal, calculateDuration, formatDuration, calculateDurationSeconds, formatDurationFull } from "@/lib/attendance";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -275,6 +275,15 @@ export default function RecapPage() {
     const [isExportingPdfRingkasan, setIsExportingPdfRingkasan] = useState(false);
     const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>("all");
 
+    // State Modal & Export Rekap Lembur (PDF)
+    const [isOvertimePdfModalOpen, setIsOvertimePdfModalOpen] = useState(false);
+    const [otPdfStartDate, setOtPdfStartDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
+    const [otPdfEndDate, setOtPdfEndDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
+    const [otPdfEmployeeId, setOtPdfEmployeeId] = useState<string>("all");
+    const [otPdfIncludePhotos, setOtPdfIncludePhotos] = useState<boolean>(true);
+    const [otPdfOnlyWithOvertime, setOtPdfOnlyWithOvertime] = useState<boolean>(false);
+    const [isExportingOvertimePdf, setIsExportingOvertimePdf] = useState(false);
+
     // Sinkronisasi tanggal cutoff bulanan dari konfigurasi (default 21 s/d 20)
     useEffect(() => {
         if (config?.cutoffStartDay !== undefined && config?.cutoffEndDay !== undefined) {
@@ -332,6 +341,12 @@ export default function RecapPage() {
         return false;
     };
 
+    const activeEmployeeList = useMemo(() => {
+        return (users || [])
+            .filter(u => !isAdminUser(u) && !isResignedUser(u))
+            .sort((a, b) => (a.fullName || '').localeCompare(b.fullName || '', 'id'));
+    }, [users, allResignations]);
+
     const formatLemburDisplay = (totalMins: number) => {
         if (!totalMins || totalMins <= 0) return "0 Jam";
         const h = Math.floor(totalMins / 60);
@@ -339,8 +354,29 @@ export default function RecapPage() {
     };
 
     // Helper untuk menyesuaikan perhitungan lembur:
-    // 1. Sesuaikan jam penugasan bulat (misal jam 20.00 - 23.00 tapi karyawan absen jam 19.50 tetap dihitung 20.00 - 23.00 = 3 jam)
-    // 2. Khusus hari Sabtu dan Minggu (weekend), kurangi 1 jam istirahat
+    // 1. Khusus hari Sabtu dan Minggu (weekend): KUNCI hitungan jam 08:00 - 17:00 dikurang istirahat 1 jam (= 8 Jam). Sistem absensi tidak diubah, hanya rekap yang dikunci.
+    // 2. Hari kerja biasa: Sesuaikan jam penugasan bulat
+    const calculateWeekendOvertimeHours = (checkInVal: any, checkOutVal: any): number => {
+        if (!checkInVal || !checkOutVal) return 0;
+        const cin = new Date(checkInVal);
+        const cout = new Date(checkOutVal);
+        if (isNaN(cin.getTime()) || isNaN(cout.getTime()) || cout <= cin) return 0;
+
+        const inHour = cin.getHours() + cin.getMinutes() / 60;
+        const outHour = cout.getHours() + cout.getMinutes() / 60;
+
+        // Kunci jam 8 - 17: jika masuk <= 08:15 kunci jam 08:00. Jika pulang >= 16:45 kunci 17:00
+        const effIn = inHour <= 8.25 ? 8 : inHour;
+        const effOut = outHour >= 16.75 ? 17 : Math.min(17, outHour);
+
+        const gross = Math.max(0, effOut - effIn);
+        if (gross >= 5) {
+            // Kurang istirahat 1 jam, kunci maksimal 8 jam
+            return Math.min(8, Math.max(0, Math.floor(gross - 1)));
+        }
+        return Math.min(8, Math.floor(gross));
+    };
+
     const normalizeOvertimeDuration = (
         startTimeVal: any,
         endTimeVal: any,
@@ -350,6 +386,12 @@ export default function RecapPage() {
         const start = new Date(startTimeVal);
         const end = new Date(endTimeVal);
         if (isNaN(start.getTime()) || isNaN(end.getTime()) || end <= start) return 0;
+
+        // Aturan Khusus Lembur Sabtu & Minggu (Weekend):
+        // Kunci hitungan jam 08:00 - 17:00 dikurang 1 jam istirahat = 8 Jam
+        if (isWeekend) {
+            return calculateWeekendOvertimeHours(start, end);
+        }
 
         let sTime = new Date(start);
         let eTime = new Date(end);
@@ -373,13 +415,7 @@ export default function RecapPage() {
             diffMins = Math.round((end.getTime() - start.getTime()) / 60000);
         }
 
-        let grossHours = Math.floor(diffMins / 60);
-
-        // Aturan: khusus lembur akhir pekan (Sabtu & Minggu), potong istirahat 1 jam
-        if (isWeekend) {
-            return Math.max(0, grossHours - 1);
-        }
-        return Math.max(0, grossHours);
+        return Math.max(0, Math.floor(diffMins / 60));
     };
 
     const [searchRingkasan, setSearchRingkasan] = useState("");
@@ -764,10 +800,10 @@ export default function RecapPage() {
                 if (dStr && !processedWeekendDates.has(dStr)) {
                     processedWeekendDates.add(dStr);
                     const dayRecs = weekendAtt.filter(r => safeFormatDate(r.date, 'yyyy-MM-dd') === dStr);
-                    const { netWorkMins } = calculateDailyTotal(dayRecs);
-                    const grossWeekendHours = Math.floor(netWorkMins / 60);
-                    // Kurangi istirahat 1 jam untuk lembur Sabtu/Minggu
-                    const netWeekendHours = Math.max(0, grossWeekendHours - 1);
+                    const cin = dayRecs[0]?.checkIn;
+                    const cout = dayRecs[dayRecs.length - 1]?.checkOut;
+                    // Kunci hitungan lembur Sabtu & Minggu: jam 08:00 - 17:00 dikurang 1 jam istirahat = 8 Jam
+                    const netWeekendHours = calculateWeekendOvertimeHours(cin, cout);
                     const roundedWeekendMins = netWeekendHours * 60;
 
                     // Jika hari weekend ini BELUM tercatat durasi lembur di table overtimes, tambahkan durasi absensi ini
@@ -2397,6 +2433,927 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
         }
     };
 
+    const handleOpenOvertimePdfModal = (empId?: string) => {
+        let defaultStart = format(startDate, 'yyyy-MM-dd');
+        let defaultEnd = format(endDate, 'yyyy-MM-dd');
+        if (activeTab === 'ringkasan') {
+            defaultStart = ringkasanStartDate;
+            defaultEnd = ringkasanEndDate;
+        }
+        setOtPdfStartDate(defaultStart);
+        setOtPdfEndDate(defaultEnd);
+        setOtPdfEmployeeId(empId || selectedEmployeeId || "all");
+        setIsOvertimePdfModalOpen(true);
+    };
+
+    const buildOvertimeRecapReportHtml = ({
+        docTitle,
+        periodStr,
+        namaPt,
+        singkatanPt,
+        alamatPt,
+        logoDataUrl,
+        employeeData,
+        isSingleEmployee,
+        includePhotos,
+        imageCache = {},
+        onlyWithOvertime = false,
+    }: {
+        docTitle: string;
+        periodStr: string;
+        namaPt: string;
+        singkatanPt: string;
+        alamatPt: string;
+        logoDataUrl: string;
+        employeeData: Array<{
+            user: any;
+            items: any[];
+            totalHours: number;
+            totalSessions: number;
+        }>;
+        isSingleEmployee: boolean;
+        includePhotos: boolean;
+        imageCache?: Record<string, string>;
+        onlyWithOvertime?: boolean;
+    }) => {
+        const escapeHTML = (value: any): string => {
+            if (value === null || value === undefined) return "";
+            return String(value)
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        };
+
+        const formattedPrintDate = format(new Date(), "d MMMM yyyy, HH:mm", { locale: id });
+        const formattedDateOnly = format(new Date(), "d MMMM yyyy", { locale: id });
+
+        // Hitung Ringkasan Seluruh Karyawan (jika mode Semua Karyawan)
+        let grandTotalSessions = 0;
+        let grandTotalHours = 0;
+        let summaryRows = "";
+
+        if (!isSingleEmployee) {
+            employeeData.forEach((empObj, idx) => {
+                grandTotalSessions += empObj.totalSessions;
+                grandTotalHours += empObj.totalHours;
+
+                summaryRows += `
+                    <tr>
+                        <td style="text-align: center; font-weight: 700; color: #64748b;">${idx + 1}</td>
+                        <td style="font-weight: 800; color: #0f172a; text-transform: uppercase;">${escapeHTML(empObj.user.fullName)}</td>
+                        <td style="text-align: center; font-family: monospace; color: #475569;">${escapeHTML(empObj.user.nik || empObj.user.username || "-")}</td>
+                        <td style="color: #475569; text-transform: uppercase;">${escapeHTML(empObj.user.position || empObj.user.department || "-")}</td>
+                        <td style="text-align: center; font-weight: 700; color: #0284c7;">${empObj.totalSessions} Sesi</td>
+                        <td style="text-align: center; font-weight: 900; color: ${empObj.totalHours > 0 ? '#b45309' : '#94a3b8'}; background: ${empObj.totalHours > 0 ? '#fffbeb' : 'transparent'};">
+                            ${empObj.totalHours} Jam
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        // Filter daftar karyawan untuk dicetak rinciannya
+        const detailedEmployees = (!isSingleEmployee && onlyWithOvertime)
+            ? employeeData.filter(e => e.items.length > 0 || e.totalHours > 0)
+            : employeeData;
+
+        let detailedCardsHtml = "";
+
+        if (detailedEmployees.length === 0) {
+            detailedCardsHtml = `
+                <div style="background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 24px; text-align: center; margin-top: 16px;">
+                    <p style="font-weight: 800; color: #92400e; font-size: 10pt; margin: 0;">Tidak ada catatan lembur pada periode ini.</p>
+                    <p style="font-size: 8pt; color: #b45309; margin: 4px 0 0 0;">Seluruh karyawan aktif tidak memiliki catatan lembur pada rentang tanggal yang dipilih.</p>
+                </div>
+            `;
+        } else {
+            detailedEmployees.forEach((empObj, empIdx) => {
+                const emp = empObj.user;
+                const items = empObj.items;
+                const empTotalHours = empObj.totalHours;
+
+                let rowsHtml = "";
+                if (items.length === 0) {
+                    rowsHtml = `
+                        <tr>
+                            <td colspan="${includePhotos ? 8 : 7}" style="text-align: center; padding: 18px; color: #94a3b8; font-style: italic;">
+                                Tidak ada catatan lembur pada periode ini.
+                            </td>
+                        </tr>
+                    `;
+                } else {
+                    items.forEach((item) => {
+                        const isSpl = item.category.includes("SPL");
+                        const catBadgeClass = isSpl ? "badge-spl" : "badge-weekend";
+                        const statusBadgeClass = item.status === "SELESAI" ? "badge-status-selesai" : (item.status === "BERLANGSUNG" ? "badge-status-ongoing" : "badge-status-pending");
+
+                        let photosHtml = "";
+                        if (includePhotos) {
+                            const p1 = item.photo1 ? (imageCache[item.photo1] || resolveFileUrl(item.photo1)) : null;
+                            const p2 = item.photo2 ? (imageCache[item.photo2] || resolveFileUrl(item.photo2)) : null;
+
+                            photosHtml = `
+                                <td style="text-align: center; vertical-align: middle; padding: 5px 6px;">
+                                    <div style="display: flex; align-items: center; justify-content: center; gap: 4px;">
+                                        ${p1 ? `<img src="${p1}" class="ot-thumb" alt="Foto Lembur Masuk" />` : ''}
+                                        ${p2 ? `<img src="${p2}" class="ot-thumb" alt="Foto Lembur Pulang" />` : ''}
+                                        ${!p1 && !p2 ? `<span style="color: #cbd5e1; font-size: 8pt;">-</span>` : ''}
+                                    </div>
+                                </td>
+                            `;
+                        }
+
+                        rowsHtml += `
+                            <tr>
+                                <td style="font-weight: 700; color: #0f172a; white-space: nowrap;">${escapeHTML(item.dateFormatted)}</td>
+                                <td>
+                                    <span class="${catBadgeClass}">${escapeHTML(item.category)}</span>
+                                </td>
+                                <td style="text-align: center; font-family: monospace; font-weight: 800; color: #c2410c;">${escapeHTML(item.startTime)}</td>
+                                <td style="text-align: center; font-family: monospace; font-weight: 800; color: #c2410c;">${escapeHTML(item.endTime)}</td>
+                                <td style="text-align: center; font-weight: 900; color: #78350f;">${escapeHTML(item.durationStr)}</td>
+                                <td style="font-style: italic; color: #334155;">${escapeHTML(item.task)}</td>
+                                <td style="text-align: center;">
+                                    <span class="${statusBadgeClass}">${escapeHTML(item.status)}</span>
+                                </td>
+                                ${photosHtml}
+                            </tr>
+                        `;
+                    });
+                }
+
+                detailedCardsHtml += `
+                    <div class="employee-overtime-card">
+                        <!-- Header Identitas Karyawan -->
+                        <div class="emp-identity-bar">
+                            <div class="emp-name-block">
+                                <span class="emp-order-no">${empIdx + 1}.</span>
+                                <span class="emp-full-name">${escapeHTML((emp.fullName || '').toUpperCase())}</span>
+                                <span class="emp-nik">NIK: ${escapeHTML(emp.nik || emp.username || "-")}</span>
+                            </div>
+                            <div class="emp-dept-block">
+                                DEPARTEMEN / JABATAN: <strong>${escapeHTML((emp.position || emp.department || "-").toUpperCase())}</strong>
+                            </div>
+                        </div>
+
+                        <!-- Card Tabel Lembur Persis Sesuai Tampilan -->
+                        <div class="ot-table-wrapper">
+                            <div class="ot-card-header">
+                                <div class="ot-card-header-left">
+                                    <div class="ot-card-title">
+                                        <span class="ot-icon">⏱</span>
+                                        DAFTAR LEMBUR (AKHIR PEKAN &amp; PENUGASAN LEMBUR)
+                                    </div>
+                                    <div class="ot-card-desc">
+                                        MENCAKUP KEHADIRAN SABTU &amp; MINGGU (OTOMATIS DIHITUNG JAM LEMBUR) SERTA PENUGASAN LEMBUR HARI KERJA
+                                    </div>
+                                </div>
+                                <div class="ot-card-header-right">
+                                    <span class="ot-hours-pill">TOTAL ${empTotalHours} JAM LEMBUR</span>
+                                </div>
+                            </div>
+
+                            <table class="ot-table">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 125px; text-align: left;">TANGGAL</th>
+                                        <th style="width: 175px; text-align: left;">KATEGORI LEMBUR</th>
+                                        <th style="width: 65px; text-align: center;">MULAI</th>
+                                        <th style="width: 65px; text-align: center;">SELESAI</th>
+                                        <th style="width: 70px; text-align: center;">DURASI</th>
+                                        <th style="text-align: left;">KETERANGAN / TUGAS</th>
+                                        <th style="width: 80px; text-align: center;">STATUS</th>
+                                        ${includePhotos ? `<th style="width: 95px; text-align: center;">BUKTI FOTO LEMBUR</th>` : ''}
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${rowsHtml}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        return `<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<title>${escapeHTML(docTitle)}</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-size: 8pt;
+    color: #0f172a;
+    background: #ffffff;
+    padding: 10mm 12mm;
+    line-height: 1.35;
+  }
+  @page {
+    size: A4 landscape;
+    margin: 8mm 10mm;
+  }
+  @media print {
+    body { padding: 0 !important; background: white !important; }
+    .no-print { display: none !important; }
+    .employee-overtime-card { page-break-inside: avoid; break-inside: avoid; }
+    .summary-box { page-break-inside: avoid; break-inside: avoid; }
+    .signature-section { page-break-inside: avoid; break-inside: avoid; }
+  }
+
+  /* KOP SURAT */
+  .letterhead {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+    padding-bottom: 6px;
+  }
+  .logo-img {
+    height: 48px;
+    max-width: 140px;
+    object-fit: contain;
+  }
+  .company-info {
+    text-align: right;
+    flex-grow: 1;
+    margin-left: 20px;
+  }
+  .company-name {
+    font-size: 15pt;
+    font-weight: 900;
+    color: #0f172a;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    margin-bottom: 2px;
+  }
+  .company-address {
+    font-size: 8pt;
+    color: #334155;
+    line-height: 1.3;
+  }
+  .company-sub {
+    font-size: 7pt;
+    font-weight: 700;
+    color: #64748b;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    margin-top: 2px;
+  }
+  .divider-thick {
+    border-top: 2.5px solid #0f172a;
+    margin: 0;
+  }
+  .divider-thin {
+    border-top: 1px solid #0f172a;
+    margin-top: 2px;
+    margin-bottom: 12px;
+  }
+
+  /* TITLE */
+  .title-section {
+    text-align: center;
+    margin-bottom: 14px;
+  }
+  .title-main {
+    font-size: 12.5pt;
+    font-weight: 900;
+    color: #0f172a;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    margin-bottom: 3px;
+  }
+  .title-period {
+    font-size: 9pt;
+    font-weight: 800;
+    color: #b45309;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+  }
+  .title-meta {
+    font-size: 7.5pt;
+    color: #64748b;
+    margin-top: 3px;
+  }
+
+  /* SUMMARY TABLE */
+  .summary-box {
+    margin-bottom: 16px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    overflow: hidden;
+    page-break-inside: avoid;
+  }
+  .summary-header {
+    background: #f8fafc;
+    padding: 7px 12px;
+    border-bottom: 1px solid #e2e8f0;
+    font-size: 8pt;
+    font-weight: 800;
+    color: #1e293b;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .summary-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 7.5pt;
+  }
+  .summary-table th {
+    background: #f1f5f9;
+    color: #334155;
+    font-weight: 800;
+    padding: 6px 8px;
+    border: 1px solid #cbd5e1;
+    text-transform: uppercase;
+    font-size: 7.2pt;
+  }
+  .summary-table td {
+    padding: 5px 8px;
+    border: 1px solid #e2e8f0;
+    color: #1e293b;
+  }
+  .summary-total-row {
+    background: #fef3c7;
+    font-weight: 900;
+  }
+  .summary-total-row td {
+    border-top: 2px solid #f59e0b;
+    padding: 6px 8px;
+  }
+
+  /* EMPLOYEE CARD */
+  .employee-overtime-card {
+    margin-bottom: 16px;
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+  .emp-identity-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: #f8fafc;
+    border: 1px solid #cbd5e1;
+    border-bottom: none;
+    border-radius: 8px 8px 0 0;
+    padding: 7px 14px;
+  }
+  .emp-name-block {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .emp-order-no {
+    font-weight: 900;
+    color: #64748b;
+    font-size: 9pt;
+  }
+  .emp-full-name {
+    font-size: 10pt;
+    font-weight: 900;
+    color: #0f172a;
+    letter-spacing: 0.3px;
+  }
+  .emp-nik {
+    font-size: 7.5pt;
+    font-family: monospace;
+    color: #475569;
+    background: #e2e8f0;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-weight: 700;
+  }
+  .emp-dept-block {
+    font-size: 7.5pt;
+    color: #475569;
+  }
+
+  .ot-table-wrapper {
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 0 0 8px 8px;
+    overflow: hidden;
+  }
+  .ot-card-header {
+    background: #fffbeb;
+    border-bottom: 1.5px solid #fde68a;
+    padding: 8px 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .ot-card-header-left {
+    display: flex;
+    flex-direction: column;
+  }
+  .ot-card-title {
+    font-size: 8.5pt;
+    font-weight: 900;
+    color: #451a03;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    letter-spacing: 0.3px;
+    text-transform: uppercase;
+  }
+  .ot-icon {
+    color: #d97706;
+    font-size: 10pt;
+  }
+  .ot-card-desc {
+    font-size: 6.8pt;
+    color: #92400e;
+    margin-top: 1px;
+    text-transform: uppercase;
+  }
+  .ot-hours-pill {
+    background: #fef3c7;
+    border: 1px solid #fcd34d;
+    color: #78350f;
+    font-weight: 900;
+    font-size: 7.8pt;
+    padding: 3px 8px;
+    border-radius: 4px;
+    white-space: nowrap;
+    letter-spacing: 0.3px;
+  }
+
+  /* OT TABLE */
+  .ot-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 7.5pt;
+  }
+  .ot-table thead tr {
+    background: #fef3c7;
+    border-bottom: 1.5px solid #fde68a;
+    color: #78350f;
+    font-weight: 800;
+    text-transform: uppercase;
+    font-size: 7pt;
+    letter-spacing: 0.4px;
+  }
+  .ot-table th {
+    padding: 6px 8px;
+    border-right: 1px solid #fef08a;
+  }
+  .ot-table th:last-child {
+    border-right: none;
+  }
+  .ot-table tbody tr {
+    border-bottom: 1px solid #f1f5f9;
+  }
+  .ot-table tbody tr:nth-child(even) {
+    background-color: #fcfcfc;
+  }
+  .ot-table td {
+    padding: 6px 8px;
+    border-right: 1px solid #f8fafc;
+    vertical-align: middle;
+  }
+  .ot-table td:last-child {
+    border-right: none;
+  }
+
+  /* BADGES */
+  .badge-spl {
+    background: #ffedd5;
+    color: #9a3412;
+    border: 1px solid #fed7aa;
+    padding: 2px 7px;
+    border-radius: 4px;
+    font-weight: 800;
+    font-size: 6.8pt;
+    display: inline-block;
+    white-space: nowrap;
+    text-transform: uppercase;
+  }
+  .badge-weekend {
+    background: #fef3c7;
+    color: #92400e;
+    border: 1px solid #fcd34d;
+    padding: 2px 7px;
+    border-radius: 4px;
+    font-weight: 800;
+    font-size: 6.8pt;
+    display: inline-block;
+    white-space: nowrap;
+    text-transform: uppercase;
+  }
+  .badge-status-selesai {
+    background: #dcfce7;
+    color: #166534;
+    border: 1px solid #bbf7d0;
+    padding: 2px 7px;
+    border-radius: 4px;
+    font-weight: 800;
+    font-size: 6.8pt;
+    display: inline-block;
+    white-space: nowrap;
+    text-transform: uppercase;
+  }
+  .badge-status-ongoing {
+    background: #dbeafe;
+    color: #1e40af;
+    border: 1px solid #bfdbfe;
+    padding: 2px 7px;
+    border-radius: 4px;
+    font-weight: 800;
+    font-size: 6.8pt;
+    display: inline-block;
+    white-space: nowrap;
+    text-transform: uppercase;
+  }
+  .badge-status-pending {
+    background: #fef9c3;
+    color: #854d0e;
+    border: 1px solid #fef08a;
+    padding: 2px 7px;
+    border-radius: 4px;
+    font-weight: 800;
+    font-size: 6.8pt;
+    display: inline-block;
+    white-space: nowrap;
+    text-transform: uppercase;
+  }
+  .ot-thumb {
+    width: 34px;
+    height: 34px;
+    border-radius: 4px;
+    border: 1px solid #cbd5e1;
+    object-fit: cover;
+    display: inline-block;
+    vertical-align: middle;
+  }
+
+  /* SIGNATURES */
+  .signature-section {
+    margin-top: 24px;
+    display: flex;
+    justify-content: space-between;
+    page-break-inside: avoid;
+    break-inside: avoid;
+    padding: 0 30px;
+  }
+  .sig-box {
+    text-align: center;
+    width: 240px;
+  }
+  .sig-city {
+    font-size: 7.5pt;
+    color: #334155;
+    margin-bottom: 2px;
+  }
+  .sig-role {
+    font-size: 8pt;
+    font-weight: 700;
+    color: #0f172a;
+    margin-bottom: 45px;
+  }
+  .sig-name {
+    font-size: 8.5pt;
+    font-weight: 900;
+    color: #0f172a;
+    text-decoration: underline;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+  .sig-sub {
+    font-size: 7.5pt;
+    color: #64748b;
+    margin-top: 1px;
+  }
+
+  /* STICKY ACTION BAR FOR PRINT PREVIEW */
+  .preview-bar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    background: #0f172a;
+    color: white;
+    padding: 8px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    z-index: 9999;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  }
+  .preview-btn {
+    background: #f59e0b;
+    color: #0f172a;
+    border: none;
+    font-weight: bold;
+    padding: 6px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+  }
+  .preview-btn:hover {
+    background: #d97706;
+  }
+</style>
+</head>
+<body>
+  <div class="no-print preview-bar">
+    <div style="font-size: 13px; font-weight: bold;">
+      📄 Pratinjau Dokumen Rekap Lembur - ${escapeHTML(singkatanPt)}
+    </div>
+    <div style="display: flex; gap: 8px;">
+      <button class="preview-btn" onclick="window.print()">🖨️ Cetak / Simpan PDF (Print)</button>
+      <button class="preview-btn" style="background: #334155; color: white;" onclick="window.close()">Tutup</button>
+    </div>
+  </div>
+
+  <div class="letterhead">
+    <div class="logo-container">
+      ${logoDataUrl ? `<img src="${logoDataUrl}" class="logo-img" alt="Logo" />` : `<div style="font-size: 16pt; font-weight: 900; color: #d97706;">${escapeHTML(singkatanPt)}</div>`}
+    </div>
+    <div class="company-info">
+      <h1 class="company-name">${escapeHTML(namaPt)}</h1>
+      <p class="company-address">${escapeHTML(alamatPt || "Jl. Raya Dukuh, Industri Anggadita, Karawang Timur")}</p>
+      <p class="company-sub">SISTEM MANAJEMEN KEHADIRAN &amp; TENAGA KERJA DIGITAL</p>
+    </div>
+  </div>
+
+  <div class="divider-thick"></div>
+  <div class="divider-thin"></div>
+
+  <div class="title-section">
+    <h2 class="title-main">LAPORAN REKAPITULASI LEMBUR TENAGA KERJA</h2>
+    <div class="title-period">PERIODE: ${escapeHTML(periodStr)}</div>
+    <div class="title-meta">
+      <span>Kategori: <strong>Akhir Pekan (Sabtu/Minggu) &amp; Penugasan Lembur (SPL)</strong></span>
+      <span> &bull; </span>
+      <span>Penerima: <strong>${isSingleEmployee ? `${escapeHTML(employeeData[0]?.user?.fullName || "Karyawan")} (${escapeHTML(employeeData[0]?.user?.nik || "-")})` : `Semua Tenaga Kerja Aktif (${employeeData.length} Orang)`}</strong></span>
+      <span> &bull; </span>
+      <span>Dicetak: <strong>${escapeHTML(formattedPrintDate)} WIB</strong></span>
+    </div>
+  </div>
+
+  ${!isSingleEmployee ? `
+  <div class="summary-box">
+    <div class="summary-header">
+      Ringkasan Akumulasi Lembur Seluruh Karyawan Aktif (${employeeData.length} Orang)
+    </div>
+    <table class="summary-table">
+      <thead>
+        <tr>
+          <th style="width: 40px; text-align: center;">NO</th>
+          <th style="text-align: left;">NAMA KARYAWAN</th>
+          <th style="width: 110px; text-align: center;">NIK</th>
+          <th style="width: 170px; text-align: left;">DEPARTEMEN / JABATAN</th>
+          <th style="width: 100px; text-align: center;">JUMLAH SESI</th>
+          <th style="width: 130px; text-align: center;">TOTAL JAM LEMBUR</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${summaryRows}
+      </tbody>
+      <tfoot>
+        <tr class="summary-total-row">
+          <td colspan="4" style="text-align: right; font-weight: 800;">GRAND TOTAL LEMBUR:</td>
+          <td style="text-align: center; font-weight: 800; color: #0284c7;">${grandTotalSessions} Sesi</td>
+          <td style="text-align: center; font-weight: 900; color: #b45309; font-size: 8.5pt;">${grandTotalHours} Jam</td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+  ` : ''}
+
+  ${detailedCardsHtml}
+
+  <div class="signature-section">
+    <div class="sig-box">
+      <p class="sig-city">Karawang, ${escapeHTML(formattedDateOnly)}</p>
+      <p class="sig-role">Dibuat Oleh,</p>
+      <p class="sig-name">HRD / PERSONALIA</p>
+      <p class="sig-sub">${escapeHTML(singkatanPt)}</p>
+    </div>
+    <div class="sig-box">
+      <p class="sig-city">&nbsp;</p>
+      <p class="sig-role">Mengetahui / Menyetujui,</p>
+      <p class="sig-name">PIMPINAN PERUSAHAAN</p>
+      <p class="sig-sub">${escapeHTML(namaPt)}</p>
+    </div>
+  </div>
+</body>
+</html>`;
+    };
+
+    const handleExecuteOvertimeExport = async (mode: 'download' | 'print') => {
+        setIsExportingOvertimePdf(true);
+        setExportProgress("Menyiapkan data rekap lembur...");
+        try {
+            const sDate = startOfDay(new Date(otPdfStartDate));
+            const eDate = endOfDay(new Date(otPdfEndDate));
+            if (sDate > eDate) {
+                toast({ title: "Rentang Tanggal Tidak Valid", description: "Tanggal mulai tidak boleh melebihi tanggal akhir.", variant: "destructive" });
+                setIsExportingOvertimePdf(false);
+                return;
+            }
+
+            const sStr = format(sDate, "yyyy-MM-dd");
+            const eStr = format(eDate, "yyyy-MM-dd");
+
+            // 1. Ambil data absensi terbaru untuk rentang tanggal yang dipilih
+            let sourceAttendance: Attendance[] = [];
+            try {
+                const res = await fetch(`/api/attendance?startDate=${sStr}&endDate=${eStr}`);
+                if (res.ok) {
+                    sourceAttendance = await res.json();
+                } else {
+                    sourceAttendance = (activeTab === 'ringkasan' && ringkasanAttendanceData) ? ringkasanAttendanceData : (allAttendance || []);
+                }
+            } catch (_) {
+                sourceAttendance = (activeTab === 'ringkasan' && ringkasanAttendanceData) ? ringkasanAttendanceData : (allAttendance || []);
+            }
+
+            // 2. Filter seluruh karyawan aktif (bukan admin dan bukan resign), urut abjad
+            const activeEmployees = (users || [])
+                .filter(u => !isAdminUser(u) && !isResignedUser(u))
+                .sort((a, b) => (a.fullName || '').localeCompare(b.fullName || '', 'id'));
+
+            // Target karyawan: single atau semua
+            const isSingleEmployee = otPdfEmployeeId !== "all";
+            const targetEmployees = isSingleEmployee
+                ? activeEmployees.filter(u => String(u.id) === String(otPdfEmployeeId))
+                : activeEmployees;
+
+            if (targetEmployees.length === 0) {
+                toast({ title: "Tidak ada karyawan", description: "Tidak ditemukan karyawan aktif untuk kriteria yang dipilih.", variant: "destructive" });
+                setIsExportingOvertimePdf(false);
+                return;
+            }
+
+            const isInDateRange = (dateVal: any) => {
+                if (!dateVal) return false;
+                const d = new Date(dateVal);
+                return d >= sDate && d <= eDate;
+            };
+
+            // 3. Susun data lembur per karyawan
+            const employeeData = targetEmployees.map(emp => {
+                const empAtt = sourceAttendance
+                    .filter(a => String(a.userId) === String(emp.id) && isInDateRange(a.date))
+                    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+                const empOvertimes = (allOvertimes || []).filter(ot => {
+                    if (!ot || ot.status === 'cancelled' || ot.employeeApproval === 'rejected') return false;
+                    const targetUid = ot.userId || (ot.attendance?.userId);
+                    if (String(targetUid) !== String(emp.id)) return false;
+                    const dtStr = ot.date ? ot.date : (ot.startTime ? ot.startTime : null);
+                    return isInDateRange(dtStr);
+                });
+
+                const otDates = new Set(
+                    empOvertimes.map(ot => {
+                        return ot.date ? safeFormatDate(ot.date, 'yyyy-MM-dd') : safeFormatDate(ot.startTime, 'yyyy-MM-dd');
+                    }).filter(Boolean)
+                );
+
+                const weekendRecords = empAtt.filter(a => {
+                    const day = new Date(a.date).getDay();
+                    const isWeekend = day === 0 || day === 6;
+                    if (!isWeekend) return false;
+                    const hasClock = !!(a.checkIn || a.checkOut);
+                    if (!hasClock) return false;
+                    const dStr = safeFormatDate(a.date, 'yyyy-MM-dd');
+                    if (dStr && otDates.has(dStr)) return false;
+                    return true;
+                });
+
+                // Map Weekend Records
+                const weekendItems = weekendRecords.map(w => {
+                    // Kunci hitungan lembur Sabtu & Minggu: jam 08:00 - 17:00 dikurang 1 jam istirahat = 8 Jam
+                    const netWeekendHours = calculateWeekendOvertimeHours(w.checkIn, w.checkOut);
+
+                    const wDate = new Date(w.date);
+                    const today = new Date();
+                    const isPastDay = new Date(wDate.getFullYear(), wDate.getMonth(), wDate.getDate()).getTime() < new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
+                    const endLabel = w.checkOut ? safeFormatDate(w.checkOut, "HH:mm") : (w.checkIn ? (isPastDay ? "Tidak Absen Pulang" : "Belum Absen Pulang") : "-");
+
+                    return {
+                        date: w.date,
+                        dateFormatted: safeFormatDate(w.date, "EEEE, d MMM yyyy", { locale: id }),
+                        category: "⚡ Weekend (Sabtu/Minggu)",
+                        isWeekend: true,
+                        startTime: w.checkIn ? safeFormatDate(w.checkIn, "HH:mm") : "-",
+                        endTime: endLabel,
+                        durationHours: netWeekendHours,
+                        durationStr: netWeekendHours > 0 ? `${netWeekendHours} Jam` : "-",
+                        task: w.notes || "Absensi kerja akhir pekan",
+                        status: "SELESAI",
+                        photo1: w.checkInPhoto || null,
+                        photo2: w.checkOutPhoto || null,
+                    };
+                });
+
+                // Map SPL Records
+                const splItems = empOvertimes.map(ot => {
+                    const otDate = ot.date ? new Date(ot.date) : (ot.startTime ? new Date(ot.startTime) : null);
+                    const isWeekendOt = otDate ? (otDate.getDay() === 0 || otDate.getDay() === 6) : false;
+                    const otHours = normalizeOvertimeDuration(ot.startTime, ot.endTime, isWeekendOt);
+                    const otDateStr = ot.date ? safeFormatDate(ot.date, "yyyy-MM-dd") : (ot.startTime ? safeFormatDate(ot.startTime, "yyyy-MM-dd") : "");
+                    const matchingAtt = empAtt.find(a => safeFormatDate(a.date, 'yyyy-MM-dd') === otDateStr);
+
+                    const isCompleted = ot.status === 'completed';
+                    const isOngoing = ot.status === 'ongoing';
+                    const statusLabel = isCompleted ? 'SELESAI' : (isOngoing ? 'BERLANGSUNG' : 'DISETUJUI');
+
+                    const photo1 = ot.initialProofUrl || matchingAtt?.checkInPhoto || null;
+                    const photo2 = ot.finalProofUrl || matchingAtt?.checkOutPhoto || null;
+
+                    return {
+                        date: ot.date || ot.startTime,
+                        dateFormatted: ot.date ? safeFormatDate(ot.date, "EEEE, d MMM yyyy", { locale: id }) : (ot.startTime ? safeFormatDate(ot.startTime, "EEEE, d MMM yyyy", { locale: id }) : "-"),
+                        category: "PENUGASAN LEMBUR (SPL)",
+                        isWeekend: isWeekendOt,
+                        startTime: ot.startTime ? safeFormatDate(ot.startTime, "HH:mm") : "-",
+                        endTime: ot.endTime ? safeFormatDate(ot.endTime, "HH:mm") : (isOngoing ? "Berlangsung" : "-"),
+                        durationHours: otHours,
+                        durationStr: otHours > 0 ? `${otHours} Jam` : (isOngoing ? "Berlangsung" : "-"),
+                        task: ot.description || ot.finalDescription || "Pekerjaan lembur",
+                        status: statusLabel,
+                        photo1,
+                        photo2,
+                    };
+                });
+
+                const allItems = [...weekendItems, ...splItems].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+                const totalHours = allItems.reduce((acc, it) => acc + (it.durationHours || 0), 0);
+
+                return {
+                    user: emp,
+                    items: allItems,
+                    totalHours,
+                    totalSessions: allItems.length,
+                };
+            });
+
+            // 4. Preload Foto & Logo
+            setExportProgress("Memuat logo & bukti foto lembur...");
+            const logoDataUrl = await fetchLogoBase64();
+
+            let imageCache: Record<string, string> = {};
+            if (otPdfIncludePhotos) {
+                const loaded = await preloadAttendanceImages(sourceAttendance, (current, total) => {
+                    setExportProgress(`Memuat foto bukti lembur (${current}/${total})...`);
+                });
+                Object.assign(imageCache, loaded);
+            }
+
+            const periodStr = `${safeFormatDate(sDate, "d MMMM yyyy", { locale: id })} - ${safeFormatDate(eDate, "d MMMM yyyy", { locale: id })}`.toUpperCase();
+            const singleEmpName = isSingleEmployee ? targetEmployees[0].fullName : "";
+            const pdfFileName = `REKAP_LEMBUR_${singkatanPt}_${sStr}_sd_${eStr}${isSingleEmployee ? `_${(singleEmpName || '').replace(/\s+/g, '_').toUpperCase()}` : '_SEMUA_KARYAWAN'}.pdf`;
+
+            setExportProgress("Menyusun dokumen PDF...");
+            const html = buildOvertimeRecapReportHtml({
+                docTitle: pdfFileName.replace('.pdf', ''),
+                periodStr,
+                namaPt,
+                singkatanPt,
+                alamatPt,
+                logoDataUrl,
+                employeeData,
+                isSingleEmployee,
+                includePhotos: otPdfIncludePhotos,
+                imageCache,
+                onlyWithOvertime: otPdfOnlyWithOvertime,
+            });
+
+            if (mode === "print") {
+                const printHtml = html.replace('window.print()', 'window.print()');
+                const blob = new Blob([printHtml], { type: 'text/html;charset=utf-8' });
+                const blobUrl = URL.createObjectURL(blob);
+                window.open(blobUrl, '_blank');
+                setIsOvertimePdfModalOpen(false);
+                toast({ title: "🖨️ Pratinjau Dokumen Siap", description: "Jendela cetak telah dibuka. Anda dapat langsung memilih Simpan sebagai PDF." });
+            } else {
+                setExportProgress("Mengonversi dokumen ke format PDF...");
+                const html2pdfLib = await loadHtml2Pdf();
+                const pdfBlob = await renderRecapHtmlToPdfBlob({
+                    html,
+                    pdfFileName,
+                    html2pdfLib,
+                    splitMode: "combine"
+                });
+                triggerBlobDownload(pdfBlob, pdfFileName);
+                setIsOvertimePdfModalOpen(false);
+                toast({ title: "✅ Rekap Lembur PDF Berhasil Diunduh", description: pdfFileName });
+            }
+        } catch (e: any) {
+            toast({ title: "Gagal Cetak Rekap Lembur", description: e.message, variant: "destructive" });
+        } finally {
+            setIsExportingOvertimePdf(false);
+            setExportProgress("");
+        }
+    };
+
     const handleBulkExport = async () => {
         const periods = buildCustomBulkPeriods(startDate, endDate);
 
@@ -2736,6 +3693,14 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
                                 disabled={isExporting}
                             >
                                 <FileDown className="h-4 w-4" /> {isExporting ? "Mengekspor..." : "Export PDF Rekap"}
+                            </Button>
+                            <Button 
+                                variant="outline" 
+                                className="gap-2 bg-amber-500 hover:bg-amber-600 text-white border-amber-600 h-10 font-bold shadow-sm cursor-pointer" 
+                                onClick={() => handleOpenOvertimePdfModal()}
+                                disabled={isExportingOvertimePdf}
+                            >
+                                <Clock className="h-4 w-4" /> Cetak Rekap Lembur (PDF)
                             </Button>
                         </div>
                     </div>
@@ -3141,6 +4106,16 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
                                     <FileSpreadsheet className="h-4 w-4" />
                                     {isExportingExcel ? "Mengekspor Excel..." : "Export ke Excel (.xlsx)"}
                                 </Button>
+
+                                {/* Export Overtime PDF Button */}
+                                <Button
+                                    onClick={() => handleOpenOvertimePdfModal()}
+                                    disabled={isExportingOvertimePdf}
+                                    className="gap-2 bg-amber-600 hover:bg-amber-700 text-white font-bold h-10 shadow-sm cursor-pointer"
+                                >
+                                    <Clock className="h-4 w-4" />
+                                    Cetak Rekap Lembur (PDF)
+                                </Button>
                             </div>
                         </div>
                     </div>
@@ -3497,7 +4472,17 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
                                                 <Button
                                                     size="sm"
                                                     variant="outline"
-                                                    onClick={() => setLocation(`/admin/overtime-management?userId=${selectedEmployee}`)}
+                                                    onClick={() => handleOpenOvertimePdfModal(selectedEmployeeId)}
+                                                    disabled={isExportingOvertimePdf}
+                                                    className="h-8 text-xs font-bold gap-1.5 bg-amber-600 text-white hover:bg-amber-700 cursor-pointer border-amber-600 shadow-sm"
+                                                >
+                                                    <Printer className="w-3.5 h-3.5" />
+                                                    Cetak Rekap Lembur (PDF)
+                                                </Button>
+                                                <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    onClick={() => setLocation(`/admin/overtime-management?userId=${selectedEmployeeId}`)}
                                                     className="h-8 text-xs font-bold gap-1.5 bg-white border-amber-300 text-amber-900 hover:bg-amber-100/60 cursor-pointer"
                                                 >
                                                     <Edit2 className="w-3.5 h-3.5 text-amber-600" />
@@ -3535,9 +4520,8 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
                                                         <>
                                                             {/* Baris Lembur dari Kehadiran Weekend (Sabtu/Minggu) */}
                                                             {weekendRecords.map((w: any) => {
-                                                                const { netWorkMins } = calculateDailyTotal([w]);
-                                                                const grossWeekendHours = Math.floor(netWorkMins / 60);
-                                                                const netWeekendHours = Math.max(0, grossWeekendHours - 1);
+                                                                // Kunci hitungan lembur Sabtu & Minggu: jam 08:00 - 17:00 dikurang 1 jam istirahat = 8 Jam
+                                                                const netWeekendHours = calculateWeekendOvertimeHours(w.checkIn, w.checkOut);
 
                                                                 return (
                                                                     <tr key={`weekend-${w.id}`} className="bg-amber-50/20 hover:bg-amber-50/40 transition-colors">
@@ -3569,7 +4553,7 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
                                                                             )}
                                                                         </td>
                                                                         <td className="px-4 py-3 text-center font-black text-amber-900">
-                                                                            {netWorkMins > 0 ? `${netWeekendHours} Jam` : "-"}
+                                                                            {netWeekendHours > 0 ? `${netWeekendHours} Jam` : "-"}
                                                                         </td>
                                                                         <td className="px-4 py-3 text-slate-600 italic">
                                                                             {w.notes || "Absensi kerja akhir pekan"}
@@ -4019,6 +5003,139 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
                             {editOvertimeMutation.isPending ? "Menyimpan..." : "Simpan Perubahan Lembur"}
                         </Button>
                     </div>
+                </DialogContent>
+            </Dialog>
+
+            {/* Modal Cetak Rekap Lembur (PDF) */}
+            <Dialog open={isOvertimePdfModalOpen} onOpenChange={setIsOvertimePdfModalOpen}>
+                <DialogContent className="sm:max-w-lg bg-white rounded-2xl p-6 shadow-2xl">
+                    <DialogHeader>
+                        <DialogTitle className="text-base font-black text-gray-900 flex items-center gap-2">
+                            <Clock className="w-5 h-5 text-amber-600" />
+                            Cetak Rekapitulasi Lembur (PDF)
+                        </DialogTitle>
+                        <DialogDescription className="text-xs text-gray-500">
+                            Cetak laporan lembur akhir pekan dan penugasan lembur (SPL) dalam format PDF rapi, dikelompokkan per nama karyawan.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="space-y-4 py-2 text-xs">
+                        {/* Rentang Tanggal */}
+                        <div className="space-y-1.5">
+                            <Label className="text-xs font-bold text-gray-700 flex items-center gap-1.5">
+                                <Calendar className="w-3.5 h-3.5 text-amber-600" /> Rentang Tanggal Lembur
+                            </Label>
+                            <div className="grid grid-cols-2 gap-2">
+                                <div>
+                                    <span className="text-[10px] text-gray-500 font-medium">Dari Tanggal:</span>
+                                    <Input
+                                        type="date"
+                                        value={otPdfStartDate}
+                                        onChange={(e) => setOtPdfStartDate(e.target.value)}
+                                        className="h-9 rounded-lg text-xs border-gray-200 mt-1"
+                                    />
+                                </div>
+                                <div>
+                                    <span className="text-[10px] text-gray-500 font-medium">Sampai Tanggal:</span>
+                                    <Input
+                                        type="date"
+                                        value={otPdfEndDate}
+                                        onChange={(e) => setOtPdfEndDate(e.target.value)}
+                                        className="h-9 rounded-lg text-xs border-gray-200 mt-1"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Target Karyawan */}
+                        <div className="space-y-1.5">
+                            <Label className="text-xs font-bold text-gray-700 flex items-center gap-1.5">
+                                <Users className="w-3.5 h-3.5 text-amber-600" /> Target Karyawan
+                            </Label>
+                            <Select value={otPdfEmployeeId} onValueChange={setOtPdfEmployeeId}>
+                                <SelectTrigger className="w-full h-9 rounded-lg text-xs bg-white border-gray-200 font-semibold text-gray-800">
+                                    <SelectValue placeholder="Pilih Karyawan" />
+                                </SelectTrigger>
+                                <SelectContent className="max-h-[260px]">
+                                    <SelectItem value="all" className="font-bold text-amber-800">
+                                        👥 Semua Karyawan Aktif ({activeEmployeeList.length} Orang)
+                                    </SelectItem>
+                                    {activeEmployeeList.map((emp) => (
+                                        <SelectItem key={emp.id} value={String(emp.id)}>
+                                            {emp.fullName} ({emp.nik || emp.username || "-"})
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            <p className="text-[10px] text-emerald-700 font-medium mt-1 flex items-center gap-1">
+                                <CheckCircle2 className="w-3 h-3 text-emerald-600 shrink-0" />
+                                Hanya karyawan aktif (karyawan resign otomatis dikecualikan), urut abjad (A–Z).
+                            </p>
+                        </div>
+
+                        {/* Opsi Tampilan PDF */}
+                        <div className="space-y-2 pt-2 border-t border-gray-100">
+                            <Label className="text-xs font-bold text-gray-700">Pengaturan Tampilan PDF</Label>
+                            <div className="space-y-2">
+                                <label className="flex items-center gap-2 cursor-pointer text-xs text-gray-700 font-medium hover:text-gray-900">
+                                    <input
+                                        type="checkbox"
+                                        checked={otPdfIncludePhotos}
+                                        onChange={(e) => setOtPdfIncludePhotos(e.target.checked)}
+                                        className="rounded border-gray-300 text-amber-600 focus:ring-amber-500 h-4 w-4"
+                                    />
+                                    <span>Sertakan foto bukti lembur di kolom dokumen PDF</span>
+                                </label>
+
+                                {otPdfEmployeeId === "all" && (
+                                    <label className="flex items-center gap-2 cursor-pointer text-xs text-gray-700 font-medium hover:text-gray-900">
+                                        <input
+                                            type="checkbox"
+                                            checked={otPdfOnlyWithOvertime}
+                                            onChange={(e) => setOtPdfOnlyWithOvertime(e.target.checked)}
+                                            className="rounded border-gray-300 text-amber-600 focus:ring-amber-500 h-4 w-4"
+                                        />
+                                        <span>Hanya tampilkan rincian tabel untuk karyawan yang memiliki jam lembur</span>
+                                    </label>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+
+                    <DialogFooter className="flex flex-col sm:flex-row gap-2 pt-3 border-t">
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setIsOvertimePdfModalOpen(false)}
+                            className="rounded-xl text-xs"
+                        >
+                            Batal
+                        </Button>
+                        <div className="flex items-center gap-2 w-full sm:w-auto">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                disabled={isExportingOvertimePdf}
+                                onClick={() => handleExecuteOvertimeExport("print")}
+                                className="flex-1 sm:flex-initial rounded-xl text-xs font-bold border-amber-300 text-amber-800 hover:bg-amber-50 gap-1.5 cursor-pointer"
+                            >
+                                <Printer className="w-3.5 h-3.5 text-amber-600" />
+                                Cetak / Pratinjau
+                            </Button>
+                            <Button
+                                type="button"
+                                size="sm"
+                                disabled={isExportingOvertimePdf}
+                                onClick={() => handleExecuteOvertimeExport("download")}
+                                className="flex-1 sm:flex-initial rounded-xl text-xs font-bold bg-amber-600 hover:bg-amber-700 text-white gap-1.5 shadow-sm cursor-pointer"
+                            >
+                                <FileDown className="w-3.5 h-3.5" />
+                                {isExportingOvertimePdf ? "Memproses PDF..." : "Download PDF"}
+                            </Button>
+                        </div>
+                    </DialogFooter>
                 </DialogContent>
             </Dialog>
         </div>

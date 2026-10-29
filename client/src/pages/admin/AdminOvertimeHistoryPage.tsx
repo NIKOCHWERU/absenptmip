@@ -538,6 +538,14 @@ export default function AdminOvertimeHistoryPage() {
                     <div className="flex flex-wrap items-center gap-2">
                         <Button
                             variant="outline"
+                            className="rounded-lg gap-2 cursor-pointer bg-amber-50 text-amber-900 border-amber-300 hover:bg-amber-100 font-bold"
+                            onClick={() => setLocation(`/admin/recap${selectedEmployeeId !== 'all' ? `?userId=${selectedEmployeeId}` : ''}`)}
+                        >
+                            <Clock className="w-4 h-4 text-amber-600" />
+                            Cetak Rekap Lembur (PDF)
+                        </Button>
+                        <Button
+                            variant="outline"
                             className="rounded-lg gap-2 cursor-pointer bg-white"
                             onClick={() => setLocation("/admin/overtime-management")}
                         >
