@@ -3166,21 +3166,6 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
     ` : ''}
 
     ${detailedCardsHtml}
-
-    <div class="signature-section">
-      <div class="sig-box">
-        <p class="sig-city">Karawang, ${escapeHTML(formattedDateOnly)}</p>
-        <p class="sig-role">Dibuat Oleh,</p>
-        <p class="sig-name">HRD / PERSONALIA</p>
-        <p class="sig-sub">${escapeHTML(singkatanPt)}</p>
-      </div>
-      <div class="sig-box">
-        <p class="sig-city">&nbsp;</p>
-        <p class="sig-role">Mengetahui / Menyetujui,</p>
-        <p class="sig-name">PIMPINAN PERUSAHAAN</p>
-        <p class="sig-sub">${escapeHTML(namaPt)}</p>
-      </div>
-    </div>
   </div>
 
   ${!isPdf ? `
