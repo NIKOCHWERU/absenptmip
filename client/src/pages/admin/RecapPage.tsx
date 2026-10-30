@@ -6,7 +6,7 @@ import React, { useState, useEffect, Fragment, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ChevronLeft, ChevronRight, FileDown, ArrowLeft, Search, ArrowUpDown, MessageSquare, Plus, Edit2, Trash2, Camera, Image as ImageIcon, FileSpreadsheet, Calendar, Users, Clock, CheckCircle2, Printer } from "lucide-react";
+import { ChevronLeft, ChevronRight, FileDown, ArrowLeft, Search, ArrowUpDown, MessageSquare, Plus, Edit2, Trash2, Camera, Image as ImageIcon, FileSpreadsheet, Calendar, Users, Clock, CheckCircle2, Printer, Eye, FileCode } from "lucide-react";
 import { useLocation } from "wouter";
 import { Input } from "@/components/ui/input";
 import { differenceInMinutes } from "date-fns";
@@ -2433,7 +2433,7 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
         }
     };
 
-    const handleOpenOvertimePdfModal = (empId?: string) => {
+    const handleOpenOvertimePdfModal = (empId?: string, defaultMode?: 'preview' | 'html' | 'download' | 'print') => {
         let defaultStart = format(startDate, 'yyyy-MM-dd');
         let defaultEnd = format(endDate, 'yyyy-MM-dd');
         if (activeTab === 'ringkasan') {
@@ -2458,6 +2458,8 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
         includePhotos,
         imageCache = {},
         onlyWithOvertime = false,
+        isPdf = false,
+        autoPrint = false,
     }: {
         docTitle: string;
         periodStr: string;
@@ -2475,6 +2477,8 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
         includePhotos: boolean;
         imageCache?: Record<string, string>;
         onlyWithOvertime?: boolean;
+        isPdf?: boolean;
+        autoPrint?: boolean;
     }) => {
         const escapeHTML = (value: any): string => {
             if (value === null || value === undefined) return "";
@@ -2657,9 +2661,34 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
     size: A4 landscape;
     margin: 8mm 10mm;
   }
+  @media screen {
+    ${!isPdf ? `
+    body {
+      background: #e2e8f0;
+      padding: 56px 16px 40px 16px;
+    }
+    .ot-report-paper {
+      background: #ffffff;
+      max-width: 1140px;
+      margin: 0 auto;
+      padding: 24px 30px;
+      border-radius: 8px;
+      box-shadow: 0 4px 20px rgba(15, 23, 42, 0.12);
+      border: 1px solid #cbd5e1;
+    }
+    ` : ''}
+  }
   @media print {
     body { padding: 0 !important; background: white !important; }
     .no-print { display: none !important; }
+    .ot-report-paper {
+      box-shadow: none !important;
+      border: none !important;
+      padding: 0 !important;
+      margin: 0 !important;
+      max-width: none !important;
+      width: 100% !important;
+    }
     .employee-overtime-card { page-break-inside: avoid; break-inside: avoid; }
     .summary-box { page-break-inside: avoid; break-inside: avoid; }
     .signature-section { page-break-inside: avoid; break-inside: avoid; }
@@ -3059,93 +3088,121 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
 </style>
 </head>
 <body>
+  ${!isPdf ? `
   <div class="no-print preview-bar">
-    <div style="font-size: 13px; font-weight: bold;">
-      📄 Pratinjau Dokumen Rekap Lembur - ${escapeHTML(singkatanPt)}
+    <div style="font-size: 13px; font-weight: 800; display: flex; align-items: center; gap: 8px;">
+      <span style="font-size: 15px;">⏱️</span>
+      <span>Pratinjau Dokumen Rekap Lembur &mdash; ${escapeHTML(singkatanPt)}</span>
     </div>
-    <div style="display: flex; gap: 8px;">
-      <button class="preview-btn" onclick="window.print()">🖨️ Cetak / Simpan PDF (Print)</button>
-      <button class="preview-btn" style="background: #334155; color: white;" onclick="window.close()">Tutup</button>
+    <div style="display: flex; gap: 8px; align-items: center;">
+      <button class="preview-btn" style="background: #10b981; color: white;" onclick="downloadThisHtml()" title="Unduh berkas .html mandiri">
+        💾 Unduh Berkas HTML
+      </button>
+      <button class="preview-btn" style="background: #f59e0b; color: #0f172a;" onclick="window.print()" title="Cetak atau simpan ke PDF">
+        🖨️ Cetak / Simpan PDF
+      </button>
+      <button class="preview-btn" style="background: #334155; color: white;" onclick="window.close()" title="Tutup pratinjau">
+        ✕ Tutup
+      </button>
     </div>
-  </div>
-
-  <div class="letterhead">
-    <div class="logo-container">
-      ${logoDataUrl ? `<img src="${logoDataUrl}" class="logo-img" alt="Logo" />` : `<div style="font-size: 16pt; font-weight: 900; color: #d97706;">${escapeHTML(singkatanPt)}</div>`}
-    </div>
-    <div class="company-info">
-      <h1 class="company-name">${escapeHTML(namaPt)}</h1>
-      <p class="company-address">${escapeHTML(alamatPt || "Jl. Raya Dukuh, Industri Anggadita, Karawang Timur")}</p>
-      <p class="company-sub">SISTEM MANAJEMEN KEHADIRAN &amp; TENAGA KERJA DIGITAL</p>
-    </div>
-  </div>
-
-  <div class="divider-thick"></div>
-  <div class="divider-thin"></div>
-
-  <div class="title-section">
-    <h2 class="title-main">LAPORAN REKAPITULASI LEMBUR TENAGA KERJA</h2>
-    <div class="title-period">PERIODE: ${escapeHTML(periodStr)}</div>
-    <div class="title-meta">
-      <span>Kategori: <strong>Akhir Pekan (Sabtu/Minggu) &amp; Penugasan Lembur (SPL)</strong></span>
-      <span> &bull; </span>
-      <span>Penerima: <strong>${isSingleEmployee ? `${escapeHTML(employeeData[0]?.user?.fullName || "Karyawan")} (${escapeHTML(employeeData[0]?.user?.nik || "-")})` : `Semua Tenaga Kerja Aktif (${employeeData.length} Orang)`}</strong></span>
-      <span> &bull; </span>
-      <span>Dicetak: <strong>${escapeHTML(formattedPrintDate)} WIB</strong></span>
-    </div>
-  </div>
-
-  ${!isSingleEmployee ? `
-  <div class="summary-box">
-    <div class="summary-header">
-      Ringkasan Akumulasi Lembur Seluruh Karyawan Aktif (${employeeData.length} Orang)
-    </div>
-    <table class="summary-table">
-      <thead>
-        <tr>
-          <th style="width: 40px; text-align: center;">NO</th>
-          <th style="text-align: left;">NAMA KARYAWAN</th>
-          <th style="width: 110px; text-align: center;">NIK</th>
-          <th style="width: 170px; text-align: left;">DEPARTEMEN / JABATAN</th>
-          <th style="width: 100px; text-align: center;">JUMLAH SESI</th>
-          <th style="width: 130px; text-align: center;">TOTAL JAM LEMBUR</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${summaryRows}
-      </tbody>
-      <tfoot>
-        <tr class="summary-total-row">
-          <td colspan="4" style="text-align: right; font-weight: 800;">GRAND TOTAL LEMBUR:</td>
-          <td style="text-align: center; font-weight: 800; color: #0284c7;">${grandTotalSessions} Sesi</td>
-          <td style="text-align: center; font-weight: 900; color: #b45309; font-size: 8.5pt;">${grandTotalHours} Jam</td>
-        </tr>
-      </tfoot>
-    </table>
   </div>
   ` : ''}
 
-  ${detailedCardsHtml}
-
-  <div class="signature-section">
-    <div class="sig-box">
-      <p class="sig-city">Karawang, ${escapeHTML(formattedDateOnly)}</p>
-      <p class="sig-role">Dibuat Oleh,</p>
-      <p class="sig-name">HRD / PERSONALIA</p>
-      <p class="sig-sub">${escapeHTML(singkatanPt)}</p>
+  <div class="ot-report-paper">
+    <div class="letterhead">
+      <div class="logo-container">
+        ${logoDataUrl ? `<img src="${logoDataUrl}" class="logo-img" alt="Logo" />` : `<div style="font-size: 16pt; font-weight: 900; color: #d97706;">${escapeHTML(singkatanPt)}</div>`}
+      </div>
+      <div class="company-info">
+        <h1 class="company-name">${escapeHTML(namaPt)}</h1>
+        <p class="company-address">${escapeHTML(alamatPt || "Jl. Raya Dukuh, Industri Anggadita, Karawang Timur")}</p>
+        <p class="company-sub">SISTEM MANAJEMEN KEHADIRAN &amp; TENAGA KERJA DIGITAL</p>
+      </div>
     </div>
-    <div class="sig-box">
-      <p class="sig-city">&nbsp;</p>
-      <p class="sig-role">Mengetahui / Menyetujui,</p>
-      <p class="sig-name">PIMPINAN PERUSAHAAN</p>
-      <p class="sig-sub">${escapeHTML(namaPt)}</p>
+
+    <div class="divider-thick"></div>
+    <div class="divider-thin"></div>
+
+    <div class="title-section">
+      <h2 class="title-main">LAPORAN REKAPITULASI LEMBUR TENAGA KERJA</h2>
+      <div class="title-period">PERIODE: ${escapeHTML(periodStr)}</div>
+      <div class="title-meta">
+        <span>Kategori: <strong>Akhir Pekan (Sabtu/Minggu) &amp; Penugasan Lembur (SPL)</strong></span>
+        <span> &bull; </span>
+        <span>Penerima: <strong>${isSingleEmployee ? `${escapeHTML(employeeData[0]?.user?.fullName || "Karyawan")} (${escapeHTML(employeeData[0]?.user?.nik || "-")})` : `Semua Tenaga Kerja Aktif (${employeeData.length} Orang)`}</strong></span>
+        <span> &bull; </span>
+        <span>Dicetak: <strong>${escapeHTML(formattedPrintDate)} WIB</strong></span>
+      </div>
+    </div>
+
+    ${!isSingleEmployee ? `
+    <div class="summary-box">
+      <div class="summary-header">
+        Ringkasan Akumulasi Lembur Seluruh Karyawan Aktif (${employeeData.length} Orang)
+      </div>
+      <table class="summary-table">
+        <thead>
+          <tr>
+            <th style="width: 40px; text-align: center;">NO</th>
+            <th style="text-align: left;">NAMA KARYAWAN</th>
+            <th style="width: 110px; text-align: center;">NIK</th>
+            <th style="width: 170px; text-align: left;">DEPARTEMEN / JABATAN</th>
+            <th style="width: 100px; text-align: center;">JUMLAH SESI</th>
+            <th style="width: 130px; text-align: center;">TOTAL JAM LEMBUR</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${summaryRows}
+        </tbody>
+        <tfoot>
+          <tr class="summary-total-row">
+            <td colspan="4" style="text-align: right; font-weight: 800;">GRAND TOTAL LEMBUR:</td>
+            <td style="text-align: center; font-weight: 800; color: #0284c7;">${grandTotalSessions} Sesi</td>
+            <td style="text-align: center; font-weight: 900; color: #b45309; font-size: 8.5pt;">${grandTotalHours} Jam</td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+    ` : ''}
+
+    ${detailedCardsHtml}
+
+    <div class="signature-section">
+      <div class="sig-box">
+        <p class="sig-city">Karawang, ${escapeHTML(formattedDateOnly)}</p>
+        <p class="sig-role">Dibuat Oleh,</p>
+        <p class="sig-name">HRD / PERSONALIA</p>
+        <p class="sig-sub">${escapeHTML(singkatanPt)}</p>
+      </div>
+      <div class="sig-box">
+        <p class="sig-city">&nbsp;</p>
+        <p class="sig-role">Mengetahui / Menyetujui,</p>
+        <p class="sig-name">PIMPINAN PERUSAHAAN</p>
+        <p class="sig-sub">${escapeHTML(namaPt)}</p>
+      </div>
     </div>
   </div>
+
+  ${!isPdf ? `
+  <script>
+    function downloadThisHtml() {
+      var blob = new Blob([document.documentElement.outerHTML], { type: 'text/html;charset=utf-8' });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = ${JSON.stringify(docTitle + ".html")};
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(function() { document.body.removeChild(a); URL.revokeObjectURL(url); }, 2000);
+    }
+    ${autoPrint ? `window.onload = function() { setTimeout(function() { window.print(); }, 600); };` : ''}
+  </script>
+  ` : ''}
 </body>
 </html>`;
     };
 
-    const handleExecuteOvertimeExport = async (mode: 'download' | 'print') => {
+    const handleExecuteOvertimeExport = async (mode: 'download' | 'print' | 'html' | 'preview') => {
         setIsExportingOvertimePdf(true);
         setExportProgress("Menyiapkan data rekap lembur...");
         try {
@@ -3309,11 +3366,14 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
 
             const periodStr = `${safeFormatDate(sDate, "d MMMM yyyy", { locale: id })} - ${safeFormatDate(eDate, "d MMMM yyyy", { locale: id })}`.toUpperCase();
             const singleEmpName = isSingleEmployee ? targetEmployees[0].fullName : "";
-            const pdfFileName = `REKAP_LEMBUR_${singkatanPt}_${sStr}_sd_${eStr}${isSingleEmployee ? `_${(singleEmpName || '').replace(/\s+/g, '_').toUpperCase()}` : '_SEMUA_KARYAWAN'}.pdf`;
+            const baseFileName = `REKAP_LEMBUR_${singkatanPt}_${sStr}_sd_${eStr}${isSingleEmployee ? `_${(singleEmpName || '').replace(/\s+/g, '_').toUpperCase()}` : '_SEMUA_KARYAWAN'}`;
+            const pdfFileName = `${baseFileName}.pdf`;
+            const htmlFileName = `${baseFileName}.html`;
 
-            setExportProgress("Menyusun dokumen PDF...");
+            const isPdfOutput = mode === "download";
+            setExportProgress(isPdfOutput ? "Menyusun dokumen PDF..." : "Menyusun dokumen HTML...");
             const html = buildOvertimeRecapReportHtml({
-                docTitle: pdfFileName.replace('.pdf', ''),
+                docTitle: baseFileName,
                 periodStr,
                 namaPt,
                 singkatanPt,
@@ -3324,15 +3384,37 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
                 includePhotos: otPdfIncludePhotos,
                 imageCache,
                 onlyWithOvertime: otPdfOnlyWithOvertime,
+                isPdf: isPdfOutput,
+                autoPrint: mode === "print",
             });
 
-            if (mode === "print") {
-                const printHtml = html.replace('window.print()', 'window.print()');
-                const blob = new Blob([printHtml], { type: 'text/html;charset=utf-8' });
+            if (mode === "preview") {
+                const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
                 const blobUrl = URL.createObjectURL(blob);
                 window.open(blobUrl, '_blank');
                 setIsOvertimePdfModalOpen(false);
-                toast({ title: "🖨️ Pratinjau Dokumen Siap", description: "Jendela cetak telah dibuka. Anda dapat langsung memilih Simpan sebagai PDF." });
+                toast({ title: "🌐 Pratinjau HTML Rekap Lembur Dibuka", description: "Dokumen HTML terbuka di tab baru browser Anda." });
+            } else if (mode === "html") {
+                const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+                const blobUrl = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = blobUrl;
+                a.download = htmlFileName;
+                document.body.appendChild(a);
+                a.click();
+                setTimeout(() => {
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(blobUrl);
+                }, 5000);
+                setIsOvertimePdfModalOpen(false);
+                toast({ title: "✅ File HTML Rekap Lembur Berhasil Diunduh", description: htmlFileName });
+            } else if (mode === "print") {
+                const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+                const blobUrl = URL.createObjectURL(blob);
+                window.open(blobUrl, '_blank');
+                setIsOvertimePdfModalOpen(false);
+                toast({ title: "🖨️ Pratinjau Cetak Siap", description: "Jendela cetak dokumen telah dibuka." });
             } else {
                 setExportProgress("Mengonversi dokumen ke format PDF...");
                 const html2pdfLib = await loadHtml2Pdf();
@@ -3696,11 +3778,19 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
                             </Button>
                             <Button 
                                 variant="outline" 
+                                className="gap-2 bg-amber-50 text-amber-800 border-amber-300 hover:bg-amber-100 h-10 font-bold shadow-sm cursor-pointer" 
+                                onClick={() => handleOpenOvertimePdfModal(undefined, "preview")}
+                                disabled={isExportingOvertimePdf}
+                            >
+                                <Eye className="h-4 w-4 text-amber-600" /> Preview HTML Lembur
+                            </Button>
+                            <Button 
+                                variant="outline" 
                                 className="gap-2 bg-amber-500 hover:bg-amber-600 text-white border-amber-600 h-10 font-bold shadow-sm cursor-pointer" 
                                 onClick={() => handleOpenOvertimePdfModal()}
                                 disabled={isExportingOvertimePdf}
                             >
-                                <Clock className="h-4 w-4" /> Cetak Rekap Lembur (PDF)
+                                <Clock className="h-4 w-4" /> Rekap Lembur (PDF &amp; HTML)
                             </Button>
                         </div>
                     </div>
@@ -4472,6 +4562,16 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
                                                 <Button
                                                     size="sm"
                                                     variant="outline"
+                                                    onClick={() => handleOpenOvertimePdfModal(selectedEmployeeId, "preview")}
+                                                    disabled={isExportingOvertimePdf}
+                                                    className="h-8 text-xs font-bold gap-1.5 bg-amber-50 border-amber-300 text-amber-900 hover:bg-amber-100 cursor-pointer shadow-sm"
+                                                >
+                                                    <Eye className="w-3.5 h-3.5 text-amber-600" />
+                                                    Preview HTML Lembur
+                                                </Button>
+                                                <Button
+                                                    size="sm"
+                                                    variant="outline"
                                                     onClick={() => handleOpenOvertimePdfModal(selectedEmployeeId)}
                                                     disabled={isExportingOvertimePdf}
                                                     className="h-8 text-xs font-bold gap-1.5 bg-amber-600 text-white hover:bg-amber-700 cursor-pointer border-amber-600 shadow-sm"
@@ -5102,37 +5202,63 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
                         </div>
                     </div>
 
-                    <DialogFooter className="flex flex-col sm:flex-row gap-2 pt-3 border-t">
+                    <DialogFooter className="flex flex-col sm:flex-row items-center justify-between gap-2 pt-3 border-t">
                         <Button
                             type="button"
                             variant="ghost"
                             size="sm"
                             onClick={() => setIsOvertimePdfModalOpen(false)}
-                            className="rounded-xl text-xs"
+                            className="rounded-xl text-xs self-start sm:self-auto"
                         >
                             Batal
                         </Button>
-                        <div className="flex items-center gap-2 w-full sm:w-auto">
+                        <div className="flex flex-wrap items-center justify-end gap-2 w-full sm:w-auto">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                disabled={isExportingOvertimePdf}
+                                onClick={() => handleExecuteOvertimeExport("preview")}
+                                className="rounded-xl text-xs font-bold bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100 gap-1.5 cursor-pointer shadow-sm"
+                                title="Buka pratinjau dokumen HTML di tab baru browser"
+                            >
+                                <Eye className="w-3.5 h-3.5 text-blue-600" />
+                                Pratinjau HTML
+                            </Button>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                disabled={isExportingOvertimePdf}
+                                onClick={() => handleExecuteOvertimeExport("html")}
+                                className="rounded-xl text-xs font-bold bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100 gap-1.5 cursor-pointer shadow-sm"
+                                title="Unduh berkas .html mandiri lengkap dengan foto"
+                            >
+                                <FileCode className="w-3.5 h-3.5 text-emerald-600" />
+                                Download HTML
+                            </Button>
                             <Button
                                 type="button"
                                 variant="outline"
                                 size="sm"
                                 disabled={isExportingOvertimePdf}
                                 onClick={() => handleExecuteOvertimeExport("print")}
-                                className="flex-1 sm:flex-initial rounded-xl text-xs font-bold border-amber-300 text-amber-800 hover:bg-amber-50 gap-1.5 cursor-pointer"
+                                className="rounded-xl text-xs font-bold border-amber-300 text-amber-900 hover:bg-amber-50 gap-1.5 cursor-pointer"
+                                title="Buka jendela cetak printer browser"
                             >
                                 <Printer className="w-3.5 h-3.5 text-amber-600" />
-                                Cetak / Pratinjau
+                                Cetak Langsung
                             </Button>
                             <Button
                                 type="button"
                                 size="sm"
                                 disabled={isExportingOvertimePdf}
                                 onClick={() => handleExecuteOvertimeExport("download")}
-                                className="flex-1 sm:flex-initial rounded-xl text-xs font-bold bg-amber-600 hover:bg-amber-700 text-white gap-1.5 shadow-sm cursor-pointer"
+                                className="rounded-xl text-xs font-bold bg-amber-600 hover:bg-amber-700 text-white gap-1.5 shadow-sm cursor-pointer"
+                                title="Unduh langsung sebagai berkas PDF"
                             >
                                 <FileDown className="w-3.5 h-3.5" />
-                                {isExportingOvertimePdf ? "Memproses PDF..." : "Download PDF"}
+                                {isExportingOvertimePdf ? "Memproses..." : "Download PDF"}
                             </Button>
                         </div>
                     </DialogFooter>

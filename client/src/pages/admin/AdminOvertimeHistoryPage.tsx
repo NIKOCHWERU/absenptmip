@@ -542,7 +542,7 @@ export default function AdminOvertimeHistoryPage() {
                             onClick={() => setLocation(`/admin/recap${selectedEmployeeId !== 'all' ? `?userId=${selectedEmployeeId}` : ''}`)}
                         >
                             <Clock className="w-4 h-4 text-amber-600" />
-                            Cetak Rekap Lembur (PDF)
+                            Rekap Lembur (PDF &amp; HTML)
                         </Button>
                         <Button
                             variant="outline"
