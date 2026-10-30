@@ -3126,13 +3126,6 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
     <div class="title-section">
       <h2 class="title-main">LAPORAN REKAPITULASI LEMBUR TENAGA KERJA</h2>
       <div class="title-period">PERIODE: ${escapeHTML(periodStr)}</div>
-      <div class="title-meta">
-        <span>Kategori: <strong>Akhir Pekan (Sabtu/Minggu) &amp; Penugasan Lembur (SPL)</strong></span>
-        <span> &bull; </span>
-        <span>Penerima: <strong>${isSingleEmployee ? `${escapeHTML(employeeData[0]?.user?.fullName || "Karyawan")} (${escapeHTML(employeeData[0]?.user?.nik || "-")})` : `Semua Tenaga Kerja Aktif (${employeeData.length} Orang)`}</strong></span>
-        <span> &bull; </span>
-        <span>Dicetak: <strong>${escapeHTML(formattedPrintDate)} WIB</strong></span>
-      </div>
     </div>
 
     ${!isSingleEmployee ? `
