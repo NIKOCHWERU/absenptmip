@@ -6,7 +6,7 @@ import React, { useState, useEffect, Fragment, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ChevronLeft, ChevronRight, FileDown, ArrowLeft, Search, ArrowUpDown, MessageSquare, Plus, Edit2, Trash2, Camera, Image as ImageIcon, FileSpreadsheet, Calendar, Users, Clock, CheckCircle2, Printer, Eye, FileCode } from "lucide-react";
+import { ChevronLeft, ChevronRight, FileDown, ArrowLeft, Search, ArrowUpDown, MessageSquare, Plus, Edit2, Trash2, Camera, Image as ImageIcon, FileSpreadsheet, Calendar, Users, Clock, CheckCircle2, Printer, Eye, FileCode, RotateCcw, Check, Download } from "lucide-react";
 import { useLocation } from "wouter";
 import { Input } from "@/components/ui/input";
 import { differenceInMinutes } from "date-fns";
@@ -273,13 +273,27 @@ export default function RecapPage() {
     const [ringkasanEndDate, setRingkasanEndDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
     const [isExportingExcel, setIsExportingExcel] = useState(false);
     const [isExportingPdfRingkasan, setIsExportingPdfRingkasan] = useState(false);
+    const [isExportingHtmlRingkasan, setIsExportingHtmlRingkasan] = useState(false);
+    const [isEditingRingkasan, setIsEditingRingkasan] = useState(false);
+    const [ringkasanOverrides, setRingkasanOverrides] = useState<Record<number, {
+        totalHadirHariKerja?: number;
+        totalLemburHours?: number;
+        dept?: string;
+        nama?: string;
+    }>>({});
     const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>("all");
+    const [selectedEmployeeIds, setSelectedEmployeeIds] = useState<string[]>([]);
+    const [isEmployeeModalOpen, setIsEmployeeModalOpen] = useState(false);
+    const [employeeFilterSearch, setEmployeeFilterSearch] = useState("");
+    const [isExportingCompletePdf, setIsExportingCompletePdf] = useState(false);
 
     // State Modal & Export Rekap Lembur (PDF)
     const [isOvertimePdfModalOpen, setIsOvertimePdfModalOpen] = useState(false);
     const [otPdfStartDate, setOtPdfStartDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
     const [otPdfEndDate, setOtPdfEndDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
     const [otPdfEmployeeId, setOtPdfEmployeeId] = useState<string>("all");
+    const [otPdfSelectedEmployeeIds, setOtPdfSelectedEmployeeIds] = useState<string[]>([]);
+    const [otPdfFilterSearch, setOtPdfFilterSearch] = useState<string>("");
     const [otPdfIncludePhotos, setOtPdfIncludePhotos] = useState<boolean>(true);
     const [otPdfOnlyWithOvertime, setOtPdfOnlyWithOvertime] = useState<boolean>(false);
     const [isExportingOvertimePdf, setIsExportingOvertimePdf] = useState(false);
@@ -558,7 +572,7 @@ export default function RecapPage() {
         if (!getUserName(att.userId)) return false;
 
         // Filter Karyawan jika dipilih
-        if (selectedEmployeeId !== "all" && String(att.userId) !== selectedEmployeeId) {
+        if ((selectedEmployeeIds.length > 0 && !selectedEmployeeIds.includes(String(att.userId))) || (selectedEmployeeId !== "all" && String(att.userId) !== selectedEmployeeId)) {
             return false;
         }
 
@@ -598,7 +612,7 @@ export default function RecapPage() {
         if (!targetUserId || !getUserName(targetUserId)) return false;
 
         // Filter Karyawan jika dipilih
-        if (selectedEmployeeId !== "all" && String(targetUserId) !== selectedEmployeeId) {
+        if ((selectedEmployeeIds.length > 0 && !selectedEmployeeIds.includes(String(targetUserId))) || (selectedEmployeeId !== "all" && String(targetUserId) !== selectedEmployeeId)) {
             return false;
         }
 
@@ -686,6 +700,12 @@ export default function RecapPage() {
         }
     });
 
+
+    const activeEmployeeList = useMemo(() => {
+        return (users || [])
+            .filter(u => !isAdminUser(u) && !isResignedUser(u))
+            .sort((a, b) => (a.fullName || '').localeCompare(b.fullName || '', 'id'));
+    }, [users, allResignations]);
 
     // ========== RINGKASAN BULANAN: Pisah hari kerja reguler (Senin-Jumat) vs lembur ==========
     const ringkasanData = useMemo(() => {
@@ -848,8 +868,45 @@ export default function RecapPage() {
         });
     }, [users, allResignations, allAttendance, ringkasanAttendanceData, allOvertimes, ringkasanStartDate, ringkasanEndDate]);
 
+    const displayRingkasanData = useMemo(() => {
+        return ringkasanData.map(row => {
+            const override = ringkasanOverrides[row.userId];
+            if (!override) return { ...row, isOverridden: false };
+            const totalHadirHariKerja = override.totalHadirHariKerja !== undefined ? override.totalHadirHariKerja : row.totalHadirHariKerja;
+            const totalLemburHours = override.totalLemburHours !== undefined ? override.totalLemburHours : row.totalLemburHours;
+            const nama = override.nama !== undefined ? override.nama : row.nama;
+            const dept = override.dept !== undefined ? override.dept : row.dept;
+            const isModified = (
+                (override.totalHadirHariKerja !== undefined && override.totalHadirHariKerja !== row.totalHadirHariKerja) ||
+                (override.totalLemburHours !== undefined && override.totalLemburHours !== row.totalLemburHours) ||
+                (override.nama !== undefined && override.nama !== row.nama) ||
+                (override.dept !== undefined && override.dept !== row.dept)
+            );
+            return {
+                ...row,
+                nama,
+                dept,
+                totalHadirHariKerja,
+                totalHadirStr: `${totalHadirHariKerja} Hari`,
+                totalLemburHours,
+                totalLemburStr: `${totalLemburHours} Jam`,
+                isOverridden: isModified
+            };
+        });
+    }, [ringkasanData, ringkasanOverrides]);
+
+    const filteredDisplayRingkasanData = useMemo(() => {
+        if (selectedEmployeeIds.length > 0) {
+            return displayRingkasanData.filter((r: any) => selectedEmployeeIds.includes(String(r.userId)));
+        }
+        if (selectedEmployeeId !== "all") {
+            return displayRingkasanData.filter((r: any) => String(r.userId) === selectedEmployeeId);
+        }
+        return displayRingkasanData;
+    }, [displayRingkasanData, selectedEmployeeIds, selectedEmployeeId]);
+
     const handleExportExcel = async () => {
-        if (!ringkasanData || ringkasanData.length === 0) {
+        if (!displayRingkasanData || displayRingkasanData.length === 0) {
             toast({ title: "Tidak ada data", description: "Belum ada data untuk rentang tanggal ini.", variant: "destructive" });
             return;
         }
@@ -857,9 +914,9 @@ export default function RecapPage() {
         try {
             const XLSX = await loadXlsx();
 
-            const exportTargetData = selectedEmployeeId === "all"
-                ? ringkasanData
-                : ringkasanData.filter((r: any) => String(r.userId) === selectedEmployeeId);
+            const exportTargetData = filteredDisplayRingkasanData; if (false) { const _unused = selectedEmployeeId === "all"
+                ? displayRingkasanData
+                : displayRingkasanData.filter((r: any) => String(r.userId) === selectedEmployeeId); }
 
             if (exportTargetData.length === 0) {
                 toast({ title: "Tidak ada data", description: "Tidak ada data untuk karyawan yang dipilih.", variant: "destructive" });
@@ -923,203 +980,187 @@ export default function RecapPage() {
         }
     };
 
+    const buildRingkasanReportHtml = ({
+        exportTargetData,
+        formattedStart,
+        formattedEnd,
+        periodStr,
+        themeColor,
+        logoDataUrl,
+        isPdf = false,
+        docTitle
+    }: {
+        exportTargetData: any[];
+        formattedStart: string;
+        formattedEnd: string;
+        periodStr: string;
+        themeColor: string;
+        logoDataUrl: string;
+        isPdf?: boolean;
+        docTitle: string;
+    }) => {
+        let tableRowsHtml = "";
+        exportTargetData.forEach((row: any, i: number) => {
+            tableRowsHtml += `
+                <tr>
+                    <td class="td-center" style="font-weight: 700; color: #475569;">${i + 1}</td>
+                    <td class="td-left td-name">${escapeHTML(row.nama)}</td>
+                    <td class="td-center td-dept">${escapeHTML(row.dept)}</td>
+                    <td class="td-center td-hadir">${escapeHTML(row.totalHadirStr)}</td>
+                    <td class="td-center td-lembur">${escapeHTML(row.totalLemburStr)}</td>
+                </tr>
+            `;
+        });
 
+        let singleEmpDetailsHtml = "";
+        if (selectedEmployeeId !== "all") {
+            const rs = new Date(ringkasanStartDate);
+            rs.setHours(0, 0, 0, 0);
+            const re = new Date(ringkasanEndDate);
+            re.setHours(23, 59, 59, 999);
+            const isInDateRange = (dateVal: any) => {
+                if (!dateVal) return false;
+                const d = new Date(dateVal);
+                return d >= rs && d <= re;
+            };
 
-    const handleExportPdfRingkasan = async () => {
-        if (!ringkasanData || ringkasanData.length === 0) {
-            toast({ title: "Tidak ada data", description: "Belum ada data untuk rentang tanggal ini.", variant: "destructive" });
-            return;
-        }
+            const currentAttSource = ringkasanAttendanceData || allAttendance || [];
+            const empAtt = currentAttSource
+                .filter(a => String(a.userId) === selectedEmployeeId && isInDateRange(a.date))
+                .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
-        setIsExportingPdfRingkasan(true);
-        try {
-            const html2pdfLib = await loadHtml2Pdf();
-            const logoDataUrl = await fetchLogoBase64();
+            const regularRecords = empAtt.filter(a => {
+                const day = new Date(a.date).getDay();
+                return day >= 1 && day <= 5;
+            });
 
-            const exportTargetData = selectedEmployeeId === "all"
-                ? ringkasanData
-                : ringkasanData.filter((r: any) => String(r.userId) === selectedEmployeeId);
+            const empOvertimes = (allOvertimes || []).filter(ot => {
+                if (!ot || ot.employeeApproval === 'rejected' || ot.status === 'cancelled') return false;
+                const targetUid = ot.userId || (ot.attendance?.userId);
+                if (String(targetUid) !== selectedEmployeeId) return false;
+                const dtStr = ot.date ? ot.date : (ot.startTime ? ot.startTime : null);
+                return isInDateRange(dtStr);
+            });
 
-            if (exportTargetData.length === 0) {
-                toast({ title: "Tidak ada data", description: "Tidak ada data untuk karyawan yang dipilih.", variant: "destructive" });
-                setIsExportingPdfRingkasan(false);
-                return;
-            }
+            const otDates = new Set(
+                empOvertimes.map(ot => {
+                    return ot.date ? safeFormatDate(ot.date, 'yyyy-MM-dd') : safeFormatDate(ot.startTime, 'yyyy-MM-dd');
+                }).filter(Boolean)
+            );
 
-            const formattedStart = safeFormatDate(ringkasanStartDate, "d MMMM yyyy");
-            const formattedEnd = safeFormatDate(ringkasanEndDate, "d MMMM yyyy");
-            const formattedPrintDate = format(new Date(), "d MMMM yyyy, HH:mm", { locale: id });
-            const themeColor = config?.hexPrimary || "#ea580c";
+            const weekendRecords = empAtt.filter(a => {
+                const day = new Date(a.date).getDay();
+                const isWeekend = day === 0 || day === 6;
+                if (!isWeekend) return false;
+                const hasClock = !!(a.checkIn || a.checkOut);
+                if (!hasClock) return false;
+                const dStr = safeFormatDate(a.date, 'yyyy-MM-dd');
+                if (dStr && otDates.has(dStr)) return false;
+                return true;
+            });
 
-            const periodStart = safeFormatDate(ringkasanStartDate, "dd MMM yyyy", { locale: id }).toUpperCase();
-            const periodEnd = safeFormatDate(ringkasanEndDate, "dd MMM yyyy", { locale: id }).toUpperCase();
-            const periodStr = `${periodStart} - ${periodEnd}`;
-            const empSuffix = selectedEmployeeId === "all" ? "" : ` - ${(exportTargetData[0]?.nama || '').replace(/\s+/g, ' ')}`;
-            const pdfFileName = `LAPORAN REKAP ABSENSI TENAGA KERJA ${singkatanPt} - ${periodStr}${empSuffix}.pdf`;
-
-            let tableRowsHtml = "";
-            exportTargetData.forEach((row: any, i: number) => {
-                tableRowsHtml += `
+            let regRows = "";
+            regularRecords.forEach((r, idx) => {
+                const statusText = r.status === 'present' ? 'Hadir Tepat Waktu' : (r.status === 'late' ? 'Terlambat' : (r.status || 'Hadir'));
+                const statusColor = r.status === 'late' ? '#dc2626' : '#166534';
+                const rDate = new Date(r.date);
+                const today = new Date();
+                const isPastDay = new Date(rDate.getFullYear(), rDate.getMonth(), rDate.getDate()).getTime() < new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
+                const pulangLabel = r.checkOut ? safeFormatDate(r.checkOut, "HH:mm") : (r.checkIn ? (isPastDay ? '<span style="color:#e11d48;font-weight:bold;">Tidak Absen Pulang</span>' : '<span style="color:#d97706;font-weight:bold;">Belum Absen Pulang</span>') : "-");
+                regRows += `
                     <tr>
-                        <td class="td-center" style="font-weight: 700; color: #475569;">${i + 1}</td>
-                        <td class="td-left td-name">${escapeHTML(row.nama)}</td>
-                        <td class="td-center td-dept">${escapeHTML(row.dept)}</td>
-                        <td class="td-center td-hadir">${escapeHTML(row.totalHadirStr)}</td>
-                        <td class="td-center td-lembur">${escapeHTML(row.totalLemburStr)}</td>
+                        <td class="td-center">${idx + 1}</td>
+                        <td class="td-left" style="font-weight: 700;">${safeFormatDate(r.date, "EEEE, d MMM yyyy", { locale: id })}</td>
+                        <td class="td-center">${r.checkIn ? safeFormatDate(r.checkIn, "HH:mm") : "-"}</td>
+                        <td class="td-center">${r.breakStart ? safeFormatDate(r.breakStart, "HH:mm") : "-"} s/d ${r.breakEnd ? safeFormatDate(r.breakEnd, "HH:mm") : "-"}</td>
+                        <td class="td-center">${pulangLabel}</td>
+                        <td class="td-center" style="font-weight: 700; color: ${statusColor};">${escapeHTML(statusText)}</td>
+                        <td class="td-left" style="font-size: 6.8pt; color: #64748b;">${escapeHTML(r.lateReason || r.notes || "-")}</td>
                     </tr>
                 `;
             });
 
-            let singleEmpDetailsHtml = "";
-            if (selectedEmployeeId !== "all") {
-                const rs = new Date(ringkasanStartDate);
-                rs.setHours(0, 0, 0, 0);
-                const re = new Date(ringkasanEndDate);
-                re.setHours(23, 59, 59, 999);
-                const isInDateRange = (dateVal: any) => {
-                    if (!dateVal) return false;
-                    const d = new Date(dateVal);
-                    return d >= rs && d <= re;
-                };
-
-                const currentAttSource = ringkasanAttendanceData || allAttendance || [];
-                const empAtt = currentAttSource
-                    .filter(a => String(a.userId) === selectedEmployeeId && isInDateRange(a.date))
-                    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-
-                const regularRecords = empAtt.filter(a => {
-                    const day = new Date(a.date).getDay();
-                    return day >= 1 && day <= 5;
-                });
-
-                const empOvertimes = (allOvertimes || []).filter(ot => {
-                    if (!ot || ot.employeeApproval === 'rejected' || ot.status === 'cancelled') return false;
-                    const targetUid = ot.userId || (ot.attendance?.userId);
-                    if (String(targetUid) !== selectedEmployeeId) return false;
-                    const dtStr = ot.date ? ot.date : (ot.startTime ? ot.startTime : null);
-                    return isInDateRange(dtStr);
-                });
-
-                const otDates = new Set(
-                    empOvertimes.map(ot => {
-                        return ot.date ? safeFormatDate(ot.date, 'yyyy-MM-dd') : safeFormatDate(ot.startTime, 'yyyy-MM-dd');
-                    }).filter(Boolean)
-                );
-
-                // Hanya sertakan absensi weekend yang benar-benar ada jam absen dan belum tercatat di SPL agar tidak dobel
-                const weekendRecords = empAtt.filter(a => {
-                    const day = new Date(a.date).getDay();
-                    const isWeekend = day === 0 || day === 6;
-                    if (!isWeekend) return false;
-                    const hasClock = !!(a.checkIn || a.checkOut);
-                    if (!hasClock) return false;
-                    const dStr = safeFormatDate(a.date, 'yyyy-MM-dd');
-                    if (dStr && otDates.has(dStr)) return false;
-                    return true;
-                });
-
-                let regRows = "";
-                regularRecords.forEach((r, idx) => {
-                    const statusText = r.status === 'present' ? 'Hadir Tepat Waktu' : (r.status === 'late' ? 'Terlambat' : (r.status || 'Hadir'));
-                    const statusColor = r.status === 'late' ? '#dc2626' : '#166534';
-                    const rDate = new Date(r.date);
-                    const today = new Date();
-                    const isPastDay = new Date(rDate.getFullYear(), rDate.getMonth(), rDate.getDate()).getTime() < new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
-                    const pulangLabel = r.checkOut ? safeFormatDate(r.checkOut, "HH:mm") : (r.checkIn ? (isPastDay ? '<span style="color:#e11d48;font-weight:bold;">Tidak Absen Pulang</span>' : '<span style="color:#d97706;font-weight:bold;">Belum Absen Pulang</span>') : "-");
-                    regRows += `
-                        <tr>
-                            <td class="td-center">${idx + 1}</td>
-                            <td class="td-left" style="font-weight: 700;">${safeFormatDate(r.date, "EEEE, d MMM yyyy", { locale: id })}</td>
-                            <td class="td-center">${r.checkIn ? safeFormatDate(r.checkIn, "HH:mm") : "-"}</td>
-                            <td class="td-center">${r.breakStart ? safeFormatDate(r.breakStart, "HH:mm") : "-"} s/d ${r.breakEnd ? safeFormatDate(r.breakEnd, "HH:mm") : "-"}</td>
-                            <td class="td-center">${pulangLabel}</td>
-                            <td class="td-center" style="font-weight: 700; color: ${statusColor};">${escapeHTML(statusText)}</td>
-                            <td class="td-left" style="font-size: 6.8pt; color: #64748b;">${escapeHTML(r.lateReason || r.notes || "-")}</td>
-                        </tr>
-                    `;
-                });
-
-                let otRows = "";
-                let otIdx = 1;
-                weekendRecords.forEach(w => {
-                    const wDate = new Date(w.date);
-                    const today = new Date();
-                    const isPastDayW = new Date(wDate.getFullYear(), wDate.getMonth(), wDate.getDate()).getTime() < new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
-                    const pulangLabelW = w.checkOut ? safeFormatDate(w.checkOut, "HH:mm") : (w.checkIn ? (isPastDayW ? '<span style="color:#e11d48;font-weight:bold;">Tidak Absen Pulang</span>' : '<span style="color:#d97706;font-weight:bold;">Belum Absen Pulang</span>') : "-");
-                    otRows += `
-                        <tr>
-                            <td class="td-center">${otIdx++}</td>
-                            <td class="td-left" style="font-weight: 700;">${safeFormatDate(w.date, "EEEE, d MMM yyyy", { locale: id })}</td>
-                            <td class="td-center">${w.checkIn ? safeFormatDate(w.checkIn, "HH:mm") : "-"}</td>
-                            <td class="td-center">${pulangLabelW}</td>
-                            <td class="td-left" style="color: #c2410c; font-weight: 700;">Lembur Akhir Pekan (Sabtu/Minggu)</td>
-                            <td class="td-center" style="font-weight: 700; color: #166534;">Otomatis Dihitung</td>
-                        </tr>
-                    `;
-                });
-                empOvertimes.forEach(ot => {
-                    const otDateStr = ot.date ? safeFormatDate(ot.date, "EEEE, d MMM yyyy", { locale: id }) : (ot.startTime ? safeFormatDate(ot.startTime, "EEEE, d MMM yyyy", { locale: id }) : "-");
-                    otRows += `
-                        <tr>
-                            <td class="td-center">${otIdx++}</td>
-                            <td class="td-left" style="font-weight: 700;">${otDateStr}</td>
-                            <td class="td-center">${ot.startTime ? safeFormatDate(ot.startTime, "HH:mm") : "-"}</td>
-                            <td class="td-center">${ot.endTime ? safeFormatDate(ot.endTime, "HH:mm") : "-"}</td>
-                            <td class="td-left">${escapeHTML(ot.reason || ot.notes || "Penugasan Lembur")}</td>
-                            <td class="td-center" style="font-weight: 700; color: #166534;">Disetujui</td>
-                        </tr>
-                    `;
-                });
-
-                singleEmpDetailsHtml = `
-                    <div style="margin-top: 18px; page-break-inside: avoid;">
-                        <h4 style="font-size: 8.8pt; font-weight: 800; color: #0f172a; text-transform: uppercase; margin: 0 0 6px 0; border-left: 3px solid ${themeColor}; padding-left: 6px;">
-                            1. Rincian Absensi Hari Kerja Reguler (Senin s/d Jumat)
-                        </h4>
-                        <table class="recap-table" style="font-size: 7pt; margin-bottom: 12px;">
-                            <thead>
-                                <tr>
-                                    <th style="width: 5%;">NO</th>
-                                    <th style="width: 22%;">HARI, TANGGAL</th>
-                                    <th style="width: 13%;">MASUK</th>
-                                    <th style="width: 18%;">ISTIRAHAT</th>
-                                    <th style="width: 13%;">PULANG</th>
-                                    <th style="width: 14%;">STATUS</th>
-                                    <th style="width: 15%;">KETERANGAN</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${regRows || '<tr><td colspan="7" class="td-center" style="padding: 10px; color: #94a3b8;">Tidak ada catatan kehadiran reguler pada periode ini.</td></tr>'}
-                            </tbody>
-                        </table>
-
-                        <h4 style="font-size: 8.8pt; font-weight: 800; color: #0f172a; text-transform: uppercase; margin: 12px 0 6px 0; border-left: 3px solid #c2410c; padding-left: 6px;">
-                            2. Rincian Riwayat Lembur (Weekend &amp; Penugasan Lembur)
-                        </h4>
-                        <table class="recap-table" style="font-size: 7pt; margin-bottom: 12px;">
-                            <thead>
-                                <tr>
-                                    <th style="width: 5%;">NO</th>
-                                    <th style="width: 24%;">HARI, TANGGAL</th>
-                                    <th style="width: 14%;">JAM MULAI</th>
-                                    <th style="width: 14%;">JAM SELESAI</th>
-                                    <th style="width: 28%;">KEPERLUAN / ALASAN LEMBUR</th>
-                                    <th style="width: 15%;">STATUS</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${otRows || '<tr><td colspan="6" class="td-center" style="padding: 10px; color: #94a3b8;">Tidak ada catatan lembur pada periode ini.</td></tr>'}
-                            </tbody>
-                        </table>
-                    </div>
+            let otRows = "";
+            let otIdx = 1;
+            weekendRecords.forEach(w => {
+                const wDate = new Date(w.date);
+                const today = new Date();
+                const isPastDayW = new Date(wDate.getFullYear(), wDate.getMonth(), wDate.getDate()).getTime() < new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
+                const pulangLabelW = w.checkOut ? safeFormatDate(w.checkOut, "HH:mm") : (w.checkIn ? (isPastDayW ? '<span style="color:#e11d48;font-weight:bold;">Tidak Absen Pulang</span>' : '<span style="color:#d97706;font-weight:bold;">Belum Absen Pulang</span>') : "-");
+                otRows += `
+                    <tr>
+                        <td class="td-center">${otIdx++}</td>
+                        <td class="td-left" style="font-weight: 700;">${safeFormatDate(w.date, "EEEE, d MMM yyyy", { locale: id })}</td>
+                        <td class="td-center">${w.checkIn ? safeFormatDate(w.checkIn, "HH:mm") : "-"}</td>
+                        <td class="td-center">${pulangLabelW}</td>
+                        <td class="td-left" style="color: #c2410c; font-weight: 700;">Lembur Akhir Pekan (Sabtu/Minggu)</td>
+                        <td class="td-center" style="font-weight: 700; color: #166534;">Otomatis Dihitung</td>
+                    </tr>
                 `;
-            }
+            });
+            empOvertimes.forEach(ot => {
+                const otDateStr = ot.date ? safeFormatDate(ot.date, "EEEE, d MMM yyyy", { locale: id }) : (ot.startTime ? safeFormatDate(ot.startTime, "EEEE, d MMM yyyy", { locale: id }) : "-");
+                otRows += `
+                    <tr>
+                        <td class="td-center">${otIdx++}</td>
+                        <td class="td-left" style="font-weight: 700;">${otDateStr}</td>
+                        <td class="td-center">${ot.startTime ? safeFormatDate(ot.startTime, "HH:mm") : "-"}</td>
+                        <td class="td-center">${ot.endTime ? safeFormatDate(ot.endTime, "HH:mm") : "-"}</td>
+                        <td class="td-left">${escapeHTML(ot.reason || ot.notes || "Penugasan Lembur")}</td>
+                        <td class="td-center" style="font-weight: 700; color: #166534;">Disetujui</td>
+                    </tr>
+                `;
+            });
 
-            const html = `<!DOCTYPE html>
+            singleEmpDetailsHtml = `
+                <div style="margin-top: 18px; page-break-inside: avoid;">
+                    <h4 style="font-size: 8.8pt; font-weight: 800; color: #0f172a; text-transform: uppercase; margin: 0 0 6px 0; border-left: 3px solid ${themeColor}; padding-left: 6px;">
+                        1. Rincian Absensi Hari Kerja Reguler (Senin s/d Jumat)
+                    </h4>
+                    <table class="recap-table" style="font-size: 7pt; margin-bottom: 12px;">
+                        <thead>
+                            <tr>
+                                <th style="width: 5%;">NO</th>
+                                <th style="width: 22%;">HARI, TANGGAL</th>
+                                <th style="width: 13%;">MASUK</th>
+                                <th style="width: 18%;">ISTIRAHAT</th>
+                                <th style="width: 13%;">PULANG</th>
+                                <th style="width: 14%;">STATUS</th>
+                                <th style="width: 15%;">KETERANGAN</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${regRows || '<tr><td colspan="7" class="td-center" style="padding: 10px; color: #94a3b8;">Tidak ada catatan kehadiran reguler pada periode ini.</td></tr>'}
+                        </tbody>
+                    </table>
+
+                    <h4 style="font-size: 8.8pt; font-weight: 800; color: #0f172a; text-transform: uppercase; margin: 12px 0 6px 0; border-left: 3px solid #c2410c; padding-left: 6px;">
+                        2. Rincian Riwayat Lembur (Weekend &amp; Penugasan Lembur)
+                    </h4>
+                    <table class="recap-table" style="font-size: 7pt; margin-bottom: 12px;">
+                        <thead>
+                            <tr>
+                                <th style="width: 5%;">NO</th>
+                                <th style="width: 24%;">HARI, TANGGAL</th>
+                                <th style="width: 14%;">JAM MULAI</th>
+                                <th style="width: 14%;">JAM SELESAI</th>
+                                <th style="width: 28%;">KEPERLUAN / ALASAN LEMBUR</th>
+                                <th style="width: 15%;">STATUS</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${otRows || '<tr><td colspan="6" class="td-center" style="padding: 10px; color: #94a3b8;">Tidak ada catatan lembur pada periode ini.</td></tr>'}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        return `<!DOCTYPE html>
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <title>LAPORAN KEHADIRAN TENAGA KERJA - ${escapeHTML(namaPt)}</title>
+    <title>${escapeHTML(docTitle)} - ${escapeHTML(namaPt)}</title>
     <style>
         @page {
             size: A4 landscape;
@@ -1130,20 +1171,36 @@ export default function RecapPage() {
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
         }
-        body, .pdf-recap-root {
+        body {
             margin: 0 !important;
             padding: 0 !important;
-            background: #ffffff;
+            background: ${!isPdf ? '#e2e8f0' : '#ffffff'};
             color: #0f172a;
             font-family: Arial, Helvetica, sans-serif;
             font-size: 8pt;
-            width: 1047px !important;
         }
-        .report-card {
-            width: 100%;
+        ${!isPdf ? `
+        body {
+            padding: 56px 16px 40px 16px !important;
+        }
+        .pdf-recap-root {
             max-width: 1047px;
             margin: 0 auto;
-            padding: 4px 8px;
+            background: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(15, 23, 42, 0.12);
+            border: 1px solid #cbd5e1;
+            padding: 24px;
+        }
+        ` : `
+        .pdf-recap-root {
+            width: 1047px !important;
+            padding: 0 !important;
+            background: #ffffff;
+        }
+        `}
+        .report-card {
+            width: 100%;
             background: #ffffff;
         }
         .kop-surat {
@@ -1257,10 +1314,87 @@ export default function RecapPage() {
         .td-hadir { font-weight: 800; color: #0f172a; background: rgba(234, 88, 12, 0.05); font-size: 8pt; }
         .td-lembur { font-weight: 800; color: #c2410c; background: #fff7ed; font-size: 8pt; }
 
+        /* PREVIEW ACTION BAR */
+        .preview-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: #0f172a;
+            color: white;
+            padding: 8px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            z-index: 9999;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        .preview-btn {
+            border: none;
+            font-weight: bold;
+            padding: 6px 14px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: opacity 0.15s;
+        }
+        .preview-btn:hover {
+            opacity: 0.9;
+        }
+        td[contenteditable="true"], th[contenteditable="true"] {
+            outline: 2px dashed #3b82f6 !important;
+            background-color: #eff6ff !important;
+        }
+        td[contenteditable="true"]:focus, th[contenteditable="true"]:focus {
+            outline: 2px solid #2563eb !important;
+            background-color: #dbeafe !important;
+        }
+        @media print {
+            body { padding: 0 !important; background: white !important; }
+            .no-print { display: none !important; }
+            .pdf-recap-root {
+                box-shadow: none !important;
+                border: none !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                max-width: none !important;
+                width: 100% !important;
+            }
+            td[contenteditable="true"], th[contenteditable="true"] {
+                outline: none !important;
+                background-color: transparent !important;
+            }
+        }
     </style>
 </head>
 <body>
-    <div class="pdf-recap-root">
+    ${!isPdf ? `
+    <div class="no-print preview-bar">
+        <div style="font-size: 13px; font-weight: 800; display: flex; align-items: center; gap: 8px;">
+            <span style="font-size: 15px;">📊</span>
+            <span>Pratinjau Rekap Absensi Bulanan &mdash; ${escapeHTML(singkatanPt)}</span>
+        </div>
+        <div style="display: flex; gap: 8px; align-items: center;">
+            <button id="toggleEditBtn" class="preview-btn" style="background: #3b82f6; color: white;" onclick="toggleDocEdit()" title="Klik untuk mengedit langsung angka atau teks pada dokumen ini">
+                ✏️ Mode Edit Tabel
+            </button>
+            <button class="preview-btn" style="background: #10b981; color: white;" onclick="downloadThisDocHtml()" title="Unduh berkas .html mandiri">
+                💾 Unduh Berkas HTML
+            </button>
+            <button class="preview-btn" style="background: #f59e0b; color: #0f172a;" onclick="window.print()" title="Cetak atau simpan ke PDF">
+                🖨️ Cetak / Simpan PDF
+            </button>
+            <button class="preview-btn" style="background: #334155; color: white;" onclick="window.close()" title="Tutup pratinjau">
+                ✕ Tutup
+            </button>
+        </div>
+    </div>
+    <div id="editNotice" class="no-print" style="display: none; max-width: 1047px; margin: 0 auto 12px auto; background: #fef3c7; border: 1.5px dashed #f59e0b; color: #92400e; padding: 10px 16px; font-size: 11.5px; border-radius: 8px; text-align: center; font-weight: 700;">
+        ✏️ Mode edit aktif! Anda dapat mengklik tabel atau teks mana saja untuk mengedit angka, nama, atau jam. Setelah selesai, klik tombol <strong>"Unduh Berkas HTML"</strong> atau <strong>"Cetak / Simpan PDF"</strong> di atas.
+    </div>
+    ` : ''}
+
+    <div class="pdf-recap-root" id="reportRoot">
         <div class="report-card">
             <div class="kop-surat">
                 <div class="kop-logo-wrapper">
@@ -1297,8 +1431,93 @@ export default function RecapPage() {
             ${singleEmpDetailsHtml}
         </div>
     </div>
+
+    ${!isPdf ? `
+    <script>
+        var isEditing = false;
+        function toggleDocEdit() {
+            isEditing = !isEditing;
+            var tables = document.querySelectorAll('.recap-table');
+            var btn = document.getElementById('toggleEditBtn');
+            var notice = document.getElementById('editNotice');
+            tables.forEach(function(tbl) {
+                var cells = tbl.querySelectorAll('td');
+                cells.forEach(function(c) {
+                    c.contentEditable = isEditing ? 'true' : 'false';
+                });
+            });
+            if (btn) {
+                btn.innerHTML = isEditing ? '✅ Selesai Edit' : '✏️ Mode Edit Tabel';
+                btn.style.background = isEditing ? '#059669' : '#3b82f6';
+            }
+            if (notice) {
+                notice.style.display = isEditing ? 'block' : 'none';
+            }
+        }
+        function downloadThisDocHtml() {
+            var clone = document.documentElement.cloneNode(true);
+            var editableCells = clone.querySelectorAll('[contenteditable]');
+            editableCells.forEach(function(el) {
+                el.removeAttribute('contenteditable');
+            });
+            var notice = clone.querySelector('#editNotice');
+            if (notice) notice.style.display = 'none';
+            var blob = new Blob([clone.outerHTML], { type: 'text/html;charset=utf-8' });
+            var url = URL.createObjectURL(blob);
+            var a = document.createElement('a');
+            a.href = url;
+            a.download = ${JSON.stringify(docTitle + ".html")};
+            document.body.appendChild(a);
+            a.click();
+            setTimeout(function() { document.body.removeChild(a); URL.revokeObjectURL(url); }, 2000);
+        }
+    </script>
+    ` : ''}
 </body>
 </html>`;
+    };
+
+    const handleExportPdfRingkasan = async () => {
+        if (!displayRingkasanData || displayRingkasanData.length === 0) {
+            toast({ title: "Tidak ada data", description: "Belum ada data untuk rentang tanggal ini.", variant: "destructive" });
+            return;
+        }
+
+        setIsExportingPdfRingkasan(true);
+        try {
+            const html2pdfLib = await loadHtml2Pdf();
+            const logoDataUrl = await fetchLogoBase64();
+
+            const exportTargetData = filteredDisplayRingkasanData; if (false) { const _unused = selectedEmployeeId === "all"
+                ? displayRingkasanData
+                : displayRingkasanData.filter((r: any) => String(r.userId) === selectedEmployeeId); }
+
+            if (exportTargetData.length === 0) {
+                toast({ title: "Tidak ada data", description: "Tidak ada data untuk karyawan yang dipilih.", variant: "destructive" });
+                setIsExportingPdfRingkasan(false);
+                return;
+            }
+
+            const formattedStart = safeFormatDate(ringkasanStartDate, "d MMMM yyyy");
+            const formattedEnd = safeFormatDate(ringkasanEndDate, "d MMMM yyyy");
+            const themeColor = config?.hexPrimary || "#ea580c";
+
+            const periodStart = safeFormatDate(ringkasanStartDate, "dd MMM yyyy", { locale: id }).toUpperCase();
+            const periodEnd = safeFormatDate(ringkasanEndDate, "dd MMM yyyy", { locale: id }).toUpperCase();
+            const periodStr = `${periodStart} - ${periodEnd}`;
+            const empSuffix = selectedEmployeeId === "all" ? "" : ` - ${(exportTargetData[0]?.nama || '').replace(/\s+/g, ' ')}`;
+            const pdfFileName = `LAPORAN REKAP ABSENSI TENAGA KERJA ${singkatanPt} - ${periodStr}${empSuffix}.pdf`;
+
+            const html = buildRingkasanReportHtml({
+                exportTargetData,
+                formattedStart,
+                formattedEnd,
+                periodStr,
+                themeColor,
+                logoDataUrl,
+                isPdf: true,
+                docTitle: pdfFileName.replace('.pdf', '')
+            });
 
             const pdfBlob = await renderRecapHtmlToPdfBlob({
                 html,
@@ -1320,6 +1539,189 @@ export default function RecapPage() {
             });
         } finally {
             setIsExportingPdfRingkasan(false);
+        }
+    };
+
+    const handleExportHtmlRingkasan = async (mode: 'download' | 'preview' = 'download') => {
+        if (!displayRingkasanData || displayRingkasanData.length === 0) {
+            toast({ title: "Tidak ada data", description: "Belum ada data untuk rentang tanggal ini.", variant: "destructive" });
+            return;
+        }
+
+        setIsExportingHtmlRingkasan(true);
+        try {
+            const logoDataUrl = await fetchLogoBase64();
+
+            const exportTargetData = filteredDisplayRingkasanData; if (false) { const _unused = selectedEmployeeId === "all"
+                ? displayRingkasanData
+                : displayRingkasanData.filter((r: any) => String(r.userId) === selectedEmployeeId); }
+
+            if (exportTargetData.length === 0) {
+                toast({ title: "Tidak ada data", description: "Tidak ada data untuk karyawan yang dipilih.", variant: "destructive" });
+                setIsExportingHtmlRingkasan(false);
+                return;
+            }
+
+            const formattedStart = safeFormatDate(ringkasanStartDate, "d MMMM yyyy");
+            const formattedEnd = safeFormatDate(ringkasanEndDate, "d MMMM yyyy");
+            const themeColor = config?.hexPrimary || "#ea580c";
+
+            const periodStart = safeFormatDate(ringkasanStartDate, "dd MMM yyyy", { locale: id }).toUpperCase();
+            const periodEnd = safeFormatDate(ringkasanEndDate, "dd MMM yyyy", { locale: id }).toUpperCase();
+            const periodStr = `${periodStart} - ${periodEnd}`;
+            const empSuffix = selectedEmployeeId === "all" ? "" : ` - ${(exportTargetData[0]?.nama || '').replace(/\s+/g, ' ')}`;
+            const baseFileName = `LAPORAN REKAP ABSENSI TENAGA KERJA ${singkatanPt} - ${periodStr}${empSuffix}`;
+            const htmlFileName = `${baseFileName}.html`;
+
+            const html = buildRingkasanReportHtml({
+                exportTargetData,
+                formattedStart,
+                formattedEnd,
+                periodStr,
+                themeColor,
+                logoDataUrl,
+                isPdf: false,
+                docTitle: baseFileName
+            });
+
+            if (mode === 'preview') {
+                const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+                const blobUrl = URL.createObjectURL(blob);
+                window.open(blobUrl, '_blank');
+                toast({
+                    title: "🌐 Pratinjau HTML Rekap Dibuka",
+                    description: "Anda dapat melihat dan mengedit tabel langsung pada tab baru browser."
+                });
+            } else {
+                const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+                const blobUrl = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = blobUrl;
+                a.download = htmlFileName;
+                document.body.appendChild(a);
+                a.click();
+                setTimeout(() => {
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(blobUrl);
+                }, 5000);
+                toast({
+                    title: "✅ Berkas HTML Rekap Berhasil Diunduh",
+                    description: `${htmlFileName} (lengkap dengan fitur edit).`
+                });
+            }
+        } catch (err: any) {
+            toast({
+                title: "Gagal Export HTML",
+                description: err?.message || "Terjadi kesalahan saat memproses berkas HTML.",
+                variant: "destructive"
+            });
+        } finally {
+            setIsExportingHtmlRingkasan(false);
+        }
+    };
+    const handleExportCompleteRecap = async (mode: 'pdf' | 'html' = 'pdf') => {
+        setIsExportingCompletePdf(true);
+        setExportProgress("Menyiapkan data rekap lengkap beserta foto bukti...");
+        try {
+            const html2pdfLib = await loadHtml2Pdf();
+            const logoDataUrl = await fetchLogoBase64();
+
+            const sDate = startOfDay(new Date(ringkasanStartDate));
+            const eDate = endOfDay(new Date(ringkasanEndDate));
+            const sStr = format(sDate, "yyyy-MM-dd");
+            const eStr = format(eDate, "yyyy-MM-dd");
+
+            let sourceAttendance: Attendance[] = [];
+            try {
+                const res = await fetch(`/api/attendance?startDate=${sStr}&endDate=${eStr}`);
+                if (res.ok) {
+                    sourceAttendance = await res.json();
+                } else {
+                    sourceAttendance = ringkasanAttendanceData || allAttendance || [];
+                }
+            } catch (_) {
+                sourceAttendance = ringkasanAttendanceData || allAttendance || [];
+            }
+
+            const activeEmployees = (users || [])
+                .filter(u => !isAdminUser(u) && !isResignedUser(u))
+                .sort((a, b) => (a.fullName || '').localeCompare(b.fullName || '', 'id'));
+
+            let targetEmployees = activeEmployees;
+            if (selectedEmployeeIds.length > 0) {
+                targetEmployees = activeEmployees.filter(u => selectedEmployeeIds.includes(String(u.id)));
+            } else if (selectedEmployeeId !== "all") {
+                targetEmployees = activeEmployees.filter(u => String(u.id) === selectedEmployeeId);
+            }
+
+            if (targetEmployees.length === 0) {
+                toast({ title: "Tidak ada karyawan", description: "Pilih setidaknya 1 karyawan untuk diekspor.", variant: "destructive" });
+                setIsExportingCompletePdf(false);
+                return;
+            }
+
+            const targetUserIds = new Set(targetEmployees.map(u => u.id));
+            const recordsToExport = sourceAttendance.filter(a => targetUserIds.has(a.userId));
+
+            const imageCache = await preloadAttendanceImages(recordsToExport, (loaded, total) => {
+                setExportProgress(`Memuat bukti foto (${loaded}/${total})...`);
+            });
+
+            const periodStart = safeFormatDate(ringkasanStartDate, "dd MMM yyyy", { locale: id }).toUpperCase();
+            const periodEnd = safeFormatDate(ringkasanEndDate, "dd MMM yyyy", { locale: id }).toUpperCase();
+            const periodStr = `${periodStart} - ${periodEnd}`;
+            const empSuffix = targetEmployees.length === 1
+                ? ` - ${(targetEmployees[0].fullName || '').replace(/\s+/g, ' ')}`
+                : (targetEmployees.length < activeEmployees.length ? ` - ${targetEmployees.length}_KARYAWAN` : "");
+            const baseFileName = `REKAP LENGKAP ABSENSI DAN BUKTI LEMBUR ${singkatanPt} - ${periodStr}${empSuffix}`;
+
+            setExportProgress(mode === 'pdf' ? "Menyusun berkas PDF lengkap..." : "Menyusun berkas HTML...");
+            const html = buildRecapReportHtml({
+                docTitle: baseFileName,
+                periodStr,
+                namaPt,
+                singkatanPt,
+                alamatPt,
+                logoDataUrl,
+                usersList: targetEmployees,
+                processedData: recordsToExport,
+                startDate: sDate,
+                endDate: eDate,
+                imageCache,
+                isPdf: mode === 'pdf',
+                pageSplitMode: "combine"
+            });
+
+            if (mode === 'html') {
+                const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+                const blobUrl = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = blobUrl;
+                a.download = `${baseFileName}.html`;
+                document.body.appendChild(a);
+                a.click();
+                setTimeout(() => {
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(blobUrl);
+                }, 5000);
+                toast({ title: "✅ Rekap Lengkap HTML Berhasil Diunduh", description: `${baseFileName}.html` });
+            } else {
+                const pdfBlob = await renderRecapHtmlToPdfBlob({
+                    html,
+                    pdfFileName: `${baseFileName}.pdf`,
+                    html2pdfLib,
+                    splitMode: "combine"
+                });
+                triggerBlobDownload(pdfBlob, `${baseFileName}.pdf`);
+                toast({ title: "✅ Rekap Lengkap PDF Berhasil Diunduh", description: `${baseFileName}.pdf` });
+            }
+        } catch (err: any) {
+            toast({ title: "Gagal Cetak Rekap Lengkap", description: err?.message || "Terjadi kesalahan.", variant: "destructive" });
+        } finally {
+            setIsExportingCompletePdf(false);
+            setExportProgress("");
         }
     };
     // ========== END RINGKASAN ==========
@@ -2443,6 +2845,7 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
         setOtPdfStartDate(defaultStart);
         setOtPdfEndDate(defaultEnd);
         setOtPdfEmployeeId(empId || selectedEmployeeId || "all");
+        setOtPdfSelectedEmployeeIds(selectedEmployeeIds);
         setIsOvertimePdfModalOpen(true);
     };
 
@@ -3217,7 +3620,7 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
             const isSingleEmployee = otPdfEmployeeId !== "all";
             const targetEmployees = isSingleEmployee
                 ? activeEmployees.filter(u => String(u.id) === String(otPdfEmployeeId))
-                : activeEmployees;
+                : (otPdfSelectedEmployeeIds.length > 0 ? activeEmployees.filter(u => otPdfSelectedEmployeeIds.includes(String(u.id))) : activeEmployees);
 
             if (targetEmployees.length === 0) {
                 toast({ title: "Tidak ada karyawan", description: "Tidak ditemukan karyawan aktif untuk kriteria yang dipilih.", variant: "destructive" });
@@ -3689,7 +4092,7 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
                         <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
                             {/* Pilih Karyawan Filter */}
                             <div className="w-full sm:w-[220px]">
-                                <Select value={selectedEmployeeId} onValueChange={setSelectedEmployeeId}>
+                                <Select value={selectedEmployeeId} onValueChange={(v) => { setSelectedEmployeeId(v); setSelectedEmployeeIds([]); }}>
                                     <SelectTrigger className="w-full bg-white h-10 text-xs font-semibold border-gray-200">
                                         <Users className="w-3.5 h-3.5 mr-1 text-primary shrink-0" />
                                         <SelectValue placeholder="Pilih Karyawan" />
@@ -3708,6 +4111,28 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
                                     </SelectContent>
                                 </Select>
                             </div>
+
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => {
+                                    if (selectedEmployeeIds.length === 0) {
+                                        setSelectedEmployeeIds(activeEmployeeList.map(u => String(u.id)));
+                                    }
+                                    setIsEmployeeModalOpen(true);
+                                }}
+                                className={`gap-2 font-bold h-10 text-xs shadow-sm cursor-pointer ${
+                                    selectedEmployeeIds.length > 0 && selectedEmployeeIds.length < activeEmployeeList.length
+                                        ? "bg-blue-50 border-blue-400 text-blue-800 hover:bg-blue-100"
+                                        : "bg-white border-gray-200 text-gray-700 hover:bg-gray-50"
+                                }`}
+                                title="Pilih beberapa karyawan atau semua karyawan kecuali tertentu"
+                            >
+                                <Users className="h-4 w-4 text-blue-600" />
+                                {selectedEmployeeIds.length > 0 && selectedEmployeeIds.length < activeEmployeeList.length
+                                    ? `Filter: ${selectedEmployeeIds.length}/${activeEmployeeList.length} Karyawan`
+                                    : "Pilih Beberapa / Kecualikan"}
+                            </Button>
 
                             <div className="relative flex-1 md:w-56">
                                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -4136,7 +4561,7 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
                                 {/* Pilih Karyawan Dropdown */}
                                 <div className="flex items-center gap-2 bg-gray-50 p-1.5 rounded-lg border border-gray-200">
                                     <span className="text-xs font-bold text-gray-600 px-1">Karyawan:</span>
-                                    <Select value={selectedEmployeeId} onValueChange={setSelectedEmployeeId}>
+                                    <Select value={selectedEmployeeId} onValueChange={(v) => { setSelectedEmployeeId(v); setSelectedEmployeeIds([]); }}>
                                         <SelectTrigger className="w-[210px] h-8 text-xs bg-white border-gray-200">
                                             <SelectValue placeholder="Pilih Karyawan" />
                                         </SelectTrigger>
@@ -4154,6 +4579,53 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
                                         </SelectContent>
                                     </Select>
                                 </div>
+
+                                {/* Tombol Pilih Beberapa / Kecualikan Karyawan */}
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={() => {
+                                        if (selectedEmployeeIds.length === 0) {
+                                            setSelectedEmployeeIds(activeEmployeeList.map(u => String(u.id)));
+                                        }
+                                        setIsEmployeeModalOpen(true);
+                                    }}
+                                    className={`gap-2 font-bold h-10 shadow-sm cursor-pointer ${
+                                        selectedEmployeeIds.length > 0 && selectedEmployeeIds.length < activeEmployeeList.length
+                                            ? "bg-blue-50 border-blue-400 text-blue-800 hover:bg-blue-100"
+                                            : "bg-white border-gray-300 text-gray-700 hover:bg-gray-50"
+                                    }`}
+                                    title="Pilih beberapa karyawan atau semua karyawan kecuali tertentu"
+                                >
+                                    <Users className="h-4 w-4 text-blue-600" />
+                                    {selectedEmployeeIds.length > 0 && selectedEmployeeIds.length < activeEmployeeList.length
+                                        ? `Filter: ${selectedEmployeeIds.length} dari ${activeEmployeeList.length} Karyawan (${activeEmployeeList.length - selectedEmployeeIds.length} Dikecualikan)`
+                                        : "Pilih Beberapa / Kecualikan"}
+                                </Button>
+
+                                {/* Export HTML Rekap Button (Download) */}
+                                <Button
+                                    onClick={() => handleExportHtmlRingkasan('download')}
+                                    disabled={isExportingHtmlRingkasan || isExportingPdfRingkasan || isExportingExcel}
+                                    variant="outline"
+                                    className="gap-2 bg-white hover:bg-indigo-50 border-indigo-300 text-indigo-700 font-bold h-10 shadow-sm cursor-pointer"
+                                    title="Unduh berkas .html mandiri yang bisa diedit di browser kapan saja"
+                                >
+                                    <Download className="h-4 w-4 text-indigo-600" />
+                                    {isExportingHtmlRingkasan ? "Mengekspor HTML..." : "Export HTML Rekap"}
+                                </Button>
+
+                                {/* Preview HTML Button */}
+                                <Button
+                                    onClick={() => handleExportHtmlRingkasan('preview')}
+                                    disabled={isExportingHtmlRingkasan || isExportingPdfRingkasan || isExportingExcel}
+                                    variant="outline"
+                                    className="gap-2 bg-white hover:bg-sky-50 border-sky-300 text-sky-700 font-bold h-10 shadow-sm cursor-pointer"
+                                    title="Buka pratinjau HTML di tab baru dengan tombol edit langsung"
+                                >
+                                    <Eye className="h-4 w-4 text-sky-600" />
+                                    Preview HTML
+                                </Button>
 
                                 {/* Export PDF Button */}
                                 <Button
@@ -4173,6 +4645,29 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
                                 >
                                     <FileSpreadsheet className="h-4 w-4" />
                                     {isExportingExcel ? "Mengekspor Excel..." : "Export ke Excel (.xlsx)"}
+                                </Button>
+
+                                {/* Rekap Lengkap beserta Bukti Absensi & Lembur (PDF) */}
+                                <Button
+                                    onClick={() => handleExportCompleteRecap('pdf')}
+                                    disabled={isExportingCompletePdf}
+                                    className="gap-2 bg-purple-600 hover:bg-purple-700 text-white font-bold h-10 shadow-sm cursor-pointer"
+                                    title="Cetak rekap lengkap harian beserta foto bukti absen masuk, pulang, istirahat, telat, dan bukti lembur"
+                                >
+                                    <Camera className="h-4 w-4" />
+                                    {isExportingCompletePdf ? (exportProgress || "Memproses...") : "Rekap Lengkap & Bukti (PDF)"}
+                                </Button>
+
+                                {/* Rekap Lengkap beserta Bukti Absensi & Lembur (HTML) */}
+                                <Button
+                                    onClick={() => handleExportCompleteRecap('html')}
+                                    disabled={isExportingCompletePdf}
+                                    variant="outline"
+                                    className="gap-2 bg-white hover:bg-purple-50 border-purple-300 text-purple-700 font-bold h-10 shadow-sm cursor-pointer"
+                                    title="Unduh rekap lengkap beserta foto bukti dalam format HTML"
+                                >
+                                    <FileCode className="h-4 w-4 text-purple-600" />
+                                    Rekap Lengkap & Bukti (HTML)
                                 </Button>
 
                                 {/* Export Overtime PDF Button */}
@@ -4196,6 +4691,51 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
                                 <h3 className="text-sm font-black uppercase tracking-wider text-primary">
                                     Rekap absensi tanggal {safeFormatDate(ringkasanStartDate, "d MMMM yyyy")} s/d {safeFormatDate(ringkasanEndDate, "d MMMM yyyy")} {namaPt}
                                 </h3>
+                                <p className="text-[11px] text-slate-500 mt-1">
+                                    {isEditingRingkasan
+                                        ? "✏️ Mode Edit Tabel Aktif: Anda dapat mengubah Nama, Dept, Hari Masuk, dan Jam Lembur langsung pada tabel sebelum diekspor."
+                                        : "Nilai pada tabel ini yang akan langsung dicetak pada saat Anda Export PDF, Excel, maupun HTML Rekap."}
+                                </p>
+                                <div className="flex items-center justify-center gap-2 mt-2.5">
+                                    {Object.keys(ringkasanOverrides).length > 0 && (
+                                        <Button
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={() => {
+                                                if (window.confirm("Kembalikan semua nilai tabel ke data hitungan asli sistem?")) {
+                                                    setRingkasanOverrides({});
+                                                    toast({ title: "Reset Berhasil", description: "Nilai tabel dikembalikan ke data absensi asli." });
+                                                }
+                                            }}
+                                            className="h-8 text-xs font-bold gap-1 text-slate-600 hover:text-slate-900 border-slate-300 bg-white cursor-pointer"
+                                        >
+                                            <RotateCcw className="h-3.5 w-3.5" />
+                                            Reset Asli ({Object.keys(ringkasanOverrides).length})
+                                        </Button>
+                                    )}
+                                    <Button
+                                        size="sm"
+                                        variant={isEditingRingkasan ? "default" : "outline"}
+                                        onClick={() => setIsEditingRingkasan(!isEditingRingkasan)}
+                                        className={`h-8 text-xs font-bold gap-1.5 shadow-sm cursor-pointer ${
+                                            isEditingRingkasan
+                                                ? "bg-emerald-600 hover:bg-emerald-700 text-white"
+                                                : "bg-white hover:bg-slate-50 text-slate-700 border-slate-300"
+                                        }`}
+                                    >
+                                        {isEditingRingkasan ? (
+                                            <>
+                                                <Check className="h-3.5 w-3.5" />
+                                                Selesai Edit Tabel
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Edit2 className="h-3.5 w-3.5" />
+                                                Edit Nilai Tabel (Hari &amp; Jam)
+                                            </>
+                                        )}
+                                    </Button>
+                                </div>
                             </div>
 
                             <div className="overflow-x-auto">
@@ -4221,29 +4761,103 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-slate-200">
-                                        {ringkasanData.length === 0 ? (
+                                        {filteredDisplayRingkasanData.length === 0 ? (
                                             <tr>
                                                 <td colSpan={5} className="text-center py-8 text-gray-400 border border-slate-200 italic">
                                                     Belum ada data absensi untuk periode yang dipilih.
                                                 </td>
                                             </tr>
                                         ) : (
-                                            ringkasanData.map((row: any, i: number) => (
+                                            filteredDisplayRingkasanData.map((row: any, i: number) => (
                                                 <tr key={row.userId} className="hover:bg-slate-50 transition-colors">
                                                     <td className="border-r border-slate-200 px-4 py-2.5 text-center font-bold text-slate-700 text-xs">
                                                         {i + 1}
                                                     </td>
                                                     <td className="border-r border-slate-200 px-6 py-2.5 text-center font-bold text-slate-900 text-xs tracking-tight uppercase">
-                                                        {row.nama}
+                                                        {isEditingRingkasan ? (
+                                                            <Input
+                                                                type="text"
+                                                                value={row.nama}
+                                                                onChange={(e) => {
+                                                                    const val = e.target.value.toUpperCase();
+                                                                    setRingkasanOverrides(prev => ({
+                                                                        ...prev,
+                                                                        [row.userId]: { ...prev[row.userId], nama: val }
+                                                                    }));
+                                                                }}
+                                                                className="h-8 text-xs font-bold uppercase text-center border-slate-300"
+                                                            />
+                                                        ) : (
+                                                            <div className="flex items-center justify-center gap-1.5">
+                                                                <span>{row.nama}</span>
+                                                                {row.isOverridden && (
+                                                                    <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-200 text-amber-900 font-bold" title="Nilai telah diedit">EDITED</span>
+                                                                )}
+                                                            </div>
+                                                        )}
                                                     </td>
                                                     <td className="border-r border-slate-200 px-6 py-2.5 text-center font-semibold text-slate-700 text-xs uppercase">
-                                                        {row.dept}
+                                                        {isEditingRingkasan ? (
+                                                            <Input
+                                                                type="text"
+                                                                value={row.dept}
+                                                                onChange={(e) => {
+                                                                    const val = e.target.value.toUpperCase();
+                                                                    setRingkasanOverrides(prev => ({
+                                                                        ...prev,
+                                                                        [row.userId]: { ...prev[row.userId], dept: val }
+                                                                    }));
+                                                                }}
+                                                                className="h-8 text-xs font-semibold uppercase text-center border-slate-300"
+                                                            />
+                                                        ) : (
+                                                            row.dept
+                                                        )}
                                                     </td>
                                                     <td className="border-r border-slate-200 px-6 py-2.5 text-center font-black text-slate-900 text-sm bg-primary/5">
-                                                        {row.totalHadirStr}
+                                                        {isEditingRingkasan ? (
+                                                            <div className="flex items-center justify-center gap-1 max-w-[150px] mx-auto">
+                                                                <Input
+                                                                    type="number"
+                                                                    min="0"
+                                                                    value={row.totalHadirHariKerja}
+                                                                    onChange={(e) => {
+                                                                        const val = Math.max(0, parseInt(e.target.value, 10) || 0);
+                                                                        setRingkasanOverrides(prev => ({
+                                                                            ...prev,
+                                                                            [row.userId]: { ...prev[row.userId], totalHadirHariKerja: val }
+                                                                        }));
+                                                                    }}
+                                                                    className="h-8 text-xs font-black text-center border-slate-300 w-24"
+                                                                />
+                                                                <span className="text-xs font-bold text-slate-600">Hari</span>
+                                                            </div>
+                                                        ) : (
+                                                            row.totalHadirStr
+                                                        )}
                                                     </td>
                                                     <td className="px-6 py-2.5 text-center font-black text-amber-700 text-sm bg-amber-50/50">
-                                                        {row.totalLemburStr}
+                                                        {isEditingRingkasan ? (
+                                                            <div className="flex items-center justify-center gap-1 max-w-[150px] mx-auto">
+                                                                <Input
+                                                                    type="number"
+                                                                    min="0"
+                                                                    step="1"
+                                                                    value={row.totalLemburHours}
+                                                                    onChange={(e) => {
+                                                                        const val = Math.max(0, parseFloat(e.target.value) || 0);
+                                                                        setRingkasanOverrides(prev => ({
+                                                                            ...prev,
+                                                                            [row.userId]: { ...prev[row.userId], totalLemburHours: val }
+                                                                        }));
+                                                                    }}
+                                                                    className="h-8 text-xs font-black text-center border-slate-300 w-24 text-amber-800"
+                                                                />
+                                                                <span className="text-xs font-bold text-amber-800">Jam</span>
+                                                            </div>
+                                                        ) : (
+                                                            row.totalLemburStr
+                                                        )}
                                                     </td>
                                                 </tr>
                                             ))
@@ -4256,7 +4870,7 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
                         /* KONDISI 2: JIKA 1 KARYAWAN SPESIFIK DIPILIH */
                         (() => {
                             const selectedEmp = (users || []).find(u => String(u.id) === selectedEmployeeId);
-                            const summaryItem = ringkasanData.find((r: any) => String(r.userId) === selectedEmployeeId) || {
+                            const summaryItem = displayRingkasanData.find((r: any) => String(r.userId) === selectedEmployeeId) || {
                                 nama: (selectedEmp?.fullName || '').toUpperCase(),
                                 dept: ((selectedEmp as any)?.position || (selectedEmp as any)?.department || '-').toUpperCase(),
                                 totalHadirHariKerja: 0,
@@ -4425,12 +5039,13 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
                                                         <th className="px-4 py-3 text-center">JAM KERJA</th>
                                                         <th className="px-4 py-3 text-center">STATUS</th>
                                                         <th className="px-4 py-3 text-center">BUKTI FOTO ABSEN &amp; TELAT</th>
+                                                        <th className="px-4 py-3 text-center">AKSI</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody className="divide-y divide-slate-100">
                                                     {regularRecords.length === 0 ? (
                                                         <tr>
-                                                            <td colSpan={9} className="text-center py-6 text-gray-400 italic">
+                                                            <td colSpan={10} className="text-center py-6 text-gray-400 italic">
                                                                 Tidak ada catatan absensi biasa pada periode ini.
                                                             </td>
                                                         </tr>
@@ -4514,6 +5129,17 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
                                                                                 <span className="text-gray-300 text-xs">-</span>
                                                                             )}
                                                                         </div>
+                                                                    </td>
+                                                                    <td className="px-4 py-3 text-center">
+                                                                        <Button
+                                                                            variant="ghost"
+                                                                            size="icon"
+                                                                            className="h-7 w-7 text-blue-600 hover:text-blue-800 hover:bg-blue-50 cursor-pointer"
+                                                                            title="Edit Jam Masuk / Istirahat / Pulang & Status"
+                                                                            onClick={() => handleOpenManualModal(r)}
+                                                                        >
+                                                                            <Edit2 className="h-3.5 w-3.5" />
+                                                                        </Button>
                                                                     </td>
                                                                 </tr>
                                                             );
@@ -5145,6 +5771,79 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
                                     ))}
                                 </SelectContent>
                             </Select>
+                            {otPdfEmployeeId === "all" && (
+                                <div className="mt-2 p-2.5 bg-slate-50 rounded-lg border border-slate-200 space-y-2">
+                                    <div className="flex flex-wrap items-center justify-between gap-1.5">
+                                        <span className="text-[11px] font-bold text-slate-700">
+                                            Pilih Beberapa / Kecualikan ({otPdfSelectedEmployeeIds.length === 0 ? activeEmployeeList.length : otPdfSelectedEmployeeIds.length}/{activeEmployeeList.length} terpilih):
+                                        </span>
+                                        <div className="flex items-center gap-1">
+                                            <button
+                                                type="button"
+                                                onClick={() => setOtPdfSelectedEmployeeIds(activeEmployeeList.map(u => String(u.id)))}
+                                                className="px-2 py-0.5 text-[10px] font-bold rounded bg-emerald-100 text-emerald-800 hover:bg-emerald-200 cursor-pointer"
+                                            >
+                                                ✓ Semua
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => setOtPdfSelectedEmployeeIds([])}
+                                                className="px-2 py-0.5 text-[10px] font-bold rounded bg-slate-200 text-slate-700 hover:bg-slate-300 cursor-pointer"
+                                            >
+                                                Reset
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <Input
+                                        type="text"
+                                        placeholder="Cari nama karyawan untuk pilih / kecualikan..."
+                                        value={otPdfFilterSearch}
+                                        onChange={(e) => setOtPdfFilterSearch(e.target.value)}
+                                        className="h-7 text-[11px] bg-white border-slate-200"
+                                    />
+                                    <div className="max-h-36 overflow-y-auto space-y-1 pr-1 divide-y divide-slate-100 bg-white p-1.5 rounded border border-slate-200">
+                                        {activeEmployeeList
+                                            .filter(emp => (emp.fullName || '').toLowerCase().includes(otPdfFilterSearch.toLowerCase()) || (emp.nik || '').toLowerCase().includes(otPdfFilterSearch.toLowerCase()))
+                                            .map(emp => {
+                                                const idStr = String(emp.id);
+                                                const effectiveSelected = otPdfSelectedEmployeeIds.length === 0
+                                                    ? true
+                                                    : otPdfSelectedEmployeeIds.includes(idStr);
+                                                return (
+                                                    <label key={emp.id} className="flex items-center justify-between py-1 px-1.5 hover:bg-amber-50/50 rounded cursor-pointer text-[11px]">
+                                                        <div className="flex items-center gap-2">
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={effectiveSelected}
+                                                                onChange={(e) => {
+                                                                    const currentList = otPdfSelectedEmployeeIds.length === 0
+                                                                        ? activeEmployeeList.map(u => String(u.id))
+                                                                        : otPdfSelectedEmployeeIds;
+                                                                    if (e.target.checked) {
+                                                                        setOtPdfSelectedEmployeeIds(Array.from(new Set([...currentList, idStr])));
+                                                                    } else {
+                                                                        const next = currentList.filter(x => x !== idStr);
+                                                                        setOtPdfSelectedEmployeeIds(next.length > 0 ? next : [idStr]);
+                                                                    }
+                                                                }}
+                                                                className="rounded border-slate-300 text-amber-600 h-3.5 w-3.5"
+                                                            />
+                                                            <span className={`font-bold uppercase ${effectiveSelected ? 'text-slate-800' : 'text-slate-400 line-through'}`}>
+                                                                {emp.fullName}
+                                                            </span>
+                                                        </div>
+                                                        <span className="text-[9px] text-slate-400 font-mono">
+                                                            {emp.nik || emp.username || "-"}
+                                                        </span>
+                                                    </label>
+                                                );
+                                            })}
+                                    </div>
+                                    <p className="text-[10px] text-slate-500">
+                                        💡 Hilangkan centang pada karyawan yang ingin <strong>dikecualikan</strong>, atau centang hanya karyawan tertentu.
+                                    </p>
+                                </div>
+                            )}
                             <p className="text-[10px] text-emerald-700 font-medium mt-1 flex items-center gap-1">
                                 <CheckCircle2 className="w-3 h-3 text-emerald-600 shrink-0" />
                                 Hanya karyawan aktif (karyawan resign otomatis dikecualikan), urut abjad (A–Z).
@@ -5239,6 +5938,168 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
                                 {isExportingOvertimePdf ? "Memproses..." : "Download PDF"}
                             </Button>
                         </div>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Modal Pilih Beberapa / Kecualikan Karyawan (Tab Rekap Ringkasan) */}
+            <Dialog open={isEmployeeModalOpen} onOpenChange={setIsEmployeeModalOpen}>
+                <DialogContent className="sm:max-w-lg bg-white rounded-2xl p-6 shadow-2xl">
+                    <DialogHeader>
+                        <DialogTitle className="text-base font-black text-gray-900 flex items-center gap-2">
+                            <Users className="w-5 h-5 text-blue-600" />
+                            Pilih Beberapa / Kecualikan Karyawan
+                        </DialogTitle>
+                        <DialogDescription className="text-xs text-gray-500">
+                            Anda dapat memilih beberapa karyawan tertentu, atau memilih semua karyawan kecuali nama yang tidak dicentang.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="space-y-3 py-2 text-xs">
+                        {/* Quick Action Buttons */}
+                        <div className="flex flex-wrap items-center justify-between gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+                            <span className="font-bold text-slate-700">
+                                Terpilih: <strong className="text-blue-600">{selectedEmployeeIds.length}</strong> dari <strong>{activeEmployeeList.length}</strong> Karyawan
+                            </span>
+                            <div className="flex items-center gap-1.5">
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => {
+                                        setSelectedEmployeeIds(activeEmployeeList.map(u => String(u.id)));
+                                        setSelectedEmployeeId("all");
+                                    }}
+                                    className="h-7 px-2.5 text-[11px] font-bold bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100 cursor-pointer"
+                                >
+                                    ✓ Pilih Semua
+                                </Button>
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => {
+                                        const allIds = activeEmployeeList.map(u => String(u.id));
+                                        const inverted = allIds.filter(id => !selectedEmployeeIds.includes(id));
+                                        setSelectedEmployeeIds(inverted);
+                                        setSelectedEmployeeId("all");
+                                    }}
+                                    className="h-7 px-2.5 text-[11px] font-bold bg-amber-50 text-amber-800 border-amber-200 hover:bg-amber-100 cursor-pointer"
+                                >
+                                    ⇄ Balik Pilihan
+                                </Button>
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => {
+                                        setSelectedEmployeeIds([]);
+                                        setSelectedEmployeeId("all");
+                                    }}
+                                    className="h-7 px-2.5 text-[11px] font-bold bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100 cursor-pointer"
+                                >
+                                    ✕ Kosongkan
+                                </Button>
+                            </div>
+                        </div>
+
+                        {/* Search Input */}
+                        <Input
+                            type="text"
+                            placeholder="Cari nama karyawan, NIK, atau divisi..."
+                            value={employeeFilterSearch}
+                            onChange={(e) => setEmployeeFilterSearch(e.target.value)}
+                            className="h-9 text-xs border-slate-200"
+                        />
+
+                        {/* Employee Checkbox List */}
+                        <div className="max-h-[300px] overflow-y-auto divide-y divide-slate-100 border border-slate-200 rounded-xl p-2 bg-white">
+                            {activeEmployeeList
+                                .filter(emp => {
+                                    const q = employeeFilterSearch.toLowerCase();
+                                    return (
+                                        (emp.fullName || '').toLowerCase().includes(q) ||
+                                        (emp.nik || '').toLowerCase().includes(q) ||
+                                        ((emp as any).position || (emp as any).department || '').toLowerCase().includes(q)
+                                    );
+                                })
+                                .map((emp, idx) => {
+                                    const idStr = String(emp.id);
+                                    const isChecked = selectedEmployeeIds.includes(idStr);
+                                    const dept = ((emp as any).position || (emp as any).department || '-').toUpperCase();
+                                    return (
+                                        <label
+                                            key={emp.id}
+                                            className={`flex items-center justify-between py-2 px-2.5 rounded-lg cursor-pointer transition-colors ${
+                                                isChecked ? "hover:bg-blue-50/50" : "bg-slate-50/60 opacity-60 hover:opacity-90"
+                                            }`}
+                                        >
+                                            <div className="flex items-center gap-2.5">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={isChecked}
+                                                    onChange={(e) => {
+                                                        setSelectedEmployeeId("all");
+                                                        if (e.target.checked) {
+                                                            setSelectedEmployeeIds(prev => Array.from(new Set([...prev, idStr])));
+                                                        } else {
+                                                            setSelectedEmployeeIds(prev => prev.filter(x => x !== idStr));
+                                                        }
+                                                    }}
+                                                    className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                                                />
+                                                <div>
+                                                    <p className={`font-bold text-xs uppercase ${isChecked ? "text-slate-900" : "line-through text-slate-400"}`}>
+                                                        {idx + 1}. {emp.fullName}
+                                                    </p>
+                                                    <p className="text-[10px] text-slate-500">
+                                                        NIK: {emp.nik || emp.username || "-"} &bull; {dept}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                                                isChecked ? "bg-emerald-100 text-emerald-800" : "bg-rose-100 text-rose-700"
+                                            }`}>
+                                                {isChecked ? "Ikut Rekap" : "Dikecualikan"}
+                                            </span>
+                                        </label>
+                                    );
+                                })}
+                        </div>
+
+                        {selectedEmployeeIds.length > 0 && selectedEmployeeIds.length < activeEmployeeList.length && (
+                            <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-xl text-[11px] text-amber-900">
+                                <strong>Dikecualikan ({activeEmployeeList.length - selectedEmployeeIds.length} orang):</strong>{" "}
+                                {activeEmployeeList
+                                    .filter(u => !selectedEmployeeIds.includes(String(u.id)))
+                                    .map(u => u.fullName)
+                                    .join(", ")}
+                            </div>
+                        )}
+                    </div>
+
+                    <DialogFooter className="flex items-center justify-between gap-2 pt-2 border-t">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                                setSelectedEmployeeIds([]);
+                                setSelectedEmployeeId("all");
+                                setIsEmployeeModalOpen(false);
+                            }}
+                            className="rounded-xl text-xs font-bold cursor-pointer"
+                        >
+                            Reset (Tampilkan Semua)
+                        </Button>
+                        <Button
+                            type="button"
+                            size="sm"
+                            onClick={() => setIsEmployeeModalOpen(false)}
+                            className="rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white cursor-pointer"
+                        >
+                            Terapkan Filter ({selectedEmployeeIds.length === 0 ? activeEmployeeList.length : selectedEmployeeIds.length} Karyawan)
+                        </Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
