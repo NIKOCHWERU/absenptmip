@@ -147,11 +147,49 @@ export default function SignupPage() {
     return true;
   };
 
-  const handleNext = () => { if (validateStep()) setStep(s => s + 1); };
+  const checkStepBasic = () => {
+    if (step === 1 && (!fullName.trim() || !nik.trim())) {
+      toast({ title: "Peringatan", description: "Nama Lengkap dan NIK wajib diisi untuk login akun.", variant: "destructive" });
+      return false;
+    }
+    return true;
+  };
+
+  const handleNext = () => { if (checkStepBasic()) setStep(s => s + 1); };
   const handleBack = () => setStep(s => s - 1);
 
   const handleSubmit = () => {
-    if (!validateStep()) return;
+    if (!fullName.trim() || !nik.trim()) {
+      toast({ title: "Peringatan", description: "Nama Lengkap dan NIK wajib diisi untuk login akun.", variant: "destructive" });
+      setStep(1);
+      return;
+    }
+
+    const missingItems: string[] = [];
+    if (!kkNumber.trim())    missingItems.push("Nomor KK");
+    if (!birthPlace.trim())  missingItems.push("Tempat Lahir");
+    if (!birthDate)          missingItems.push("Tanggal Lahir");
+    if (!phoneNumber.trim()) missingItems.push("No. HP / WhatsApp");
+    if (!address.trim())     missingItems.push("Alamat Lengkap");
+    if (!position.trim())    missingItems.push("Jabatan / Posisi");
+    if (!branch.trim())      missingItems.push("Cabang / Unit Kerja");
+    if (!joinDate)           missingItems.push("Tanggal Bergabung");
+    if (!ktpFile)            missingItems.push("Foto KTP");
+    if (!photoFile)          missingItems.push("Foto Profil");
+    if (!kkFile)             missingItems.push("Dokumen KK");
+
+    if (missingItems.length > 0) {
+      const ok = window.confirm(
+        `Ada data yang belum diisi:\n• ${missingItems.join("\n• ")}\n\nYakin ingin melanjutkan pendaftaran?`
+      );
+      if (!ok) return;
+    }
+
+    if (false && !validateStep()) return;
+
+
+
+
     setLoading(true);
 
     const fd = new FormData();

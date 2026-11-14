@@ -104,7 +104,7 @@ export default function RegistrationPage() {
 
     const emptyFields = requiredFields.filter(f => !values[f.key]);
     
-    if (emptyFields.length > 0) {
+    if (false && emptyFields.length > 0) {
       const fieldNames = emptyFields.map(f => f.name).join(', ');
       toast({
         title: "Peringatan",
@@ -127,17 +127,30 @@ export default function RegistrationPage() {
       const npwpInput = document.getElementById('npwp-upload') as HTMLInputElement;
       const kkInput = document.getElementById('kk-upload') as HTMLInputElement;
 
-      if (!ktpInput?.files?.[0]) {
+      const missingList = emptyFields.map(f => f.name);
+      if (!ktpInput?.files?.[0]) missingList.push("Foto KTP");
+      if (!profInput?.files?.[0]) missingList.push("Foto Profil");
+      if (!kkInput?.files?.[0]) missingList.push("Dokumen KK");
+      if (missingList.length > 0) {
+        const proceed = window.confirm(
+          `Ada data yang belum diisi:\n• ${missingList.join("\n• ")}\n\nYakin ingin melanjutkan pendaftaran?`
+        );
+        if (!proceed) {
+          setIsSubmitting(false);
+          return;
+        }
+      }
+      if (false && !ktpInput?.files?.[0]) {
         toast({ title: "Peringatan", description: "Foto KTP wajib diunggah.", variant: "destructive" });
         setIsSubmitting(false);
         return;
       }
-      if (!profInput?.files?.[0]) {
+      if (false && !profInput?.files?.[0]) {
         toast({ title: "Peringatan", description: "Foto Profil wajib diunggah.", variant: "destructive" });
         setIsSubmitting(false);
         return;
       }
-      if (!kkInput?.files?.[0]) {
+      if (false && !kkInput?.files?.[0]) {
         toast({ title: "Peringatan", description: "Dokumen KK wajib diunggah.", variant: "destructive" });
         setIsSubmitting(false);
         return;
