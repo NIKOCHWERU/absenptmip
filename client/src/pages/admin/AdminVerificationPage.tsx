@@ -93,8 +93,58 @@ export default function AdminVerificationPage() {
     );
   }
 
+  const handleBulkDeleteAll = async () => {
+    if (!filteredEmployees || filteredEmployees.length === 0) return;
+    if (!confirm(`Yakin ingin menghapus semua ${filteredEmployees.length} antrean pendaftaran pending sekaligus?`)) return;
+    try {
+      const res = await apiRequest("POST", "/api/admin/unverified-employees/bulk-delete", {
+        userIds: filteredEmployees.map(e => e.id),
+      });
+      const data = await res.json();
+      await queryClient.invalidateQueries({ queryKey: ["/api/admin/unverified-employees"] });
+      toast({ title: "Berhasil Dihapus", description: data.message || "Semua antrean berhasil dibersihkan." });
+    } catch (err: any) {
+      toast({ title: "Gagal", description: err.message, variant: "destructive" });
+    }
+  };
+
   return (
     <div className="space-y-6">
+      <div className="bg-orange-50/80 border border-orange-200 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-wider text-orange-700">Kode Pendaftaran Karyawan Aktif (Anti-Bot)</p>
+          <p className="text-xs text-slate-600 mt-0.5">
+            Berikan kode ini hanya kepada calon karyawan resmi PT MIP saat mendaftar di halaman registrasi:
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="px-4 py-2 rounded-xl bg-white border border-orange-300 font-mono font-black text-base tracking-widest text-slate-900 select-all">
+            DAFTARPTMIPKRW
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              navigator.clipboard.writeText("DAFTARPTMIPKRW");
+              toast({ title: "Tersalin!", description: "Kode pendaftaran DAFTARPTMIPKRW berhasil disalin." });
+            }}
+            className="text-xs h-9"
+          >
+            Salin Kode
+          </Button>
+          {filteredEmployees.length > 0 && (
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={handleBulkDeleteAll}
+              className="text-xs h-9"
+            >
+              <Trash2 className="w-3.5 h-3.5 mr-1.5" /> Hapus Semua ({filteredEmployees.length})
+            </Button>
+          )}
+        </div>
+      </div>
+
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Verifikasi Tenaga Kerja</h1>

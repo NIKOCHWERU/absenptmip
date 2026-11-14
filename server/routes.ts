@@ -832,6 +832,18 @@ export function registerRoutes(app: Express) {
     }
   });
 
+  // 0. Verify Employee Registration Code
+  app.post("/api/verify-registration-code", async (req: Request, res: Response) => {
+    const { code } = req.body || {};
+    if (String(code || "").trim().toUpperCase() === "DAFTARPTMIPKRW") {
+      return res.json({ valid: true });
+    }
+    return res.status(403).json({
+      valid: false,
+      message: "Kode Pendaftaran salah! Silakan minta Kode Pendaftaran resmi ke HRD / Admin PT MIP.",
+    });
+  });
+
   // 1. Complete Employee Registration
   app.post(
     "/api/register",
@@ -864,7 +876,24 @@ export function registerRoutes(app: Express) {
         employmentStatus,
         joinDate,
         kkNumber,
+        registrationCode,
       } = req.body;
+
+      const VALID_REGISTRATION_CODE = "DAFTARPTMIPKRW";
+      if (String(registrationCode || "").trim().toUpperCase() !== VALID_REGISTRATION_CODE) {
+        return res.status(403).json({
+          message: "Kode Pendaftaran tidak valid! Silakan hubungi HRD / Admin PT MIP untuk mendapatkan Kode Pendaftaran resmi.",
+        });
+      }
+
+      if (!username || !password || !fullName || !nik) {
+        return res.status(400).json({ message: "Data utama tidak lengkap" });
+      }
+
+      if (/zz\s*probe|bot|scanner|test\s*probe/i.test(String(fullName))) {
+        return res.status(403).json({ message: "Pendaftaran ditolak oleh sistem keamanan anti-bot." });
+      }
+
 
       if (!username || !password || !fullName || !nik) {
         return res.status(400).json({ message: "Data utama tidak lengkap" });
@@ -2949,8 +2978,50 @@ export function registerRoutes(app: Express) {
     }
   });
 
-  // 1. Unverified employees list
+  // 1. Unverified employees list (+ auto-clean Zz Probe bot spam)
   app.get("/api/admin/unverified-employees", isAdmin, async (req: Request, res: Response) => {
+    try {
+      // Auto-clean pending bot spam accounts (e.g. "ZZ PROBE")
+      await db
+        .delete(users)
+        .where(
+          and(
+            eq(users.registrationStatus, "pending"),
+            sql`UPPER(${users.fullName}) LIKE '%ZZ PROBE%'`
+          )
+        );
+
+      const list = await db
+        .select()
+        .from(users)
+        .where(eq(users.registrationStatus, "pending"));
+      res.json(list);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  // 1b. Bulk delete pending/unverified employees
+  app.post("/api/admin/unverified-employees/bulk-delete", isAdmin, async (req: Request, res: Response) => {
+    try {
+      const { userIds } = req.body || {};
+      if (!Array.isArray(userIds) || userIds.length === 0) {
+        return res.status(400).json({ message: "Pilih minimal 1 pendaftaran untuk dihapus" });
+      }
+      let deletedCount = 0;
+      for (const id of userIds) {
+        const numId = Number(id);
+        if (!isNaN(numId)) {
+          await db.delete(users).where(and(eq(users.id, numId), ne(users.registrationStatus, "approved")));
+          deletedCount++;
+        }
+      }
+      res.json({ message: `${deletedCount} pendaftaran berhasil dihapus permanen.`, deletedCount });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+  app.get("/api/admin/unverified-employees-legacy", isAdmin, async (req: Request, res: Response) => {
     try {
       const list = await db
         .select()

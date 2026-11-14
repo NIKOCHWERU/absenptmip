@@ -3,7 +3,7 @@ import { useAuth } from "../../hooks/use-auth.js";
 import { useToast } from "../../hooks/use-toast.js";
 import {
   User, Briefcase, FileText, Camera, Upload,
-  CheckCircle, ChevronLeft, ChevronRight, Check
+  CheckCircle, ChevronLeft, ChevronRight, Check, Lock, ShieldCheck, RefreshCw
 } from "lucide-react";
 
 const steps = [
@@ -19,6 +19,57 @@ export default function SignupPage() {
 
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [registrationCode, setRegistrationCode] = useState("");
+  const [codeVerified, setCodeVerified] = useState(false);
+  const [captchaA, setCaptchaA] = useState(() => Math.floor(Math.random() * 8) + 2);
+  const [captchaB, setCaptchaB] = useState(() => Math.floor(Math.random() * 8) + 1);
+  const [captchaAnswer, setCaptchaAnswer] = useState("");
+  const [verifyingCode, setVerifyingCode] = useState(false);
+
+  const refreshCaptcha = () => {
+    setCaptchaA(Math.floor(Math.random() * 8) + 2);
+    setCaptchaB(Math.floor(Math.random() * 8) + 1);
+    setCaptchaAnswer("");
+  };
+
+  const handleVerifyCode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!registrationCode.trim()) {
+      toast({ title: "Kode Wajib Diisi", description: "Masukkan Kode Pendaftaran dari HRD PT MIP.", variant: "destructive" });
+      return;
+    }
+    if (Number(captchaAnswer.trim()) !== captchaA + captchaB) {
+      toast({ title: "Verifikasi Captcha Gagal", description: "Jawaban penjumlahan salah, silakan coba lagi.", variant: "destructive" });
+      refreshCaptcha();
+      return;
+    }
+    setVerifyingCode(true);
+    try {
+      const res = await fetch("/api/verify-registration-code", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: registrationCode.trim().toUpperCase() }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.valid) {
+        toast({ title: "Kode Pendaftaran Tidak Valid", description: data.message || "Kode Pendaftaran salah! Hubungi HRD PT MIP.", variant: "destructive" });
+        refreshCaptcha();
+        setVerifyingCode(false);
+        return;
+      }
+      setCodeVerified(true);
+      toast({ title: "Kode Terverifikasi", description: "Silakan lengkapi formulir pendaftaran tenaga kerja.", variant: "success" });
+    } catch {
+      if (registrationCode.trim().toUpperCase() === "DAFTARPTMIPKRW") {
+        setCodeVerified(true);
+      } else {
+        toast({ title: "Kode Pendaftaran Tidak Valid", description: "Kode Pendaftaran salah! Hubungi HRD PT MIP.", variant: "destructive" });
+        refreshCaptcha();
+      }
+    } finally {
+      setVerifyingCode(false);
+    }
+  };
 
   // ── DATA PRIBADI ──
   const [fullName,    setFullName]    = useState("");
@@ -122,6 +173,7 @@ export default function SignupPage() {
     fd.append("employmentStatus", employmentStatus);
     fd.append("npwp",             npwp);
     fd.append("bpjs",             bpjs);
+    fd.append("registrationCode", registrationCode.trim().toUpperCase());
 
     if (ktpFile)   fd.append("ktpPhoto",  ktpFile);
     if (photoFile) fd.append("photo",     photoFile);
@@ -172,6 +224,81 @@ export default function SignupPage() {
       </label>
     </div>
   );
+
+  if (!codeVerified) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center py-8 px-4">
+        <div className="max-w-md w-full bg-white rounded-[2rem] shadow-xl shadow-slate-200/60 border border-slate-100 p-6 sm:p-8">
+          <div className="text-center mb-6">
+            <div className="w-14 h-14 rounded-2xl bg-primary flex items-center justify-center text-white shadow-lg shadow-orange-500/25 mx-auto mb-4">
+              <Lock className="w-7 h-7" />
+            </div>
+            <h1 className="font-heading font-black text-2xl text-slate-800">Kode Pendaftaran</h1>
+            <p className="text-xs text-slate-500 mt-1">
+              Masukkan Kode Pendaftaran resmi dari HRD / Admin PT MIP untuk membuka formulir pendaftaran tenaga kerja baru.
+            </p>
+          </div>
+
+          <form onSubmit={handleVerifyCode} className="space-y-4">
+            <div>
+              <label className={labelCls}>Kode Pendaftaran Karyawan <span className="text-red-500">*</span></label>
+              <input
+                type="text"
+                className={`${inputCls} font-mono font-bold tracking-widest uppercase text-center text-base`}
+                value={registrationCode}
+                onChange={e => setRegistrationCode(e.target.value.toUpperCase())}
+                placeholder="Masukkan Kode Pendaftaran"
+                autoFocus
+              />
+            </div>
+
+            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                  <ShieldCheck className="w-4 h-4 text-emerald-600" /> Verifikasi Anti-Bot (CAPTCHA)
+                </span>
+                <button
+                  type="button"
+                  onClick={refreshCaptcha}
+                  className="text-xs text-slate-400 hover:text-primary flex items-center gap-1"
+                  title="Ganti Soal"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" /> Ganti
+                </button>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="px-4 py-2.5 rounded-xl bg-white border border-slate-200 font-mono font-black text-slate-800 text-base select-none">
+                  {captchaA} + {captchaB} = ?
+                </div>
+                <input
+                  type="number"
+                  className={`${inputCls} text-center font-bold`}
+                  value={captchaAnswer}
+                  onChange={e => setCaptchaAnswer(e.target.value)}
+                  placeholder="Jawaban"
+                  required
+                />
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={verifyingCode}
+              className="w-full flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-primary text-white font-bold text-sm shadow-lg shadow-orange-500/20 hover:bg-primary/90 transition-all disabled:opacity-60"
+            >
+              {verifyingCode ? "Memverifikasi..." : <><CheckCircle className="w-4 h-4" /> Buka Formulir Pendaftaran</>}
+            </button>
+
+            <div className="text-center pt-2">
+              <a href="/login" className="text-xs text-slate-400 hover:text-primary font-medium">
+                Sudah punya akun? <span className="text-primary font-bold">Masuk ke Aplikasi</span>
+              </a>
+            </div>
+          </form>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 py-8 px-4">
