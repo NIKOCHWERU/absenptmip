@@ -701,7 +701,7 @@ export default function RecapPage() {
     });
 
 
-    const activeEmployeeList = useMemo(() => {
+    const _activeEmployeeListUnused = useMemo(() => {
         return (users || [])
             .filter(u => !isAdminUser(u) && !isResignedUser(u))
             .sort((a, b) => (a.fullName || '').localeCompare(b.fullName || '', 'id'));
