@@ -361,6 +361,17 @@ export default function RecapPage() {
             .sort((a, b) => (a.fullName || '').localeCompare(b.fullName || '', 'id'));
     }, [users, allResignations]);
 
+    const allSelectableEmployees = useMemo(() => {
+        return (users || [])
+            .filter(u => !isAdminUser(u))
+            .sort((a, b) => {
+                const aRes = isResignedUser(a) ? 1 : 0;
+                const bRes = isResignedUser(b) ? 1 : 0;
+                if (aRes !== bRes) return aRes - bRes;
+                return (a.fullName || '').localeCompare(b.fullName || '', 'id');
+            });
+    }, [users, allResignations]);
+
     const formatLemburDisplay = (totalMins: number) => {
         if (!totalMins || totalMins <= 0) return "0 Jam";
         const h = Math.floor(totalMins / 60);
@@ -736,7 +747,7 @@ export default function RecapPage() {
 
         // Seluruh karyawan aktif (non-admin dan bukan karyawan resign)
         const activeEmployees = (users || [])
-            .filter(u => !isAdminUser(u) && !isResignedUser(u))
+            .filter(u => !isAdminUser(u))
             .sort((a, b) => (a.fullName || '').localeCompare(b.fullName || '', 'id'));
 
         return activeEmployees.map(user => {
@@ -854,6 +865,7 @@ export default function RecapPage() {
 
             return {
                 userId: uid,
+                isResigned: isResignedUser(user),
                 nik: user.nik || user.username || '-',
                 nama: (user.fullName || '').toUpperCase(),
                 dept,
@@ -902,7 +914,7 @@ export default function RecapPage() {
         if (selectedEmployeeId !== "all") {
             return displayRingkasanData.filter((r: any) => String(r.userId) === selectedEmployeeId);
         }
-        return displayRingkasanData;
+        return displayRingkasanData.filter((r: any) => !r.isResigned);
     }, [displayRingkasanData, selectedEmployeeIds, selectedEmployeeId]);
 
     const handleExportExcel = async () => {
@@ -1645,10 +1657,10 @@ export default function RecapPage() {
             }
 
             const activeEmployees = (users || [])
-                .filter(u => !isAdminUser(u) && !isResignedUser(u))
+                .filter(u => !isAdminUser(u))
                 .sort((a, b) => (a.fullName || '').localeCompare(b.fullName || '', 'id'));
 
-            let targetEmployees = activeEmployees;
+            let targetEmployees = activeEmployees.filter(u => !isResignedUser(u));
             if (selectedEmployeeIds.length > 0) {
                 targetEmployees = activeEmployees.filter(u => selectedEmployeeIds.includes(String(u.id)));
             } else if (selectedEmployeeId !== "all") {
@@ -3613,14 +3625,14 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
 
             // 2. Filter seluruh karyawan aktif (bukan admin dan bukan resign), urut abjad
             const activeEmployees = (users || [])
-                .filter(u => !isAdminUser(u) && !isResignedUser(u))
+                .filter(u => !isAdminUser(u))
                 .sort((a, b) => (a.fullName || '').localeCompare(b.fullName || '', 'id'));
 
             // Target karyawan: single atau semua
             const isSingleEmployee = otPdfEmployeeId !== "all";
             const targetEmployees = isSingleEmployee
                 ? activeEmployees.filter(u => String(u.id) === String(otPdfEmployeeId))
-                : (otPdfSelectedEmployeeIds.length > 0 ? activeEmployees.filter(u => otPdfSelectedEmployeeIds.includes(String(u.id))) : activeEmployees);
+                : (otPdfSelectedEmployeeIds.length > 0 ? activeEmployees.filter(u => otPdfSelectedEmployeeIds.includes(String(u.id))) : activeEmployees.filter(u => !isResignedUser(u)));
 
             if (targetEmployees.length === 0) {
                 toast({ title: "Tidak ada karyawan", description: "Tidak ditemukan karyawan aktif untuk kriteria yang dipilih.", variant: "destructive" });
@@ -4100,11 +4112,11 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
                                     <SelectContent>
                                         <SelectItem value="all" className="font-bold">👥 Semua Karyawan</SelectItem>
                                         {(users || [])
-                                            .filter(u => !isAdminUser(u) && !isResignedUser(u))
+                                            .filter(u => !isAdminUser(u))
                                             .sort((a, b) => (a.fullName || '').localeCompare(b.fullName || '', 'id'))
                                             .map((emp) => (
                                                 <SelectItem key={emp.id} value={String(emp.id)}>
-                                                    {emp.fullName} ({emp.nik || emp.username || "-"})
+                                                    {emp.fullName}{isResignedUser(emp) ? " [RESIGN]" : ""} ({emp.nik || emp.username || "-"})
                                                 </SelectItem>
                                             ))
                                         }
@@ -4568,11 +4580,11 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
                                         <SelectContent>
                                             <SelectItem value="all">Semua Karyawan</SelectItem>
                                             {(users || [])
-                                                .filter(u => !isAdminUser(u) && !isResignedUser(u))
+                                                .filter(u => !isAdminUser(u))
                                                 .sort((a, b) => (a.fullName || '').localeCompare(b.fullName || '', 'id'))
                                                 .map((emp) => (
                                                     <SelectItem key={emp.id} value={String(emp.id)}>
-                                                        {emp.fullName} ({emp.nik || emp.username || "-"})
+                                                        {emp.fullName}{isResignedUser(emp) ? " [RESIGN]" : ""} ({emp.nik || emp.username || "-"})
                                                     </SelectItem>
                                                 ))
                                             }
@@ -5764,9 +5776,9 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
                                     <SelectItem value="all" className="font-bold text-amber-800">
                                         👥 Semua Karyawan Aktif ({activeEmployeeList.length} Orang)
                                     </SelectItem>
-                                    {activeEmployeeList.map((emp) => (
+                                    {allSelectableEmployees.map((emp) => (
                                         <SelectItem key={emp.id} value={String(emp.id)}>
-                                            {emp.fullName} ({emp.nik || emp.username || "-"})
+                                            {emp.fullName}{isResignedUser(emp) ? " [RESIGN]" : ""} ({emp.nik || emp.username || "-"})
                                         </SelectItem>
                                     ))}
                                 </SelectContent>
@@ -5802,12 +5814,12 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
                                         className="h-7 text-[11px] bg-white border-slate-200"
                                     />
                                     <div className="max-h-36 overflow-y-auto space-y-1 pr-1 divide-y divide-slate-100 bg-white p-1.5 rounded border border-slate-200">
-                                        {activeEmployeeList
+                                        {allSelectableEmployees
                                             .filter(emp => (emp.fullName || '').toLowerCase().includes(otPdfFilterSearch.toLowerCase()) || (emp.nik || '').toLowerCase().includes(otPdfFilterSearch.toLowerCase()))
                                             .map(emp => {
                                                 const idStr = String(emp.id);
                                                 const effectiveSelected = otPdfSelectedEmployeeIds.length === 0
-                                                    ? true
+                                                    ? !isResignedUser(emp)
                                                     : otPdfSelectedEmployeeIds.includes(idStr);
                                                 return (
                                                     <label key={emp.id} className="flex items-center justify-between py-1 px-1.5 hover:bg-amber-50/50 rounded cursor-pointer text-[11px]">
@@ -5829,7 +5841,7 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
                                                                 className="rounded border-slate-300 text-amber-600 h-3.5 w-3.5"
                                                             />
                                                             <span className={`font-bold uppercase ${effectiveSelected ? 'text-slate-800' : 'text-slate-400 line-through'}`}>
-                                                                {emp.fullName}
+                                                                {emp.fullName} {isResignedUser(emp) && <span className="ml-1 px-1.5 py-0.2 rounded bg-rose-100 text-rose-700 text-[9px] font-extrabold no-underline">RESIGN</span>}
                                                             </span>
                                                         </div>
                                                         <span className="text-[9px] text-slate-400 font-mono">
@@ -5959,7 +5971,7 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
                         {/* Quick Action Buttons */}
                         <div className="flex flex-wrap items-center justify-between gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-200">
                             <span className="font-bold text-slate-700">
-                                Terpilih: <strong className="text-blue-600">{selectedEmployeeIds.length}</strong> dari <strong>{activeEmployeeList.length}</strong> Karyawan
+                                Terpilih: <strong className="text-blue-600">{selectedEmployeeIds.length}</strong> dari <strong>{allSelectableEmployees.length}</strong> Karyawan (Aktif: {activeEmployeeList.length})
                             </span>
                             <div className="flex items-center gap-1.5">
                                 <Button
@@ -5972,7 +5984,19 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
                                     }}
                                     className="h-7 px-2.5 text-[11px] font-bold bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100 cursor-pointer"
                                 >
-                                    ✓ Pilih Semua
+                                    ✓ Semua Aktif
+                                </Button>
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => {
+                                        setSelectedEmployeeIds(allSelectableEmployees.map(u => String(u.id)));
+                                        setSelectedEmployeeId("all");
+                                    }}
+                                    className="h-7 px-2.5 text-[11px] font-bold bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100 cursor-pointer"
+                                >
+                                    + Termasuk Resign
                                 </Button>
                                 <Button
                                     type="button"
@@ -6014,7 +6038,7 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
 
                         {/* Employee Checkbox List */}
                         <div className="max-h-[300px] overflow-y-auto divide-y divide-slate-100 border border-slate-200 rounded-xl p-2 bg-white">
-                            {activeEmployeeList
+                            {allSelectableEmployees
                                 .filter(emp => {
                                     const q = employeeFilterSearch.toLowerCase();
                                     return (
@@ -6050,7 +6074,7 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
                                                 />
                                                 <div>
                                                     <p className={`font-bold text-xs uppercase ${isChecked ? "text-slate-900" : "line-through text-slate-400"}`}>
-                                                        {idx + 1}. {emp.fullName}
+                                                        {idx + 1}. {emp.fullName} {isResignedUser(emp) && <span className="ml-1 px-1.5 py-0.5 rounded bg-rose-100 text-rose-700 text-[9px] font-extrabold no-underline">RESIGN</span>}
                                                     </p>
                                                     <p className="text-[10px] text-slate-500">
                                                         NIK: {emp.nik || emp.username || "-"} &bull; {dept}
