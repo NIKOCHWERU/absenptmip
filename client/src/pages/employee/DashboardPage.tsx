@@ -1,4 +1,5 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/use-auth";
 import { useAttendance } from "@/hooks/use-attendance";
 import { CompanyHeader } from "@/components/CompanyHeader";
@@ -416,6 +417,47 @@ export default function EmployeeDashboard() {
         queryKey: ["/api/attendance/overtime/today"],
         refetchInterval: 3000,
     });
+
+    const { data: pendingForgottenData, refetch: refetchPendingForgotten } = useQuery<any>({
+        queryKey: ["/api/attendance/pending-forgotten-checkout"],
+    });
+    const [forgottenCheckoutHour, setForgottenCheckoutHour] = useState("17");
+    const [forgottenCheckoutMin, setForgottenCheckoutMin] = useState("00");
+    const [isSubmittingForgottenCheckout, setIsSubmittingForgottenCheckout] = useState(false);
+
+    useEffect(() => {
+        const defTime = pendingForgottenData?.pendingCheckout?.defaultCheckOutTime;
+        if (defTime && typeof defTime === "string" && defTime.includes(":")) {
+            const [hh, mm] = defTime.split(":");
+            if (hh) setForgottenCheckoutHour(hh.padStart(2, "0"));
+            if (mm) setForgottenCheckoutMin(mm.padStart(2, "0"));
+        }
+    }, [pendingForgottenData?.pendingCheckout?.defaultCheckOutTime]);
+
+    const handleSubmitForgottenCheckout = async (e: React.FormEvent) => {
+        e.preventDefault();
+        const pendingId = pendingForgottenData?.pendingCheckout?.id;
+        if (!pendingId) return;
+        const checkOutTime = `${forgottenCheckoutHour}:${forgottenCheckoutMin}`;
+        try {
+            setIsSubmittingForgottenCheckout(true);
+            const res = await fetch("/api/attendance/resolve-forgotten-checkout", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ attendanceId: pendingId, checkOutTime })
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(data.message || "Gagal menyimpan jam pulang");
+            toast({ title: "Jam Pulang Tersimpan!", description: data.message || "Silakan lanjutkan absensi hari ini." });
+            await refetchPendingForgotten();
+            queryClient.invalidateQueries({ queryKey: ["/api/attendance/today"] });
+            queryClient.invalidateQueries({ queryKey: ["/api/attendance"] });
+        } catch (err: any) {
+            toast({ title: "Gagal", description: err.message, variant: "destructive" });
+        } finally {
+            setIsSubmittingForgottenCheckout(false);
+        }
+    };
 
     const { data: pendingMissedData, refetch: refetchPendingMissed } = useQuery<any>({
         queryKey: ["/api/attendance/overtime/pending-missed"],
@@ -2133,6 +2175,67 @@ export default function EmployeeDashboard() {
                             className="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-2xl h-11 text-xs shadow-lg shadow-amber-500/20"
                         >
                             {isSubmittingMissedReason ? "Menyimpan..." : "Kirim Alasan & Lanjutkan Absensi"}
+                        </Button>
+                    </form>
+                </DialogContent>
+            </Dialog>
+
+            {/* Modal Peringatan Lupa Absen Pulang (Time Picker 24 Jam) */}
+            <Dialog open={!!pendingForgottenData?.pendingCheckout} onOpenChange={() => {}}>
+                <DialogContent className="rounded-3xl max-w-sm md:max-w-md bg-white p-6 shadow-2xl [&>button]:hidden">
+                    <DialogHeader>
+                        <div className="mx-auto w-14 h-14 rounded-full bg-amber-100 flex items-center justify-center mb-3">
+                            <Clock className="w-7 h-7 text-amber-600" />
+                        </div>
+                        <DialogTitle className="text-center text-xl font-black text-gray-900">
+                            Anda Belum Absen Pulang
+                        </DialogTitle>
+                        <DialogDescription className="text-center text-xs text-gray-600 pt-1 leading-relaxed">
+                            Anda belum melakukan absen pulang pada sesi sebelumnya:{" "}
+                            <strong className="text-gray-900 font-bold block mt-1">
+                                {safeFormatDate(pendingForgottenData?.pendingCheckout?.date, "EEEE, d MMMM yyyy")}
+                                {" • "}Masuk {pendingForgottenData?.pendingCheckout?.checkIn ? safeFormatDate(pendingForgottenData.pendingCheckout.checkIn, "HH:mm") : "--:--"} WIB
+                            </strong>
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <form onSubmit={handleSubmitForgottenCheckout} className="space-y-4 pt-3">
+                        <div className="bg-amber-50/70 border border-amber-200 rounded-2xl p-4 space-y-2.5">
+                            <label className="text-xs font-bold text-gray-800 block text-center">
+                                Masukkan Jam Pulang Terakhir Anda (Format 24 Jam):
+                            </label>
+                            <div className="flex items-center justify-center gap-2">
+                                <select
+                                    value={forgottenCheckoutHour}
+                                    onChange={(e) => setForgottenCheckoutHour(e.target.value)}
+                                    className="h-12 px-4 rounded-xl border border-amber-300 bg-white font-mono font-black text-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                                >
+                                    {Array.from({ length: 24 }, (_, i) => String(i).padStart(2, "0")).map(hh => (
+                                        <option key={hh} value={hh}>{hh}</option>
+                                    ))}
+                                </select>
+                                <span className="font-mono font-black text-xl text-gray-700">:</span>
+                                <select
+                                    value={forgottenCheckoutMin}
+                                    onChange={(e) => setForgottenCheckoutMin(e.target.value)}
+                                    className="h-12 px-4 rounded-xl border border-amber-300 bg-white font-mono font-black text-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                                >
+                                    {Array.from({ length: 60 }, (_, i) => String(i).padStart(2, "0")).map(mm => (
+                                        <option key={mm} value={mm}>{mm}</option>
+                                    ))}
+                                </select>
+                                <span className="text-xs font-bold text-gray-600 ml-1">WIB</span>
+                            </div>
+                            <p className="text-[10px] text-center text-amber-800">
+                                Default otomatis mengikuti jam selesai shift Anda ({pendingForgottenData?.pendingCheckout?.defaultCheckOutTime || "17:00"} WIB).
+                            </p>
+                        </div>
+                        <Button
+                            type="submit"
+                            disabled={isSubmittingForgottenCheckout}
+                            className="w-full bg-primary hover:bg-primary/90 text-white font-bold rounded-2xl h-12 text-xs shadow-lg shadow-primary/20"
+                        >
+                            {isSubmittingForgottenCheckout ? "Menyimpan..." : `Simpan Jam Pulang (${forgottenCheckoutHour}:${forgottenCheckoutMin}) & Lanjutkan`}
                         </Button>
                     </form>
                 </DialogContent>

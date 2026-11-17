@@ -431,7 +431,9 @@ export function getShiftDate(shiftCheckInTime?: string | null, targetDate?: Date
 
   // Jika waktu sekarang belum mencapai waktu reset shift,
   // maka sesi absensi masih milik tanggal kerja sebelumnya (kemarin)
-  if (currentTotalMins < resetTotalMins) {
+  // Batas pergantian hari absensi baru adalah pukul 03:30 WIB dini hari (210 menit),
+  // agar absen pagi (jam 04:00 / 05:00 / 06:00 / 07:00) selalu tercatat di tanggal HARI INI
+  if (currentTotalMins < 210) {
     jakartaTime.setDate(jakartaTime.getDate() - 1);
   }
 
@@ -1243,7 +1245,37 @@ export function registerRoutes(app: Express) {
           ));
 
         const openSessions = existingSessions.filter(s => s.checkOut === null);
-        if (openSessions.length > 0) {
+        const allUserOpen = await db
+          .select()
+          .from(attendance)
+          .where(and(
+            eq(attendance.userId, userId),
+            isNotNull(attendance.checkIn),
+            isNull(attendance.checkOut),
+            inArray(attendance.status, ["present", "late"])
+          ));
+
+        const staleOpen = allUserOpen.find(s => {
+          const dStr = s.date instanceof Date ? s.date.toISOString().split("T")[0] : String(s.date).split("T")[0];
+          const hrs = (Date.now() - new Date(s.checkIn!).getTime()) / (1000 * 60 * 60);
+          return hrs >= 16 || (dStr < adminDate && hrs >= 13);
+        });
+        if (staleOpen) {
+          return res.status(400).json({
+            message: "Anda belum absen pulang pada sesi sebelumnya. Harap masukkan jam pulang terakhir Anda terlebih dahulu.",
+            requiresForgottenCheckout: true
+          });
+        }
+
+        if (openSessions.length > 0 || allUserOpen.length > 0) {
+          return res.status(400).json({ message: "Anda masih memiliki sesi absen yang aktif. Harap absen pulang terlebih dahulu sebelum absen masuk lagi." });
+        }
+
+        if (existingSessions.length > 0) {
+          return res.status(400).json({ message: "Anda sudah melakukan absen masuk hari ini. Gunakan tombol Lanjut Kerja jika ingin menambah sesi." });
+        }
+
+        if (false && openSessions.length > 0) {
           return res.status(400).json({ message: "Anda masih memiliki sesi absen yang aktif. Harap absen pulang terlebih dahulu sebelum absen masuk lagi." });
         }
 
@@ -1453,7 +1485,13 @@ export function registerRoutes(app: Express) {
           checkOutPhoto,
           checkOutLocation: activeAddress || "Lokasi Checkout",
         })
-        .where(eq(attendance.id, activeSession.id));
+        .where(
+          and(
+            eq(attendance.userId, userId),
+            isNull(attendance.checkOut),
+            sql`DATE(${attendance.date}) = DATE(${activeSession.date})`
+          )
+        );
 
       res.json({ message: "Absen pulang berhasil" });
     } catch (err: any) {
@@ -2540,6 +2578,115 @@ export function registerRoutes(app: Express) {
     }
   });
 
+  // Helper to check if an unclosed session is a forgotten checkout from a previous shift/day
+  const isForgottenCheckoutSession = (rec: any, currentAdminDate: string): boolean => {
+    if (!rec || !rec.checkIn || rec.checkOut) return false;
+    const recDateStr = rec.date instanceof Date
+      ? rec.date.toISOString().split("T")[0]
+      : String(rec.date).split("T")[0];
+    const elapsedHours = (Date.now() - new Date(rec.checkIn).getTime()) / (1000 * 60 * 60);
+    if (elapsedHours >= 16) return true;
+    if (recDateStr < currentAdminDate && elapsedHours >= 13) return true;
+    return false;
+  };
+
+  app.get("/api/attendance/pending-forgotten-checkout", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const userId = Number((req.user as any)?.id || (req.session as any)?.userId);
+      const userShift = await getEffectiveShiftForUser(userId);
+      const adminDate = getAdminDate(userShift?.checkInTime);
+
+      const openSessions = await db
+        .select()
+        .from(attendance)
+        .where(
+          and(
+            eq(attendance.userId, userId),
+            isNotNull(attendance.checkIn),
+            isNull(attendance.checkOut),
+            inArray(attendance.status, ["present", "late"])
+          )
+        )
+        .orderBy(desc(attendance.date), desc(attendance.id));
+
+      const forgotten = openSessions.find(s => isForgottenCheckoutSession(s, adminDate));
+      if (!forgotten) {
+        return res.json({ pendingCheckout: null });
+      }
+
+      let defaultCheckOutTime = userShift?.checkOutTime || "17:00";
+      if (forgotten.shiftId && Number(forgotten.shiftId) > 0) {
+        const [sRec] = await db.select().from(shifts).where(eq(shifts.id, Number(forgotten.shiftId))).limit(1);
+        if (sRec?.checkOutTime) defaultCheckOutTime = sRec.checkOutTime;
+      }
+
+      return res.json({
+        pendingCheckout: {
+          id: forgotten.id,
+          date: forgotten.date,
+          checkIn: forgotten.checkIn,
+          shift: forgotten.shift || userShift?.name || "Shift Reguler",
+          defaultCheckOutTime: defaultCheckOutTime.slice(0, 5),
+        }
+      });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.post("/api/attendance/resolve-forgotten-checkout", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const userId = Number((req.user as any)?.id || (req.session as any)?.userId);
+      const { attendanceId, checkOutTime } = req.body || {};
+
+      if (!attendanceId || !checkOutTime || !/^\d{2}:\d{2}$/.test(String(checkOutTime).trim())) {
+        return res.status(400).json({ message: "Pilih jam pulang terakhir dengan format HH:mm (contoh 17:00)." });
+      }
+
+      const [rec] = await db
+        .select()
+        .from(attendance)
+        .where(and(eq(attendance.id, Number(attendanceId)), eq(attendance.userId, userId)))
+        .limit(1);
+
+      if (!rec) {
+        return res.status(404).json({ message: "Data sesi absensi tidak ditemukan." });
+      }
+
+      const recDateStr = rec.date instanceof Date
+        ? rec.date.toISOString().split("T")[0]
+        : String(rec.date).split("T")[0];
+      const cleanTime = String(checkOutTime).trim();
+      const checkOutDate = new Date(`${recDateStr}T${cleanTime}:00+07:00`);
+
+      if (rec.checkIn && checkOutDate.getTime() <= new Date(rec.checkIn).getTime()) {
+        checkOutDate.setDate(checkOutDate.getDate() + 1);
+      }
+
+      const noteSuffix = `(Lupa Absen Pulang - Konfirmasi Jam Pulang: ${cleanTime})`;
+      const newNotes = rec.notes ? `${rec.notes}\n${noteSuffix}` : noteSuffix;
+
+      // Tutup sesi tersebut (serta sesi duplikat di tanggal yang sama jika ada)
+      await db
+        .update(attendance)
+        .set({
+          checkOut: checkOutDate,
+          notes: newNotes,
+        })
+        .where(
+          and(
+            eq(attendance.userId, userId),
+            isNull(attendance.checkOut),
+            sql`DATE(${attendance.date}) = ${recDateStr}`
+          )
+        );
+
+      res.json({ message: "Jam pulang berhasil disimpan. Silakan lanjutkan absensi hari ini." });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
   app.get("/api/attendance/today", isAuthenticated, async (req: Request, res: Response) => {
     await autoCloseExpiredSessions((req.user as any).id);
     const userId = (req.user as any).id;
@@ -2562,7 +2709,7 @@ export function registerRoutes(app: Express) {
         )
         .orderBy(attendance.sessionNumber);
 
-      res.json(todaySessions);
+      res.json(todaySessions.filter(s => !isForgottenCheckoutSession(s, adminDate)));
     } catch (err: any) {
       res.status(500).json({ message: err.message });
     }
@@ -4449,7 +4596,7 @@ export function registerRoutes(app: Express) {
             }
 
             let autoCheckoutCount = 0;
-            for (const rec of forgottenCheckouts) {
+            if (false) for (const rec of forgottenCheckouts) {
               const otList = overtimesByAttendance.get(rec.id) || [];
               const hasOngoingOT = otList.some(ot => ot.status === "ongoing");
               if (hasOngoingOT) continue;
@@ -4523,7 +4670,7 @@ export function registerRoutes(app: Express) {
           isNull(attendance.shiftId)
         ));
 
-        for (const rec of orphanForgotten) {
+        if (false) for (const rec of orphanForgotten) {
           const checkOutWib = new Date(`${yesterdayStr}T17:00:00+07:00`);
           const newNotes = rec.notes ? `${rec.notes}\n(Lupa Absen Pulang)` : "(Lupa Absen Pulang)";
           await db.update(attendance).set({
