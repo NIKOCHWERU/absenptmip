@@ -381,6 +381,35 @@ export default function RecapPage() {
     // Helper untuk menyesuaikan perhitungan lembur:
     // 1. Khusus hari Sabtu dan Minggu (weekend): KUNCI hitungan jam 08:00 - 17:00 dikurang istirahat 1 jam (= 8 Jam). Sistem absensi tidak diubah, hanya rekap yang dikunci.
     // 2. Hari kerja biasa: Sesuaikan jam penugasan bulat
+    const calculateWeekendGrossHours = (checkInVal: any, checkOutVal: any): number => {
+        if (!checkInVal || !checkOutVal) return 0;
+        const cin = new Date(checkInVal);
+        const cout = new Date(checkOutVal);
+        if (isNaN(cin.getTime()) || isNaN(cout.getTime()) || cout <= cin) return 0;
+        const inHour = cin.getHours() + cin.getMinutes() / 60;
+        const outHour = cout.getHours() + cout.getMinutes() / 60;
+        const effIn = inHour <= 8.25 ? 8 : inHour;
+        const effOut = outHour >= 16.75 ? 17 : Math.min(17, outHour);
+        return Math.min(9, Math.max(0, Math.floor(effOut - effIn)));
+    };
+
+    const calculateOvertimeGrossHours = (startTimeVal: any, endTimeVal: any, isWeekend: boolean): number => {
+        if (!startTimeVal || !endTimeVal) return 0;
+        const start = new Date(startTimeVal);
+        const end = new Date(endTimeVal);
+        if (isNaN(start.getTime()) || isNaN(end.getTime()) || end <= start) return 0;
+        if (isWeekend) return calculateWeekendGrossHours(start, end);
+        let sTime = new Date(start);
+        let eTime = new Date(end);
+        if (sTime.getMinutes() >= 35) sTime.setHours(sTime.getHours() + 1, 0, 0, 0);
+        else if (sTime.getMinutes() <= 15) sTime.setMinutes(0, 0, 0);
+        if (eTime.getMinutes() <= 20) eTime.setMinutes(0, 0, 0);
+        else if (eTime.getMinutes() >= 45) eTime.setHours(eTime.getHours() + 1, 0, 0, 0);
+        let diffMins = Math.round((eTime.getTime() - sTime.getTime()) / 60000);
+        if (diffMins <= 0) diffMins = Math.round((end.getTime() - start.getTime()) / 60000);
+        return Math.max(0, Math.floor(diffMins / 60));
+    };
+
     const calculateWeekendOvertimeHours = (checkInVal: any, checkOutVal: any): number => {
         if (!checkInVal || !checkOutVal) return 0;
         const cin = new Date(checkInVal);
@@ -482,8 +511,21 @@ export default function RecapPage() {
     const [editOtBreakHours, setEditOtBreakHours] = useState<number>(0);
 
     const overtimeBreakMap: Record<string, number> = config?.overtimeBreakMap || {};
-    const getOtBreakHours = (ot: any): number => Math.max(0, Number(ot?.breakHours ?? overtimeBreakMap[`ot_${ot?.id}`] ?? 0));
-    const getWeekendBreakHours = (att: any): number => Math.max(0, Number(overtimeBreakMap[`att_${att?.id}`] ?? 0));
+    const autoWeekendBreakHours = overtimeBreakMap["__auto_weekend_break__"] !== undefined ? Math.max(0, Number(overtimeBreakMap["__auto_weekend_break__"])) : 1;
+    const autoWeekdayOtBreakHours = overtimeBreakMap["__auto_spl_break__"] !== undefined ? Math.max(0, Number(overtimeBreakMap["__auto_spl_break__"])) : 0;
+    const getOtBreakHours = (ot: any, isWeekendOt?: boolean, grossHours?: number): number => {
+        if (ot?.breakHours !== undefined && ot?.breakHours !== null) return Math.max(0, Number(ot.breakHours));
+        if (overtimeBreakMap[`ot_${ot?.id}`] !== undefined) return Math.max(0, Number(overtimeBreakMap[`ot_${ot?.id}`]));
+        const otDate = ot?.date ? new Date(ot.date) : (ot?.startTime ? new Date(ot.startTime) : null);
+        const wk = isWeekendOt !== undefined ? isWeekendOt : (otDate ? (otDate.getDay() === 0 || otDate.getDay() === 6) : false);
+        const g = grossHours !== undefined ? grossHours : calculateOvertimeGrossHours(ot?.startTime, ot?.endTime, wk);
+        return g >= 5 ? (wk ? autoWeekendBreakHours : autoWeekdayOtBreakHours) : 0;
+    };
+    const getWeekendBreakHours = (att: any, grossHours?: number): number => {
+        if (overtimeBreakMap[`att_${att?.id}`] !== undefined) return Math.max(0, Number(overtimeBreakMap[`att_${att?.id}`]));
+        const g = grossHours !== undefined ? grossHours : calculateWeekendGrossHours(att?.checkIn, att?.checkOut);
+        return g >= 5 ? autoWeekendBreakHours : 0;
+    };
 
     const handleSaveOvertimeBreakHours = async (key: string, breakHours: number) => {
         try {
@@ -829,7 +871,8 @@ export default function RecapPage() {
                     const otDate = ot.date ? new Date(ot.date) : (ot.startTime ? new Date(ot.startTime) : null);
                     const isWeekendOt = otDate ? (otDate.getDay() === 0 || otDate.getDay() === 6) : false;
 
-                    const sessionHours = Math.max(0, normalizeOvertimeDuration(ot.startTime, ot.endTime, isWeekendOt) - getOtBreakHours(ot));
+                    const rawOtGross = calculateOvertimeGrossHours(ot.startTime, ot.endTime, isWeekendOt);
+                    const sessionHours = Math.max(0, rawOtGross - getOtBreakHours(ot, isWeekendOt, rawOtGross));
                     if (sessionHours > 0) {
                         const roundedMins = sessionHours * 60;
                         totalLemburMins += roundedMins;
@@ -858,7 +901,8 @@ export default function RecapPage() {
                     const cin = dayRecs[0]?.checkIn;
                     const cout = dayRecs[dayRecs.length - 1]?.checkOut;
                     // Kunci hitungan lembur Sabtu & Minggu: jam 08:00 - 17:00 dikurang 1 jam istirahat = 8 Jam
-                    const netWeekendHours = Math.max(0, calculateWeekendOvertimeHours(cin, cout) - getWeekendBreakHours(dayRecs[0]));
+                    const rawWkGross = calculateWeekendGrossHours(cin, cout);
+                    const netWeekendHours = Math.max(0, rawWkGross - getWeekendBreakHours(dayRecs[0], rawWkGross));
                     const roundedWeekendMins = netWeekendHours * 60;
 
                     // Jika hari weekend ini BELUM tercatat durasi lembur di table overtimes, tambahkan durasi absensi ini
@@ -3704,7 +3748,8 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
                 // Map Weekend Records
                 const weekendItems = weekendRecords.map(w => {
                     // Kunci hitungan lembur Sabtu & Minggu: jam 08:00 - 17:00 dikurang 1 jam istirahat = 8 Jam
-                    const netWeekendHours = Math.max(0, calculateWeekendOvertimeHours(w.checkIn, w.checkOut) - getWeekendBreakHours(w));
+                    const rawWkGross = calculateWeekendGrossHours(w.checkIn, w.checkOut);
+                    const netWeekendHours = Math.max(0, rawWkGross - getWeekendBreakHours(w, rawWkGross));
 
                     const wDate = new Date(w.date);
                     const today = new Date();
@@ -3731,7 +3776,8 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
                 const splItems = empOvertimes.map(ot => {
                     const otDate = ot.date ? new Date(ot.date) : (ot.startTime ? new Date(ot.startTime) : null);
                     const isWeekendOt = otDate ? (otDate.getDay() === 0 || otDate.getDay() === 6) : false;
-                    const otHours = Math.max(0, normalizeOvertimeDuration(ot.startTime, ot.endTime, isWeekendOt) - getOtBreakHours(ot));
+                    const rawOtGross = calculateOvertimeGrossHours(ot.startTime, ot.endTime, isWeekendOt);
+                    const otHours = Math.max(0, rawOtGross - getOtBreakHours(ot, isWeekendOt, rawOtGross));
                     const otDateStr = ot.date ? safeFormatDate(ot.date, "yyyy-MM-dd") : (ot.startTime ? safeFormatDate(ot.startTime, "yyyy-MM-dd") : "");
                     const matchingAtt = empAtt.find(a => safeFormatDate(a.date, 'yyyy-MM-dd') === otDateStr);
 
@@ -4716,6 +4762,49 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
                                     Cetak Rekap Lembur (PDF)
                                 </Button>
                             </div>
+
+                            {/* Pengaturan Potongan Istirahat Lembur Otomatis Sistem */}
+                            <div className="mt-3 pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3 bg-amber-50/70 border border-amber-200/80 rounded-xl px-4 py-2.5">
+                                <div className="flex items-center gap-2">
+                                    <Clock className="h-4 w-4 text-amber-600 shrink-0" />
+                                    <div>
+                                        <p className="text-xs font-extrabold text-amber-950">
+                                            Pengaturan Potongan Istirahat Lembur Otomatis Sistem (Rekap)
+                                        </p>
+                                        <p className="text-[11px] text-amber-800/90">
+                                            Sistem sebelumnya otomatis memotong <strong>1 Jam istirahat</strong> khusus pada Lembur <strong>Sabtu &amp; Minggu (&ge; 5 Jam)</strong> (misal 08:00&ndash;17:00 = 9 Jam kotor &rarr; dihitung 8 Jam). Anda dapat mengatur potongan otomatis di sini atau mengubah per baris lembur.
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="flex flex-wrap items-center gap-3">
+                                    <div className="flex items-center gap-1.5 bg-white px-2.5 py-1.5 rounded-lg border border-amber-300 shadow-xs">
+                                        <span className="text-[11px] font-bold text-amber-900">Lembur Sabtu/Minggu (&ge;5j):</span>
+                                        <select
+                                            value={autoWeekendBreakHours}
+                                            onChange={(e) => handleSaveOvertimeBreakHours("__auto_weekend_break__", Number(e.target.value))}
+                                            className="text-xs font-extrabold text-amber-900 bg-amber-50 border border-amber-300 rounded px-2 py-0.5 cursor-pointer"
+                                        >
+                                            <option value={0}>0 Jam (Tanpa Potong Otomatis)</option>
+                                            <option value={1}>Potong 1 Jam (Default Sistem: 9j &rarr; 8j)</option>
+                                            <option value={2}>Potong 2 Jam (9j &rarr; 7j)</option>
+                                            <option value={3}>Potong 3 Jam (9j &rarr; 6j)</option>
+                                        </select>
+                                    </div>
+                                    <div className="flex items-center gap-1.5 bg-white px-2.5 py-1.5 rounded-lg border border-orange-300 shadow-xs">
+                                        <span className="text-[11px] font-bold text-orange-900">Lembur Hari Kerja SPL (&ge;5j):</span>
+                                        <select
+                                            value={autoWeekdayOtBreakHours}
+                                            onChange={(e) => handleSaveOvertimeBreakHours("__auto_spl_break__", Number(e.target.value))}
+                                            className="text-xs font-extrabold text-orange-900 bg-orange-50 border border-orange-300 rounded px-2 py-0.5 cursor-pointer"
+                                        >
+                                            <option value={0}>0 Jam (Default Sistem)</option>
+                                            <option value={1}>Potong Otomatis 1 Jam</option>
+                                            <option value={2}>Potong Otomatis 2 Jam</option>
+                                            <option value={3}>Potong Otomatis 3 Jam</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -5261,7 +5350,7 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
                                                             {/* Baris Lembur dari Kehadiran Weekend (Sabtu/Minggu) */}
                                                             {weekendRecords.map((w: any) => {
                                                                 // Kunci hitungan lembur Sabtu & Minggu: jam 08:00 - 17:00 dikurang 1 jam istirahat = 8 Jam
-                                                                const rawWeekendHours = calculateWeekendOvertimeHours(w.checkIn, w.checkOut);
+                                                                const rawWeekendHours = calculateWeekendGrossHours(w.checkIn, w.checkOut);
                                                                 const wBreakHours = getWeekendBreakHours(w);
                                                                 const netWeekendHours = Math.max(0, rawWeekendHours - wBreakHours);
 
@@ -5304,7 +5393,7 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
                                                                                     title="Potong Jam Istirahat Lembur"
                                                                                 >
                                                                                     <option value={0}>+ Istirahat: 0 Jam</option>
-                                                                                    <option value={1}>Potong Ist: 1 Jam</option>
+                                                                                    <option value={1}>Potong Ist: 1 Jam {autoWeekendBreakHours === 1 ? "(Otomatis Sistem)" : ""}</option>
                                                                                     <option value={2}>Potong Ist: 2 Jam</option>
                                                                                     <option value={3}>Potong Ist: 3 Jam</option>
                                                                                     <option value={4}>Potong Ist: 4 Jam</option>
@@ -5367,7 +5456,7 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
                                                             {empOvertimes.map((ot: any) => {
                                                                 const otDate = ot.date ? new Date(ot.date) : (ot.startTime ? new Date(ot.startTime) : null);
                                                                 const isWeekendOt = otDate ? (otDate.getDay() === 0 || otDate.getDay() === 6) : false;
-                                                                const rawOtHours = normalizeOvertimeDuration(ot.startTime, ot.endTime, isWeekendOt);
+                                                                const rawOtHours = calculateOvertimeGrossHours(ot.startTime, ot.endTime, isWeekendOt);
                                                                 const otBreakHours = getOtBreakHours(ot);
                                                                 const otHours = Math.max(0, rawOtHours - otBreakHours);
                                                                 const otDateStr = ot.date ? safeFormatDate(ot.date, "yyyy-MM-dd") : (ot.startTime ? safeFormatDate(ot.startTime, "yyyy-MM-dd") : "");
@@ -5948,6 +6037,45 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
 
                         {/* Opsi Tampilan PDF */}
                         <div className="space-y-2 pt-2 border-t border-gray-100">
+                            {/* Pengaturan Potongan Istirahat Lembur Otomatis di Modal Cetak */}
+                            <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 space-y-2 mb-2">
+                                <p className="text-xs font-extrabold text-amber-950 flex items-center gap-1.5">
+                                    <Clock className="w-3.5 h-3.5 text-amber-600" />
+                                    Pengaturan Potongan Istirahat Lembur Otomatis Sistem
+                                </p>
+                                <p className="text-[10px] text-amber-800">
+                                    Secara default sistem memotong <strong>1 Jam istirahat otomatis</strong> untuk lembur Sabtu/Minggu (&ge; 5 Jam, misal 08:00&ndash;17:00 = 9j &rarr; 8 Jam).
+                                </p>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                                    <div className="space-y-1">
+                                        <span className="text-[10px] font-bold text-amber-900 block">Lembur Sabtu/Minggu (&ge; 5 Jam):</span>
+                                        <select
+                                            value={autoWeekendBreakHours}
+                                            onChange={(e) => handleSaveOvertimeBreakHours("__auto_weekend_break__", Number(e.target.value))}
+                                            className="w-full h-8 text-xs font-bold text-amber-900 bg-white border border-amber-300 rounded-lg px-2 cursor-pointer"
+                                        >
+                                            <option value={0}>0 Jam (Tanpa Potong Otomatis)</option>
+                                            <option value={1}>Potong 1 Jam (Default Sistem: 9j &rarr; 8j)</option>
+                                            <option value={2}>Potong 2 Jam (9j &rarr; 7j)</option>
+                                            <option value={3}>Potong 3 Jam (9j &rarr; 6j)</option>
+                                        </select>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <span className="text-[10px] font-bold text-orange-900 block">Lembur Hari Kerja SPL (&ge; 5 Jam):</span>
+                                        <select
+                                            value={autoWeekdayOtBreakHours}
+                                            onChange={(e) => handleSaveOvertimeBreakHours("__auto_spl_break__", Number(e.target.value))}
+                                            className="w-full h-8 text-xs font-bold text-orange-900 bg-white border border-orange-300 rounded-lg px-2 cursor-pointer"
+                                        >
+                                            <option value={0}>0 Jam (Default Sistem)</option>
+                                            <option value={1}>Potong Otomatis 1 Jam</option>
+                                            <option value={2}>Potong Otomatis 2 Jam</option>
+                                            <option value={3}>Potong Otomatis 3 Jam</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+
                             <Label className="text-xs font-bold text-gray-700">Pengaturan Tampilan PDF</Label>
                             <div className="space-y-2">
                                 <label className="flex items-center gap-2 cursor-pointer text-xs text-gray-700 font-medium hover:text-gray-900">
