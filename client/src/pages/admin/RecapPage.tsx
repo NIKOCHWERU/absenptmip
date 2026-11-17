@@ -479,6 +479,27 @@ export default function RecapPage() {
     const [editOtDescription, setEditOtDescription] = useState<string>("");
     const [editOtStatus, setEditOtStatus] = useState<string>("completed");
     const [editOtApproval, setEditOtApproval] = useState<string>("approved");
+    const [editOtBreakHours, setEditOtBreakHours] = useState<number>(0);
+
+    const overtimeBreakMap: Record<string, number> = config?.overtimeBreakMap || {};
+    const getOtBreakHours = (ot: any): number => Math.max(0, Number(ot?.breakHours ?? overtimeBreakMap[`ot_${ot?.id}`] ?? 0));
+    const getWeekendBreakHours = (att: any): number => Math.max(0, Number(overtimeBreakMap[`att_${att?.id}`] ?? 0));
+
+    const handleSaveOvertimeBreakHours = async (key: string, breakHours: number) => {
+        try {
+            const res = await fetch("/api/admin/overtimes/break-hours", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ key, breakHours })
+            });
+            if (!res.ok) throw new Error("Gagal menyimpan jam istirahat lembur");
+            await queryClient.invalidateQueries({ queryKey: ["/api/config"] });
+            await queryClient.invalidateQueries({ queryKey: ["/api/admin/overtimes"] });
+            toast({ title: "Istirahat Lembur Diperbarui", description: `Potongan istirahat lembur (${breakHours} Jam) berhasil diterapkan ke rekap.` });
+        } catch (err: any) {
+            toast({ title: "Gagal", description: err.message, variant: "destructive" });
+        }
+    };
 
     const editOvertimeMutation = useMutation({
         mutationFn: async () => {
@@ -504,6 +525,7 @@ export default function RecapPage() {
                     description: editOtDescription,
                     status: editOtStatus,
                     employeeApproval: editOtApproval,
+                    breakHours: editOtBreakHours,
                 })
             });
             if (!res.ok) throw new Error("Gagal memperbarui data lembur");
@@ -511,6 +533,7 @@ export default function RecapPage() {
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["/api/admin/overtimes"] });
+            queryClient.invalidateQueries({ queryKey: ["/api/config"] });
             queryClient.invalidateQueries({ queryKey: ["/api/admin/summary-cutoff"] });
             queryClient.invalidateQueries({ predicate: (query) => query.queryKey[0] === "/api/attendance" });
             setEditOvertimeItem(null);
@@ -535,6 +558,7 @@ export default function RecapPage() {
         setEditOtDescription(ot.description || ot.finalDescription || "");
         setEditOtStatus(ot.status || "completed");
         setEditOtApproval(ot.employeeApproval || "approved");
+        setEditOtBreakHours(getOtBreakHours(ot));
     };
 
     const deleteOvertimeMutation = useMutation({
@@ -805,7 +829,7 @@ export default function RecapPage() {
                     const otDate = ot.date ? new Date(ot.date) : (ot.startTime ? new Date(ot.startTime) : null);
                     const isWeekendOt = otDate ? (otDate.getDay() === 0 || otDate.getDay() === 6) : false;
 
-                    const sessionHours = normalizeOvertimeDuration(ot.startTime, ot.endTime, isWeekendOt);
+                    const sessionHours = Math.max(0, normalizeOvertimeDuration(ot.startTime, ot.endTime, isWeekendOt) - getOtBreakHours(ot));
                     if (sessionHours > 0) {
                         const roundedMins = sessionHours * 60;
                         totalLemburMins += roundedMins;
@@ -834,7 +858,7 @@ export default function RecapPage() {
                     const cin = dayRecs[0]?.checkIn;
                     const cout = dayRecs[dayRecs.length - 1]?.checkOut;
                     // Kunci hitungan lembur Sabtu & Minggu: jam 08:00 - 17:00 dikurang 1 jam istirahat = 8 Jam
-                    const netWeekendHours = calculateWeekendOvertimeHours(cin, cout);
+                    const netWeekendHours = Math.max(0, calculateWeekendOvertimeHours(cin, cout) - getWeekendBreakHours(dayRecs[0]));
                     const roundedWeekendMins = netWeekendHours * 60;
 
                     // Jika hari weekend ini BELUM tercatat durasi lembur di table overtimes, tambahkan durasi absensi ini
@@ -878,7 +902,7 @@ export default function RecapPage() {
                 totalJamKerjaStr,
             };
         });
-    }, [users, allResignations, allAttendance, ringkasanAttendanceData, allOvertimes, ringkasanStartDate, ringkasanEndDate]);
+    }, [users, allResignations, allAttendance, ringkasanAttendanceData, allOvertimes, ringkasanStartDate, ringkasanEndDate, overtimeBreakMap]);
 
     const displayRingkasanData = useMemo(() => {
         return ringkasanData.map(row => {
@@ -3680,7 +3704,7 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
                 // Map Weekend Records
                 const weekendItems = weekendRecords.map(w => {
                     // Kunci hitungan lembur Sabtu & Minggu: jam 08:00 - 17:00 dikurang 1 jam istirahat = 8 Jam
-                    const netWeekendHours = calculateWeekendOvertimeHours(w.checkIn, w.checkOut);
+                    const netWeekendHours = Math.max(0, calculateWeekendOvertimeHours(w.checkIn, w.checkOut) - getWeekendBreakHours(w));
 
                     const wDate = new Date(w.date);
                     const today = new Date();
@@ -3707,7 +3731,7 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
                 const splItems = empOvertimes.map(ot => {
                     const otDate = ot.date ? new Date(ot.date) : (ot.startTime ? new Date(ot.startTime) : null);
                     const isWeekendOt = otDate ? (otDate.getDay() === 0 || otDate.getDay() === 6) : false;
-                    const otHours = normalizeOvertimeDuration(ot.startTime, ot.endTime, isWeekendOt);
+                    const otHours = Math.max(0, normalizeOvertimeDuration(ot.startTime, ot.endTime, isWeekendOt) - getOtBreakHours(ot));
                     const otDateStr = ot.date ? safeFormatDate(ot.date, "yyyy-MM-dd") : (ot.startTime ? safeFormatDate(ot.startTime, "yyyy-MM-dd") : "");
                     const matchingAtt = empAtt.find(a => safeFormatDate(a.date, 'yyyy-MM-dd') === otDateStr);
 
@@ -5237,7 +5261,9 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
                                                             {/* Baris Lembur dari Kehadiran Weekend (Sabtu/Minggu) */}
                                                             {weekendRecords.map((w: any) => {
                                                                 // Kunci hitungan lembur Sabtu & Minggu: jam 08:00 - 17:00 dikurang 1 jam istirahat = 8 Jam
-                                                                const netWeekendHours = calculateWeekendOvertimeHours(w.checkIn, w.checkOut);
+                                                                const rawWeekendHours = calculateWeekendOvertimeHours(w.checkIn, w.checkOut);
+                                                                const wBreakHours = getWeekendBreakHours(w);
+                                                                const netWeekendHours = Math.max(0, rawWeekendHours - wBreakHours);
 
                                                                 return (
                                                                     <tr key={`weekend-${w.id}`} className="bg-amber-50/20 hover:bg-amber-50/40 transition-colors">
@@ -5269,7 +5295,22 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
                                                                             )}
                                                                         </td>
                                                                         <td className="px-4 py-3 text-center font-black text-amber-900">
-                                                                            {netWeekendHours > 0 ? `${netWeekendHours} Jam` : "-"}
+                                                                            <div className="flex flex-col items-center gap-1">
+                                                                                <span>{netWeekendHours > 0 ? `${netWeekendHours} Jam` : "0 Jam"}{wBreakHours > 0 && <span className="text-[10px] font-bold text-rose-600 ml-1">({rawWeekendHours}j - {wBreakHours}j Ist)</span>}</span>
+                                                                                <select
+                                                                                    value={wBreakHours}
+                                                                                    onChange={(e) => handleSaveOvertimeBreakHours(`att_${w.id}`, Number(e.target.value))}
+                                                                                    className="text-[10px] font-semibold bg-white border border-amber-300 rounded px-1.5 py-0.5 text-slate-700 cursor-pointer"
+                                                                                    title="Potong Jam Istirahat Lembur"
+                                                                                >
+                                                                                    <option value={0}>+ Istirahat: 0 Jam</option>
+                                                                                    <option value={1}>Potong Ist: 1 Jam</option>
+                                                                                    <option value={2}>Potong Ist: 2 Jam</option>
+                                                                                    <option value={3}>Potong Ist: 3 Jam</option>
+                                                                                    <option value={4}>Potong Ist: 4 Jam</option>
+                                                                                    <option value={5}>Potong Ist: 5 Jam</option>
+                                                                                </select>
+                                                                            </div>
                                                                         </td>
                                                                         <td className="px-4 py-3 text-slate-600 italic">
                                                                             {w.notes || "Absensi kerja akhir pekan"}
@@ -5326,7 +5367,9 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
                                                             {empOvertimes.map((ot: any) => {
                                                                 const otDate = ot.date ? new Date(ot.date) : (ot.startTime ? new Date(ot.startTime) : null);
                                                                 const isWeekendOt = otDate ? (otDate.getDay() === 0 || otDate.getDay() === 6) : false;
-                                                                const otHours = normalizeOvertimeDuration(ot.startTime, ot.endTime, isWeekendOt);
+                                                                const rawOtHours = normalizeOvertimeDuration(ot.startTime, ot.endTime, isWeekendOt);
+                                                                const otBreakHours = getOtBreakHours(ot);
+                                                                const otHours = Math.max(0, rawOtHours - otBreakHours);
                                                                 const otDateStr = ot.date ? safeFormatDate(ot.date, "yyyy-MM-dd") : (ot.startTime ? safeFormatDate(ot.startTime, "yyyy-MM-dd") : "");
                                                                 const matchingAtt = empAtt.find(a => safeFormatDate(a.date, 'yyyy-MM-dd') === otDateStr);
                                                                 const photo1 = ot.initialProofUrl || matchingAtt?.checkInPhoto;
@@ -5349,7 +5392,22 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
                                                                             {ot.endTime ? safeFormatDate(ot.endTime, "HH:mm") : (ot.status === 'ongoing' ? 'Berlangsung' : '-')}
                                                                         </td>
                                                                         <td className="px-4 py-3 text-center font-black text-orange-900">
-                                                                            {otHours > 0 ? `${otHours} Jam` : "-"}
+                                                                            <div className="flex flex-col items-center gap-1">
+                                                                                <span>{otHours > 0 ? `${otHours} Jam` : "0 Jam"}{otBreakHours > 0 && <span className="text-[10px] font-bold text-rose-600 ml-1">({rawOtHours}j - {otBreakHours}j Ist)</span>}</span>
+                                                                                <select
+                                                                                    value={otBreakHours}
+                                                                                    onChange={(e) => handleSaveOvertimeBreakHours(`ot_${ot.id}`, Number(e.target.value))}
+                                                                                    className="text-[10px] font-semibold bg-white border border-orange-300 rounded px-1.5 py-0.5 text-slate-700 cursor-pointer"
+                                                                                    title="Potong Jam Istirahat Lembur"
+                                                                                >
+                                                                                    <option value={0}>+ Istirahat: 0 Jam</option>
+                                                                                    <option value={1}>Potong Ist: 1 Jam</option>
+                                                                                    <option value={2}>Potong Ist: 2 Jam</option>
+                                                                                    <option value={3}>Potong Ist: 3 Jam</option>
+                                                                                    <option value={4}>Potong Ist: 4 Jam</option>
+                                                                                    <option value={5}>Potong Ist: 5 Jam</option>
+                                                                                </select>
+                                                                            </div>
                                                                         </td>
                                                                         <td className="px-4 py-3 text-slate-600 italic">
                                                                             {ot.description || ot.finalDescription || "Pekerjaan lembur"}
@@ -5651,6 +5709,32 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
                                         value={editOtEndTime}
                                         onChange={setEditOtEndTime}
                                     />
+                                </div>
+                            </div>
+
+                            {/* Tambah Jam Istirahat Lembur (Potong Durasi Lembur) */}
+                            <div className="space-y-1.5 bg-amber-50/70 p-3 rounded-xl border border-amber-200">
+                                <Label className="text-xs font-bold text-amber-900 flex items-center justify-between">
+                                    <span>☕ Tambah Jam Istirahat Lembur (Potong Jam Lembur)</span>
+                                    {editOtBreakHours > 0 && (
+                                        <span className="text-[10px] font-black text-rose-600 bg-rose-100 px-2 py-0.5 rounded-full">
+                                            Dipotong {editOtBreakHours} Jam
+                                        </span>
+                                    )}
+                                </Label>
+                                <div className="flex items-center gap-2">
+                                    <Input
+                                        type="number"
+                                        min={0}
+                                        max={12}
+                                        value={editOtBreakHours}
+                                        onChange={(e) => setEditOtBreakHours(Math.max(0, parseInt(e.target.value || "0", 10) || 0))}
+                                        className="h-9 w-24 rounded-lg text-xs font-bold text-center bg-white border-amber-300"
+                                    />
+                                    <span className="text-xs font-bold text-amber-900">Jam Istirahat</span>
+                                    <span className="text-[10px] text-amber-700 ml-auto">
+                                        (Misal lembur 8 jam, istirahat 2 jam → terhitung 6 jam di rekap)
+                                    </span>
                                 </div>
                             </div>
 

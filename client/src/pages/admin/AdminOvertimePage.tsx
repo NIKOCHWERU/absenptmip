@@ -218,6 +218,7 @@ export default function AdminOvertimePage() {
   const [editFinalTask, setEditFinalTask] = useState<string>("");
   const [editStatus, setEditStatus] = useState<string>("completed");
   const [editApproval, setEditApproval] = useState<string>("approved");
+  const [editBreakHours, setEditBreakHours] = useState<number>(0);
 
   const toggleAssignUser = (uid: string) => {
     setAssignUserIds(prev =>
@@ -434,6 +435,7 @@ export default function AdminOvertimePage() {
           finalDescription: editFinalTask,
           status: editStatus,
           employeeApproval: editApproval,
+          breakHours: editBreakHours,
           userId: editUserId ? Number(editUserId) : undefined,
           referenceItems: uploadedRefItems.length > 0 ? uploadedRefItems : undefined
         })
@@ -504,6 +506,7 @@ export default function AdminOvertimePage() {
     setEditFinalTask(item.finalDescription || "");
     setEditStatus(item.status || "pending");
     setEditApproval(item.employeeApproval || "approved");
+    setEditBreakHours(Number(item.breakHours || 0));
     setEditRefRows([{ id: "1", file: null, caption: "" }]);
   };
 
@@ -2144,6 +2147,32 @@ export default function AdminOvertimePage() {
                   onChange={(e) => setEditFinalTask(e.target.value)}
                   className="rounded-xl border-gray-200 text-xs min-h-[60px]"
                 />
+              </div>
+
+              {/* Field 4b: Tambah Jam Istirahat Lembur */}
+              <div className="space-y-1.5 bg-amber-50/70 p-3 rounded-xl border border-amber-200">
+                <label className="text-xs font-bold text-amber-900 flex items-center justify-between">
+                  <span>☕ Tambah Jam Istirahat Lembur (Potong Jam Lembur di Rekap)</span>
+                  {editBreakHours > 0 && (
+                    <span className="text-[10px] font-black text-rose-600 bg-rose-100 px-2 py-0.5 rounded-full">
+                      Dipotong {editBreakHours} Jam
+                    </span>
+                  )}
+                </label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="number"
+                    min={0}
+                    max={12}
+                    value={editBreakHours}
+                    onChange={(e) => setEditBreakHours(Math.max(0, parseInt(e.target.value || "0", 10) || 0))}
+                    className="h-9 w-24 rounded-lg text-xs font-bold text-center bg-white border-amber-300"
+                  />
+                  <span className="text-xs font-bold text-amber-900">Jam Istirahat</span>
+                  <span className="text-[10px] text-amber-700 ml-auto">
+                    (Contoh: Lembur 8 jam, istirahat 2 jam → terhitung 6 jam di rekap)
+                  </span>
+                </div>
               </div>
 
               {/* Field 5: Status & Respon */}

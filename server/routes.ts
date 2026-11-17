@@ -747,7 +747,8 @@ export function registerRoutes(app: Express) {
           resignation: (configMap["feature_resignation"] ?? process.env.FEATURE_RESIGNATION) !== "false",
           break: (configMap["feature_break"] ?? process.env.FEATURE_BREAK) !== "false",
         },
-        isDriveConfigured
+        isDriveConfigured,
+        overtimeBreakMap: (() => { try { return JSON.parse(configMap["overtimeBreakMap"] || "{}"); } catch { return {}; } })()
       });
     } catch (err) {
       console.error("Failed to load config:", err);
@@ -2321,7 +2322,18 @@ export function registerRoutes(app: Express) {
         }
       }
 
-      res.json(allOvertimes);
+      let breakMap: Record<string, number> = {};
+      try {
+        const [cfg] = await db.select().from(systemConfigs).where(eq(systemConfigs.key, "overtimeBreakMap")).limit(1);
+        if (cfg?.value) breakMap = JSON.parse(cfg.value);
+      } catch (_) {}
+
+      const enrichedOvertimes = allOvertimes.map((item: any) => ({
+        ...item,
+        breakHours: Number(breakMap[`ot_${item.id}`] || 0),
+      }));
+
+      res.json(enrichedOvertimes);
     } catch (e: any) {
       console.error("Fetch all overtimes error:", e);
       res.json([]);
@@ -2527,7 +2539,20 @@ export function registerRoutes(app: Express) {
         initialProofUrl: initialProofUrl || null,
         finalProofUrl: finalProofUrl || null,
       });
-      res.json({ message: "Lembur manual berhasil ditambahkan", id: newOt?.insertId || newOt });
+      const createdOtId = newOt?.insertId || newOt;
+      if (req.body.breakHours !== undefined && createdOtId) {
+        try {
+          const [cfg] = await db.select().from(systemConfigs).where(eq(systemConfigs.key, "overtimeBreakMap")).limit(1);
+          const breakMap = cfg?.value ? JSON.parse(cfg.value) : {};
+          breakMap[`ot_${createdOtId}`] = Math.max(0, Number(req.body.breakHours) || 0);
+          if (cfg) {
+            await db.update(systemConfigs).set({ value: JSON.stringify(breakMap) }).where(eq(systemConfigs.key, "overtimeBreakMap"));
+          } else {
+            await db.insert(systemConfigs).values({ key: "overtimeBreakMap", value: JSON.stringify(breakMap) });
+          }
+        } catch (_) {}
+      }
+      res.json({ message: "Lembur manual berhasil ditambahkan", id: createdOtId });
     } catch (e: any) {
       console.error("Manual overtime error:", e);
       res.status(500).json({ message: e.message || "Internal server error" });
@@ -2562,7 +2587,43 @@ export function registerRoutes(app: Express) {
         }
       }
 
+      if (req.body.breakHours !== undefined && id) {
+        try {
+          const [cfg] = await db.select().from(systemConfigs).where(eq(systemConfigs.key, "overtimeBreakMap")).limit(1);
+          const breakMap = cfg?.value ? JSON.parse(cfg.value) : {};
+          breakMap[`ot_${id}`] = Math.max(0, Number(req.body.breakHours) || 0);
+          if (cfg) {
+            await db.update(systemConfigs).set({ value: JSON.stringify(breakMap) }).where(eq(systemConfigs.key, "overtimeBreakMap"));
+          } else {
+            await db.insert(systemConfigs).values({ key: "overtimeBreakMap", value: JSON.stringify(breakMap) });
+          }
+        } catch (_) {}
+      }
+
       res.json({ message: "Data lembur berhasil diperbarui" });
+    } catch (e: any) {
+      res.status(500).json({ message: e.message || "Internal server error" });
+    }
+  });
+
+  app.post("/api/admin/overtimes/break-hours", isAuthenticated, isAdmin, async (req: Request, res: Response) => {
+    try {
+      const { key, breakHours } = req.body || {};
+      if (!key) return res.status(400).json({ message: "Key diperlukan" });
+      const [cfg] = await db.select().from(systemConfigs).where(eq(systemConfigs.key, "overtimeBreakMap")).limit(1);
+      const breakMap = cfg?.value ? JSON.parse(cfg.value) : {};
+      const hrs = Math.max(0, Number(breakHours) || 0);
+      if (hrs > 0) {
+        breakMap[String(key)] = hrs;
+      } else {
+        delete breakMap[String(key)];
+      }
+      if (cfg) {
+        await db.update(systemConfigs).set({ value: JSON.stringify(breakMap) }).where(eq(systemConfigs.key, "overtimeBreakMap"));
+      } else {
+        await db.insert(systemConfigs).values({ key: "overtimeBreakMap", value: JSON.stringify(breakMap) });
+      }
+      res.json({ message: "Potongan jam istirahat lembur berhasil disimpan", overtimeBreakMap: breakMap });
     } catch (e: any) {
       res.status(500).json({ message: e.message || "Internal server error" });
     }

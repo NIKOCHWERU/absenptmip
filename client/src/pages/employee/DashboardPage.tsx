@@ -204,7 +204,7 @@ function ShiftModal({
                         </div>
                     ) : (
                         <>
-                            {userShift && (
+                            {false && userShift && (
                                 <Button
                                     key="previous"
                                     variant="default"
@@ -238,7 +238,7 @@ function ShiftModal({
                                 >
                                     <div className="flex flex-col items-start text-left">
                                         <span className="font-bold text-slate-900">{s.name}</span>
-                                        <span className="text-[10px] text-slate-500 font-mono leading-none mb-1">{s.checkInTime} - {s.checkOutTime}</span>
+
                                         {s.description && (
                                             <span className="text-[9px] text-primary font-medium leading-tight">{s.description}</span>
                                         )}
@@ -424,6 +424,8 @@ export default function EmployeeDashboard() {
     const [forgottenCheckoutHour, setForgottenCheckoutHour] = useState("17");
     const [forgottenCheckoutMin, setForgottenCheckoutMin] = useState("00");
     const [isSubmittingForgottenCheckout, setIsSubmittingForgottenCheckout] = useState(false);
+    const [isForgottenCheckoutModalOpen, setIsForgottenCheckoutModalOpen] = useState(false);
+    const [pendingShiftAfterForgotten, setPendingShiftAfterForgotten] = useState<{ isLate: boolean; expectedTime: string } | null>(null);
 
     useEffect(() => {
         const defTime = pendingForgottenData?.pendingCheckout?.defaultCheckOutTime;
@@ -449,7 +451,18 @@ export default function EmployeeDashboard() {
             const data = await res.json().catch(() => ({}));
             if (!res.ok) throw new Error(data.message || "Gagal menyimpan jam pulang");
             toast({ title: "Jam Pulang Tersimpan!", description: data.message || "Silakan lanjutkan absensi hari ini." });
+            setIsForgottenCheckoutModalOpen(false);
             await refetchPendingForgotten();
+            if (pendingShiftAfterForgotten) {
+                const nextStep = pendingShiftAfterForgotten;
+                setPendingShiftAfterForgotten(null);
+                if (nextStep.isLate) {
+                    setExpectedLateTime(nextStep.expectedTime);
+                    setIsLateReasonModalOpen(true);
+                } else {
+                    setIsCameraOpen(true);
+                }
+            }
             queryClient.invalidateQueries({ queryKey: ["/api/attendance/today"] });
             queryClient.invalidateQueries({ queryKey: ["/api/attendance"] });
         } catch (err: any) {
@@ -1139,6 +1152,12 @@ export default function EmployeeDashboard() {
 
         if (activeAction) {
             setActiveAction({ ...activeAction, fn: wrappedClockIn });
+        }
+
+        if (pendingForgottenData?.pendingCheckout) {
+            setPendingShiftAfterForgotten({ isLate, expectedTime: shiftData?.checkInTime || "07:00" });
+            setIsForgottenCheckoutModalOpen(true);
+            return;
         }
 
         if (isLate) {
@@ -2181,7 +2200,7 @@ export default function EmployeeDashboard() {
             </Dialog>
 
             {/* Modal Peringatan Lupa Absen Pulang (Time Picker 24 Jam) */}
-            <Dialog open={!!pendingForgottenData?.pendingCheckout} onOpenChange={() => {}}>
+            <Dialog open={isForgottenCheckoutModalOpen && !!pendingForgottenData?.pendingCheckout} onOpenChange={(val) => !val && setIsForgottenCheckoutModalOpen(false)}>
                 <DialogContent className="rounded-3xl max-w-sm md:max-w-md bg-white p-6 shadow-2xl [&>button]:hidden">
                     <DialogHeader>
                         <div className="mx-auto w-14 h-14 rounded-full bg-amber-100 flex items-center justify-center mb-3">
