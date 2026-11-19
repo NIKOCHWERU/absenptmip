@@ -2330,7 +2330,7 @@ export function registerRoutes(app: Express) {
 
       const enrichedOvertimes = allOvertimes.map((item: any) => ({
         ...item,
-        breakHours: Number(breakMap[`ot_${item.id}`] || 0),
+        breakHours: breakMap[`ot_${item.id}`] !== undefined ? Number(breakMap[`ot_${item.id}`]) : undefined,
       }));
 
       res.json(enrichedOvertimes);

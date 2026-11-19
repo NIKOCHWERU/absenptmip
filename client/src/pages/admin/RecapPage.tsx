@@ -531,8 +531,8 @@ export default function RecapPage() {
     const autoWeekendBreakHours = overtimeBreakMap["__auto_weekend_break__"] !== undefined ? Math.max(0, Number(overtimeBreakMap["__auto_weekend_break__"])) : 1;
     const autoWeekdayOtBreakHours = overtimeBreakMap["__auto_spl_break__"] !== undefined ? Math.max(0, Number(overtimeBreakMap["__auto_spl_break__"])) : 0;
     const getOtBreakHours = (ot: any, isWeekendOt?: boolean, grossHours?: number): number => {
-        if (ot?.breakHours !== undefined && ot?.breakHours !== null) return Math.max(0, Number(ot.breakHours));
         if (overtimeBreakMap[`ot_${ot?.id}`] !== undefined) return Math.max(0, Number(overtimeBreakMap[`ot_${ot?.id}`]));
+        if (ot?.breakHours !== undefined && ot?.breakHours !== null) return Math.max(0, Number(ot.breakHours));
         const otDate = ot?.date ? new Date(ot.date) : (ot?.startTime ? new Date(ot.startTime) : null);
         const wk = isWeekendOt !== undefined ? isWeekendOt : (otDate ? (otDate.getDay() === 0 || otDate.getDay() === 6) : false);
         const g = grossHours !== undefined ? grossHours : calculateOvertimeGrossHours(ot?.startTime, ot?.endTime, wk);
@@ -3047,7 +3047,7 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
                                 </td>
                                 <td style="text-align: center; font-family: monospace; font-weight: 800; color: #c2410c;">${escapeHTML(item.startTime)}</td>
                                 <td style="text-align: center; font-family: monospace; font-weight: 800; color: #c2410c;">${escapeHTML(item.endTime)}</td>
-                                <td style="text-align: center; font-weight: 900; color: #78350f;">${escapeHTML(item.durationStr)}</td>
+                                <td style="text-align: center; font-weight: 900; color: #78350f;">${escapeHTML(item.durationStr)}${item.breakHours > 0 ? `<div style="font-size: 6.2pt; font-weight: 700; color: #b45309; margin-top: 1px;">(${item.grossHours}j - ${item.breakHours}j Ist)</div>` : ''}</td>
                                 <td style="font-style: italic; color: #334155;">${escapeHTML(item.task)}</td>
                                 <td style="text-align: center;">
                                     <span class="${statusBadgeClass}">${escapeHTML(item.status)}</span>
@@ -3081,7 +3081,7 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
                                         DAFTAR LEMBUR (AKHIR PEKAN &amp; PENUGASAN LEMBUR)
                                     </div>
                                     <div class="ot-card-desc">
-                                        MENCAKUP KEHADIRAN SABTU &amp; MINGGU (OTOMATIS DIHITUNG JAM LEMBUR) SERTA PENUGASAN LEMBUR HARI KERJA
+                                        HANYA MENGHITUNG JAM PENUGASAN LEMBUR (SPL) YANG DITETAPKAN ADMIN &bull; POTONGAN ISTIRAHAT WEEKEND (&ge;5J): ${autoWeekendBreakHours} JAM${autoWeekdayOtBreakHours > 0 ? ` &bull; SPL HARI KERJA (&ge;5J): ${autoWeekdayOtBreakHours} JAM` : ''}
                                     </div>
                                 </div>
                                 <div class="ot-card-header-right">
@@ -3755,7 +3755,8 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
                     const otDate = ot.date ? new Date(ot.date) : (ot.startTime ? new Date(ot.startTime) : null);
                     const isWeekendOt = otDate ? (otDate.getDay() === 0 || otDate.getDay() === 6) : false;
                     const rawOtGross = calculateOvertimeGrossHours(ot.startTime, ot.endTime, isWeekendOt);
-                    const otHours = Math.max(0, rawOtGross - getOtBreakHours(ot, isWeekendOt, rawOtGross));
+                    const otBreakHours = getOtBreakHours(ot, isWeekendOt, rawOtGross);
+                    const otHours = Math.max(0, rawOtGross - otBreakHours);
                     const otDateStr = ot.date ? safeFormatDate(ot.date, "yyyy-MM-dd") : (ot.startTime ? safeFormatDate(ot.startTime, "yyyy-MM-dd") : "");
                     const matchingAtt = empAtt.find(a => safeFormatDate(a.date, 'yyyy-MM-dd') === otDateStr);
 
@@ -3773,6 +3774,8 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
                         isWeekend: isWeekendOt,
                         startTime: ot.startTime ? safeFormatDate(ot.startTime, "HH:mm") : "-",
                         endTime: ot.endTime ? safeFormatDate(ot.endTime, "HH:mm") : (isOngoing ? "Berlangsung" : "-"),
+                        grossHours: rawOtGross,
+                        breakHours: otBreakHours,
                         durationHours: otHours,
                         durationStr: otHours > 0 ? `${otHours} Jam` : (isOngoing ? "Berlangsung" : "-"),
                         task: ot.description || ot.finalDescription || "Pekerjaan lembur",
