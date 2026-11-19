@@ -64,8 +64,11 @@ export default function AdminOvertimeHistoryPage() {
             }
 
             const otMins = Math.round((end.getTime() - start.getTime()) / 60000);
-            const hrs = Math.floor(otMins / 60);
-            durationStr = `${hrs} Jam`;
+            const grossHrs = Math.floor(otMins / 60);
+            const day = start.getDay();
+            const isWeekend = day === 0 || day === 6;
+            const netHrs = (isWeekend && grossHrs >= 5) ? Math.max(0, grossHrs - 1) : grossHrs;
+            durationStr = (isWeekend && grossHrs >= 5) ? `${netHrs} Jam (${grossHrs}j - 1j Ist)` : `${netHrs} Jam`;
         } else {
             rangeStr = `${format(start, "d MMMM yyyy HH:mm", { locale: id })} WIB`;
             durationStr = "Berlangsung";

@@ -71,8 +71,11 @@ function formatOvertimeRange(startTime: Date | string | null, endTime: Date | st
     }
     const otMins = Math.round((end.getTime() - start.getTime()) / 60000);
     if (otMins > 0) {
-      const hrs = Math.floor(otMins / 60);
-      durationStr = `${hrs} Jam`;
+      const grossHrs = Math.floor(otMins / 60);
+      const day = start.getDay();
+      const isWeekend = day === 0 || day === 6;
+      const netHrs = (isWeekend && grossHrs >= 5) ? Math.max(0, grossHrs - 1) : grossHrs;
+      durationStr = (isWeekend && grossHrs >= 5) ? `${netHrs} Jam (${grossHrs}j - 1j Ist)` : `${netHrs} Jam`;
     } else {
       // endTime < startTime (data rusak / salah format jam)
       durationStr = `${startHhMm} – ${endHhMm}`;
@@ -548,7 +551,7 @@ export default function AdminOvertimePage() {
     const day = s.getDay();
     const isWeekend = day === 0 || day === 6;
     const grossHours = Math.floor(diffMins / 60);
-    return isWeekend ? Math.max(0, grossHours - 1) : grossHours;
+    return (isWeekend && grossHours >= 5) ? Math.max(0, grossHours - 1) : grossHours;
   };
 
   const toggleSort = (field: string) => {
