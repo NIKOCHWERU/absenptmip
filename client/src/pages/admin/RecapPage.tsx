@@ -901,37 +901,7 @@ export default function RecapPage() {
                 }
             });
 
-            // 2. Akumulasi jam dari kehadiran di hari Sabtu & Minggu (Weekend)
-            // Semua kehadiran di akhir pekan otomatis dihitung lembur, dan dikurangi istirahat 1 jam!
-            const weekendAtt = userAtt.filter(a => {
-                const d = new Date(a.date);
-                const day = d.getDay();
-                return day === 0 || day === 6; // 0 = Minggu, 6 = Sabtu
-            });
-
-            const processedWeekendDates = new Set<string>();
-            weekendAtt.forEach(a => {
-                const dStr = safeFormatDate(a.date, 'yyyy-MM-dd');
-                if (dStr && !processedWeekendDates.has(dStr)) {
-                    processedWeekendDates.add(dStr);
-                    const dayRecs = weekendAtt.filter(r => safeFormatDate(r.date, 'yyyy-MM-dd') === dStr);
-                    const cin = dayRecs[0]?.checkIn;
-                    const cout = dayRecs[dayRecs.length - 1]?.checkOut;
-                    // Kunci hitungan lembur Sabtu & Minggu: jam 08:00 - 17:00 dikurang 1 jam istirahat = 8 Jam
-                    const rawWkGross = calculateWeekendGrossHours(cin, cout);
-                    const netWeekendHours = Math.max(0, rawWkGross - getWeekendBreakHours(dayRecs[0], rawWkGross));
-                    const roundedWeekendMins = netWeekendHours * 60;
-
-                    // Jika hari weekend ini BELUM tercatat durasi lembur di table overtimes, tambahkan durasi absensi ini
-                    const existingOtMins = otDatesWithDuration.get(dStr) || 0;
-                    if (existingOtMins === 0 && roundedWeekendMins > 0) {
-                        totalLemburMins += roundedWeekendMins;
-                    } else if (roundedWeekendMins > existingOtMins) {
-                        // Jika jam absensi nyata lebih besar dari yang diinput manual, sesuaikan selisihnya
-                        totalLemburMins += (roundedWeekendMins - existingOtMins);
-                    }
-                }
-            });
+            // Rekap lembur hanya menghitung jam penugasan lembur (SPL) yang ditetapkan Admin (userOt)
 
             // Format total jam lembur jadi jam bulat (integer murni)
             const totalLemburHours = Math.floor(totalLemburMins / 60);
@@ -3751,16 +3721,7 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
                     }).filter(Boolean)
                 );
 
-                const weekendRecords = empAtt.filter(a => {
-                    const day = new Date(a.date).getDay();
-                    const isWeekend = day === 0 || day === 6;
-                    if (!isWeekend) return false;
-                    const hasClock = !!(a.checkIn || a.checkOut);
-                    if (!hasClock) return false;
-                    const dStr = safeFormatDate(a.date, 'yyyy-MM-dd');
-                    if (dStr && otDates.has(dStr)) return false;
-                    return true;
-                });
+                const weekendRecords: any[] = [];
 
                 // Map Weekend Records
                 const weekendItems = weekendRecords.map(w => {
@@ -5060,18 +5021,8 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
                                 }).filter(Boolean)
                             );
 
-                            // A. Weekend attendance: hanya yang ada jam masuk/pulang nyata,
-                            // dan abaikan jika tanggal tersebut sudah tercatat di penugasan SPL agar tidak dobel baris
-                            const weekendRecords = empAtt.filter(a => {
-                                const day = new Date(a.date).getDay();
-                                const isWeekend = day === 0 || day === 6;
-                                if (!isWeekend) return false;
-                                const hasClock = !!(a.checkIn || a.checkOut);
-                                if (!hasClock) return false;
-                                const dStr = safeFormatDate(a.date, 'yyyy-MM-dd');
-                                if (dStr && otDates.has(dStr)) return false;
-                                return true;
-                            });
+                            // Rekap lembur hanya menampilkan penugasan lembur (SPL) yang ditetapkan Admin (tanpa jam masuk/pulang absensi)
+                            const weekendRecords: any[] = [];
 
                             return (
                                 <div className="space-y-6">
@@ -5301,7 +5252,7 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
                                                     Daftar Lembur (Akhir Pekan &amp; Penugasan Lembur)
                                                 </h3>
                                                 <p className="text-[11px] text-amber-800/80 mt-0.5">
-                                                    Mencakup kehadiran Sabtu &amp; Minggu (otomatis dihitung jam lembur) serta penugasan lembur hari kerja
+                                                    Hanya menghitung jam penugasan lembur (SPL) yang ditetapkan Admin (tidak mengikuti jam masuk/pulang absensi)
                                                 </p>
                                             </div>
                                             <div className="flex items-center gap-2">
