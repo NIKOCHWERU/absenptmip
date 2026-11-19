@@ -386,11 +386,41 @@ export default function RecapPage() {
         const cin = new Date(checkInVal);
         const cout = new Date(checkOutVal);
         if (isNaN(cin.getTime()) || isNaN(cout.getTime()) || cout <= cin) return 0;
+
+        const isSameDay = cin.getFullYear() === cout.getFullYear() &&
+            cin.getMonth() === cout.getMonth() &&
+            cin.getDate() === cout.getDate();
+
         const inHour = cin.getHours() + cin.getMinutes() / 60;
         const outHour = cout.getHours() + cout.getMinutes() / 60;
-        const effIn = inHour <= 8.25 ? 8 : inHour;
-        const effOut = outHour >= 16.75 ? 17 : Math.min(17, outHour);
-        return Math.min(9, Math.max(0, Math.floor(effOut - effIn)));
+
+        // Jika di hari yang sama dan pulang sekitar/sebelum jam 17:30, pertahankan kunci standar 08:00 - 17:00 (= 9 jam kotor)
+        if (isSameDay && outHour <= 17.5) {
+            const effIn = inHour <= 8.25 ? 8 : inHour;
+            const effOut = outHour >= 16.75 ? 17 : outHour;
+            return Math.min(9, Math.max(0, Math.floor(effOut - effIn)));
+        }
+
+        // Jika lembur weekend melewati jam 17:30 atau lintas tengah malam (misal 08:00 s/d 03:00 besoknya)
+        const sTime = new Date(cin);
+        if (inHour <= 8.25) {
+            sTime.setHours(8, 0, 0, 0);
+        } else if (sTime.getMinutes() >= 35) {
+            sTime.setHours(sTime.getHours() + 1, 0, 0, 0);
+        } else if (sTime.getMinutes() <= 15) {
+            sTime.setMinutes(0, 0, 0);
+        }
+
+        const eTime = new Date(cout);
+        if (eTime.getMinutes() <= 20) {
+            eTime.setMinutes(0, 0, 0);
+        } else if (eTime.getMinutes() >= 45) {
+            eTime.setHours(eTime.getHours() + 1, 0, 0, 0);
+        }
+
+        let diffMins = Math.round((eTime.getTime() - sTime.getTime()) / 60000);
+        if (diffMins <= 0) diffMins = Math.round((cout.getTime() - cin.getTime()) / 60000);
+        return Math.max(0, Math.floor(diffMins / 60));
     };
 
     const calculateOvertimeGrossHours = (startTimeVal: any, endTimeVal: any, isWeekend: boolean): number => {
@@ -411,24 +441,11 @@ export default function RecapPage() {
     };
 
     const calculateWeekendOvertimeHours = (checkInVal: any, checkOutVal: any): number => {
-        if (!checkInVal || !checkOutVal) return 0;
-        const cin = new Date(checkInVal);
-        const cout = new Date(checkOutVal);
-        if (isNaN(cin.getTime()) || isNaN(cout.getTime()) || cout <= cin) return 0;
-
-        const inHour = cin.getHours() + cin.getMinutes() / 60;
-        const outHour = cout.getHours() + cout.getMinutes() / 60;
-
-        // Kunci jam 8 - 17: jika masuk <= 08:15 kunci jam 08:00. Jika pulang >= 16:45 kunci 17:00
-        const effIn = inHour <= 8.25 ? 8 : inHour;
-        const effOut = outHour >= 16.75 ? 17 : Math.min(17, outHour);
-
-        const gross = Math.max(0, effOut - effIn);
+        const gross = calculateWeekendGrossHours(checkInVal, checkOutVal);
         if (gross >= 5) {
-            // Kurang istirahat 1 jam, kunci maksimal 8 jam
-            return Math.min(8, Math.max(0, Math.floor(gross - 1)));
+            return Math.max(0, gross - 1);
         }
-        return Math.min(8, Math.floor(gross));
+        return gross;
     };
 
     const normalizeOvertimeDuration = (
