@@ -48,7 +48,7 @@ function calculateOvertimeEstimatedDuration(dateStr: string, startTimeStr: strin
   }
 }
 
-function formatOvertimeRange(startTime: Date | string | null, endTime: Date | string | null) {
+function formatOvertimeRange(startTime: Date | string | null, endTime: Date | string | null, customBreakHours?: number | null) {
   if (!startTime) return { rangeStr: "-", durationStr: "-", dateStr: "-", timeRangeStr: "-" };
   const start = new Date(startTime);
   if (isNaN(start.getTime())) return { rangeStr: "-", durationStr: "-", dateStr: "-", timeRangeStr: "-" };
@@ -74,8 +74,11 @@ function formatOvertimeRange(startTime: Date | string | null, endTime: Date | st
       const grossHrs = Math.floor(otMins / 60);
       const day = start.getDay();
       const isWeekend = day === 0 || day === 6;
-      const netHrs = (isWeekend && grossHrs >= 5) ? Math.max(0, grossHrs - 1) : grossHrs;
-      durationStr = (isWeekend && grossHrs >= 5) ? `${netHrs} Jam (${grossHrs}j - 1j Ist)` : `${netHrs} Jam`;
+      const effectiveBreak = (customBreakHours !== undefined && customBreakHours !== null)
+        ? Math.max(0, Number(customBreakHours))
+        : ((isWeekend && grossHrs >= 5) ? 1 : 0);
+      const netHrs = Math.max(0, grossHrs - effectiveBreak);
+      durationStr = effectiveBreak > 0 ? `${netHrs} Jam (${grossHrs}j - ${effectiveBreak}j Ist)` : `${netHrs} Jam`;
     } else {
       // endTime < startTime (data rusak / salah format jam)
       durationStr = `${startHhMm} – ${endHhMm}`;
@@ -541,7 +544,7 @@ export default function AdminOvertimePage() {
   };
 
   // Helper normalisasi durasi lembur (potong 1 jam istirahat untuk akhir pekan)
-  const calculateOtHours = (startTime: any, endTime: any) => {
+  const calculateOtHours = (startTime: any, endTime: any, customBreakHours?: number | null) => {
     if (!startTime || !endTime) return 0;
     const s = new Date(startTime);
     const e = new Date(endTime);
@@ -551,7 +554,10 @@ export default function AdminOvertimePage() {
     const day = s.getDay();
     const isWeekend = day === 0 || day === 6;
     const grossHours = Math.floor(diffMins / 60);
-    return (isWeekend && grossHours >= 5) ? Math.max(0, grossHours - 1) : grossHours;
+    const effectiveBreak = (customBreakHours !== undefined && customBreakHours !== null)
+      ? Math.max(0, Number(customBreakHours))
+      : ((isWeekend && grossHours >= 5) ? 1 : 0);
+    return Math.max(0, grossHours - effectiveBreak);
   };
 
   const toggleSort = (field: string) => {
@@ -596,7 +602,7 @@ export default function AdminOvertimePage() {
   // Perhitungan total jam lembur pada data terfilter
   const totalFilteredOvertimeHours = filteredRequests.reduce((sum, req) => {
     if (req.status === 'cancelled' || req.employeeApproval === 'rejected') return sum;
-    const hours = calculateOtHours(req.startTime, req.endTime);
+    const hours = calculateOtHours(req.startTime, req.endTime, req.breakHours);
     return sum + hours;
   }, 0);
 
@@ -638,7 +644,7 @@ export default function AdminOvertimePage() {
     const empNik = item.nik || "-";
     const empPos = item.position || "Operator / Staf";
     const empBranch = item.branch || namaPt;
-    const { rangeStr, durationStr } = formatOvertimeRange(item.startTime, item.endTime);
+    const { rangeStr, durationStr } = formatOvertimeRange(item.startTime, item.endTime, item.breakHours);
     const splNo = item.splNumber || `SPL/MIP/${format(new Date(item.createdAt || new Date()), 'yyyyMMdd')}/${String(item.id || '001').padStart(3, '0')}`;
     const otDateStr = item.date ? format(new Date(item.date), "EEEE, d MMMM yyyy", { locale: id }) : "-";
     const startHhMm = item.startTime ? format(new Date(item.startTime), "HH:mm") : "-";
@@ -1188,7 +1194,7 @@ export default function AdminOvertimePage() {
                   ) : sortedRequests.map((req) => {
                     const empName = req.fullName || "Karyawan";
                     const empNik = req.nik || "-";
-                    const { dateStr, timeRangeStr, durationStr } = formatOvertimeRange(req.startTime, req.endTime);
+                    const { dateStr, timeRangeStr, durationStr } = formatOvertimeRange(req.startTime, req.endTime, req.breakHours);
                     const hasInitialProof = !!req.initialProofUrl;
                     const hasFinalProof = !!req.finalProofUrl;
 

@@ -47,7 +47,7 @@ export default function AdminOvertimeHistoryPage() {
         queryKey: ["/api/config"],
     });
 
-    const formatOvertimeRange = (startTime: Date | string | null, endTime: Date | string | null) => {
+    const formatOvertimeRange = (startTime: Date | string | null, endTime: Date | string | null, customBreakHours?: number | null) => {
         if (!startTime) return { rangeStr: "-", durationStr: "-" };
         const start = new Date(startTime);
         const end = endTime ? new Date(endTime) : null;
@@ -67,8 +67,11 @@ export default function AdminOvertimeHistoryPage() {
             const grossHrs = Math.floor(otMins / 60);
             const day = start.getDay();
             const isWeekend = day === 0 || day === 6;
-            const netHrs = (isWeekend && grossHrs >= 5) ? Math.max(0, grossHrs - 1) : grossHrs;
-            durationStr = (isWeekend && grossHrs >= 5) ? `${netHrs} Jam (${grossHrs}j - 1j Ist)` : `${netHrs} Jam`;
+            const effectiveBreak = (customBreakHours !== undefined && customBreakHours !== null)
+                ? Math.max(0, Number(customBreakHours))
+                : ((isWeekend && grossHrs >= 5) ? 1 : 0);
+            const netHrs = Math.max(0, grossHrs - effectiveBreak);
+            durationStr = effectiveBreak > 0 ? `${netHrs} Jam (${grossHrs}j - ${effectiveBreak}j Ist)` : `${netHrs} Jam`;
         } else {
             rangeStr = `${format(start, "d MMMM yyyy HH:mm", { locale: id })} WIB`;
             durationStr = "Berlangsung";
@@ -207,7 +210,7 @@ export default function AdminOvertimeHistoryPage() {
         setStatusFilter("all");
     };
 
-    const calculateOtHours = (startTime: any, endTime: any) => {
+    const calculateOtHours = (startTime: any, endTime: any, customBreakHours?: number | null) => {
         if (!startTime || !endTime) return 0;
         const s = new Date(startTime);
         const e = new Date(endTime);
@@ -217,7 +220,10 @@ export default function AdminOvertimeHistoryPage() {
         const day = s.getDay();
         const isWeekend = day === 0 || day === 6;
         const grossHours = Math.floor(diffMins / 60);
-        return isWeekend ? Math.max(0, grossHours - 1) : grossHours;
+        const effectiveBreak = (customBreakHours !== undefined && customBreakHours !== null)
+            ? Math.max(0, Number(customBreakHours))
+            : ((isWeekend && grossHours >= 5) ? 1 : 0);
+        return Math.max(0, grossHours - effectiveBreak);
     };
 
     const getUserName = (userIdOrName: any) => {
@@ -517,7 +523,7 @@ export default function AdminOvertimeHistoryPage() {
     // Perhitungan total jam lembur pada data terfilter
     const totalFilteredOvertimeHours = filteredRequests.reduce((sum, req) => {
         if (req.status === 'cancelled' || req.employeeApproval === 'rejected') return sum;
-        const hours = calculateOtHours(req.startTime, req.endTime);
+        const hours = calculateOtHours(req.startTime, req.endTime, req.breakHours);
         return sum + hours;
     }, 0);
 
@@ -740,7 +746,7 @@ export default function AdminOvertimeHistoryPage() {
                                             filteredRequests.map((req) => {
                                                 const userName = getUserName(req.userId || req.fullName);
                                                 const userObj = getUserObj(req);
-                                                const { rangeStr, durationStr } = formatOvertimeRange(req.startTime, req.endTime);
+                                                const { rangeStr, durationStr } = formatOvertimeRange(req.startTime, req.endTime, req.breakHours);
 
                                                 return (
                                                     <tr key={req.id} className="hover:bg-gray-50/50 transition-colors">
