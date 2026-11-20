@@ -6,7 +6,7 @@ import React, { useState, useEffect, Fragment, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ChevronLeft, ChevronRight, FileDown, ArrowLeft, Search, ArrowUpDown, MessageSquare, Plus, Edit2, Trash2, Camera, Image as ImageIcon, FileSpreadsheet, Calendar, Users, Clock, CheckCircle2, Printer, Eye, FileCode, RotateCcw, Check, Download } from "lucide-react";
+import { ChevronLeft, ChevronRight, FileDown, ArrowLeft, Search, ArrowUpDown, MessageSquare, Plus, Edit2, Trash2, Camera, Image as ImageIcon, FileSpreadsheet, Calendar, Users, Clock, CheckCircle2, Printer, Eye, FileCode, RotateCcw, Check, Download, Upload } from "lucide-react";
 import { useLocation } from "wouter";
 import { Input } from "@/components/ui/input";
 import { differenceInMinutes } from "date-fns";
@@ -541,6 +541,171 @@ export default function RecapPage() {
         setEditOtDescription(ot.description || ot.finalDescription || "");
         setEditOtStatus(ot.status || "completed");
         setEditOtApproval(ot.employeeApproval || "approved");
+    };
+
+    // State & Parser untuk Import / Update Massal Absensi dari Fingerprint
+    const [isBulkImportOpen, setIsBulkImportOpen] = useState(false);
+    const [bulkImportText, setBulkImportText] = useState("");
+    const [bulkImportMode, setBulkImportMode] = useState<"fill_missing" | "overwrite_all">("fill_missing");
+    const [isBulkImporting, setIsBulkImporting] = useState(false);
+
+    const parsedBulkImport = useMemo(() => {
+        const lines = bulkImportText.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+        const monthMap: Record<string, string> = {
+            jan: "01", januari: "01", feb: "02", februari: "02", mar: "03", maret: "03",
+            apr: "04", april: "04", mei: "05", jun: "06", juni: "06", jul: "07", juli: "07",
+            agu: "08", agustus: "08", agt: "08", sep: "09", september: "09",
+            okt: "10", oktober: "10", nov: "11", november: "11", des: "12", desember: "12"
+        };
+
+        const nonAdminUsers = (users || []).filter(u => !isAdminUser(u));
+        const findUserByFpName = (fpName: string) => {
+            const clean = fpName.toUpperCase().replace(/[^A-Z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
+            if (!clean) return null;
+            // Exact or substring match
+            let found = nonAdminUsers.find(u => (u.fullName || "").toUpperCase().trim() === clean);
+            if (found) return found;
+            found = nonAdminUsers.find(u => {
+                const uName = (u.fullName || "").toUpperCase().trim();
+                return uName.includes(clean) || clean.includes(uName);
+            });
+            if (found) return found;
+            // Alias matching e.g. "M PRAYUDI" -> "MUHAMAD PRAYUDI NUGRAHA", "M PRAYOGA" -> "MUHAMMAD PRAYOGA"
+            const tokens = clean.split(" ").filter(t => t.length > 1);
+            if (tokens.length > 0) {
+                found = nonAdminUsers.find(u => {
+                    const uName = (u.fullName || "").toUpperCase();
+                    return tokens.every(tok => uName.includes(tok));
+                });
+            }
+            return found || null;
+        };
+
+        const items: Array<{
+            userId: number;
+            empName: string;
+            date: string;
+            status: string;
+            checkIn: string | null;
+            checkOut: string | null;
+            notes: string;
+            rawVal: string;
+        }> = [];
+        const unmatchedNames = new Set<string>();
+        let skippedNonAttendance = 0;
+        let currentUser: any = null;
+        let currentRawName = "";
+
+        for (const line of lines) {
+            if (line === "Rekap absensi karyawan" || line.startsWith("Tanggal\t") || line === "Tanggal Jam / Keterangan") continue;
+
+            const empMatch = line.match(/^\d+\.\s+(.+?)\s+[—\-]\s+(.+)$/);
+            if (empMatch) {
+                currentRawName = empMatch[1].trim();
+                currentUser = findUserByFpName(currentRawName);
+                if (!currentUser) unmatchedNames.add(currentRawName);
+                continue;
+            }
+
+            if (!currentUser) continue;
+
+            // Parse date + value (separated by tab or >=2 spaces or right after year YYYY)
+            const dateMatch = line.match(/^(?:[A-Za-z]+,\s*)?(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})[\t\s]+(.+)$/);
+            if (!dateMatch) continue;
+
+            const dayNum = parseInt(dateMatch[1], 10);
+            const monStr = monthMap[dateMatch[2].toLowerCase()];
+            const yearStr = dateMatch[3];
+            const valPart = dateMatch[4].trim();
+            if (!monStr) continue;
+
+            const isoDate = `${yearStr}-${monStr}-${String(dayNum).padStart(2, "0")}`;
+            const valUpper = valPart.toUpperCase();
+
+            if (valUpper.includes("BELUM JOINT") || valUpper.includes("RESIGN") || valUpper.includes("TIDAK ADA DATA")) {
+                skippedNonAttendance++;
+                continue;
+            }
+
+            let status = "present";
+            let checkIn: string | null = null;
+            let checkOut: string | null = null;
+            let notes = "Sync Fingerprint";
+
+            if (valUpper.includes("SAKIT") && valUpper.includes("IZIN")) {
+                status = "permission";
+                notes = valPart;
+            } else if (valUpper.includes("SAKIT")) {
+                status = "sick";
+                notes = valPart;
+            } else if (valUpper.includes("IZIN")) {
+                status = "permission";
+                notes = valPart;
+            } else if (valUpper.includes("CUTI")) {
+                status = "cuti";
+                notes = valPart;
+            } else {
+                const times = valPart.match(/\d{2}[.:]\d{2}/g) || [];
+                if (times.length >= 1) checkIn = times[0].replace(".", ":");
+                if (times.length >= 2) checkOut = times[1].replace(".", ":");
+                if (!checkIn) {
+                    skippedNonAttendance++;
+                    continue;
+                }
+            }
+
+            items.push({
+                userId: currentUser.id,
+                empName: currentUser.fullName,
+                date: isoDate,
+                status,
+                checkIn,
+                checkOut,
+                notes,
+                rawVal: valPart,
+            });
+        }
+
+        return {
+            items,
+            unmatchedNames: Array.from(unmatchedNames),
+            matchedEmployeesCount: new Set(items.map(i => i.userId)).size,
+            skippedNonAttendance,
+        };
+    }, [bulkImportText, users]);
+
+    const handleExecuteBulkImport = async () => {
+        if (parsedBulkImport.items.length === 0) {
+            toast({ title: "Tidak Ada Data Valid", description: "Silakan tempel atau upload isi teks Fingerprint yang valid.", variant: "destructive" });
+            return;
+        }
+        setIsBulkImporting(true);
+        try {
+            const res = await fetch("/api/admin/attendance/bulk-import", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    items: parsedBulkImport.items.map(({ userId, date, status, checkIn, checkOut, notes }) => ({
+                        userId, date, status, checkIn, checkOut, notes
+                    })),
+                    mode: bulkImportMode,
+                }),
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.message || "Gagal mengimport absensi");
+
+            await queryClient.invalidateQueries({ predicate: (query) => String(query.queryKey[0] || "").startsWith("/api/attendance") });
+            await queryClient.invalidateQueries({ queryKey: ["/api/admin/summary-cutoff"] });
+            toast({
+                title: "✅ Sinkronisasi Fingerprint Selesai",
+                description: `${data.inserted} ditambahkan, ${data.updated} diperbarui, ${data.skipped} dilewati.`,
+            });
+            setIsBulkImportOpen(false);
+        } catch (err: any) {
+            toast({ title: "Gagal Import Fingerprint", description: err.message, variant: "destructive" });
+        } finally {
+            setIsBulkImporting(false);
+        }
     };
 
     const deleteOvertimeMutation = useMutation({
@@ -4168,6 +4333,9 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
                             <Button variant="outline" className="gap-2 bg-green-50 text-green-700 border-green-200 hover:bg-green-100 h-10 font-bold" onClick={() => handleOpenManualModal()}>
                                 <Plus className="h-4 w-4" /> Input Manual
                             </Button>
+                            <Button variant="outline" className="gap-2 bg-cyan-50 text-cyan-800 border-cyan-300 hover:bg-cyan-100 h-10 font-bold shadow-sm cursor-pointer" onClick={() => setIsBulkImportOpen(true)}>
+                                <Upload className="h-4 w-4 text-cyan-700" /> Import / Sync Fingerprint
+                            </Button>
                             {reportType === "custom" && (
                                 <Button 
                                     variant="outline" 
@@ -4696,6 +4864,17 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
                                 >
                                     <Clock className="h-4 w-4" />
                                     Cetak Rekap Lembur (PDF)
+                                </Button>
+
+                                {/* Import / Sync Fingerprint Massal */}
+                                <Button
+                                    variant="outline"
+                                    onClick={() => setIsBulkImportOpen(true)}
+                                    className="gap-2 bg-cyan-50 hover:bg-cyan-100 border-cyan-300 text-cyan-800 font-bold h-10 shadow-sm cursor-pointer"
+                                    title="Update massal data absensi dari teks / file Rekap Fingerprint"
+                                >
+                                    <Upload className="h-4 w-4 text-cyan-700" />
+                                    Import / Sync Fingerprint
                                 </Button>
                             </div>
                         </div>
@@ -6129,6 +6308,159 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
                             className="rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white cursor-pointer"
                         >
                             Terapkan Filter ({selectedEmployeeIds.length === 0 ? activeEmployeeList.length : selectedEmployeeIds.length} Karyawan)
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* MODAL IMPORT / SYNC MASSAL ABSENSI FINGERPRINT */}
+            <Dialog open={isBulkImportOpen} onOpenChange={setIsBulkImportOpen}>
+                <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2 text-cyan-900">
+                            <Upload className="w-5 h-5 text-cyan-600" />
+                            Import &amp; Update Massal Absensi (Fingerprint)
+                        </DialogTitle>
+                        <DialogDescription>
+                            Upload file <strong>Rekap absensi karyawan fingerprint</strong> atau tempel (paste) isinya di bawah ini untuk melengkapi/memperbarui data absensi di database sekaligus.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="space-y-4 py-2">
+                        <div className="flex flex-wrap items-center justify-between gap-2 bg-slate-50 p-3 rounded-xl border border-slate-200">
+                            <div className="space-y-0.5">
+                                <Label className="text-xs font-bold text-slate-700">1. Upload File Teks Fingerprint (Opsional)</Label>
+                                <p className="text-[11px] text-slate-500">Atau langsung copy-paste isi file ke kotak teks di bawah.</p>
+                            </div>
+                            <input
+                                type="file"
+                                accept=".txt,text/plain,*"
+                                onChange={(e) => {
+                                    const file = e.target.files?.[0];
+                                    if (!file) return;
+                                    const reader = new FileReader();
+                                    reader.onload = (ev) => {
+                                        setBulkImportText(String(ev.target?.result || ""));
+                                    };
+                                    reader.readAsText(file);
+                                }}
+                                className="text-xs file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-cyan-600 file:text-white hover:file:bg-cyan-700 cursor-pointer"
+                            />
+                        </div>
+
+                        <div className="space-y-1.5">
+                            <Label className="text-xs font-bold text-slate-700">2. Isi Data Teks Fingerprint</Label>
+                            <Textarea
+                                value={bulkImportText}
+                                onChange={(e) => setBulkImportText(e.target.value)}
+                                rows={7}
+                                placeholder={"Contoh format:\n1. ADE WAHYUDIN — QC STAMPING\nTanggal\tJam / Keterangan\nRabu, 21 Okt 2026\t04.55 - 14.33\nSenin, 2 Nov 2026\tSAKIT"}
+                                className="font-mono text-xs"
+                            />
+                        </div>
+
+                        <div className="space-y-1.5">
+                            <Label className="text-xs font-bold text-slate-700">3. Mode Update Database</Label>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setBulkImportMode("fill_missing")}
+                                    className={`text-left p-3 rounded-xl border text-xs transition-all cursor-pointer ${
+                                        bulkImportMode === "fill_missing"
+                                            ? "bg-cyan-50 border-cyan-500 text-cyan-950 ring-1 ring-cyan-500"
+                                            : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
+                                    }`}
+                                >
+                                    <div className="font-extrabold">✅ Hanya Lengkapi yang Kosong / Belum Pulang (Aman)</div>
+                                    <div className="text-[11px] opacity-80 mt-0.5">Mengisi tanggal yang masih Tidak Absen atau Belum Absen Pulang. Data absen yang sudah lengkap &amp; ada foto tidak ditimpa.</div>
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setBulkImportMode("overwrite_all")}
+                                    className={`text-left p-3 rounded-xl border text-xs transition-all cursor-pointer ${
+                                        bulkImportMode === "overwrite_all"
+                                            ? "bg-amber-50 border-amber-500 text-amber-950 ring-1 ring-amber-500"
+                                            : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
+                                    }`}
+                                >
+                                    <div className="font-extrabold">🔄 Timpa Semua Sesuai Fingerprint</div>
+                                    <div className="text-[11px] opacity-80 mt-0.5">Menyamakan jam masuk, jam pulang, dan status (Hadir/Sakit/Izin/Cuti) seluruh tanggal dengan data Fingerprint (foto lama tetap aman).</div>
+                                </button>
+                            </div>
+                        </div>
+
+                        {bulkImportText.trim() && (
+                            <div className="space-y-2 border-t pt-3">
+                                <div className="flex flex-wrap items-center gap-2 text-xs">
+                                    <span className="px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 font-bold">
+                                        {parsedBulkImport.matchedEmployeesCount} Karyawan Cocok
+                                    </span>
+                                    <span className="px-2.5 py-1 rounded-full bg-blue-100 text-blue-800 font-bold">
+                                        {parsedBulkImport.items.length} Baris Siap Import
+                                    </span>
+                                    {parsedBulkImport.skippedNonAttendance > 0 && (
+                                        <span className="px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 font-semibold">
+                                            {parsedBulkImport.skippedNonAttendance} Baris Non-Hadir (Resign/Belum Joint) Dilewati
+                                        </span>
+                                    )}
+                                </div>
+
+                                {parsedBulkImport.unmatchedNames.length > 0 && (
+                                    <div className="p-2.5 rounded-lg bg-rose-50 border border-rose-200 text-[11px] text-rose-800">
+                                        <strong>Nama tidak ditemukan di sistem ({parsedBulkImport.unmatchedNames.length}):</strong>{" "}
+                                        {parsedBulkImport.unmatchedNames.join(", ")}
+                                    </div>
+                                )}
+
+                                {parsedBulkImport.items.length > 0 && (
+                                    <div className="max-h-48 overflow-y-auto border rounded-xl">
+                                        <table className="w-full text-[11px] text-left">
+                                            <thead className="bg-slate-100 sticky top-0 font-bold text-slate-700">
+                                                <tr>
+                                                    <th className="px-3 py-2">Karyawan</th>
+                                                    <th className="px-3 py-2">Tanggal</th>
+                                                    <th className="px-3 py-2">Status</th>
+                                                    <th className="px-3 py-2">Masuk</th>
+                                                    <th className="px-3 py-2">Pulang</th>
+                                                    <th className="px-3 py-2">Sumber Teks</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y">
+                                                {parsedBulkImport.items.slice(0, 150).map((it, idx) => (
+                                                    <tr key={idx} className="hover:bg-slate-50">
+                                                        <td className="px-3 py-1.5 font-bold">{it.empName}</td>
+                                                        <td className="px-3 py-1.5 font-mono">{it.date}</td>
+                                                        <td className="px-3 py-1.5 uppercase font-semibold">{it.status}</td>
+                                                        <td className="px-3 py-1.5 font-mono">{it.checkIn || "-"}</td>
+                                                        <td className="px-3 py-1.5 font-mono">{it.checkOut || "-"}</td>
+                                                        <td className="px-3 py-1.5 text-slate-500">{it.rawVal}</td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                        {parsedBulkImport.items.length > 150 && (
+                                            <div className="text-center py-1.5 text-[10px] text-slate-500 bg-slate-50 border-t">
+                                                Menampilkan 150 dari {parsedBulkImport.items.length} baris (semua baris tetap akan diproses).
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
+
+                    <DialogFooter className="gap-2 pt-2 border-t">
+                        <Button type="button" variant="outline" onClick={() => setIsBulkImportOpen(false)} disabled={isBulkImporting}>
+                            Batal
+                        </Button>
+                        <Button
+                            type="button"
+                            onClick={handleExecuteBulkImport}
+                            disabled={isBulkImporting || parsedBulkImport.items.length === 0}
+                            className="bg-cyan-600 hover:bg-cyan-700 text-white font-bold gap-2 cursor-pointer"
+                        >
+                            <Upload className="w-4 h-4" />
+                            {isBulkImporting ? "Menyimpan ke Database..." : `Terapkan ${parsedBulkImport.items.length} Data ke Database`}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

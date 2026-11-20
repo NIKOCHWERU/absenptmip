@@ -4197,6 +4197,110 @@ export function registerRoutes(app: Express) {
     }
   });
 
+  // POST: Bulk import/update attendance from fingerprint text/file
+  app.post("/api/admin/attendance/bulk-import", isAdmin, async (req: Request, res: Response) => {
+    try {
+      const { items, mode = "fill_missing" } = req.body || {};
+      if (!Array.isArray(items) || items.length === 0) {
+        return res.status(400).json({ message: "Tidak ada data absensi untuk diimport" });
+      }
+
+      const toWibDate = (dateStr: string, timeStr: string | null | undefined, addOneDay = false): Date | null => {
+        if (!timeStr || timeStr.trim() === "") return null;
+        const d = new Date(`${dateStr}T${timeStr.trim()}:00+07:00`);
+        if (isNaN(d.getTime())) return null;
+        if (addOneDay) d.setDate(d.getDate() + 1);
+        return d;
+      };
+
+      let inserted = 0;
+      let updated = 0;
+      let skipped = 0;
+
+      // Cache user shifts
+      const allUsers = await db.select({ id: users.id, shift: users.shift }).from(users);
+      const userShiftMap = new Map<number, string>();
+      allUsers.forEach(u => userShiftMap.set(u.id, u.shift || "-"));
+
+      for (const item of items) {
+        const userId = Number(item.userId);
+        const date = String(item.date || "").trim();
+        const status = String(item.status || "").trim();
+        if (!userId || !date || !status) {
+          skipped++;
+          continue;
+        }
+
+        const checkInStr = item.checkIn ? String(item.checkIn).trim() : null;
+        const checkOutStr = item.checkOut ? String(item.checkOut).trim() : null;
+        const isCrossMidnight = !!(checkInStr && checkOutStr && checkOutStr < checkInStr);
+
+        const checkInDate = toWibDate(date, checkInStr, false);
+        const checkOutDate = toWibDate(date, checkOutStr, isCrossMidnight);
+        const notes = item.notes ? String(item.notes).trim() : null;
+
+        const [existing] = await db
+          .select()
+          .from(attendance)
+          .where(and(eq(attendance.userId, userId), sql`DATE(${attendance.date}) = ${date}`))
+          .limit(1);
+
+        if (existing) {
+          if (mode === "fill_missing") {
+            const hasStatus = ["sick", "permission", "cuti", "off"].includes(existing.status || "");
+            const hasFullClock = !!(existing.checkIn && existing.checkOut);
+            if (hasStatus || hasFullClock) {
+              skipped++;
+              continue;
+            }
+            const patch: any = {};
+            if (existing.checkIn && !existing.checkOut && checkOutDate) {
+              patch.checkOut = checkOutDate;
+              if (notes && !existing.notes) patch.notes = notes;
+            } else if (!existing.checkIn && !hasStatus) {
+              patch.status = status;
+              if (checkInDate) patch.checkIn = checkInDate;
+              if (checkOutDate) patch.checkOut = checkOutDate;
+              if (notes) patch.notes = notes;
+            }
+            if (Object.keys(patch).length > 0) {
+              await db.update(attendance).set(patch).where(eq(attendance.id, existing.id));
+              updated++;
+            } else {
+              skipped++;
+            }
+          } else {
+            // overwrite_all
+            const patch: any = { status };
+            if (notes !== null) patch.notes = notes;
+            if (checkInDate) patch.checkIn = checkInDate;
+            if (checkOutDate) patch.checkOut = checkOutDate;
+            await db.update(attendance).set(patch).where(eq(attendance.id, existing.id));
+            updated++;
+          }
+        } else {
+          const insertPayload: any = {
+            userId,
+            date,
+            status,
+            notes: notes || "",
+            shift: userShiftMap.get(userId) || "-",
+            sessionNumber: 1,
+          };
+          if (checkInDate) insertPayload.checkIn = checkInDate;
+          if (checkOutDate) insertPayload.checkOut = checkOutDate;
+          await db.insert(attendance).values(insertPayload);
+          inserted++;
+        }
+      }
+
+      res.json({ inserted, updated, skipped, total: items.length });
+    } catch (err: any) {
+      console.error("Bulk Import Attendance Error:", err);
+      res.status(500).json({ message: err.message || "Gagal mengimport data absensi massal" });
+    }
+  });
+
   // PUT: Edit existing attendance record (admin override)
   app.put('/api/admin/attendance/:id', isAdmin, async (req: Request, res: Response) => {
     const id = parseInt(req.params.id);
