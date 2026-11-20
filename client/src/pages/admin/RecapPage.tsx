@@ -620,6 +620,12 @@ export default function RecapPage() {
             if (!monStr) continue;
 
             const isoDate = `${yearStr}-${monStr}-${String(dayNum).padStart(2, "0")}`;
+            const parsedDateObj = new Date(`${isoDate}T12:00:00+07:00`);
+            const dayOfWeek = parsedDateObj.getDay();
+            if (dayOfWeek === 0 || dayOfWeek === 6) {
+                skippedNonAttendance++;
+                continue;
+            }
             const valUpper = valPart.toUpperCase();
 
             if (valUpper.includes("BELUM JOINT") || valUpper.includes("RESIGN") || valUpper.includes("TIDAK ADA DATA")) {

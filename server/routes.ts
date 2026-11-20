@@ -4231,6 +4231,11 @@ export function registerRoutes(app: Express) {
           skipped++;
           continue;
         }
+        const dayOfWeek = new Date(`${date}T12:00:00+07:00`).getDay();
+        if (dayOfWeek === 0 || dayOfWeek === 6) {
+          skipped++;
+          continue;
+        }
 
         const checkInStr = item.checkIn ? String(item.checkIn).trim() : null;
         const checkOutStr = item.checkOut ? String(item.checkOut).trim() : null;
