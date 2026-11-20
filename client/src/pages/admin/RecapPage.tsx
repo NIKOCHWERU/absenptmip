@@ -441,28 +441,7 @@ export default function RecapPage() {
             return calculateWeekendOvertimeHours(start, end, customBreakHours);
         }
 
-        let sTime = new Date(start);
-        let eTime = new Date(end);
-
-        // Jika karyawan absen masuk lembur lebih awal dari jam bulat penugasan (misal 19.50 -> 20.00):
-        if (sTime.getMinutes() >= 35) {
-            sTime.setHours(sTime.getHours() + 1, 0, 0, 0);
-        } else if (sTime.getMinutes() <= 15) {
-            sTime.setMinutes(0, 0, 0);
-        }
-
-        // Jika karyawan selesai lembur di sekitar jam pas penugasan (misal 23.05 -> 23.00):
-        if (eTime.getMinutes() <= 20) {
-            eTime.setMinutes(0, 0, 0);
-        } else if (eTime.getMinutes() >= 45) {
-            eTime.setHours(eTime.getHours() + 1, 0, 0, 0);
-        }
-
-        let diffMins = Math.round((eTime.getTime() - sTime.getTime()) / 60000);
-        if (diffMins <= 0) {
-            diffMins = Math.round((end.getTime() - start.getTime()) / 60000);
-        }
-
+        const diffMins = Math.round((end.getTime() - start.getTime()) / 60000);
         const grossHours = Math.max(0, Math.floor(diffMins / 60));
         if (customBreakHours !== undefined && customBreakHours !== null) {
             return Math.max(0, grossHours - Math.max(0, Number(customBreakHours)));
