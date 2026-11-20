@@ -4216,6 +4216,7 @@ export function registerRoutes(app: Express) {
       let inserted = 0;
       let updated = 0;
       let skipped = 0;
+      const operations: any[] = [];
 
       // Cache user shifts
       const allUsers = await db.select({ id: users.id, shift: users.shift }).from(users);
@@ -4246,6 +4247,13 @@ export function registerRoutes(app: Express) {
           .limit(1);
 
         if (existing) {
+          const prevSnapshot = {
+            status: existing.status,
+            checkIn: existing.checkIn ? new Date(existing.checkIn).toISOString() : null,
+            checkOut: existing.checkOut ? new Date(existing.checkOut).toISOString() : null,
+            notes: existing.notes ?? null,
+          };
+
           if (mode === "fill_missing") {
             const hasStatus = ["sick", "permission", "cuti", "off"].includes(existing.status || "");
             const hasFullClock = !!(existing.checkIn && existing.checkOut);
@@ -4265,6 +4273,7 @@ export function registerRoutes(app: Express) {
             }
             if (Object.keys(patch).length > 0) {
               await db.update(attendance).set(patch).where(eq(attendance.id, existing.id));
+              operations.push({ action: "restore", id: existing.id, prev: prevSnapshot });
               updated++;
             } else {
               skipped++;
@@ -4276,6 +4285,7 @@ export function registerRoutes(app: Express) {
             if (checkInDate) patch.checkIn = checkInDate;
             if (checkOutDate) patch.checkOut = checkOutDate;
             await db.update(attendance).set(patch).where(eq(attendance.id, existing.id));
+            operations.push({ action: "restore", id: existing.id, prev: prevSnapshot });
             updated++;
           }
         } else {
@@ -4289,15 +4299,93 @@ export function registerRoutes(app: Express) {
           };
           if (checkInDate) insertPayload.checkIn = checkInDate;
           if (checkOutDate) insertPayload.checkOut = checkOutDate;
-          await db.insert(attendance).values(insertPayload);
+          const [resInsert] = await db.insert(attendance).values(insertPayload);
+          if (resInsert?.insertId) {
+            operations.push({ action: "delete", id: resInsert.insertId });
+          }
           inserted++;
         }
       }
 
-      res.json({ inserted, updated, skipped, total: items.length });
+      if (operations.length > 0) {
+        const snapshotVal = JSON.stringify({
+          timestamp: new Date().toISOString(),
+          mode,
+          inserted,
+          updated,
+          operations,
+        });
+        const [existingCfg] = await db.select().from(systemConfigs).where(eq(systemConfigs.key, "lastBulkImportUndo")).limit(1);
+        if (existingCfg) {
+          await db.update(systemConfigs).set({ value: snapshotVal }).where(eq(systemConfigs.key, "lastBulkImportUndo"));
+        } else {
+          await db.insert(systemConfigs).values({ key: "lastBulkImportUndo", value: snapshotVal });
+        }
+      }
+
+      res.json({ inserted, updated, skipped, total: items.length, canUndo: operations.length > 0 });
     } catch (err: any) {
       console.error("Bulk Import Attendance Error:", err);
       res.status(500).json({ message: err.message || "Gagal mengimport data absensi massal" });
+    }
+  });
+
+  // GET: Check if there is an undoable bulk import
+  app.get("/api/admin/attendance/bulk-import/undo-status", isAdmin, async (_req: Request, res: Response) => {
+    try {
+      const [cfg] = await db.select().from(systemConfigs).where(eq(systemConfigs.key, "lastBulkImportUndo")).limit(1);
+      if (!cfg?.value) return res.json({ canUndo: false });
+      const parsed = JSON.parse(cfg.value);
+      if (!parsed?.operations?.length) return res.json({ canUndo: false });
+      res.json({
+        canUndo: true,
+        timestamp: parsed.timestamp,
+        inserted: parsed.inserted || 0,
+        updated: parsed.updated || 0,
+        mode: parsed.mode || "fill_missing",
+      });
+    } catch (_) {
+      res.json({ canUndo: false });
+    }
+  });
+
+  // POST: Undo last bulk attendance import
+  app.post("/api/admin/attendance/bulk-import/undo", isAdmin, async (_req: Request, res: Response) => {
+    try {
+      const [cfg] = await db.select().from(systemConfigs).where(eq(systemConfigs.key, "lastBulkImportUndo")).limit(1);
+      if (!cfg?.value) {
+        return res.status(400).json({ message: "Tidak ada riwayat import terakhir untuk di-undo" });
+      }
+      const parsed = JSON.parse(cfg.value);
+      const ops: any[] = Array.isArray(parsed?.operations) ? parsed.operations : [];
+      if (ops.length === 0) {
+        return res.status(400).json({ message: "Tidak ada perubahan yang bisa di-undo" });
+      }
+
+      let restoredCount = 0;
+      let deletedCount = 0;
+
+      for (let i = ops.length - 1; i >= 0; i--) {
+        const op = ops[i];
+        if (op.action === "delete" && op.id) {
+          await db.delete(attendance).where(eq(attendance.id, Number(op.id)));
+          deletedCount++;
+        } else if (op.action === "restore" && op.id && op.prev) {
+          await db.update(attendance).set({
+            status: op.prev.status,
+            checkIn: op.prev.checkIn ? new Date(op.prev.checkIn) : null,
+            checkOut: op.prev.checkOut ? new Date(op.prev.checkOut) : null,
+            notes: op.prev.notes ?? null,
+          }).where(eq(attendance.id, Number(op.id)));
+          restoredCount++;
+        }
+      }
+
+      await db.update(systemConfigs).set({ value: "" }).where(eq(systemConfigs.key, "lastBulkImportUndo"));
+      res.json({ restoredCount, deletedCount });
+    } catch (err: any) {
+      console.error("Undo Bulk Import Error:", err);
+      res.status(500).json({ message: err.message || "Gagal melakukan undo import" });
     }
   });
 

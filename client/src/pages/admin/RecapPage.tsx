@@ -696,6 +696,7 @@ export default function RecapPage() {
 
             await queryClient.invalidateQueries({ predicate: (query) => String(query.queryKey[0] || "").startsWith("/api/attendance") });
             await queryClient.invalidateQueries({ queryKey: ["/api/admin/summary-cutoff"] });
+            await queryClient.invalidateQueries({ queryKey: ["/api/admin/attendance/bulk-import/undo-status"] });
             toast({
                 title: "✅ Sinkronisasi Fingerprint Selesai",
                 description: `${data.inserted} ditambahkan, ${data.updated} diperbarui, ${data.skipped} dilewati.`,
@@ -705,6 +706,36 @@ export default function RecapPage() {
             toast({ title: "Gagal Import Fingerprint", description: err.message, variant: "destructive" });
         } finally {
             setIsBulkImporting(false);
+        }
+    };
+
+    const [isUndoingBulkImport, setIsUndoingBulkImport] = useState(false);
+    const { data: bulkUndoStatus } = useQuery<{ canUndo: boolean; timestamp?: string; inserted?: number; updated?: number }>({
+        queryKey: ["/api/admin/attendance/bulk-import/undo-status"],
+    });
+
+    const handleUndoBulkImport = async () => {
+        if (!bulkUndoStatus?.canUndo) return;
+        const ok = window.confirm(
+            `Yakin ingin membatalkan (Undo) hasil Import Fingerprint terakhir?\n\n(${bulkUndoStatus.inserted || 0} data baru akan dihapus & ${bulkUndoStatus.updated || 0} data yang diubah akan dikembalikan seperti semula.)`
+        );
+        if (!ok) return;
+        setIsUndoingBulkImport(true);
+        try {
+            const res = await fetch("/api/admin/attendance/bulk-import/undo", { method: "POST" });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.message || "Gagal melakukan undo");
+            await queryClient.invalidateQueries({ predicate: (query) => String(query.queryKey[0] || "").startsWith("/api/attendance") });
+            await queryClient.invalidateQueries({ queryKey: ["/api/admin/summary-cutoff"] });
+            await queryClient.invalidateQueries({ queryKey: ["/api/admin/attendance/bulk-import/undo-status"] });
+            toast({
+                title: "↩️ Undo Import Berhasil",
+                description: `${data.restoredCount} data dikembalikan & ${data.deletedCount} data baru dihapus.`,
+            });
+        } catch (err: any) {
+            toast({ title: "Gagal Undo Import", description: err.message, variant: "destructive" });
+        } finally {
+            setIsUndoingBulkImport(false);
         }
     };
 
@@ -4336,6 +4367,18 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
                             <Button variant="outline" className="gap-2 bg-cyan-50 text-cyan-800 border-cyan-300 hover:bg-cyan-100 h-10 font-bold shadow-sm cursor-pointer" onClick={() => setIsBulkImportOpen(true)}>
                                 <Upload className="h-4 w-4 text-cyan-700" /> Import / Sync Fingerprint
                             </Button>
+                            {bulkUndoStatus?.canUndo && (
+                                <Button
+                                    variant="outline"
+                                    className="gap-2 bg-rose-50 text-rose-700 border-rose-300 hover:bg-rose-100 h-10 font-bold shadow-sm cursor-pointer"
+                                    onClick={handleUndoBulkImport}
+                                    disabled={isUndoingBulkImport}
+                                    title="Kembalikan data absensi ke kondisi sebelum Import Fingerprint terakhir"
+                                >
+                                    <RotateCcw className="h-4 w-4 text-rose-600" />
+                                    {isUndoingBulkImport ? "Mengembalikan..." : "Undo Import Terakhir"}
+                                </Button>
+                            )}
                             {reportType === "custom" && (
                                 <Button 
                                     variant="outline" 
@@ -4876,6 +4919,18 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
                                     <Upload className="h-4 w-4 text-cyan-700" />
                                     Import / Sync Fingerprint
                                 </Button>
+                                {bulkUndoStatus?.canUndo && (
+                                    <Button
+                                        variant="outline"
+                                        onClick={handleUndoBulkImport}
+                                        disabled={isUndoingBulkImport}
+                                        className="gap-2 bg-rose-50 hover:bg-rose-100 border-rose-300 text-rose-700 font-bold h-10 shadow-sm cursor-pointer"
+                                        title="Kembalikan data absensi ke kondisi sebelum Import Fingerprint terakhir"
+                                    >
+                                        <RotateCcw className="h-4 w-4 text-rose-600" />
+                                        {isUndoingBulkImport ? "Mengembalikan..." : "Undo Import Terakhir"}
+                                    </Button>
+                                )}
                             </div>
                         </div>
                     </div>
@@ -6449,19 +6504,35 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
                         )}
                     </div>
 
-                    <DialogFooter className="gap-2 pt-2 border-t">
-                        <Button type="button" variant="outline" onClick={() => setIsBulkImportOpen(false)} disabled={isBulkImporting}>
-                            Batal
-                        </Button>
-                        <Button
-                            type="button"
-                            onClick={handleExecuteBulkImport}
-                            disabled={isBulkImporting || parsedBulkImport.items.length === 0}
-                            className="bg-cyan-600 hover:bg-cyan-700 text-white font-bold gap-2 cursor-pointer"
-                        >
-                            <Upload className="w-4 h-4" />
-                            {isBulkImporting ? "Menyimpan ke Database..." : `Terapkan ${parsedBulkImport.items.length} Data ke Database`}
-                        </Button>
+                    <DialogFooter className="gap-2 pt-2 border-t flex flex-wrap sm:justify-between">
+                        <div>
+                            {bulkUndoStatus?.canUndo && (
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={handleUndoBulkImport}
+                                    disabled={isUndoingBulkImport || isBulkImporting}
+                                    className="bg-rose-50 hover:bg-rose-100 border-rose-300 text-rose-700 font-bold gap-1.5 cursor-pointer"
+                                >
+                                    <RotateCcw className="w-4 h-4" />
+                                    {isUndoingBulkImport ? "Mengembalikan..." : `Undo Import Terakhir (${(bulkUndoStatus.inserted || 0) + (bulkUndoStatus.updated || 0)} data)`}
+                                </Button>
+                            )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <Button type="button" variant="outline" onClick={() => setIsBulkImportOpen(false)} disabled={isBulkImporting}>
+                                Batal
+                            </Button>
+                            <Button
+                                type="button"
+                                onClick={handleExecuteBulkImport}
+                                disabled={isBulkImporting || parsedBulkImport.items.length === 0}
+                                className="bg-cyan-600 hover:bg-cyan-700 text-white font-bold gap-2 cursor-pointer"
+                            >
+                                <Upload className="w-4 h-4" />
+                                {isBulkImporting ? "Menyimpan ke Database..." : `Terapkan ${parsedBulkImport.items.length} Data ke Database`}
+                            </Button>
+                        </div>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
