@@ -381,31 +381,55 @@ export default function RecapPage() {
     // Helper untuk menyesuaikan perhitungan lembur:
     // 1. Khusus hari Sabtu dan Minggu (weekend): KUNCI hitungan jam 08:00 - 17:00 dikurang istirahat 1 jam (= 8 Jam). Sistem absensi tidak diubah, hanya rekap yang dikunci.
     // 2. Hari kerja biasa: Sesuaikan jam penugasan bulat
-    const calculateWeekendOvertimeHours = (checkInVal: any, checkOutVal: any): number => {
+    const calculateWeekendOvertimeHours = (checkInVal: any, checkOutVal: any, customBreakHours?: number | null): number => {
         if (!checkInVal || !checkOutVal) return 0;
         const cin = new Date(checkInVal);
         const cout = new Date(checkOutVal);
         if (isNaN(cin.getTime()) || isNaN(cout.getTime()) || cout <= cin) return 0;
 
+        const isSameDay = cin.getFullYear() === cout.getFullYear() &&
+            cin.getMonth() === cout.getMonth() &&
+            cin.getDate() === cout.getDate();
+
         const inHour = cin.getHours() + cin.getMinutes() / 60;
         const outHour = cout.getHours() + cout.getMinutes() / 60;
 
-        // Kunci jam 8 - 17: jika masuk <= 08:15 kunci jam 08:00. Jika pulang >= 16:45 kunci 17:00
-        const effIn = inHour <= 8.25 ? 8 : inHour;
-        const effOut = outHour >= 16.75 ? 17 : Math.min(17, outHour);
+        let grossHours = 0;
+        if (isSameDay && outHour <= 17.5) {
+            // Kunci jam 8 - 17 standar seperti awal
+            const effIn = inHour <= 8.25 ? 8 : inHour;
+            const effOut = outHour >= 16.75 ? 17 : Math.min(17, outHour);
+            grossHours = Math.min(9, Math.max(0, Math.floor(effOut - effIn)));
+        } else {
+            // Lembur weekend lintas tengah malam atau melewati 17:30 (misal 08:00 s/d 03:00 besoknya)
+            const sTime = new Date(cin);
+            if (inHour <= 8.25) sTime.setHours(8, 0, 0, 0);
+            else if (sTime.getMinutes() >= 35) sTime.setHours(sTime.getHours() + 1, 0, 0, 0);
+            else if (sTime.getMinutes() <= 15) sTime.setMinutes(0, 0, 0);
 
-        const gross = Math.max(0, effOut - effIn);
-        if (gross >= 5) {
-            // Kurang istirahat 1 jam, kunci maksimal 8 jam
-            return Math.min(8, Math.max(0, Math.floor(gross - 1)));
+            const eTime = new Date(cout);
+            if (eTime.getMinutes() <= 20) eTime.setMinutes(0, 0, 0);
+            else if (eTime.getMinutes() >= 45) eTime.setHours(eTime.getHours() + 1, 0, 0, 0);
+
+            let diffMins = Math.round((eTime.getTime() - sTime.getTime()) / 60000);
+            if (diffMins <= 0) diffMins = Math.round((cout.getTime() - cin.getTime()) / 60000);
+            grossHours = Math.max(0, Math.floor(diffMins / 60));
         }
-        return Math.min(8, Math.floor(gross));
+
+        if (customBreakHours !== undefined && customBreakHours !== null) {
+            return Math.max(0, grossHours - Math.max(0, Number(customBreakHours)));
+        }
+        if (grossHours >= 5) {
+            return Math.max(0, grossHours - 1);
+        }
+        return grossHours;
     };
 
     const normalizeOvertimeDuration = (
         startTimeVal: any,
         endTimeVal: any,
-        isWeekend: boolean
+        isWeekend: boolean,
+        customBreakHours?: number | null
     ): number => {
         if (!startTimeVal || !endTimeVal) return 0;
         const start = new Date(startTimeVal);
@@ -413,9 +437,8 @@ export default function RecapPage() {
         if (isNaN(start.getTime()) || isNaN(end.getTime()) || end <= start) return 0;
 
         // Aturan Khusus Lembur Sabtu & Minggu (Weekend):
-        // Kunci hitungan jam 08:00 - 17:00 dikurang 1 jam istirahat = 8 Jam
         if (isWeekend) {
-            return calculateWeekendOvertimeHours(start, end);
+            return calculateWeekendOvertimeHours(start, end, customBreakHours);
         }
 
         let sTime = new Date(start);
@@ -440,7 +463,11 @@ export default function RecapPage() {
             diffMins = Math.round((end.getTime() - start.getTime()) / 60000);
         }
 
-        return Math.max(0, Math.floor(diffMins / 60));
+        const grossHours = Math.max(0, Math.floor(diffMins / 60));
+        if (customBreakHours !== undefined && customBreakHours !== null) {
+            return Math.max(0, grossHours - Math.max(0, Number(customBreakHours)));
+        }
+        return grossHours;
     };
 
     const [searchRingkasan, setSearchRingkasan] = useState("");
@@ -805,7 +832,7 @@ export default function RecapPage() {
                     const otDate = ot.date ? new Date(ot.date) : (ot.startTime ? new Date(ot.startTime) : null);
                     const isWeekendOt = otDate ? (otDate.getDay() === 0 || otDate.getDay() === 6) : false;
 
-                    const sessionHours = normalizeOvertimeDuration(ot.startTime, ot.endTime, isWeekendOt);
+                    const sessionHours = normalizeOvertimeDuration(ot.startTime, ot.endTime, isWeekendOt, ot.breakHours);
                     if (sessionHours > 0) {
                         const roundedMins = sessionHours * 60;
                         totalLemburMins += roundedMins;
@@ -3707,7 +3734,7 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
                 const splItems = empOvertimes.map(ot => {
                     const otDate = ot.date ? new Date(ot.date) : (ot.startTime ? new Date(ot.startTime) : null);
                     const isWeekendOt = otDate ? (otDate.getDay() === 0 || otDate.getDay() === 6) : false;
-                    const otHours = normalizeOvertimeDuration(ot.startTime, ot.endTime, isWeekendOt);
+                    const otHours = normalizeOvertimeDuration(ot.startTime, ot.endTime, isWeekendOt, ot.breakHours);
                     const otDateStr = ot.date ? safeFormatDate(ot.date, "yyyy-MM-dd") : (ot.startTime ? safeFormatDate(ot.startTime, "yyyy-MM-dd") : "");
                     const matchingAtt = empAtt.find(a => safeFormatDate(a.date, 'yyyy-MM-dd') === otDateStr);
 
@@ -4411,7 +4438,7 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
 
                                                     const otDate = ot.date ? new Date(ot.date) : (ot.startTime ? new Date(ot.startTime) : null);
                                                     const isWeekendOt = otDate ? (otDate.getDay() === 0 || otDate.getDay() === 6) : false;
-                                                    const otHours = normalizeOvertimeDuration(ot.startTime, ot.endTime, isWeekendOt);
+                                                    const otHours = normalizeOvertimeDuration(ot.startTime, ot.endTime, isWeekendOt, ot.breakHours);
                                                     const otDurationStr = (hasFinished && otHours > 0) ? `${otHours} Jam` : (isOngoing ? "Sedang Lembur" : "-");
 
                                                     let statusLabel = "MENUNGGU KONFIRMASI";
@@ -5326,7 +5353,7 @@ const compressBlobToThumbnailBase64 = (blob: Blob, maxW = 160, maxH = 140, quali
                                                             {empOvertimes.map((ot: any) => {
                                                                 const otDate = ot.date ? new Date(ot.date) : (ot.startTime ? new Date(ot.startTime) : null);
                                                                 const isWeekendOt = otDate ? (otDate.getDay() === 0 || otDate.getDay() === 6) : false;
-                                                                const otHours = normalizeOvertimeDuration(ot.startTime, ot.endTime, isWeekendOt);
+                                                                const otHours = normalizeOvertimeDuration(ot.startTime, ot.endTime, isWeekendOt, ot.breakHours);
                                                                 const otDateStr = ot.date ? safeFormatDate(ot.date, "yyyy-MM-dd") : (ot.startTime ? safeFormatDate(ot.startTime, "yyyy-MM-dd") : "");
                                                                 const matchingAtt = empAtt.find(a => safeFormatDate(a.date, 'yyyy-MM-dd') === otDateStr);
                                                                 const photo1 = ot.initialProofUrl || matchingAtt?.checkInPhoto;
